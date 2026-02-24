@@ -111,6 +111,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   pendingAttachments: [],
   suggestions: [],
   projectMemory: {},
+  readingFiles: [],
   undoStack: [],
   canUndo: false,
 
@@ -145,7 +146,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ isStreaming: true, streamingContent: "" }),
 
   abortStreaming: () =>
-    set({ isStreaming: false, streamingContent: "" }),
+    set({ isStreaming: false, streamingContent: "", readingFiles: [] }),
 
   appendStreamChunk: (chunk: string) =>
     set((state) => ({
@@ -383,6 +384,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeTab: newActiveTab,
       workspaceOpen: state.workspaceOpen || !!shouldOpen,
       suggestions: suggestions || [],
+      readingFiles: [],
       undoStack: newUndoStack,
       canUndo: newUndoStack.length > 0,
       projects: newProjects,
@@ -442,6 +444,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   clearPendingAttachments: () => set({ pendingAttachments: [] }),
 
   clearSuggestions: () => set({ suggestions: [] }),
+
+  setReadingFiles: (files: string[]) => set({ readingFiles: files }),
 
   // ── Legacy Conversation History ──
 

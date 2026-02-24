@@ -64,17 +64,34 @@ export async function POST(req: Request) {
 
     // Inject project context if available
     if (projectContext) {
+      // 1. Inject full content for relevant KUs (scored by keyword match)
+      if (projectContext.relevantKUs?.length > 0) {
+        for (const ku of projectContext.relevantKUs) {
+          textContent += `\n\n<relevant_document title="${ku.title}" id="${ku.id}">\n${ku.content}\n</relevant_document>`;
+        }
+      }
+
+      // 2. Inject full CSV for relevant Tables
+      if (projectContext.relevantTables?.length > 0) {
+        for (const t of projectContext.relevantTables) {
+          textContent += `\n\n<relevant_table title="${t.title}" id="${t.id}">\n${t.csvContent}\n</relevant_table>`;
+        }
+      }
+
+      // 3. Project-level overview (all KUs + tables as summaries)
       let projCtx = `\n\n<project_context>\nProject: "${projectContext.title}" (id: ${projectContext.id})`;
       if (projectContext.knowledgeUnits?.length > 0) {
         projCtx += `\n\nKnowledge Units:`;
         for (const ku of projectContext.knowledgeUnits) {
-          projCtx += `\n- "${ku.title}" (id: ${ku.id}) — ${ku.summary}${ku.summary.length >= 200 ? "..." : ""}`;
+          const isExpanded = projectContext.relevantKUs?.some((r: any) => r.id === ku.id);
+          projCtx += `\n- "${ku.title}" (id: ${ku.id})${isExpanded ? " [full content provided above]" : ` — ${ku.summary}${ku.summary.length >= 200 ? "..." : ""}`}`;
         }
       }
       if (projectContext.tables?.length > 0) {
         projCtx += `\n\nTables:`;
         for (const t of projectContext.tables) {
-          projCtx += `\n- "${t.title}" (id: ${t.id}) — columns: [${(t.headers || []).join(", ")}]`;
+          const isExpanded = projectContext.relevantTables?.some((r: any) => r.id === t.id);
+          projCtx += `\n- "${t.title}" (id: ${t.id})${isExpanded ? " [full CSV provided above]" : ` — columns: [${(t.headers || []).join(", ")}]`}`;
         }
       }
       projCtx += `\n</project_context>`;

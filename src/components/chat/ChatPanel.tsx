@@ -12,6 +12,7 @@ import {
   extractDisplayText,
   parseSuggestions,
 } from "@/lib/ai/parseAIResponse";
+import { scoreRelevance } from "@/lib/ai/contextRelevance";
 import { design } from "@/lib/design";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
@@ -76,18 +77,38 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         ];
 
         // Build project context if in a project
-        let projectContext = undefined;
+        let projectContext: any = undefined;
         if (state.currentProjectId) {
           const project = state.projects.find((p) => p.id === state.currentProjectId);
           if (project) {
+            // Score relevance of KUs and tables to the user's message
+            const relevanceResult = scoreRelevance(
+              content,
+              project.knowledgeUnits,
+              project.tables,
+              state.currentEntityId,
+              { maxKUs: 4, maxTables: 3, charBudget: 50000, minScore: 1.0 }
+            );
+
+            // Store reading files for the UI indicator
+            const readingFiles = [
+              ...relevanceResult.relevantKUs.map((k) => k.title),
+              ...relevanceResult.relevantTables.map((t) => t.title),
+            ];
+            if (readingFiles.length > 0) {
+              useAppStore.getState().setReadingFiles(readingFiles);
+            }
+
             projectContext = {
               id: project.id,
               title: project.title,
+              // Summaries for all KUs (reduced to 200 chars since relevant ones get full content)
               knowledgeUnits: project.knowledgeUnits.map((k) => ({
                 id: k.id,
                 title: k.title,
-                summary: k.id === state.currentEntityId ? k.content : k.content.slice(0, 500),
+                summary: k.id === state.currentEntityId ? k.content : k.content.slice(0, 200),
               })),
+              // Headers for all tables
               tables: project.tables.map((t) => ({
                 id: t.id,
                 title: t.title,
@@ -96,6 +117,17 @@ export function ChatPanel({ centered }: ChatPanelProps) {
                   .sort((a, b) => a.c - b.c)
                   .map((c) => c.v?.v || "")
                   .slice(0, 20),
+              })),
+              // Full content for relevant matches
+              relevantKUs: relevanceResult.relevantKUs.map((k) => ({
+                id: k.id,
+                title: k.title,
+                content: k.content,
+              })),
+              relevantTables: relevanceResult.relevantTables.map((t) => ({
+                id: t.id,
+                title: t.title,
+                csvContent: t.csvContent,
               })),
             };
           }

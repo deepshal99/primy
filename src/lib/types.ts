@@ -260,6 +260,7 @@ export interface AppState {
   pendingAttachments: FileAttachment[];
   suggestions: string[];
   projectMemory: ProjectMemory;
+  readingFiles: string[];
 
   // Undo history
   undoStack: UndoSnapshot[];
@@ -290,6 +291,7 @@ export interface AppState {
   ) => void;
   abortStreaming: () => void;
   clearSuggestions: () => void;
+  setReadingFiles: (files: string[]) => void;
   applySheetOperations: (operations: SheetOperation[]) => void;
   applyDocOperations: (operations: DocOperation[]) => void;
   updateSheetData: (data: SheetData[]) => void;
