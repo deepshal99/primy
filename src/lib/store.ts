@@ -794,6 +794,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       isStreaming: false,
       streamingContent: "",
       pendingAttachments: [],
+      suggestions: [],
       projectMemory: project.memory || {},
       undoStack: [],
       canUndo: false,

@@ -13,7 +13,6 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.78.0",
     "@auth/core": "^0.41.0",
     "@fortune-sheet/core": "^1.0.4",
     "@fortune-sheet/react": "^1.0.4",

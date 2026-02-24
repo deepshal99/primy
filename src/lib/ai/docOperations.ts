@@ -14,11 +14,9 @@ export function applyDocOps(
 function applyDocOp(content: string, op: DocOperation): string {
   switch (op.type) {
     case "SET_CONTENT":
-      console.log("[Drafta] SET_CONTENT applied:", op.markdown.length, "chars");
       return op.markdown;
 
     case "APPEND_CONTENT":
-      console.log("[Drafta] APPEND_CONTENT applied:", op.markdown.length, "chars");
       return content ? content + "\n\n" + op.markdown : op.markdown;
 
     case "REPLACE_SECTION": {
@@ -48,11 +46,9 @@ function applyDocOp(content: string, op: DocOperation): string {
       }
 
       if (startIdx === -1) {
-        console.log("[Drafta] REPLACE_SECTION: heading not found, appending");
         return content + "\n\n" + op.markdown;
       }
 
-      console.log("[Drafta] REPLACE_SECTION applied: replaced lines", startIdx, "-", endIdx);
       const before = lines.slice(0, startIdx);
       const after = lines.slice(endIdx);
       return [...before, op.markdown, ...after].join("\n");

@@ -15,8 +15,9 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const autoSubmitted = useRef(false);
 
-  // Auto-submit for dev/testing — remove in production
+  // Auto-submit for dev/testing — only in development
   useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
     if (autoSubmitted.current) return;
     autoSubmitted.current = true;
     (async () => {

@@ -19,6 +19,9 @@ export function getWorkbookApi() {
   return workbookRef;
 }
 
+// Debounce timer for saving sheet changes
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
 export function SheetView() {
   const sheets = useAppStore((s) => s.sheets);
   const sheetVersion = useAppStore((s) => s.sheetVersion);
@@ -28,6 +31,11 @@ export function SheetView() {
 
   const handleChange = useCallback((data: any) => {
     if (isUpdatingRef.current) return;
+    // Debounce: persist manual edits to store after 300ms of inactivity
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      useAppStore.getState().updateSheetData(data);
+    }, 300);
   }, []);
 
   const handleRef = useCallback((ref: any) => {

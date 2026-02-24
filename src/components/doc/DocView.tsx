@@ -109,11 +109,27 @@ export function DocView() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let result = "";
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        result += decoder.decode(value, { stream: true });
+        buffer += decoder.decode(value, { stream: true });
+        // Parse SSE chunks: each line is "data: {...}\n\n"
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || ""; // Keep incomplete line in buffer
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data: ")) continue;
+          const data = trimmed.slice(6);
+          if (data === "[DONE]") continue;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.text) result += parsed.text;
+          } catch {
+            // Skip malformed chunks
+          }
+        }
       }
 
       // Clean up AI response (remove markdown fences if any)

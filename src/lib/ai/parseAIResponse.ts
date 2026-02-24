@@ -8,24 +8,15 @@ export function parseSheetOperations(fullText: string): SheetOperation[] {
   while ((match = regex.exec(fullText)) !== null) {
     try {
       const jsonStr = match[1].trim();
-      console.log("[Drafta] Parsing sheetops JSON (first 200 chars):", jsonStr.slice(0, 200));
       const parsed = JSON.parse(jsonStr);
       if (parsed.operations && Array.isArray(parsed.operations)) {
         operations.push(...parsed.operations);
-        console.log("[Drafta] Successfully parsed", parsed.operations.length, "sheet operations");
       } else if (parsed.type) {
         operations.push(parsed);
-        console.log("[Drafta] Parsed single sheet operation:", parsed.type);
       }
-    } catch (e) {
-      console.error("[Drafta] Failed to parse sheet operations:", e);
-      console.error("[Drafta] Raw content:", match[1].slice(0, 300));
+    } catch {
+      // Skip malformed sheet operations
     }
-  }
-
-  if (operations.length === 0 && fullText.includes("sheetops")) {
-    console.warn("[Drafta] Found 'sheetops' in text but couldn't parse operations.");
-    console.warn("[Drafta] Text around sheetops:", fullText.slice(fullText.indexOf("sheetops") - 20, fullText.indexOf("sheetops") + 200));
   }
 
   return operations;
@@ -39,18 +30,14 @@ export function parseDocOperations(fullText: string): DocOperation[] {
   while ((match = regex.exec(fullText)) !== null) {
     try {
       const jsonStr = match[1].trim();
-      console.log("[Drafta] Parsing docops JSON (first 200 chars):", jsonStr.slice(0, 200));
       const parsed = JSON.parse(jsonStr);
       if (parsed.operations && Array.isArray(parsed.operations)) {
         operations.push(...parsed.operations);
-        console.log("[Drafta] Successfully parsed", parsed.operations.length, "doc operations");
       } else if (parsed.type) {
         operations.push(parsed);
-        console.log("[Drafta] Parsed single doc operation:", parsed.type);
       }
-    } catch (e) {
-      console.error("[Drafta] Failed to parse doc operations:", e);
-      console.error("[Drafta] Raw content:", match[1].slice(0, 300));
+    } catch {
+      // Skip malformed doc operations
     }
   }
 
@@ -67,7 +54,6 @@ export function parseKuOperations(fullText: string): KuOperation[] {
   while ((match = regex.exec(fullText)) !== null) {
     try {
       const raw = match[1].trim();
-      console.log("[Drafta] Parsing kuops (first 200 chars):", raw.slice(0, 200));
 
       // Try JSON parse first
       try {
@@ -104,8 +90,8 @@ export function parseKuOperations(fullText: string): KuOperation[] {
           operations.push({ type: "RENAME", kuId: renameMatch[1], title: renameMatch[2] });
         }
       }
-    } catch (e) {
-      console.error("[Drafta] Failed to parse KU operations:", e);
+    } catch {
+      // Skip malformed KU operations
     }
   }
 
@@ -122,17 +108,14 @@ export function parseTableOperations(fullText: string): TableOperation[] {
   while ((match = regex.exec(fullText)) !== null) {
     try {
       const jsonStr = match[1].trim();
-      console.log("[Drafta] Parsing tableops JSON (first 200 chars):", jsonStr.slice(0, 200));
       const parsed = JSON.parse(jsonStr);
       if (parsed.operations && Array.isArray(parsed.operations)) {
         operations.push(...parsed.operations);
-        console.log("[Drafta] Successfully parsed", parsed.operations.length, "table operations");
       } else if (parsed.type) {
         operations.push(parsed);
-        console.log("[Drafta] Parsed single table operation:", parsed.type);
       }
-    } catch (e) {
-      console.error("[Drafta] Failed to parse table operations:", e);
+    } catch {
+      // Skip malformed table operations
     }
   }
 

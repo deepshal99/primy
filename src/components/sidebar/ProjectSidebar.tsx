@@ -399,7 +399,11 @@ export function ProjectSidebar() {
           </button>
           <button
             onClick={() => {
-              deleteProject(contextMenu.id);
+              const project = projects.find((p) => p.id === contextMenu.id);
+              const name = project?.title || "this project";
+              if (window.confirm(`Delete "${name}"? This will remove all its documents and tables.`)) {
+                deleteProject(contextMenu.id);
+              }
               setContextMenu(null);
             }}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors text-left"

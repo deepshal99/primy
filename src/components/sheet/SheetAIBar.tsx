@@ -33,7 +33,7 @@ function getSelectedCellsInfo(): { rangeLabel: string; cellValues: string } | nu
 
     // Get cell values from the store directly
     const sheets = useAppStore.getState().sheets;
-    const activeSheet = sheets[0]; // Use first sheet
+    const activeSheet = sheets.find((s: any) => s.status === 1) || sheets[0];
     if (!activeSheet?.celldata) return null;
 
     const rows: string[][] = [];

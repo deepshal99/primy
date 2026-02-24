@@ -31,7 +31,6 @@ function applyOperation(
         const maxCol = Math.max(...sheet.celldata.map((c) => c.c), 0);
         sheet.row = Math.max(sheet.row || 50, maxRow + 10);
         sheet.column = Math.max(sheet.column || 26, maxCol + 5);
-        console.log("[Drafta] SET_SHEET_DATA applied:", sheet.celldata.length, "cells");
         break;
       }
 
