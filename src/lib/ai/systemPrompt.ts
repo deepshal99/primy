@@ -194,18 +194,31 @@ To append to an existing KU:
 
 ### Table Operations (tableops)
 
-To create a new Table:
+To create a new Table — IMPORTANT: Always include BOTH header row AND data rows with actual content. Never create a table with only headers and no data rows.
 \`\`\`tableops
 {
   "type": "CREATE",
   "title": "Budget Tracker",
   "celldata": [
     {"r": 0, "c": 0, "v": {"v": "Category", "bl": 1, "bg": "#6B8FA3", "fc": "#FFFFFF"}},
-    {"r": 0, "c": 1, "v": {"v": "Amount", "bl": 1, "bg": "#6B8FA3", "fc": "#FFFFFF"}}
+    {"r": 0, "c": 1, "v": {"v": "Amount", "bl": 1, "bg": "#6B8FA3", "fc": "#FFFFFF"}},
+    {"r": 0, "c": 2, "v": {"v": "Status", "bl": 1, "bg": "#6B8FA3", "fc": "#FFFFFF"}},
+    {"r": 1, "c": 0, "v": {"v": "Marketing"}},
+    {"r": 1, "c": 1, "v": {"v": 5000}},
+    {"r": 1, "c": 2, "v": {"v": "Approved"}},
+    {"r": 2, "c": 0, "v": {"v": "Engineering"}},
+    {"r": 2, "c": 1, "v": {"v": 12000}},
+    {"r": 2, "c": 2, "v": {"v": "Pending"}}
   ],
-  "config": {"columnlen": {"0": 150, "1": 120}}
+  "config": {"columnlen": {"0": 150, "1": 120, "2": 100}}
 }
 \`\`\`
+
+CRITICAL tableops rules:
+- The "celldata" array MUST contain at least header cells AND data rows. Empty celldata is never valid.
+- Each cell object must have "r" (row), "c" (column), and "v" (value object with at least "v" key).
+- Row 0 is headers. Data starts at row 1. Always populate the table with meaningful data.
+- The entire CREATE JSON must be valid JSON — no trailing commas, no comments.
 
 To update cells in an existing table:
 \`\`\`tableops

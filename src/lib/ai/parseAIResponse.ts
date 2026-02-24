@@ -1,21 +1,76 @@
 import { SheetOperation, DocOperation, KuOperation, TableOperation } from "@/lib/types";
 
+/**
+ * Extract content between ```tag and ``` fences.
+ * Uses indexOf for the closing fence to avoid regex issues with nested JSON.
+ */
+function extractFencedBlocks(fullText: string, tag: string): string[] {
+  const blocks: string[] = [];
+  const openPattern = new RegExp("```" + tag + "\\s*\\n", "g");
+  let openMatch: RegExpExecArray | null;
+
+  while ((openMatch = openPattern.exec(fullText)) !== null) {
+    const startIdx = openMatch.index + openMatch[0].length;
+    // Find the closing ``` — scan for \n``` that isn't followed by another tag
+    const closeIdx = fullText.indexOf("\n```", startIdx);
+    if (closeIdx === -1) {
+      // No closing fence — try to extract whatever we have
+      const remaining = fullText.slice(startIdx).trim();
+      if (remaining) blocks.push(remaining);
+    } else {
+      blocks.push(fullText.slice(startIdx, closeIdx).trim());
+    }
+  }
+
+  return blocks;
+}
+
+/**
+ * Try to parse JSON, handling common AI output quirks.
+ */
+function robustJsonParse(jsonStr: string): any {
+  // First try direct parse
+  try {
+    return JSON.parse(jsonStr);
+  } catch {
+    // Strip trailing commas before } or ]
+    const cleaned = jsonStr
+      .replace(/,\s*([}\]])/g, "$1")
+      .replace(/\/\/[^\n]*/g, "") // remove single-line comments
+      .trim();
+
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      return null;
+    }
+  }
+}
+
+function parseOpsFromBlock<T>(block: string): T[] {
+  const parsed = robustJsonParse(block);
+  if (!parsed) return [];
+
+  if (parsed.operations && Array.isArray(parsed.operations)) {
+    return parsed.operations as T[];
+  } else if (parsed.type) {
+    return [parsed as T];
+  } else if (Array.isArray(parsed)) {
+    return parsed.filter((item: any) => item?.type) as T[];
+  }
+  return [];
+}
+
 export function parseSheetOperations(fullText: string): SheetOperation[] {
-  const regex = /```sheetops\s*\n([\s\S]*?)\n?\s*```/g;
+  const blocks = extractFencedBlocks(fullText, "sheetops");
   const operations: SheetOperation[] = [];
 
-  let match;
-  while ((match = regex.exec(fullText)) !== null) {
-    try {
-      const jsonStr = match[1].trim();
-      const parsed = JSON.parse(jsonStr);
-      if (parsed.operations && Array.isArray(parsed.operations)) {
-        operations.push(...parsed.operations);
-      } else if (parsed.type) {
-        operations.push(parsed);
-      }
-    } catch {
-      // Skip malformed sheet operations
+  for (const block of blocks) {
+    const ops = parseOpsFromBlock<SheetOperation>(block);
+    if (ops.length > 0) {
+      operations.push(...ops);
+    } else {
+      console.warn("[Drafta] Failed to parse sheetops block:", block.slice(0, 200));
     }
   }
 
@@ -23,21 +78,15 @@ export function parseSheetOperations(fullText: string): SheetOperation[] {
 }
 
 export function parseDocOperations(fullText: string): DocOperation[] {
-  const regex = /```docops\s*\n([\s\S]*?)\n?\s*```/g;
+  const blocks = extractFencedBlocks(fullText, "docops");
   const operations: DocOperation[] = [];
 
-  let match;
-  while ((match = regex.exec(fullText)) !== null) {
-    try {
-      const jsonStr = match[1].trim();
-      const parsed = JSON.parse(jsonStr);
-      if (parsed.operations && Array.isArray(parsed.operations)) {
-        operations.push(...parsed.operations);
-      } else if (parsed.type) {
-        operations.push(parsed);
-      }
-    } catch {
-      // Skip malformed doc operations
+  for (const block of blocks) {
+    const ops = parseOpsFromBlock<DocOperation>(block);
+    if (ops.length > 0) {
+      operations.push(...ops);
+    } else {
+      console.warn("[Drafta] Failed to parse docops block:", block.slice(0, 200));
     }
   }
 
@@ -47,51 +96,44 @@ export function parseDocOperations(fullText: string): DocOperation[] {
 // ── KU Operations Parser ──
 
 export function parseKuOperations(fullText: string): KuOperation[] {
-  const regex = /```kuops\s*\n([\s\S]*?)\n?\s*```/g;
+  const blocks = extractFencedBlocks(fullText, "kuops");
   const operations: KuOperation[] = [];
 
-  let match;
-  while ((match = regex.exec(fullText)) !== null) {
-    try {
-      const raw = match[1].trim();
+  for (const block of blocks) {
+    // Try JSON parse first
+    const ops = parseOpsFromBlock<KuOperation>(block);
+    if (ops.length > 0) {
+      operations.push(...ops);
+      continue;
+    }
 
-      // Try JSON parse first
-      try {
-        const parsed = JSON.parse(raw);
-        if (parsed.operations && Array.isArray(parsed.operations)) {
-          operations.push(...parsed.operations);
-        } else if (parsed.type) {
-          operations.push(parsed);
-        }
-        continue;
-      } catch {
-        // Not JSON — try the CREATE title="..." format
+    // Parse CREATE title="Title"\n---\ncontent format
+    const createMatch = block.match(/^CREATE\s+title\s*=\s*"([^"]+)"\s*\n---\n([\s\S]*)$/);
+    if (createMatch) {
+      operations.push({
+        type: "CREATE",
+        title: createMatch[1],
+        content: createMatch[2].trim(),
+      });
+      continue;
+    }
+
+    // Parse as line-based commands
+    const lines = block.split("\n");
+    let found = false;
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      const renameMatch = trimmed.match(/^RENAME\s+(\S+)\s+title\s*=\s*"([^"]+)"$/);
+      if (renameMatch) {
+        operations.push({ type: "RENAME", kuId: renameMatch[1], title: renameMatch[2] });
+        found = true;
       }
+    }
 
-      // Parse CREATE title="Title"\n---\ncontent format
-      const createMatch = raw.match(/^CREATE\s+title\s*=\s*"([^"]+)"\s*\n---\n([\s\S]*)$/);
-      if (createMatch) {
-        operations.push({
-          type: "CREATE",
-          title: createMatch[1],
-          content: createMatch[2].trim(),
-        });
-        continue;
-      }
-
-      // Parse as line-based commands
-      const lines = raw.split("\n");
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-
-        const renameMatch = trimmed.match(/^RENAME\s+(\S+)\s+title\s*=\s*"([^"]+)"$/);
-        if (renameMatch) {
-          operations.push({ type: "RENAME", kuId: renameMatch[1], title: renameMatch[2] });
-        }
-      }
-    } catch {
-      // Skip malformed KU operations
+    if (!found) {
+      console.warn("[Drafta] Failed to parse kuops block:", block.slice(0, 200));
     }
   }
 
@@ -101,21 +143,21 @@ export function parseKuOperations(fullText: string): KuOperation[] {
 // ── Table Operations Parser ──
 
 export function parseTableOperations(fullText: string): TableOperation[] {
-  const regex = /```tableops\s*\n([\s\S]*?)\n?\s*```/g;
+  const blocks = extractFencedBlocks(fullText, "tableops");
   const operations: TableOperation[] = [];
 
-  let match;
-  while ((match = regex.exec(fullText)) !== null) {
-    try {
-      const jsonStr = match[1].trim();
-      const parsed = JSON.parse(jsonStr);
-      if (parsed.operations && Array.isArray(parsed.operations)) {
-        operations.push(...parsed.operations);
-      } else if (parsed.type) {
-        operations.push(parsed);
+  for (const block of blocks) {
+    const ops = parseOpsFromBlock<TableOperation>(block);
+    if (ops.length > 0) {
+      for (const op of ops) {
+        if (op.type === "CREATE" && (!op.celldata || !Array.isArray(op.celldata) || op.celldata.length === 0)) {
+          console.warn("[Drafta] tableops CREATE has empty/missing celldata, skipping:", JSON.stringify(op).slice(0, 200));
+          continue;
+        }
+        operations.push(op);
       }
-    } catch {
-      // Skip malformed table operations
+    } else {
+      console.warn("[Drafta] Failed to parse tableops block:", block.slice(0, 200));
     }
   }
 
@@ -123,11 +165,30 @@ export function parseTableOperations(fullText: string): TableOperation[] {
 }
 
 export function extractDisplayText(fullText: string): string {
-  return fullText
-    .replace(/```sheetops\s*\n[\s\S]*?\n?\s*```/g, "")
-    .replace(/```docops\s*\n[\s\S]*?\n?\s*```/g, "")
-    .replace(/```kuops\s*\n[\s\S]*?\n?\s*```/g, "")
-    .replace(/```tableops\s*\n[\s\S]*?\n?\s*```/g, "")
+  // Use the same extraction approach — find fenced blocks and remove them
+  let result = fullText;
+  for (const tag of ["sheetops", "docops", "kuops", "tableops"]) {
+    const openPattern = new RegExp("```" + tag + "\\s*\\n", "g");
+    let openMatch: RegExpExecArray | null;
+    // Process in reverse order to avoid index shifting
+    const ranges: [number, number][] = [];
+
+    while ((openMatch = openPattern.exec(result)) !== null) {
+      const start = openMatch.index;
+      const closeIdx = result.indexOf("\n```", start + openMatch[0].length);
+      if (closeIdx !== -1) {
+        // +4 for "\n```"
+        ranges.push([start, closeIdx + 4]);
+      }
+    }
+
+    // Remove ranges in reverse
+    for (let i = ranges.length - 1; i >= 0; i--) {
+      result = result.slice(0, ranges[i][0]) + result.slice(ranges[i][1]);
+    }
+  }
+
+  return result
     .replace(/<suggestions>[\s\S]*?<\/suggestions>/g, "")
     .trim();
 }

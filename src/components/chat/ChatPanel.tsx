@@ -203,6 +203,14 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         const tableOps = parseTableOperations(fullText);
         const suggestions = parseSuggestions(fullText);
         const displayText = extractDisplayText(fullText);
+
+        // Debug: warn if AI tried to output ops but parsing failed
+        if (sheetOps.length === 0 && docOps.length === 0 && kuOps.length === 0 && tableOps.length === 0) {
+          if (fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops")) {
+            console.warn("[Drafta] Operation blocks found but none parsed. Raw tail:", fullText.slice(-600));
+          }
+        }
+
         finishStreaming(displayText || fullText, sheetOps, docOps, kuOps, tableOps, suggestions);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
