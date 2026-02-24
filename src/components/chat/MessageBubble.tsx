@@ -11,7 +11,6 @@ import {
   ArrowRight,
   Copy,
   Check,
-  Sparkles,
 } from "lucide-react";
 import { Message } from "@/lib/types";
 import { design } from "@/lib/design";
@@ -197,34 +196,16 @@ function ThinkingIndicator() {
 
   return (
     <div className="flex items-center gap-2.5 py-1">
-      <div
-        className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
-        style={{ backgroundColor: design.colors.accent.goldSubtle }}
-      >
-        <Sparkles
-          className="w-3.5 h-3.5"
-          style={{ color: design.colors.accent.gold }}
-          strokeWidth={2}
-        />
-      </div>
+      <Loader2
+        className="w-4 h-4 animate-spin flex-shrink-0"
+        style={{ color: design.colors.text.muted }}
+        strokeWidth={2}
+      />
       <span
-        className="text-[13px] font-medium"
+        className="text-[13px] font-medium shimmer-text"
         style={{ color: design.colors.text.secondary }}
       >
         {label}
-      </span>
-      <span className="inline-flex items-center gap-[3px] ml-0.5">
-        {[0, 1, 2].map((i) => (
-          <span
-            key={i}
-            className="w-[4px] h-[4px] rounded-full animate-bounce"
-            style={{
-              backgroundColor: design.colors.text.muted,
-              animationDelay: `${i * 150}ms`,
-              animationDuration: "1s",
-            }}
-          />
-        ))}
       </span>
     </div>
   );

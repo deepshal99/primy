@@ -214,6 +214,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     let newProjects = state.projects;
     let newCurrentEntityId = state.currentEntityId;
     let newCurrentEntityType = state.currentEntityType;
+    let newOpenTabs = state.openTabs;
 
     if (state.currentProjectId && (hasKuOps || hasTableOps)) {
       newProjects = [...state.projects];
@@ -242,6 +243,10 @@ export const useAppStore = create<AppState>((set, get) => ({
                 newDocContent = newKu.content;
                 newDocVersion = state.docVersion + 1;
                 newActiveTab = "doc";
+                // Add to open tabs
+                if (!newOpenTabs.some((t) => t.id === newKu.id)) {
+                  newOpenTabs = [...newOpenTabs, { id: newKu.id, type: "ku" as const, title: newKu.title }];
+                }
                 break;
               }
               case "UPDATE": {
@@ -320,6 +325,10 @@ export const useAppStore = create<AppState>((set, get) => ({
                 newSheets = newTable.sheets;
                 newSheetVersion = state.sheetVersion + 1;
                 newActiveTab = "sheet";
+                // Add to open tabs
+                if (!newOpenTabs.some((t) => t.id === newTable.id)) {
+                  newOpenTabs = [...newOpenTabs, { id: newTable.id, type: "table" as const, title: newTable.title }];
+                }
                 break;
               }
               case "UPDATE_CELLS": {
@@ -397,6 +406,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       projects: newProjects,
       currentEntityId: newCurrentEntityId,
       currentEntityType: newCurrentEntityType,
+      openTabs: newOpenTabs,
     });
 
     // Auto-save

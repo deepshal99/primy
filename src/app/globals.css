@@ -392,6 +392,27 @@ html, body {
   transition: background-color 0.3s ease;
 }
 
+/* Text shimmer effect for loading states */
+@keyframes textShimmer {
+  0% { background-position: -100% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer-text {
+  background: linear-gradient(
+    90deg,
+    #6B6963 0%,
+    #6B6963 40%,
+    #1A1A18 50%,
+    #6B6963 60%,
+    #6B6963 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: textShimmer 2s ease-in-out infinite;
+}
+
 /* Hide scrollbar but allow scrolling */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
