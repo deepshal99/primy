@@ -27,6 +27,28 @@ async function ensureUserExists(session: { user: { id: string; name?: string | n
   }
 }
 
+/**
+ * Ensure project row exists. Handles race condition where PUT arrives
+ * before the background POST that creates the project row.
+ */
+async function ensureProjectExists(id: string, userId: string, body: Record<string, any>) {
+  const [existing] = await db
+    .select({ id: projects.id })
+    .from(projects)
+    .where(and(eq(projects.id, id), eq(projects.userId, userId)))
+    .limit(1);
+
+  if (!existing) {
+    await db.insert(projects).values({
+      id,
+      userId,
+      title: body.title || "New Project",
+      description: body.description,
+      projectType: body.projectType,
+    }).onConflictDoNothing();
+  }
+}
+
 // PUT /api/projects/[id] — update a project
 export async function PUT(
   req: Request,
@@ -43,16 +65,8 @@ export async function PUT(
     const { id } = await params;
     const body = await req.json();
 
-    // Verify ownership
-    const [existing] = await db
-      .select()
-      .from(projects)
-      .where(and(eq(projects.id, id), eq(projects.userId, session.user.id)))
-      .limit(1);
-
-    if (!existing) {
-      return Response.json({ error: "Not found" }, { status: 404 });
-    }
+    // Ensure project exists (handles race with background POST)
+    await ensureProjectExists(id, session.user.id, body);
 
     const updates: Record<string, any> = { updatedAt: new Date() };
     if (body.title !== undefined) updates.title = body.title;
