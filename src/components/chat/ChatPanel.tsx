@@ -39,6 +39,13 @@ export function ChatPanel({ centered }: ChatPanelProps) {
 
   const sendMessage = useCallback(
     async (content: string, attachments?: FileAttachment[]) => {
+      // Auto-create a project if none exists (everything is project-based)
+      if (!useAppStore.getState().currentProjectId) {
+        useAppStore.getState().createProject("New Project");
+        // Don't open workspace yet — let finishStreaming open it when AI returns content
+        useAppStore.setState({ workspaceOpen: false });
+      }
+
       // Snapshot messages BEFORE addUserMessage to avoid sending the new message twice
       const priorMessages = useAppStore.getState().messages;
 

@@ -10,7 +10,7 @@ import { useAppStore } from "@/lib/store";
 export function AppShell() {
   const workspaceOpen = useAppStore((s) => s.workspaceOpen);
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
-  const newConversation = useAppStore((s) => s.newConversation);
+  const createProject = useAppStore((s) => s.createProject);
   const undo = useAppStore((s) => s.undo);
   const canUndo = useAppStore((s) => s.canUndo);
   const [chatWidth, setChatWidth] = useState(420);
@@ -23,7 +23,7 @@ export function AppShell() {
       if (e.metaKey || e.ctrlKey) {
         if (e.key === "k") {
           e.preventDefault();
-          newConversation();
+          createProject("New Project");
         }
         if (e.key === "b") {
           e.preventDefault();
@@ -41,7 +41,7 @@ export function AppShell() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [toggleSidebar, newConversation, undo, canUndo]);
+  }, [toggleSidebar, createProject, undo, canUndo]);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {

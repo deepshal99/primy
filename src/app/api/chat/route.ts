@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   try {
     const { messages, sheetData, docContent, projectMemory, projectContext } = await req.json();
 
-    const modelId = "gemini-3.1-pro-preview";
+    const modelId = "gemini-3-flash-preview";
 
     // Build full contents array for Gemini (history + current message)
     const contents: any[] = [];
