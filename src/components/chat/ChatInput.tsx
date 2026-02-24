@@ -70,10 +70,12 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
       const fileArray = Array.from(files);
-      const currentCount = pendingAttachments.length;
+      let added = 0;
 
       for (const file of fileArray) {
-        if (currentCount + pendingAttachments.length >= MAX_FILES_PER_MESSAGE) {
+        // Use live state to get accurate count (avoids stale closure)
+        const liveCount = useAppStore.getState().pendingAttachments.length;
+        if (liveCount >= MAX_FILES_PER_MESSAGE) {
           toast.error(`Maximum ${MAX_FILES_PER_MESSAGE} files per message`);
           break;
         }

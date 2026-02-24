@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
 import "@fortune-sheet/react/dist/index.css";
 import { useAppStore } from "@/lib/store";
@@ -34,6 +34,8 @@ export function SheetView() {
 
   const handleChange = useCallback((data: any) => {
     if (isUpdatingRef.current) return;
+    // Guard: don't write sheet data when a doc (KU) is the active entity
+    if (useAppStore.getState().currentEntityType !== "table" && useAppStore.getState().currentEntityType !== null) return;
     // Debounce: persist manual edits to store after 300ms of inactivity
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
@@ -47,13 +49,16 @@ export function SheetView() {
   }, []);
 
   const prevVersionRef = useRef(sheetVersion);
-  if (sheetVersion !== prevVersionRef.current) {
-    isUpdatingRef.current = true;
-    prevVersionRef.current = sheetVersion;
-    setTimeout(() => {
-      isUpdatingRef.current = false;
-    }, 500);
-  }
+  useEffect(() => {
+    if (sheetVersion !== prevVersionRef.current) {
+      isUpdatingRef.current = true;
+      prevVersionRef.current = sheetVersion;
+      const timer = setTimeout(() => {
+        isUpdatingRef.current = false;
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [sheetVersion]);
 
   const hasData = sheets.some((s) => s.celldata && s.celldata.length > 0);
 

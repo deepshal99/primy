@@ -26,6 +26,20 @@ export function ProjectHome() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!menuOpenId) return;
+    const handler = (e: MouseEvent) => {
+      // Check if click is inside a menu dropdown
+      const target = e.target as HTMLElement;
+      if (target.closest("[data-entity-menu]")) return;
+      setMenuOpenId(null);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpenId]);
 
   const project = projects.find((p) => p.id === currentProjectId);
   if (!project) return null;
@@ -284,12 +298,12 @@ export function ProjectHome() {
                       e.currentTarget.style.borderColor = design.colors.border.default;
                       e.currentTarget.style.boxShadow = "none";
                       e.currentTarget.style.transform = "translateY(0)";
-                      setMenuOpenId(null);
                     }}
                   >
                     {/* ··· Menu button */}
                     <div
                       className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                      data-entity-menu
                       onClick={(e) => e.stopPropagation()}
                     >
                       <button

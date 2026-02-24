@@ -65,6 +65,8 @@ export function DocView() {
     },
     onUpdate: ({ editor }) => {
       if (isAIUpdatingRef.current) return;
+      // Guard: don't write doc content when a table is the active entity
+      if (useAppStore.getState().currentEntityType !== "ku" && useAppStore.getState().currentEntityType !== null) return;
       const md = (editor.storage as any).markdown?.getMarkdown?.() || editor.getHTML();
       updateDocContent(md);
     },
@@ -92,6 +94,8 @@ export function DocView() {
   const runAIEdit = useCallback(async (prompt: string, text: string) => {
     if (!editor || !prompt.trim() || !text) return;
     setAiEditLoading(true);
+    // Snapshot doc size before the async call to detect stale selections
+    const docSizeBefore = editor.state.doc.content.size;
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -139,6 +143,13 @@ export function DocView() {
       let cleaned = result.trim();
       if (cleaned.startsWith("```")) {
         cleaned = cleaned.replace(/^```\w*\n?/, "").replace(/\n?```$/, "").trim();
+      }
+
+      // Guard: if the doc changed while we were fetching, bail to avoid corrupting content
+      if (editor.state.doc.content.size !== docSizeBefore) {
+        const { toast: t } = await import("sonner");
+        t.error("Document changed during AI edit. Please try again.");
+        return;
       }
 
       // Replace the selected text with AI result and highlight the change
@@ -242,18 +253,21 @@ export function DocView() {
       setShowBubble(true);
     };
 
-    editor.on("selectionUpdate", updateBubble);
-    editor.on("blur", () => {
+    const blurHandler = () => {
       // Delay to allow button clicks inside the bubble
       setTimeout(() => {
         if (!bubbleRef.current?.contains(document.activeElement)) {
           setShowBubble(false);
         }
       }, 200);
-    });
+    };
+
+    editor.on("selectionUpdate", updateBubble);
+    editor.on("blur", blurHandler);
 
     return () => {
       editor.off("selectionUpdate", updateBubble);
+      editor.off("blur", blurHandler);
     };
   }, [editor, aiEditLoading]);
 

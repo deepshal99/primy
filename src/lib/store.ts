@@ -289,6 +289,8 @@ export const useAppStore = create<AppState>((set, get) => ({
                     title: op.title,
                     updatedAt: Date.now(),
                   };
+                  // Sync tab title
+                  newOpenTabs = newOpenTabs.map((t) => t.id === op.kuId ? { ...t, title: op.title } : t);
                 }
                 break;
               }
@@ -520,6 +522,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       projectMemory: conv.memory || {},
       undoStack: [],
       canUndo: false,
+      redoStack: [],
+      canRedo: false,
     });
   },
 
@@ -583,6 +587,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       pendingAttachments: [],
       undoStack: [],
       canUndo: false,
+      redoStack: [],
+      canRedo: false,
     });
   },
 
@@ -806,6 +812,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       projectMemory: {},
       undoStack: [],
       canUndo: false,
+      redoStack: [],
+      canRedo: false,
+      openTabs: [],
     });
     saveProjectsToStorage(updated);
 
@@ -835,6 +844,13 @@ export const useAppStore = create<AppState>((set, get) => ({
             workspaceOpen: false,
             isStreaming: false,
             streamingContent: "",
+            openTabs: [],
+            suggestions: [],
+            projectMemory: {},
+            undoStack: [],
+            canUndo: false,
+            redoStack: [],
+            canRedo: false,
           }
         : {}),
     });
@@ -901,6 +917,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       projectMemory: project.memory || {},
       undoStack: [],
       canUndo: false,
+      redoStack: [],
+      canRedo: false,
       openTabs: [],
     });
 
@@ -996,6 +1014,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       docVersion: state.docVersion + 1,
       activeTab: "doc",
       workspaceOpen: true,
+      openTabs: [...state.openTabs.filter((t) => t.id !== ku.id), { id: ku.id, type: "ku" as const, title: ku.title }],
     });
     saveProjectsToStorage(updated);
 
@@ -1054,7 +1073,10 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
         : p
     );
-    set({ projects: updated });
+    set({
+      projects: updated,
+      openTabs: state.openTabs.map((t) => t.id === kuId ? { ...t, title } : t),
+    });
     saveProjectsToStorage(updated);
 
     // Background sync to Neon
@@ -1169,6 +1191,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       sheetVersion: state.sheetVersion + 1,
       activeTab: "sheet",
       workspaceOpen: true,
+      openTabs: [...state.openTabs.filter((t) => t.id !== table.id), { id: table.id, type: "table" as const, title: table.title }],
     });
     saveProjectsToStorage(updated);
 
@@ -1227,7 +1250,10 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
         : p
     );
-    set({ projects: updated });
+    set({
+      projects: updated,
+      openTabs: state.openTabs.map((t) => t.id === tableId ? { ...t, title } : t),
+    });
     saveProjectsToStorage(updated);
 
     // Background sync to Neon
@@ -1276,13 +1302,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       const nextTab = newTabs[idx] || newTabs[idx - 1];
 
       if (nextTab) {
-        // Save current entity first, then switch
+        // Save current entity first, then clear currentEntityId so the inner open doesn't double-save
         state.saveCurrentEntity();
+        set({ openTabs: newTabs, currentEntityId: null, currentEntityType: null });
         if (nextTab.type === "ku") {
-          set({ openTabs: newTabs });
           get().openKnowledgeUnit(nextTab.id);
         } else {
-          set({ openTabs: newTabs });
           get().openTable(nextTab.id);
         }
       } else {

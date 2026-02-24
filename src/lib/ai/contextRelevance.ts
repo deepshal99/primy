@@ -174,11 +174,13 @@ export function tableToCsv(table: ProjectTable, maxRows = 200): string {
   if (!sheet?.celldata?.length) return "";
 
   const celldata = sheet.celldata;
-  const maxRow = Math.min(
-    Math.max(...celldata.map((c) => c.r), 0),
-    maxRows
-  );
-  const maxCol = Math.max(...celldata.map((c) => c.c), 0);
+  let rawMaxRow = 0;
+  let maxCol = 0;
+  for (const c of celldata) {
+    if (c.r > rawMaxRow) rawMaxRow = c.r;
+    if (c.c > maxCol) maxCol = c.c;
+  }
+  const maxRow = Math.min(rawMaxRow, maxRows);
 
   const rows: string[] = [];
   for (let r = 0; r <= maxRow; r++) {

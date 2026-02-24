@@ -40,6 +40,9 @@ export function ChatPanel({ centered }: ChatPanelProps) {
 
   const sendMessage = useCallback(
     async (content: string, attachments?: FileAttachment[]) => {
+      // Prevent concurrent streams — ignore if already streaming
+      if (useAppStore.getState().isStreaming) return;
+
       // Auto-create a project if none exists (everything is project-based)
       if (!useAppStore.getState().currentProjectId) {
         useAppStore.getState().createProject("New Project");
@@ -150,6 +153,11 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         // Retry once on 5xx errors
         if (response.status >= 500 && response.status < 600) {
           await new Promise((r) => setTimeout(r, 1000));
+          // Check if user aborted during the retry delay
+          if (abortControllerRef.current?.signal.aborted) {
+            abortStreaming();
+            return;
+          }
           abortControllerRef.current = new AbortController();
           const retryResponse = await fetch("/api/chat", {
             method: "POST",

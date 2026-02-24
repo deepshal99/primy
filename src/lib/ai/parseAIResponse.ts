@@ -13,18 +13,35 @@ function extractFencedBlocks(fullText: string, tag: string): string[] {
   while ((openMatch = openPattern.exec(fullText)) !== null) {
     const startIdx = openMatch.index + openMatch[0].length;
     // Find the closing ``` — must be just ``` (not ```sometag)
+    // Track nested code fences (e.g. ```python inside kuops content)
     let closeIdx = -1;
     let searchFrom = startIdx;
+    let nestingDepth = 0;
     while (searchFrom < fullText.length) {
       const candidate = fullText.indexOf("```", searchFrom);
       if (candidate === -1) break;
-      // Ensure this ``` is a closing fence: preceded by newline (or start), NOT followed by a letter
       const prevChar = candidate > 0 ? fullText[candidate - 1] : "\n";
       const nextChar = candidate + 3 < fullText.length ? fullText[candidate + 3] : "\n";
-      if ((prevChar === "\n" || prevChar === "\r") && !/[a-zA-Z]/.test(nextChar)) {
+      const isAtLineStart = prevChar === "\n" || prevChar === "\r";
+
+      if (isAtLineStart && /[a-zA-Z]/.test(nextChar)) {
+        // This is a nested opening fence (e.g. ```python)
+        nestingDepth++;
+        searchFrom = candidate + 3;
+        continue;
+      }
+
+      if (isAtLineStart && !/[a-zA-Z]/.test(nextChar)) {
+        if (nestingDepth > 0) {
+          // This closes a nested fence, not our outer one
+          nestingDepth--;
+          searchFrom = candidate + 3;
+          continue;
+        }
         closeIdx = candidate;
         break;
       }
+
       searchFrom = candidate + 3;
     }
 
