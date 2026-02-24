@@ -26,8 +26,11 @@ export function SheetView() {
   const sheets = useAppStore((s) => s.sheets);
   const sheetVersion = useAppStore((s) => s.sheetVersion);
   const isStreaming = useAppStore((s) => s.isStreaming);
+  const currentEntityId = useAppStore((s) => s.currentEntityId);
+  const currentEntityType = useAppStore((s) => s.currentEntityType);
   const isUpdatingRef = useRef(false);
   const wbRef = useRef<any>(null);
+  const hadDataRef = useRef(false);
 
   const handleChange = useCallback((data: any) => {
     if (isUpdatingRef.current) return;
@@ -54,9 +57,23 @@ export function SheetView() {
 
   const hasData = sheets.some((s) => s.celldata && s.celldata.length > 0);
 
+  // Once data appears, never show the placeholder again for this view
+  // (Fortune Sheet onChange can temporarily report empty celldata during re-renders)
+  if (hasData) hadDataRef.current = true;
+  // Reset when navigating to a different entity
+  const entityKey = `${currentEntityId}-${currentEntityType}`;
+  const prevEntityRef = useRef(entityKey);
+  if (entityKey !== prevEntityRef.current) {
+    prevEntityRef.current = entityKey;
+    hadDataRef.current = hasData;
+  }
+
+  // Don't show placeholder if: we're viewing a table entity, or data was ever loaded
+  const showPlaceholder = !hadDataRef.current && !isStreaming && !(currentEntityType === "table");
+
   return (
     <div className="w-full h-full relative">
-      {!hasData && !isStreaming && (
+      {showPlaceholder && (
         <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
           <div className="flex flex-col items-center gap-3 text-center px-8">
             <div
