@@ -1,12 +1,31 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import {
+  users,
   projects,
   knowledgeUnits,
   projectTables,
   messages,
 } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
+
+/** Ensure user row exists (handles DB-reset-while-JWT-still-valid). */
+async function ensureUserExists(session: { user: { id: string; name?: string | null; email?: string | null } }) {
+  const existing = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.id, session.user.id))
+    .limit(1);
+
+  if (existing.length === 0) {
+    await db.insert(users).values({
+      id: session.user.id,
+      name: session.user.name || session.user.email?.split("@")[0] || "User",
+      email: session.user.email || `${session.user.id}@placeholder.local`,
+      passwordHash: "MIGRATED_SESSION",
+    }).onConflictDoNothing();
+  }
+}
 
 // PUT /api/projects/[id] — update a project
 export async function PUT(
@@ -18,6 +37,8 @@ export async function PUT(
     if (!session?.user?.id) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    await ensureUserExists(session as any);
 
     const { id } = await params;
     const body = await req.json();
