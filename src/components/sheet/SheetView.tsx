@@ -80,7 +80,7 @@ export function SheetView() {
           </div>
         </div>
       )}
-      <div className="w-full h-full" key={`sheet-v${sheetVersion}`}>
+      <div className="w-full h-full">
         <Workbook
           ref={handleRef}
           data={sheets as any}

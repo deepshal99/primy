@@ -133,6 +133,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   startStreaming: () =>
     set({ isStreaming: true, streamingContent: "" }),
 
+  abortStreaming: () =>
+    set({ isStreaming: false, streamingContent: "" }),
+
   appendStreamChunk: (chunk: string) =>
     set((state) => ({
       streamingContent: state.streamingContent + chunk,

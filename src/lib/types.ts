@@ -288,6 +288,7 @@ export interface AppState {
     tableOperations?: TableOperation[],
     suggestions?: string[]
   ) => void;
+  abortStreaming: () => void;
   clearSuggestions: () => void;
   applySheetOperations: (operations: SheetOperation[]) => void;
   applyDocOperations: (operations: DocOperation[]) => void;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { FileText, Table2, Plus, Clock, Sparkles, ArrowRight, ChevronDown, Check, Settings2 } from "lucide-react";
+import { FileText, Table2, Plus, Clock, Sparkles, ArrowRight, ChevronDown, Check, Settings2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
 
@@ -17,7 +17,16 @@ export function ProjectHome() {
   const updateProject = useAppStore((s) => s.updateProject);
   const updateProjectMemory = useAppStore((s) => s.updateProjectMemory);
   const projectMemory = useAppStore((s) => s.projectMemory);
+  const renameKnowledgeUnit = useAppStore((s) => s.renameKnowledgeUnit);
+  const renameTable = useAppStore((s) => s.renameTable);
+  const deleteKnowledgeUnit = useAppStore((s) => s.deleteKnowledgeUnit);
+  const deleteTable = useAppStore((s) => s.deleteTable);
   const messages = useAppStore((s) => s.messages);
+
+  // Entity rename state
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
   const project = projects.find((p) => p.id === currentProjectId);
   if (!project) return null;
@@ -250,20 +259,22 @@ export function ProjectHome() {
                 const accent = isKu ? design.colors.accent.purple : design.colors.accent.teal;
                 const accentSubtle = isKu ? design.colors.accent.purpleSubtle : design.colors.accent.tealSubtle;
                 const typeLabel = isKu ? "Document" : "Spreadsheet";
+                const isRenaming = renamingId === entity.id;
 
                 return (
-                  <button
+                  <div
                     key={entity.id}
-                    onClick={() => {
-                      if (isKu) openKnowledgeUnit(entity.id);
-                      else openTable(entity.id);
-                    }}
-                    className="group flex flex-col text-left transition-all duration-200"
+                    className="group relative flex flex-col text-left transition-all duration-200 cursor-pointer"
                     style={{
                       backgroundColor: design.colors.bg.elevated,
                       border: `2px solid ${accent}`,
                       borderRadius: "14px",
                       padding: "18px",
+                    }}
+                    onClick={() => {
+                      if (isRenaming || menuOpenId === entity.id) return;
+                      if (isKu) openKnowledgeUnit(entity.id);
+                      else openTable(entity.id);
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.boxShadow = `0 8px 24px ${accentSubtle}, 0 0 0 1px ${accent}`;
@@ -272,8 +283,66 @@ export function ProjectHome() {
                     onMouseLeave={(e) => {
                       e.currentTarget.style.boxShadow = "none";
                       e.currentTarget.style.transform = "translateY(0)";
+                      setMenuOpenId(null);
                     }}
                   >
+                    {/* ··· Menu button */}
+                    <div
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => setMenuOpenId(menuOpenId === entity.id ? null : entity.id)}
+                        className="p-1.5 rounded-lg transition-colors"
+                        style={{ backgroundColor: menuOpenId === entity.id ? design.colors.bg.tertiary : "transparent" }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.tertiary; }}
+                        onMouseLeave={(e) => { if (menuOpenId !== entity.id) e.currentTarget.style.backgroundColor = "transparent"; }}
+                      >
+                        <MoreHorizontal className="w-4 h-4" style={{ color: design.colors.text.muted }} />
+                      </button>
+
+                      {menuOpenId === entity.id && (
+                        <div
+                          className="absolute top-full right-0 mt-1 border rounded-xl py-1 min-w-[140px] z-50"
+                          style={{
+                            backgroundColor: design.colors.bg.elevated,
+                            borderColor: design.colors.border.default,
+                            boxShadow: design.shadows.dropdown,
+                          }}
+                        >
+                          <button
+                            onClick={() => {
+                              setRenamingId(entity.id);
+                              setRenameValue(entity.title);
+                              setMenuOpenId(null);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-left transition-colors"
+                            style={{ color: design.colors.text.primary }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            Rename
+                          </button>
+                          <button
+                            onClick={() => {
+                              setMenuOpenId(null);
+                              if (!window.confirm(`Delete "${entity.title}"? This cannot be undone.`)) return;
+                              if (isKu) deleteKnowledgeUnit(project.id, entity.id);
+                              else deleteTable(project.id, entity.id);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-left transition-colors"
+                            style={{ color: "#e54545" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(229,69,69,0.06)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Header: icon badge + file name */}
                     <div className="flex items-center gap-3 mb-2">
                       <div
@@ -295,18 +364,46 @@ export function ProjectHome() {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <span
-                          className="block truncate"
-                          style={{
-                            fontSize: "16px",
-                            fontWeight: 600,
-                            color: design.colors.text.primary,
-                            fontFamily: design.typography.family.heading,
-                            lineHeight: "1.3",
-                          }}
-                        >
-                          {entity.title}
-                        </span>
+                        {isRenaming ? (
+                          <input
+                            autoFocus
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onBlur={() => {
+                              if (renameValue.trim() && renameValue.trim() !== entity.title) {
+                                if (isKu) renameKnowledgeUnit(project.id, entity.id, renameValue.trim());
+                                else renameTable(project.id, entity.id, renameValue.trim());
+                              }
+                              setRenamingId(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                              if (e.key === "Escape") setRenamingId(null);
+                            }}
+                            className="block w-full bg-transparent outline-none border-b-2 pb-0.5"
+                            style={{
+                              fontSize: "16px",
+                              fontWeight: 600,
+                              color: design.colors.text.primary,
+                              fontFamily: design.typography.family.heading,
+                              borderColor: design.colors.brand.primary,
+                            }}
+                          />
+                        ) : (
+                          <span
+                            className="block truncate"
+                            style={{
+                              fontSize: "16px",
+                              fontWeight: 600,
+                              color: design.colors.text.primary,
+                              fontFamily: design.typography.family.heading,
+                              lineHeight: "1.3",
+                            }}
+                          >
+                            {entity.title}
+                          </span>
+                        )}
                         <span
                           style={{
                             fontSize: "11px",
@@ -334,7 +431,7 @@ export function ProjectHome() {
                         Empty {typeLabel.toLowerCase()}
                       </p>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { ArrowUp, Plus, Loader2, Upload } from "lucide-react";
+import { ArrowUp, Plus, Loader2, Upload, Square } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
 import { FileAttachment } from "@/lib/types";
@@ -20,9 +20,10 @@ interface ChatInputProps {
   onSend: (message: string, attachments?: FileAttachment[]) => void;
   disabled: boolean;
   centered?: boolean;
+  onStop?: () => void;
 }
 
-export function ChatInput({ onSend, disabled, centered }: ChatInputProps) {
+export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -243,26 +244,37 @@ export function ChatInput({ onSend, disabled, centered }: ChatInputProps) {
             }}
           />
 
-          <button
-            onClick={handleSubmit}
-            disabled={!canSend}
-            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 icon-send-press"
-            style={{
-              backgroundColor: canSend
-                ? design.colors.brand.primary
-                : design.colors.border.default,
-              color: canSend
-                ? design.colors.brand.text
-                : design.colors.text.muted,
-              cursor: canSend ? "pointer" : "not-allowed",
-            }}
-          >
-            {disabled ? (
-              <Loader2 className="w-4 h-4 animate-spin" strokeWidth={2} />
-            ) : (
+          {disabled && onStop ? (
+            <button
+              onClick={onStop}
+              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200"
+              style={{
+                backgroundColor: "#e54545",
+                color: "#fff",
+                cursor: "pointer",
+              }}
+              title="Stop generating"
+            >
+              <Square className="w-3.5 h-3.5" fill="currentColor" strokeWidth={0} />
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={!canSend}
+              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 icon-send-press"
+              style={{
+                backgroundColor: canSend
+                  ? design.colors.brand.primary
+                  : design.colors.border.default,
+                color: canSend
+                  ? design.colors.brand.text
+                  : design.colors.text.muted,
+                cursor: canSend ? "pointer" : "not-allowed",
+              }}
+            >
               <ArrowUp className="w-4 h-4 icon-float-up" strokeWidth={2.5} />
-            )}
-          </button>
+            </button>
+          )}
         </div>
       </div>
     </div>

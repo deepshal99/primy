@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
 import { FileAttachment } from "@/lib/types";
 import {
@@ -27,7 +28,14 @@ export function ChatPanel({ centered }: ChatPanelProps) {
   const startStreaming = useAppStore((s) => s.startStreaming);
   const appendStreamChunk = useAppStore((s) => s.appendStreamChunk);
   const finishStreaming = useAppStore((s) => s.finishStreaming);
+  const abortStreaming = useAppStore((s) => s.abortStreaming);
   const clearPendingAttachments = useAppStore((s) => s.clearPendingAttachments);
+
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const stopStreaming = useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
 
   const sendMessage = useCallback(
     async (content: string, attachments?: FileAttachment[]) => {
@@ -71,7 +79,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
               knowledgeUnits: project.knowledgeUnits.map((k) => ({
                 id: k.id,
                 title: k.title,
-                summary: k.content.slice(0, 200),
+                summary: k.id === state.currentEntityId ? k.content : k.content.slice(0, 500),
               })),
               tables: project.tables.map((t) => ({
                 id: t.id,
@@ -86,6 +94,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           }
         }
 
+        abortControllerRef.current = new AbortController();
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -96,6 +105,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
             projectMemory: state.projectMemory,
             projectContext,
           }),
+          signal: abortControllerRef.current.signal,
         });
 
         if (!response.ok) {
@@ -156,14 +166,23 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         const displayText = extractDisplayText(fullText);
         finishStreaming(displayText || fullText, sheetOps, docOps, kuOps, tableOps, suggestions);
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          // User cancelled — keep any partial content that was streamed
+          const partial = useAppStore.getState().streamingContent;
+          if (partial.trim()) {
+            finishStreaming(extractDisplayText(partial) || partial);
+          } else {
+            abortStreaming();
+          }
+          return;
+        }
         const errMsg =
           error instanceof Error ? error.message : "Something went wrong";
-        finishStreaming(
-          `Sorry, I encountered an error: ${errMsg}. Please try again.`
-        );
+        abortStreaming();
+        toast.error(errMsg);
       }
     },
-    [addUserMessage, startStreaming, appendStreamChunk, finishStreaming, clearPendingAttachments]
+    [addUserMessage, startStreaming, appendStreamChunk, finishStreaming, abortStreaming, clearPendingAttachments]
   );
 
   useEffect(() => {
@@ -197,7 +216,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
 
       {/* Input */}
       <div className={centered ? "max-w-[720px] mx-auto w-full" : ""}>
-        <ChatInput onSend={sendMessage} disabled={isStreaming} centered={centered} />
+        <ChatInput onSend={sendMessage} disabled={isStreaming} centered={centered} onStop={stopStreaming} />
       </div>
     </div>
   );
