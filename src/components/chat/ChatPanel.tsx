@@ -31,6 +31,9 @@ export function ChatPanel({ centered }: ChatPanelProps) {
 
   const sendMessage = useCallback(
     async (content: string, attachments?: FileAttachment[]) => {
+      // Snapshot messages BEFORE addUserMessage to avoid sending the new message twice
+      const priorMessages = useAppStore.getState().messages;
+
       addUserMessage(content, attachments);
       clearPendingAttachments();
       startStreaming();
@@ -38,7 +41,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
       try {
         const state = useAppStore.getState();
         const allMessages = [
-          ...state.messages.map((m) => ({
+          ...priorMessages.map((m) => ({
             role: m.role,
             content: m.content,
             attachmentTexts: m.attachments

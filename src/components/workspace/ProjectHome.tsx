@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { FileText, Table2, Plus, Clock, Sparkles, ArrowRight, ChevronDown, Check } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { FileText, Table2, Plus, Clock, Sparkles, ArrowRight, ChevronDown, Check, Settings2 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
 
@@ -15,6 +15,8 @@ export function ProjectHome() {
   const createKnowledgeUnit = useAppStore((s) => s.createKnowledgeUnit);
   const createTable = useAppStore((s) => s.createTable);
   const updateProject = useAppStore((s) => s.updateProject);
+  const updateProjectMemory = useAppStore((s) => s.updateProjectMemory);
+  const projectMemory = useAppStore((s) => s.projectMemory);
   const messages = useAppStore((s) => s.messages);
 
   const project = projects.find((p) => p.id === currentProjectId);
@@ -87,6 +89,9 @@ export function ProjectHome() {
             </span>
           </div>
         </div>
+
+        {/* ── Project Memory / AI Settings ── */}
+        <ProjectMemorySection memory={projectMemory} onUpdate={updateProjectMemory} />
 
         {/* ── Create buttons ── */}
         <div className="flex gap-3 mb-8">
@@ -555,6 +560,176 @@ function getTablePreview(sheets: { celldata: { r: number; c: number; v: { v?: st
   const headers = getColumnHeaders(sheets);
   if (headers.length === 0) return "";
   return headers.slice(0, 4).join(" · ") + (headers.length > 4 ? ` +${headers.length - 4} more` : "");
+}
+
+const TONE_OPTIONS = ["Casual", "Formal", "Technical", "Friendly", "Professional", "Creative"];
+
+function ProjectMemorySection({
+  memory,
+  onUpdate,
+}: {
+  memory: { tone?: string; audience?: string; goals?: string; customInstructions?: string };
+  onUpdate: (m: Partial<typeof memory>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const hasAnyField = !!(memory.tone || memory.audience || memory.goals || memory.customInstructions);
+
+  const debouncedUpdate = useCallback(
+    (field: string, value: string) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        onUpdate({ [field]: value || undefined });
+      }, 500);
+    },
+    [onUpdate]
+  );
+
+  return (
+    <div className="mb-6">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors"
+        style={{
+          fontSize: "13px",
+          fontWeight: 500,
+          color: hasAnyField ? design.colors.text.secondary : design.colors.text.muted,
+          backgroundColor: open ? design.colors.bg.secondary : "transparent",
+        }}
+        onMouseEnter={(e) => {
+          if (!open) e.currentTarget.style.backgroundColor = design.colors.bg.secondary;
+        }}
+        onMouseLeave={(e) => {
+          if (!open) e.currentTarget.style.backgroundColor = "transparent";
+        }}
+      >
+        <Settings2 className="w-3.5 h-3.5" />
+        AI Settings
+        {hasAnyField && !open && (
+          <span
+            className="w-1.5 h-1.5 rounded-full"
+            style={{ backgroundColor: design.colors.brand.primary }}
+          />
+        )}
+        <ChevronDown
+          className="w-3 h-3 transition-transform"
+          style={{ transform: open ? "rotate(180deg)" : "rotate(0)" }}
+        />
+      </button>
+
+      {open && (
+        <div
+          className="mt-3 rounded-xl border p-5 grid gap-4"
+          style={{
+            backgroundColor: design.colors.bg.elevated,
+            borderColor: design.colors.border.default,
+          }}
+        >
+          {/* Tone */}
+          <div>
+            <label
+              className="block mb-1.5"
+              style={{ fontSize: "12px", fontWeight: 600, color: design.colors.text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}
+            >
+              Tone
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {TONE_OPTIONS.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => onUpdate({ tone: memory.tone === t ? undefined : t })}
+                  className="px-3 py-1 rounded-lg text-[13px] transition-colors"
+                  style={{
+                    backgroundColor: memory.tone === t ? design.colors.brand.primary : design.colors.bg.secondary,
+                    color: memory.tone === t ? "#fff" : design.colors.text.secondary,
+                    fontWeight: memory.tone === t ? 600 : 400,
+                  }}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Audience */}
+          <div>
+            <label
+              className="block mb-1.5"
+              style={{ fontSize: "12px", fontWeight: 600, color: design.colors.text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}
+            >
+              Audience
+            </label>
+            <input
+              defaultValue={memory.audience || ""}
+              onChange={(e) => debouncedUpdate("audience", e.target.value)}
+              placeholder="e.g. developers, executives, general public..."
+              className="w-full px-3 py-2 rounded-lg outline-none transition-colors text-[13px]"
+              style={{
+                backgroundColor: design.colors.bg.secondary,
+                color: design.colors.text.primary,
+                border: `1px solid ${design.colors.border.default}`,
+              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = design.colors.brand.primary; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = design.colors.border.default; }}
+            />
+          </div>
+
+          {/* Goals */}
+          <div>
+            <label
+              className="block mb-1.5"
+              style={{ fontSize: "12px", fontWeight: 600, color: design.colors.text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}
+            >
+              Goals
+            </label>
+            <textarea
+              defaultValue={memory.goals || ""}
+              onChange={(e) => debouncedUpdate("goals", e.target.value)}
+              placeholder="What are you trying to achieve with this project?"
+              rows={2}
+              className="w-full px-3 py-2 rounded-lg outline-none transition-colors text-[13px] resize-none"
+              style={{
+                backgroundColor: design.colors.bg.secondary,
+                color: design.colors.text.primary,
+                border: `1px solid ${design.colors.border.default}`,
+              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = design.colors.brand.primary; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = design.colors.border.default; }}
+            />
+          </div>
+
+          {/* Custom Instructions */}
+          <div>
+            <label
+              className="block mb-1.5"
+              style={{ fontSize: "12px", fontWeight: 600, color: design.colors.text.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}
+            >
+              Custom Instructions
+            </label>
+            <textarea
+              defaultValue={memory.customInstructions || ""}
+              onChange={(e) => debouncedUpdate("customInstructions", e.target.value)}
+              placeholder="Any specific instructions for the AI when working on this project..."
+              rows={3}
+              className="w-full px-3 py-2 rounded-lg outline-none transition-colors text-[13px] resize-none"
+              style={{
+                backgroundColor: design.colors.bg.secondary,
+                color: design.colors.text.primary,
+                border: `1px solid ${design.colors.border.default}`,
+              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = design.colors.brand.primary; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = design.colors.border.default; }}
+            />
+          </div>
+
+          <p style={{ fontSize: "11px", color: design.colors.text.placeholder, lineHeight: "1.4" }}>
+            These settings help the AI tailor responses for this project. Changes are saved automatically.
+          </p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function formatTimeAgo(timestamp: number): string {

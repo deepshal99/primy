@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     if (includeProjectDetails) {
       // Generate title + description + project type in one call
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-3-flash-preview",
         contents: [
           {
             role: "user",
@@ -51,7 +51,7 @@ Return ONLY the JSON object, no markdown fences, no explanation.`,
 
     // Legacy: title-only generation for non-project conversations
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-3-flash-preview",
       contents: [
         {
           role: "user",
