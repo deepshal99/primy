@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { nanoid } from "nanoid";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -42,6 +43,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const [newUser] = await db
             .insert(users)
             .values({
+              id: nanoid(),
               name: name || email.split("@")[0],
               email,
               passwordHash,

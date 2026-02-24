@@ -4,12 +4,12 @@ import {
   timestamp,
   jsonb,
   varchar,
-  uuid,
 } from "drizzle-orm/pg-core";
 
 // ── Users ──
+// Uses text IDs to accept NextAuth-generated user IDs (not always UUIDs)
 export const users = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
+  id: text("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   passwordHash: text("password_hash").notNull(),
@@ -20,7 +20,7 @@ export const users = pgTable("users", {
 // Uses text IDs to accept client-generated nanoid values
 export const projects = pgTable("projects", {
   id: text("id").primaryKey(), // client-provided nanoid
-  userId: uuid("user_id")
+  userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   title: varchar("title", { length: 500 }).notNull().default("New Project"),
