@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
 import { SessionProvider } from "@/components/providers/SessionProvider";
-import "@/lib/env"; // validate env vars at startup
 import "./globals.css";
 
 export const metadata: Metadata = {

@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { SYSTEM_PROMPT } from "@/lib/ai/systemPrompt";
 import { auth } from "@/lib/auth";
+import "@/lib/env";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
