@@ -183,6 +183,28 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         const decoder = new TextDecoder();
         let fullText = "";
         let buffer = "";
+        let streamError = "";
+
+        // Process a single SSE line
+        const processLine = (line: string) => {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data: ")) return;
+          const data = trimmed.slice(6);
+          if (data === "[DONE]") return;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.text) {
+              fullText += parsed.text;
+              appendStreamChunk(parsed.text);
+            }
+            if (parsed.error) {
+              streamError = parsed.error;
+              console.error("[Drafta] Stream error:", parsed.error);
+            }
+          } catch {
+            // Malformed chunk — skip silently
+          }
+        };
 
         while (true) {
           const { done, value } = await reader.read();
@@ -193,38 +215,30 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           buffer = parts.pop() || "";
 
           for (const line of parts) {
-            const trimmed = line.trim();
-            if (!trimmed.startsWith("data: ")) continue;
-            const data = trimmed.slice(6);
-            if (data === "[DONE]") continue;
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.text) {
-                fullText += parsed.text;
-                appendStreamChunk(parsed.text);
-              }
-              if (parsed.error && process.env.NODE_ENV !== "production") {
-                console.error("[Drafta] Stream error:", parsed.error);
-              }
-            } catch {
-              if (process.env.NODE_ENV !== "production") {
-                console.warn("[Drafta] Malformed SSE chunk:", data.slice(0, 100));
-              }
-            }
+            processLine(line);
           }
         }
 
-        if (buffer.trim().startsWith("data: ")) {
-          const data = buffer.trim().slice(6);
-          if (data !== "[DONE]") {
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.text) {
-                fullText += parsed.text;
-                appendStreamChunk(parsed.text);
-              }
-            } catch {}
+        // Process any remaining buffer — split in case it contains multiple lines
+        if (buffer.trim()) {
+          const remaining = buffer.split("\n");
+          for (const line of remaining) {
+            processLine(line);
           }
+        }
+
+        // If the AI produced an error and no content, show error to user
+        if (streamError && !fullText.trim()) {
+          abortStreaming();
+          toast.error("AI couldn't generate a response. Please try again.");
+          return;
+        }
+
+        // Don't create an empty assistant message
+        if (!fullText.trim()) {
+          abortStreaming();
+          toast.error("No response received from AI. Please try again.");
+          return;
         }
 
         const sheetOps = parseSheetOperations(fullText);
@@ -234,8 +248,8 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         const suggestions = parseSuggestions(fullText);
         const displayText = extractDisplayText(fullText);
 
-        // Debug: warn if AI tried to output ops but parsing failed (dev only)
-        if (process.env.NODE_ENV !== "production" && sheetOps.length === 0 && docOps.length === 0 && kuOps.length === 0 && tableOps.length === 0) {
+        // Warn if AI tried to output ops but parsing failed
+        if (sheetOps.length === 0 && docOps.length === 0 && kuOps.length === 0 && tableOps.length === 0) {
           if (fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops")) {
             console.warn("[Drafta] Operation blocks found but none parsed. Raw tail:", fullText.slice(-600));
           }

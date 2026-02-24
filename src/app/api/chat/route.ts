@@ -48,13 +48,17 @@ export async function POST(req: Request) {
 
     // Build text content with context — convert sheet data to CSV for token efficiency
     let sheetContext = "";
-    if (sheetData && sheetData.length > 0 && sheetData[0].celldata?.length > 0) {
-      sheetContext = sheetData
-        .filter((s: any) => s.celldata?.length > 0)
+    const sheetsWithData = (sheetData || []).filter((s: any) => s.celldata?.length > 0);
+    if (sheetsWithData.length > 0) {
+      sheetContext = sheetsWithData
         .map((s: any) => {
-          // Build a simple CSV from celldata
-          const maxRow = Math.max(...s.celldata.map((c: any) => c.r), 0);
-          const maxCol = Math.max(...s.celldata.map((c: any) => c.c), 0);
+          // Build a simple CSV from celldata — use reduce instead of Math.max(...) to avoid stack overflow
+          let maxRow = 0;
+          let maxCol = 0;
+          for (const c of s.celldata) {
+            if (c.r > maxRow) maxRow = c.r;
+            if (c.c > maxCol) maxCol = c.c;
+          }
           const rows: string[] = [];
           for (let r = 0; r <= Math.min(maxRow, 100); r++) {
             const cells: string[] = [];
@@ -159,17 +163,37 @@ export async function POST(req: Request) {
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
       async start(controller) {
+        // Timeout: abort if no chunks arrive within 30s
+        let lastChunkTime = Date.now();
+        const timeoutCheck = setInterval(() => {
+          if (Date.now() - lastChunkTime > 30000) {
+            clearInterval(timeoutCheck);
+            try {
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ error: "Response timed out. Please try again." })}\n\n`)
+              );
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            } catch {
+              // Controller may already be closed
+            }
+          }
+        }, 5000);
+
         try {
           for await (const chunk of response) {
+            lastChunkTime = Date.now();
             const text = chunk.text;
             if (text) {
               const data = JSON.stringify({ text });
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
             }
           }
+          clearInterval(timeoutCheck);
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         } catch (error) {
+          clearInterval(timeoutCheck);
           const errMsg =
             error instanceof Error ? error.message : "Stream error";
           controller.enqueue(

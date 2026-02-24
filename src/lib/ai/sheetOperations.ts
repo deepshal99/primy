@@ -1,13 +1,28 @@
 import { produce } from "immer";
 import { SheetData, SheetOperation, CellData } from "@/lib/types";
 
+/** Safe max that doesn't blow the stack on large arrays */
+function safeMax(arr: number[], fallback: number): number {
+  if (arr.length === 0) return fallback;
+  let max = arr[0];
+  for (let i = 1; i < arr.length; i++) {
+    if (arr[i] > max) max = arr[i];
+  }
+  return max;
+}
+
 export function applyOperations(
   sheets: SheetData[],
   operations: SheetOperation[]
 ): SheetData[] {
   let result = sheets;
   for (const op of operations) {
-    result = applyOperation(result, op);
+    try {
+      result = applyOperation(result, op);
+    } catch (err) {
+      console.error("[Drafta] Failed to apply operation:", op.type, err);
+      // Continue with remaining operations instead of crashing
+    }
   }
   return result;
 }
@@ -26,9 +41,8 @@ function applyOperation(
         if (op.data.config) {
           sheet.config = { ...sheet.config, ...op.data.config };
         }
-        // Ensure row/column counts accommodate data
-        const maxRow = Math.max(...sheet.celldata.map((c) => c.r), 0);
-        const maxCol = Math.max(...sheet.celldata.map((c) => c.c), 0);
+        const maxRow = safeMax(sheet.celldata.map((c) => c.r), 0);
+        const maxCol = safeMax(sheet.celldata.map((c) => c.c), 0);
         sheet.row = Math.max(sheet.row || 50, maxRow + 10);
         sheet.column = Math.max(sheet.column || 26, maxCol + 5);
         break;
@@ -50,7 +64,9 @@ function applyOperation(
       case "UPDATE_CELLS": {
         if (op.sheetIndex >= draft.length) break;
         const sheet = draft[op.sheetIndex];
+        if (!op.cells || !Array.isArray(op.cells)) break;
         for (const cell of op.cells) {
+          if (cell.r == null || cell.c == null) continue;
           const idx = sheet.celldata.findIndex(
             (c) => c.r === cell.r && c.c === cell.c
           );
@@ -66,9 +82,10 @@ function applyOperation(
       case "FORMAT_CELLS": {
         if (op.sheetIndex >= draft.length) break;
         const sheet = draft[op.sheetIndex];
+        if (!op.range) break;
         const { r1, c1, r2, c2 } = op.range;
 
-        // Apply format to existing cells in range
+        // Apply format to existing cells in range (guard against missing cell.v)
         for (const cell of sheet.celldata) {
           if (
             cell.r >= r1 &&
@@ -76,6 +93,7 @@ function applyOperation(
             cell.c >= c1 &&
             cell.c <= c2
           ) {
+            if (!cell.v) cell.v = {};
             Object.assign(cell.v, op.format);
           }
         }
@@ -112,6 +130,7 @@ function applyOperation(
       case "DELETE_ROWS": {
         if (op.sheetIndex >= draft.length) break;
         const sheet = draft[op.sheetIndex];
+        if (!op.rows || !Array.isArray(op.rows)) break;
         const rowsToDelete = new Set(op.rows);
         sheet.celldata = sheet.celldata.filter(
           (cell) => !rowsToDelete.has(cell.r)
@@ -131,6 +150,7 @@ function applyOperation(
       case "DELETE_COLUMNS": {
         if (op.sheetIndex >= draft.length) break;
         const sheet = draft[op.sheetIndex];
+        if (!op.columns || !Array.isArray(op.columns)) break;
         const colsToDelete = new Set(op.columns);
         sheet.celldata = sheet.celldata.filter(
           (cell) => !colsToDelete.has(cell.c)

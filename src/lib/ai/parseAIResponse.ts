@@ -6,13 +6,28 @@ import { SheetOperation, DocOperation, KuOperation, TableOperation } from "@/lib
  */
 function extractFencedBlocks(fullText: string, tag: string): string[] {
   const blocks: string[] = [];
-  const openPattern = new RegExp("```" + tag + "\\s*\\n", "g");
+  // Match opening fence with or without trailing newline
+  const openPattern = new RegExp("```" + tag + "\\s*\\n?", "g");
   let openMatch: RegExpExecArray | null;
 
   while ((openMatch = openPattern.exec(fullText)) !== null) {
     const startIdx = openMatch.index + openMatch[0].length;
-    // Find the closing ``` — scan for \n``` that isn't followed by another tag
-    const closeIdx = fullText.indexOf("\n```", startIdx);
+    // Find the closing ``` — must be just ``` (not ```sometag)
+    let closeIdx = -1;
+    let searchFrom = startIdx;
+    while (searchFrom < fullText.length) {
+      const candidate = fullText.indexOf("```", searchFrom);
+      if (candidate === -1) break;
+      // Ensure this ``` is a closing fence: preceded by newline (or start), NOT followed by a letter
+      const prevChar = candidate > 0 ? fullText[candidate - 1] : "\n";
+      const nextChar = candidate + 3 < fullText.length ? fullText[candidate + 3] : "\n";
+      if ((prevChar === "\n" || prevChar === "\r") && !/[a-zA-Z]/.test(nextChar)) {
+        closeIdx = candidate;
+        break;
+      }
+      searchFrom = candidate + 3;
+    }
+
     if (closeIdx === -1) {
       // No closing fence — try to extract whatever we have
       const remaining = fullText.slice(startIdx).trim();
@@ -34,14 +49,23 @@ function robustJsonParse(jsonStr: string): any {
     return JSON.parse(jsonStr);
   } catch {
     // Strip trailing commas before } or ]
+    // Note: do NOT strip // comments — it breaks URLs inside string values
     const cleaned = jsonStr
       .replace(/,\s*([}\]])/g, "$1")
-      .replace(/\/\/[^\n]*/g, "") // remove single-line comments
       .trim();
 
     try {
       return JSON.parse(cleaned);
     } catch {
+      // Last resort: try to extract the JSON object/array from surrounding text
+      const jsonMatch = cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+      if (jsonMatch) {
+        try {
+          return JSON.parse(jsonMatch[1]);
+        } catch {
+          return null;
+        }
+      }
       return null;
     }
   }
@@ -168,17 +192,36 @@ export function extractDisplayText(fullText: string): string {
   // Use the same extraction approach — find fenced blocks and remove them
   let result = fullText;
   for (const tag of ["sheetops", "docops", "kuops", "tableops"]) {
-    const openPattern = new RegExp("```" + tag + "\\s*\\n", "g");
+    const openPattern = new RegExp("```" + tag + "\\s*\\n?", "g");
     let openMatch: RegExpExecArray | null;
-    // Process in reverse order to avoid index shifting
     const ranges: [number, number][] = [];
 
     while ((openMatch = openPattern.exec(result)) !== null) {
       const start = openMatch.index;
-      const closeIdx = result.indexOf("\n```", start + openMatch[0].length);
+      const contentStart = start + openMatch[0].length;
+      // Find closing fence — same logic as extractFencedBlocks
+      let closeIdx = -1;
+      let searchFrom = contentStart;
+      while (searchFrom < result.length) {
+        const candidate = result.indexOf("```", searchFrom);
+        if (candidate === -1) break;
+        const prevChar = candidate > 0 ? result[candidate - 1] : "\n";
+        const nextChar = candidate + 3 < result.length ? result[candidate + 3] : "\n";
+        if ((prevChar === "\n" || prevChar === "\r") && !/[a-zA-Z]/.test(nextChar)) {
+          closeIdx = candidate;
+          break;
+        }
+        searchFrom = candidate + 3;
+      }
+
       if (closeIdx !== -1) {
-        // +4 for "\n```"
-        ranges.push([start, closeIdx + 4]);
+        // Include the closing ``` and any trailing newline
+        let end = closeIdx + 3;
+        if (end < result.length && result[end] === "\n") end++;
+        ranges.push([start, end]);
+      } else {
+        // No closing fence — remove from start to end
+        ranges.push([start, result.length]);
       }
     }
 

@@ -6,7 +6,11 @@ export function applyDocOps(
 ): string {
   let content = currentContent;
   for (const op of operations) {
-    content = applyDocOp(content, op);
+    try {
+      content = applyDocOp(content, op);
+    } catch (err) {
+      console.error("[Drafta] Failed to apply doc operation:", op.type, err);
+    }
   }
   return content;
 }
