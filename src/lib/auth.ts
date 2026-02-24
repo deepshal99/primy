@@ -90,5 +90,5 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   session: {
     strategy: "jwt",
   },
-  secret: process.env.NEXTAUTH_SECRET || "drafta-ai-dev-secret-change-in-production",
+  secret: process.env.NEXTAUTH_SECRET!,
 });

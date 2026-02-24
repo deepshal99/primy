@@ -1,9 +1,15 @@
 import { GoogleGenAI } from "@google/genai";
+import { auth } from "@/lib/auth";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 export async function POST(req: Request) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { userMessage, assistantMessage, includeProjectDetails } = await req.json();
 
     if (includeProjectDetails) {

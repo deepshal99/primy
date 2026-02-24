@@ -21,7 +21,7 @@ export async function createProjectOnServer(
     body: JSON.stringify(project),
   });
   if (!res.ok) {
-    console.error("[Drafta] Failed to create project on server:", res.status);
+    if (process.env.NODE_ENV !== "production") console.error("[Drafta] Failed to create project on server:", res.status);
   }
 }
 
@@ -35,7 +35,7 @@ export async function updateProjectOnServer(
     body: JSON.stringify(updates),
   });
   if (!res.ok) {
-    console.error("[Drafta] Failed to sync project to server:", res.status);
+    if (process.env.NODE_ENV !== "production") console.error("[Drafta] Failed to sync project to server:", res.status);
   }
 }
 
@@ -44,6 +44,6 @@ export async function deleteProjectOnServer(id: string): Promise<void> {
     method: "DELETE",
   });
   if (!res.ok) {
-    console.error("[Drafta] Failed to delete project on server:", res.status);
+    if (process.env.NODE_ENV !== "production") console.error("[Drafta] Failed to delete project on server:", res.status);
   }
 }

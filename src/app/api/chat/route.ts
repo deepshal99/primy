@@ -1,10 +1,31 @@
 import { GoogleGenAI } from "@google/genai";
 import { SYSTEM_PROMPT } from "@/lib/ai/systemPrompt";
+import { auth } from "@/lib/auth";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
+/** Strip context-injection tags from user input to prevent prompt injection. */
+function sanitizeUserContent(text: string): string {
+  return text
+    .replace(/<\/?relevant_document[^>]*>/g, "")
+    .replace(/<\/?relevant_table[^>]*>/g, "")
+    .replace(/<\/?project_context[^>]*>/g, "")
+    .replace(/<\/?current_sheet_data[^>]*>/g, "")
+    .replace(/<\/?current_doc_content[^>]*>/g, "")
+    .replace(/<\/?project_memory[^>]*>/g, "")
+    .replace(/<\/?uploaded_file[^>]*>/g, "");
+}
+
 export async function POST(req: Request) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     const { messages, sheetData, docContent, projectMemory, projectContext } = await req.json();
 
     const modelId = "gemini-3-flash-preview";
@@ -50,7 +71,7 @@ export async function POST(req: Request) {
 
     const docContext = docContent ? docContent.slice(0, 4000) : "";
 
-    let textContent = lastMessage.content;
+    let textContent = sanitizeUserContent(lastMessage.content);
 
     // Append extracted file text as context
     if (lastMessage.attachmentTexts?.length) {

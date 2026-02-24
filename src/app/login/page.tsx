@@ -1,51 +1,18 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { Sparkles, Loader2, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { design } from "@/lib/design";
 
 export default function LoginPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signup");
-  const [name, setName] = useState("Test User");
-  const [email, setEmail] = useState("test@drafta.ai");
-  const [password, setPassword] = useState("test123");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const autoSubmitted = useRef(false);
-
-  // Auto-submit for dev/testing — only in development
-  useEffect(() => {
-    if (process.env.NODE_ENV !== "development") return;
-    if (autoSubmitted.current) return;
-    autoSubmitted.current = true;
-    (async () => {
-      setLoading(true);
-      // Try signup first, fall back to signin if account exists
-      let result = await signIn("credentials", {
-        email: "test@drafta.ai",
-        password: "test123",
-        name: "Test User",
-        mode: "signup",
-        redirect: false,
-      });
-      if (result?.error) {
-        result = await signIn("credentials", {
-          email: "test@drafta.ai",
-          password: "test123",
-          name: "",
-          mode: "signin",
-          redirect: false,
-        });
-      }
-      if (result?.ok) {
-        window.location.href = "/";
-      } else {
-        setLoading(false);
-      }
-    })();
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

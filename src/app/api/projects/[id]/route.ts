@@ -1,31 +1,13 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import {
-  users,
   projects,
   knowledgeUnits,
   projectTables,
   messages,
 } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
-
-/** Ensure user row exists (handles DB-reset-while-JWT-still-valid). */
-async function ensureUserExists(session: { user: { id: string; name?: string | null; email?: string | null } }) {
-  const existing = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.id, session.user.id))
-    .limit(1);
-
-  if (existing.length === 0) {
-    await db.insert(users).values({
-      id: session.user.id,
-      name: session.user.name || session.user.email?.split("@")[0] || "User",
-      email: session.user.email || `${session.user.id}@placeholder.local`,
-      passwordHash: "MIGRATED_SESSION",
-    }).onConflictDoNothing();
-  }
-}
+import { ensureUserExists } from "@/lib/db/ensureUser";
 
 /**
  * Ensure project row exists. Handles race condition where PUT arrives
@@ -74,13 +56,13 @@ export async function PUT(
     if (body.projectType !== undefined) updates.projectType = body.projectType;
     if (body.memory !== undefined) updates.memory = body.memory;
 
-    // Handle knowledge unit upserts
+    // Handle knowledge unit upserts (with ownership check via projectId)
     if (body.knowledgeUnits) {
       for (const ku of body.knowledgeUnits) {
         const [existingKu] = await db
           .select()
           .from(knowledgeUnits)
-          .where(eq(knowledgeUnits.id, ku.id))
+          .where(and(eq(knowledgeUnits.id, ku.id), eq(knowledgeUnits.projectId, id)))
           .limit(1);
 
         if (existingKu) {
@@ -91,7 +73,7 @@ export async function PUT(
               content: ku.content,
               updatedAt: new Date(),
             })
-            .where(eq(knowledgeUnits.id, ku.id));
+            .where(and(eq(knowledgeUnits.id, ku.id), eq(knowledgeUnits.projectId, id)));
         } else {
           await db.insert(knowledgeUnits).values({
             id: ku.id,
@@ -103,13 +85,13 @@ export async function PUT(
       }
     }
 
-    // Handle table upserts
+    // Handle table upserts (with ownership check via projectId)
     if (body.tables) {
       for (const table of body.tables) {
         const [existingTable] = await db
           .select()
           .from(projectTables)
-          .where(eq(projectTables.id, table.id))
+          .where(and(eq(projectTables.id, table.id), eq(projectTables.projectId, id)))
           .limit(1);
 
         if (existingTable) {
@@ -120,7 +102,7 @@ export async function PUT(
               sheets: table.sheets,
               updatedAt: new Date(),
             })
-            .where(eq(projectTables.id, table.id));
+            .where(and(eq(projectTables.id, table.id), eq(projectTables.projectId, id)));
         } else {
           await db.insert(projectTables).values({
             id: table.id,
@@ -180,7 +162,7 @@ export async function PUT(
     const [updated] = await db
       .update(projects)
       .set(updates)
-      .where(eq(projects.id, id))
+      .where(and(eq(projects.id, id), eq(projects.userId, session.user.id)))
       .returning();
 
     return Response.json({ success: true, project: updated });

@@ -70,7 +70,7 @@ export function parseSheetOperations(fullText: string): SheetOperation[] {
     if (ops.length > 0) {
       operations.push(...ops);
     } else {
-      console.warn("[Drafta] Failed to parse sheetops block:", block.slice(0, 200));
+      if (process.env.NODE_ENV !== "production") console.warn("[Drafta] Failed to parse sheetops block:", block.slice(0, 200));
     }
   }
 
@@ -86,7 +86,7 @@ export function parseDocOperations(fullText: string): DocOperation[] {
     if (ops.length > 0) {
       operations.push(...ops);
     } else {
-      console.warn("[Drafta] Failed to parse docops block:", block.slice(0, 200));
+      if (process.env.NODE_ENV !== "production") console.warn("[Drafta] Failed to parse docops block:", block.slice(0, 200));
     }
   }
 
@@ -133,7 +133,7 @@ export function parseKuOperations(fullText: string): KuOperation[] {
     }
 
     if (!found) {
-      console.warn("[Drafta] Failed to parse kuops block:", block.slice(0, 200));
+      if (process.env.NODE_ENV !== "production") console.warn("[Drafta] Failed to parse kuops block:", block.slice(0, 200));
     }
   }
 
@@ -151,13 +151,13 @@ export function parseTableOperations(fullText: string): TableOperation[] {
     if (ops.length > 0) {
       for (const op of ops) {
         if (op.type === "CREATE" && (!op.celldata || !Array.isArray(op.celldata) || op.celldata.length === 0)) {
-          console.warn("[Drafta] tableops CREATE has empty/missing celldata, skipping:", JSON.stringify(op).slice(0, 200));
+          if (process.env.NODE_ENV !== "production") console.warn("[Drafta] tableops CREATE has empty/missing celldata, skipping:", JSON.stringify(op).slice(0, 200));
           continue;
         }
         operations.push(op);
       }
     } else {
-      console.warn("[Drafta] Failed to parse tableops block:", block.slice(0, 200));
+      if (process.env.NODE_ENV !== "production") console.warn("[Drafta] Failed to parse tableops block:", block.slice(0, 200));
     }
   }
 

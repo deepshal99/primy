@@ -93,7 +93,7 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
           const updates = await processFile(file, attachment);
           updatePendingAttachment(attachment.id, updates);
         } catch (err) {
-          console.error("File processing error:", err);
+          if (process.env.NODE_ENV !== "production") console.error("File processing error:", err);
           toast.error(`Failed to process: ${file.name}`);
           removePendingAttachment(attachment.id);
         }

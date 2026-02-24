@@ -144,7 +144,7 @@ export function DocView() {
         editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, cleaned).run();
       }
     } catch (err) {
-      console.error("AI edit error:", err);
+      if (process.env.NODE_ENV !== "production") console.error("AI edit error:", err);
     } finally {
       setAiEditLoading(false);
       setShowAiPrompt(false);

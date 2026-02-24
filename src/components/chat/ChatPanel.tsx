@@ -134,7 +134,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         }
 
         abortControllerRef.current = new AbortController();
-        const response = await fetch("/api/chat", {
+        let response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -147,8 +147,36 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           signal: abortControllerRef.current.signal,
         });
 
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
+        // Retry once on 5xx errors
+        if (response.status >= 500 && response.status < 600) {
+          await new Promise((r) => setTimeout(r, 1000));
+          abortControllerRef.current = new AbortController();
+          const retryResponse = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              messages: allMessages,
+              sheetData: state.sheets,
+              docContent: state.docContent,
+              projectMemory: state.projectMemory,
+              projectContext,
+            }),
+            signal: abortControllerRef.current.signal,
+          });
+          if (!retryResponse.ok) {
+            throw new Error(
+              retryResponse.status === 401
+                ? "Your session has expired. Please sign in again."
+                : "Failed to get a response from AI. Please try again."
+            );
+          }
+          response = retryResponse;
+        } else if (!response.ok) {
+          throw new Error(
+            response.status === 401
+              ? "Your session has expired. Please sign in again."
+              : "Failed to get a response from AI. Please try again."
+          );
         }
 
         const reader = response.body!.getReader();
@@ -175,11 +203,13 @@ export function ChatPanel({ centered }: ChatPanelProps) {
                 fullText += parsed.text;
                 appendStreamChunk(parsed.text);
               }
-              if (parsed.error) {
+              if (parsed.error && process.env.NODE_ENV !== "production") {
                 console.error("[Drafta] Stream error:", parsed.error);
               }
             } catch {
-              console.warn("[Drafta] Malformed SSE chunk:", data.slice(0, 100));
+              if (process.env.NODE_ENV !== "production") {
+                console.warn("[Drafta] Malformed SSE chunk:", data.slice(0, 100));
+              }
             }
           }
         }
@@ -204,8 +234,8 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         const suggestions = parseSuggestions(fullText);
         const displayText = extractDisplayText(fullText);
 
-        // Debug: warn if AI tried to output ops but parsing failed
-        if (sheetOps.length === 0 && docOps.length === 0 && kuOps.length === 0 && tableOps.length === 0) {
+        // Debug: warn if AI tried to output ops but parsing failed (dev only)
+        if (process.env.NODE_ENV !== "production" && sheetOps.length === 0 && docOps.length === 0 && kuOps.length === 0 && tableOps.length === 0) {
           if (fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops")) {
             console.warn("[Drafta] Operation blocks found but none parsed. Raw tail:", fullText.slice(-600));
           }
