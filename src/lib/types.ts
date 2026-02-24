@@ -334,6 +334,6 @@ export interface AppState {
 
   // Entity sync
   saveCurrentEntity: () => void;
-  loadProjects: () => void;
+  loadProjects: () => void | Promise<void>;
   migrateConversations: () => void;
 }

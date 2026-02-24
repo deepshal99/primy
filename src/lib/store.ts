@@ -17,6 +17,12 @@ import {
 import { createEmptySheet } from "@/lib/sheet/defaultData";
 import { applyOperations } from "@/lib/ai/sheetOperations";
 import { applyDocOps } from "@/lib/ai/docOperations";
+import {
+  fetchProjects,
+  createProjectOnServer,
+  updateProjectOnServer,
+  deleteProjectOnServer,
+} from "@/lib/api";
 
 // ── LocalStorage helpers ──
 
@@ -613,10 +619,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  updateProjectMemory: (memory) =>
-    set((state) => ({
-      projectMemory: { ...state.projectMemory, ...memory },
-    })),
+  updateProjectMemory: (memory) => {
+    const state = get();
+    const newMemory = { ...state.projectMemory, ...memory };
+    set({ projectMemory: newMemory });
+
+    // Background sync to Neon if in a project
+    if (state.currentProjectId) {
+      updateProjectOnServer(state.currentProjectId, { memory: newMemory }).catch(() => {});
+    }
+  },
 
   undo: () => {
     const state = get();
@@ -726,6 +738,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       canUndo: false,
     });
     saveProjectsToStorage(updated);
+
+    // Background sync to Neon
+    createProjectOnServer({ id: project.id, title, description: project.description, projectType: project.projectType }).catch(() => {});
+
     return project;
   },
 
@@ -753,6 +769,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         : {}),
     });
     saveProjectsToStorage(updated);
+
+    // Background sync to Neon
+    deleteProjectOnServer(id).catch(() => {});
   },
 
   renameProject: (id: string, title: string) => {
@@ -762,6 +781,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     );
     set({ projects: updated });
     saveProjectsToStorage(updated);
+
+    // Background sync to Neon
+    updateProjectOnServer(id, { title }).catch(() => {});
   },
 
   updateProject: (id: string, updates: { title?: string; description?: string; projectType?: string }) => {
@@ -771,6 +793,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     );
     set({ projects: updated });
     saveProjectsToStorage(updated);
+
+    // Background sync to Neon
+    updateProjectOnServer(id, updates).catch(() => {});
   },
 
   switchProject: (id: string) => {
@@ -855,6 +880,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       workspaceOpen: true,
     });
     saveProjectsToStorage(updated);
+
+    // Background sync to Neon
+    updateProjectOnServer(projectId, {
+      knowledgeUnits: [{ id: ku.id, title: ku.title, content: ku.content }],
+    }).catch(() => {});
+
     return ku;
   },
 
@@ -884,6 +915,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         : {}),
     });
     saveProjectsToStorage(updated);
+
+    // Background sync: delete KU on server
+    updateProjectOnServer(projectId, {
+      deletedKnowledgeUnitIds: [kuId],
+    }).catch(() => {});
   },
 
   renameKnowledgeUnit: (projectId: string, kuId: string, title: string) => {
@@ -901,6 +937,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     );
     set({ projects: updated });
     saveProjectsToStorage(updated);
+
+    // Background sync to Neon
+    updateProjectOnServer(projectId, {
+      knowledgeUnits: [{ id: kuId, title }],
+    }).catch(() => {});
   },
 
   openKnowledgeUnit: (kuId: string) => {
@@ -959,6 +1000,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       workspaceOpen: true,
     });
     saveProjectsToStorage(updated);
+
+    // Background sync to Neon
+    updateProjectOnServer(projectId, {
+      tables: [{ id: table.id, title: table.title, sheets: table.sheets }],
+    }).catch(() => {});
+
     return table;
   },
 
@@ -988,6 +1035,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         : {}),
     });
     saveProjectsToStorage(updated);
+
+    // Background sync: delete table on server
+    updateProjectOnServer(projectId, {
+      deletedTableIds: [tableId],
+    }).catch(() => {});
   },
 
   renameTable: (projectId: string, tableId: string, title: string) => {
@@ -1005,6 +1057,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     );
     set({ projects: updated });
     saveProjectsToStorage(updated);
+
+    // Background sync to Neon
+    updateProjectOnServer(projectId, {
+      tables: [{ id: tableId, title }],
+    }).catch(() => {});
   },
 
   openTable: (tableId: string) => {
@@ -1064,9 +1121,46 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     set({ projects: updated });
     saveProjectsToStorage(updated);
+
+    // Background sync full project state to Neon
+    const syncPayload: Record<string, any> = {
+      title: project.title,
+      description: project.description,
+      projectType: project.projectType,
+      memory: project.memory,
+      knowledgeUnits: project.knowledgeUnits.map((k) => ({
+        id: k.id,
+        title: k.title,
+        content: k.content,
+      })),
+      tables: project.tables.map((t) => ({
+        id: t.id,
+        title: t.title,
+        sheets: t.sheets,
+      })),
+      newMessages: project.messages.slice(-2).map((m) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        timestamp: m.timestamp,
+        attachments: m.attachments,
+      })),
+    };
+    updateProjectOnServer(project.id, syncPayload).catch(() => {});
   },
 
-  loadProjects: () => {
+  loadProjects: async () => {
+    // Try server first (Neon), fall back to localStorage
+    try {
+      const serverProjects = await fetchProjects();
+      if (serverProjects.length > 0) {
+        set({ projects: serverProjects });
+        saveProjectsToStorage(serverProjects); // Cache locally
+        return;
+      }
+    } catch {
+      // Server unavailable or not authenticated — fall back
+    }
     const projects = loadProjectsFromStorage();
     set({ projects });
   },
