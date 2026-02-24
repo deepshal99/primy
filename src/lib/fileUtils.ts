@@ -1,0 +1,141 @@
+import { nanoid } from "nanoid";
+import { FileAttachment } from "@/lib/types";
+
+export const ACCEPTED_EXTENSIONS = [
+  ".txt", ".csv", ".md", ".json",
+  ".pdf", ".docx",
+  ".png", ".jpg", ".jpeg", ".webp",
+];
+
+export const ACCEPTED_MIME_TYPES: Record<string, string[]> = {
+  "text/plain": [".txt"],
+  "text/csv": [".csv"],
+  "text/markdown": [".md"],
+  "application/json": [".json"],
+  "application/pdf": [".pdf"],
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+  "image/png": [".png"],
+  "image/jpeg": [".jpg", ".jpeg"],
+  "image/webp": [".webp"],
+};
+
+export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+export const MAX_FILES_PER_MESSAGE = 5;
+
+export function getFileCategory(file: File): FileAttachment["type"] {
+  if (file.type.startsWith("image/")) return "image";
+  if (file.type === "application/pdf") return "pdf";
+  if (file.type.includes("wordprocessingml") || file.name.endsWith(".docx")) return "docx";
+  return "text";
+}
+
+export function isAcceptedFile(file: File): boolean {
+  const ext = "." + file.name.split(".").pop()?.toLowerCase();
+  return ACCEPTED_EXTENSIONS.includes(ext);
+}
+
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+export function createAttachmentFromFile(file: File): FileAttachment {
+  const category = getFileCategory(file);
+  return {
+    id: nanoid(),
+    name: file.name,
+    type: category,
+    mimeType: file.type,
+    size: file.size,
+    isExtracting: category !== "text", // text is instant, others need processing
+  };
+}
+
+/** Convert file to base64 data (without the data:xxx;base64, prefix) */
+export function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.split(",")[1]);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Create an object URL for image preview */
+export function createImagePreview(file: File): string {
+  return URL.createObjectURL(file);
+}
+
+/** Extract text from a text-based file (txt, csv, md, json) client-side */
+export async function extractTextFile(file: File): Promise<string> {
+  const text = await file.text();
+  // For CSV, format as readable text
+  if (file.type === "text/csv" || file.name.endsWith(".csv")) {
+    try {
+      const Papa = (await import("papaparse")).default;
+      const parsed = Papa.parse(text, { header: true });
+      return JSON.stringify(parsed.data.slice(0, 200), null, 2);
+    } catch {
+      return text.slice(0, 50000);
+    }
+  }
+  return text.slice(0, 50000);
+}
+
+/** Extract text from PDF/DOCX via server-side API */
+export async function extractViaServer(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch("/api/extract", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Extraction failed: ${response.status}`);
+  }
+
+  const result = await response.json();
+  return result.text || "";
+}
+
+/** Process a file and return updated attachment data */
+export async function processFile(
+  file: File,
+  attachment: FileAttachment
+): Promise<Partial<FileAttachment>> {
+  const category = attachment.type;
+
+  switch (category) {
+    case "text": {
+      const text = await extractTextFile(file);
+      return { extractedText: text, isExtracting: false };
+    }
+    case "image": {
+      const [base64, previewUrl] = await Promise.all([
+        fileToBase64(file),
+        Promise.resolve(createImagePreview(file)),
+      ]);
+      return { base64, previewUrl, isExtracting: false };
+    }
+    case "pdf":
+    case "docx": {
+      const text = await extractViaServer(file);
+      return { extractedText: text, isExtracting: false };
+    }
+    default:
+      return { isExtracting: false };
+  }
+}
+
+/** Get the accept string for file input */
+export function getAcceptString(): string {
+  return Object.entries(ACCEPTED_MIME_TYPES)
+    .map(([mime, exts]) => [mime, ...exts].join(","))
+    .join(",");
+}
