@@ -24,16 +24,29 @@ export async function POST(req: Request) {
     const lastMessage = messages[messages.length - 1];
     const parts: any[] = [];
 
-    // Build text content with context
-    const sheetContext =
-      sheetData && sheetData.length > 0 && sheetData[0].celldata?.length > 0
-        ? JSON.stringify(
-            sheetData.map((s: any) => ({
-              name: s.name,
-              celldata: s.celldata?.slice(0, 500),
-            }))
-          )
-        : "[]";
+    // Build text content with context — convert sheet data to CSV for token efficiency
+    let sheetContext = "";
+    if (sheetData && sheetData.length > 0 && sheetData[0].celldata?.length > 0) {
+      sheetContext = sheetData
+        .filter((s: any) => s.celldata?.length > 0)
+        .map((s: any) => {
+          // Build a simple CSV from celldata
+          const maxRow = Math.max(...s.celldata.map((c: any) => c.r), 0);
+          const maxCol = Math.max(...s.celldata.map((c: any) => c.c), 0);
+          const rows: string[] = [];
+          for (let r = 0; r <= Math.min(maxRow, 100); r++) {
+            const cells: string[] = [];
+            for (let c = 0; c <= maxCol; c++) {
+              const cell = s.celldata.find((cd: any) => cd.r === r && cd.c === c);
+              const val = cell?.v?.v ?? "";
+              cells.push(String(val).includes(",") ? `"${val}"` : String(val));
+            }
+            rows.push(cells.join(","));
+          }
+          return `Sheet: ${s.name}\n${rows.join("\n")}`;
+        })
+        .join("\n\n");
+    }
 
     const docContext = docContent ? docContent.slice(0, 4000) : "";
 

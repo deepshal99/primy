@@ -17,9 +17,6 @@ import {
   Minus,
   Undo,
   Redo,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
   Link,
   Sparkles,
 } from "lucide-react";

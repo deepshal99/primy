@@ -99,8 +99,8 @@ export function DocView() {
               content: `Edit this text according to the instruction. Return ONLY the edited text, nothing else.\n\nText: "${selectedText}"\n\nInstruction: ${aiEditPrompt.trim()}`,
             },
           ],
-          sheetData: "[]",
-          docContent: "",
+          sheetData: useAppStore.getState().sheets,
+          docContent: useAppStore.getState().docContent,
         }),
       });
 

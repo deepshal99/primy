@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { nanoid } from "nanoid";
+import { toast } from "sonner";
 import {
   AppState,
   SheetOperation,
@@ -36,8 +37,10 @@ function saveConversationsToStorage(conversations: Conversation[]) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
-  } catch {
-    // Storage full or unavailable
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "QuotaExceededError") {
+      toast.error("Storage full — some changes may not be saved");
+    }
   }
 }
 
@@ -55,8 +58,10 @@ function saveProjectsToStorage(projects: Project[]) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
-  } catch {
-    // Storage full or unavailable
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "QuotaExceededError") {
+      toast.error("Storage full — some changes may not be saved");
+    }
   }
 }
 

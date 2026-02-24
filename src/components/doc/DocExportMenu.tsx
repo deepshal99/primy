@@ -5,6 +5,18 @@ import { Download, FileText, Copy, ChevronDown, FileDown } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 
+function getEntityTitle(): string {
+  const state = useAppStore.getState();
+  if (state.currentEntityId && state.currentProjectId) {
+    const project = state.projects.find((p) => p.id === state.currentProjectId);
+    if (project) {
+      const ku = project.knowledgeUnits.find((k) => k.id === state.currentEntityId);
+      if (ku) return ku.title.replace(/[/\\?%*:|"<>]/g, "_") || "document";
+    }
+  }
+  return "document";
+}
+
 export function DocExportMenu() {
   const [open, setOpen] = useState(false);
   const docContent = useAppStore((s) => s.docContent);
@@ -110,7 +122,7 @@ export function DocExportMenu() {
       }
     }
 
-    doc.save("document.pdf");
+    doc.save(`${getEntityTitle()}.pdf`);
     setOpen(false);
     toast.success("Downloaded PDF");
   }, [docContent]);
@@ -120,7 +132,7 @@ export function DocExportMenu() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "document.md";
+    a.download = `${getEntityTitle()}.md`;
     a.click();
     URL.revokeObjectURL(url);
     setOpen(false);

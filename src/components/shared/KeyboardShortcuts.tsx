@@ -7,6 +7,7 @@ import { design } from "@/lib/design";
 const shortcuts = [
   { keys: ["⌘", "K"], desc: "New conversation" },
   { keys: ["⌘", "B"], desc: "Toggle sidebar" },
+  { keys: ["⌘", "Z"], desc: "Undo AI changes" },
   { keys: ["⌘", "1"], desc: "Switch to Sheet tab" },
   { keys: ["⌘", "2"], desc: "Switch to Doc tab" },
   { keys: ["Enter"], desc: "Send message" },

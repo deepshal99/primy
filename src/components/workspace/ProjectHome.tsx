@@ -4,8 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { FileText, Table2, Plus, Clock, Sparkles, ArrowRight, ChevronDown, Check, Settings2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
-
-const PROJECT_TYPES = ["Marketing", "Content", "Research", "Engineering", "Design", "Other"];
+import { PROJECT_TYPES } from "@/lib/constants";
 
 export function ProjectHome() {
   const currentProjectId = useAppStore((s) => s.currentProjectId);

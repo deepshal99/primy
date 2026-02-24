@@ -6,6 +6,18 @@ import { useAppStore } from "@/lib/store";
 import { sheetToCSV, sheetToTSV } from "@/lib/sheet/exportCSV";
 import { toast } from "sonner";
 
+function getEntityTitle(): string {
+  const state = useAppStore.getState();
+  if (state.currentEntityId && state.currentProjectId) {
+    const project = state.projects.find((p) => p.id === state.currentProjectId);
+    if (project) {
+      const table = project.tables.find((t) => t.id === state.currentEntityId);
+      if (table) return table.title.replace(/[/\\?%*:|"<>]/g, "_") || "sheet";
+    }
+  }
+  return "sheet";
+}
+
 export function ExportMenu() {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -32,7 +44,7 @@ export function ExportMenu() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${activeSheet.name || "sheet"}.csv`;
+    a.download = `${getEntityTitle()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     setOpen(false);
@@ -71,7 +83,7 @@ export function ExportMenu() {
     }
 
     XLSX.utils.book_append_sheet(wb, ws, activeSheet.name || "Sheet1");
-    XLSX.writeFile(wb, `${activeSheet.name || "sheet"}.xlsx`);
+    XLSX.writeFile(wb, `${getEntityTitle()}.xlsx`);
     setOpen(false);
     toast.success("Downloaded Excel file");
   }, [activeSheet]);
