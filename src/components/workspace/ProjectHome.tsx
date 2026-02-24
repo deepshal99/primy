@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { FileText, Table2, Plus, Clock, Sparkles, ArrowRight, ChevronDown, Check, Settings2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { FileText, Table2, Plus, Clock, Sparkles, ArrowRight, ChevronDown, Check, Settings2, MoreHorizontal, Pencil, Trash2, Copy } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
 import { PROJECT_TYPES } from "@/lib/constants";
@@ -20,6 +20,8 @@ export function ProjectHome() {
   const renameTable = useAppStore((s) => s.renameTable);
   const deleteKnowledgeUnit = useAppStore((s) => s.deleteKnowledgeUnit);
   const deleteTable = useAppStore((s) => s.deleteTable);
+  const duplicateKnowledgeUnit = useAppStore((s) => s.duplicateKnowledgeUnit);
+  const duplicateTable = useAppStore((s) => s.duplicateTable);
   const messages = useAppStore((s) => s.messages);
 
   // Entity rename state
@@ -322,6 +324,20 @@ export function ProjectHome() {
                           >
                             <Pencil className="w-3.5 h-3.5" />
                             Rename
+                          </button>
+                          <button
+                            onClick={() => {
+                              setMenuOpenId(null);
+                              if (isKu) duplicateKnowledgeUnit(project.id, entity.id);
+                              else duplicateTable(project.id, entity.id);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-left transition-colors"
+                            style={{ color: design.colors.text.primary }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            Duplicate
                           </button>
                           <button
                             onClick={() => {

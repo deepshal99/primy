@@ -19,6 +19,10 @@ import {
   Redo,
   Link,
   Sparkles,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
 } from "lucide-react";
 import { useState, useCallback } from "react";
 import { design } from "@/lib/design";
@@ -229,6 +233,38 @@ export function DocToolbar({ editor, onAIEdit }: DocToolbarProps) {
         title="Divider"
       >
         <Minus className="w-3.5 h-3.5" strokeWidth={1.5} />
+      </ToolbarButton>
+
+      <Divider />
+
+      {/* Text Alignment */}
+      <ToolbarButton
+        onClick={() => editor.chain().focus().setTextAlign("left").run()}
+        isActive={editor.isActive({ textAlign: "left" })}
+        title="Align left"
+      >
+        <AlignLeft className="w-3.5 h-3.5" strokeWidth={1.5} />
+      </ToolbarButton>
+      <ToolbarButton
+        onClick={() => editor.chain().focus().setTextAlign("center").run()}
+        isActive={editor.isActive({ textAlign: "center" })}
+        title="Align center"
+      >
+        <AlignCenter className="w-3.5 h-3.5" strokeWidth={1.5} />
+      </ToolbarButton>
+      <ToolbarButton
+        onClick={() => editor.chain().focus().setTextAlign("right").run()}
+        isActive={editor.isActive({ textAlign: "right" })}
+        title="Align right"
+      >
+        <AlignRight className="w-3.5 h-3.5" strokeWidth={1.5} />
+      </ToolbarButton>
+      <ToolbarButton
+        onClick={() => editor.chain().focus().setTextAlign("justify").run()}
+        isActive={editor.isActive({ textAlign: "justify" })}
+        title="Justify"
+      >
+        <AlignJustify className="w-3.5 h-3.5" strokeWidth={1.5} />
       </ToolbarButton>
 
       <Divider />

@@ -114,6 +114,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   readingFiles: [],
   undoStack: [],
   canUndo: false,
+  redoStack: [],
+  canRedo: false,
 
   // Legacy conversations
   conversations: [],
@@ -175,6 +177,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const hasTableOps = tableOperations && tableOperations.length > 0;
 
     // Snapshot current state before applying AI operations (for undo)
+    // New AI operations clear the redo stack (standard editor behavior)
     let newUndoStack = state.undoStack;
     if (hasSheetOps || hasDocOps) {
       const snapshot: UndoSnapshot = {
@@ -387,6 +390,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       readingFiles: [],
       undoStack: newUndoStack,
       canUndo: newUndoStack.length > 0,
+      // Clear redo stack when new AI operations are applied
+      redoStack: (hasSheetOps || hasDocOps) ? [] : state.redoStack,
+      canRedo: (hasSheetOps || hasDocOps) ? false : state.canRedo,
       projects: newProjects,
       currentEntityId: newCurrentEntityId,
       currentEntityType: newCurrentEntityType,
@@ -641,6 +647,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     const snapshot = state.undoStack[state.undoStack.length - 1];
     const newStack = state.undoStack.slice(0, -1);
 
+    // Push current state onto redo stack before restoring
+    const redoSnapshot: UndoSnapshot = {
+      sheets: state.sheets,
+      docContent: state.docContent,
+      label: snapshot.label,
+      timestamp: Date.now(),
+    };
+
     set({
       sheets: snapshot.sheets,
       sheetVersion: state.sheetVersion + 1,
@@ -648,6 +662,44 @@ export const useAppStore = create<AppState>((set, get) => ({
       docVersion: state.docVersion + 1,
       undoStack: newStack,
       canUndo: newStack.length > 0,
+      redoStack: [...state.redoStack, redoSnapshot],
+      canRedo: true,
+    });
+
+    setTimeout(() => {
+      const s = get();
+      if (s.currentProjectId) {
+        s.saveCurrentEntity();
+      } else {
+        s.saveCurrentConversation();
+      }
+    }, 100);
+  },
+
+  redo: () => {
+    const state = get();
+    if (state.redoStack.length === 0) return;
+
+    const snapshot = state.redoStack[state.redoStack.length - 1];
+    const newRedoStack = state.redoStack.slice(0, -1);
+
+    // Push current state back onto undo stack
+    const undoSnapshot: UndoSnapshot = {
+      sheets: state.sheets,
+      docContent: state.docContent,
+      label: snapshot.label,
+      timestamp: Date.now(),
+    };
+
+    set({
+      sheets: snapshot.sheets,
+      sheetVersion: state.sheetVersion + 1,
+      docContent: snapshot.docContent,
+      docVersion: state.docVersion + 1,
+      undoStack: [...state.undoStack, undoSnapshot],
+      canUndo: true,
+      redoStack: newRedoStack,
+      canRedo: newRedoStack.length > 0,
     });
 
     setTimeout(() => {
@@ -689,6 +741,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       projectMemory: {},
       undoStack: [],
       canUndo: false,
+      redoStack: [],
+      canRedo: false,
     });
   },
 
@@ -893,6 +947,52 @@ export const useAppStore = create<AppState>((set, get) => ({
     return ku;
   },
 
+  duplicateKnowledgeUnit: (projectId: string, kuId: string) => {
+    const state = get();
+    const project = state.projects.find((p) => p.id === projectId);
+    if (!project) return null;
+    const original = project.knowledgeUnits.find((k) => k.id === kuId);
+    if (!original) return null;
+
+    const now = Date.now();
+    const ku: KnowledgeUnit = {
+      id: nanoid(),
+      projectId,
+      title: `${original.title} (copy)`,
+      content: original.content,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    if (state.currentEntityId) {
+      state.saveCurrentEntity();
+    }
+
+    const updated = state.projects.map((p) =>
+      p.id === projectId
+        ? { ...p, knowledgeUnits: [...p.knowledgeUnits, ku], updatedAt: now }
+        : p
+    );
+
+    set({
+      projects: updated,
+      currentEntityId: ku.id,
+      currentEntityType: "ku",
+      docContent: ku.content,
+      docVersion: state.docVersion + 1,
+      activeTab: "doc",
+      workspaceOpen: true,
+    });
+    saveProjectsToStorage(updated);
+
+    updateProjectOnServer(projectId, {
+      knowledgeUnits: [{ id: ku.id, title: ku.title, content: ku.content }],
+    }).catch(() => {});
+
+    toast.success(`Duplicated "${original.title}"`);
+    return ku;
+  },
+
   deleteKnowledgeUnit: (projectId: string, kuId: string) => {
     const state = get();
     const updated = state.projects.map((p) =>
@@ -1010,6 +1110,52 @@ export const useAppStore = create<AppState>((set, get) => ({
       tables: [{ id: table.id, title: table.title, sheets: table.sheets }],
     }).catch(() => {});
 
+    return table;
+  },
+
+  duplicateTable: (projectId: string, tableId: string) => {
+    const state = get();
+    const project = state.projects.find((p) => p.id === projectId);
+    if (!project) return null;
+    const original = project.tables.find((t) => t.id === tableId);
+    if (!original) return null;
+
+    const now = Date.now();
+    const table: ProjectTable = {
+      id: nanoid(),
+      projectId,
+      title: `${original.title} (copy)`,
+      sheets: JSON.parse(JSON.stringify(original.sheets)),
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    if (state.currentEntityId) {
+      state.saveCurrentEntity();
+    }
+
+    const updated = state.projects.map((p) =>
+      p.id === projectId
+        ? { ...p, tables: [...p.tables, table], updatedAt: now }
+        : p
+    );
+
+    set({
+      projects: updated,
+      currentEntityId: table.id,
+      currentEntityType: "table",
+      sheets: table.sheets,
+      sheetVersion: state.sheetVersion + 1,
+      activeTab: "sheet",
+      workspaceOpen: true,
+    });
+    saveProjectsToStorage(updated);
+
+    updateProjectOnServer(projectId, {
+      tables: [{ id: table.id, title: table.title, sheets: table.sheets }],
+    }).catch(() => {});
+
+    toast.success(`Duplicated "${original.title}"`);
     return table;
   },
 

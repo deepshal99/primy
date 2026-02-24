@@ -8,10 +8,11 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import LinkExt from "@tiptap/extension-link";
 import Highlight from "@tiptap/extension-highlight";
+import TextAlign from "@tiptap/extension-text-align";
 import { Markdown } from "tiptap-markdown";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAppStore } from "@/lib/store";
-import { FileText, Sparkles, Loader2 } from "lucide-react";
+import { FileText, Sparkles, Loader2, Wand2, Shrink, Expand, MessageSquare, Pen } from "lucide-react";
 import { design } from "@/lib/design";
 import { DocToolbar } from "./DocToolbar";
 
@@ -51,6 +52,9 @@ export function DocView() {
       Highlight.configure({
         multicolor: false,
       }),
+      TextAlign.configure({
+        types: ["heading", "paragraph"],
+      }),
       Markdown,
     ],
     content: docContent || "",
@@ -84,9 +88,9 @@ export function DocView() {
     setAiEditPrompt("");
   }, []);
 
-  // Execute inline AI edit
-  const executeAIEdit = useCallback(async () => {
-    if (!editor || !aiEditPrompt.trim() || !selectedText) return;
+  // Core AI edit function — accepts a prompt string directly
+  const runAIEdit = useCallback(async (prompt: string, text: string) => {
+    if (!editor || !prompt.trim() || !text) return;
     setAiEditLoading(true);
     try {
       const res = await fetch("/api/chat", {
@@ -96,7 +100,7 @@ export function DocView() {
           messages: [
             {
               role: "user",
-              content: `Edit this text according to the instruction. Return ONLY the edited text, nothing else.\n\nText: "${selectedText}"\n\nInstruction: ${aiEditPrompt.trim()}`,
+              content: `Edit this text according to the instruction. Return ONLY the edited text, nothing else. Do not wrap in markdown fences.\n\nText: "${text}"\n\nInstruction: ${prompt}`,
             },
           ],
           sheetData: useAppStore.getState().sheets,
@@ -115,9 +119,8 @@ export function DocView() {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
-        // Parse SSE chunks: each line is "data: {...}\n\n"
         const lines = buffer.split("\n");
-        buffer = lines.pop() || ""; // Keep incomplete line in buffer
+        buffer = lines.pop() || "";
         for (const line of lines) {
           const trimmed = line.trim();
           if (!trimmed || !trimmed.startsWith("data: ")) continue;
@@ -132,7 +135,7 @@ export function DocView() {
         }
       }
 
-      // Clean up AI response (remove markdown fences if any)
+      // Clean up AI response
       let cleaned = result.trim();
       if (cleaned.startsWith("```")) {
         cleaned = cleaned.replace(/^```\w*\n?/, "").replace(/\n?```$/, "").trim();
@@ -151,7 +154,90 @@ export function DocView() {
       setAiEditPrompt("");
       setSelectedText("");
     }
-  }, [editor, aiEditPrompt, selectedText]);
+  }, [editor]);
+
+  // Legacy wrapper for the modal flow
+  const executeAIEdit = useCallback(async () => {
+    if (!aiEditPrompt.trim() || !selectedText) return;
+    await runAIEdit(aiEditPrompt.trim(), selectedText);
+  }, [runAIEdit, aiEditPrompt, selectedText]);
+
+  // Bubble menu quick actions
+  const handleBubbleAction = useCallback((action: string) => {
+    if (!editor) return;
+    const { from, to } = editor.state.selection;
+    if (from === to) return;
+    const text = editor.state.doc.textBetween(from, to, " ");
+    if (!text.trim()) return;
+
+    const prompts: Record<string, string> = {
+      improve: "Improve this text for clarity, grammar, and readability. Keep the same meaning and approximate length.",
+      shorten: "Make this text more concise. Remove unnecessary words while preserving the core meaning.",
+      expand: "Expand on this text with more detail, examples, or elaboration. Keep the same tone.",
+      formal: "Rewrite this text in a formal, professional tone.",
+      casual: "Rewrite this text in a casual, friendly conversational tone.",
+    };
+
+    if (action === "custom") {
+      setSelectedText(text);
+      setShowAiPrompt(true);
+      setAiEditPrompt("");
+      return;
+    }
+
+    const prompt = prompts[action];
+    if (prompt) {
+      setSelectedText(text);
+      runAIEdit(prompt, text);
+    }
+  }, [editor, runAIEdit]);
+
+  // Custom floating bubble menu — tracks selection position
+  const [bubblePos, setBubblePos] = useState<{ top: number; left: number } | null>(null);
+  const [showBubble, setShowBubble] = useState(false);
+  const bubbleRef = useRef<HTMLDivElement>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const updateBubble = () => {
+      const { from, to } = editor.state.selection;
+      if (from === to || aiEditLoading) {
+        setShowBubble(false);
+        return;
+      }
+      const text = editor.state.doc.textBetween(from, to, " ");
+      if (text.trim().length <= 2) {
+        setShowBubble(false);
+        return;
+      }
+      // Get selection coordinates from ProseMirror view
+      const coords = editor.view.coordsAtPos(from);
+      const container = editorContainerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      setBubblePos({
+        top: coords.top - rect.top - 44,
+        left: coords.left - rect.left,
+      });
+      setShowBubble(true);
+    };
+
+    editor.on("selectionUpdate", updateBubble);
+    editor.on("blur", () => {
+      // Delay to allow button clicks inside the bubble
+      setTimeout(() => {
+        if (!bubbleRef.current?.contains(document.activeElement)) {
+          setShowBubble(false);
+        }
+      }, 200);
+    });
+
+    return () => {
+      editor.off("selectionUpdate", updateBubble);
+    };
+  }, [editor, aiEditLoading]);
 
   const isEmpty = !docContent || docContent.trim().length === 0;
 
@@ -159,6 +245,25 @@ export function DocView() {
     <div className="h-full flex flex-col relative" style={{ backgroundColor: design.colors.bg.primary }}>
       {/* Toolbar */}
       <DocToolbar editor={editor} onAIEdit={handleAIEditFromToolbar} />
+
+      {/* AI Edit Loading Overlay */}
+      {aiEditLoading && !showAiPrompt && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/5 backdrop-blur-[1px]">
+          <div
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border"
+            style={{
+              backgroundColor: design.colors.bg.elevated,
+              borderColor: design.colors.border.default,
+              boxShadow: design.shadows.lg,
+            }}
+          >
+            <Loader2 className="w-4 h-4 animate-spin" style={{ color: design.colors.brand.primary }} />
+            <span className="text-[12px] font-medium" style={{ color: design.colors.text.primary }}>
+              Editing with AI...
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* AI Edit Prompt Modal */}
       {showAiPrompt && (
@@ -231,7 +336,56 @@ export function DocView() {
       )}
 
       {/* Editor area */}
-      <div className="flex-1 overflow-y-auto relative">
+      <div ref={editorContainerRef} className="flex-1 overflow-y-auto relative">
+        {/* Floating AI Bubble Menu */}
+        {showBubble && bubblePos && (
+          <div
+            ref={bubbleRef}
+            className="absolute z-40 animate-fade-in"
+            style={{ top: bubblePos.top, left: Math.max(8, bubblePos.left - 100) }}
+          >
+            <div
+              className="flex items-center gap-0.5 rounded-lg border px-1 py-0.5"
+              style={{
+                backgroundColor: design.colors.bg.elevated,
+                borderColor: design.colors.border.default,
+                boxShadow: design.shadows.lg,
+              }}
+            >
+              <BubbleButton
+                icon={<Wand2 className="w-3.5 h-3.5" />}
+                label="Improve"
+                onClick={() => { setShowBubble(false); handleBubbleAction("improve"); }}
+                color={design.colors.brand.primary}
+              />
+              <BubbleButton
+                icon={<Shrink className="w-3.5 h-3.5" />}
+                label="Shorten"
+                onClick={() => { setShowBubble(false); handleBubbleAction("shorten"); }}
+                color={design.colors.accent.purple}
+              />
+              <BubbleButton
+                icon={<Expand className="w-3.5 h-3.5" />}
+                label="Expand"
+                onClick={() => { setShowBubble(false); handleBubbleAction("expand"); }}
+                color={design.colors.accent.gold}
+              />
+              <div className="w-px h-5 mx-0.5" style={{ backgroundColor: design.colors.border.default }} />
+              <BubbleButton
+                icon={<MessageSquare className="w-3.5 h-3.5" />}
+                label="Formal"
+                onClick={() => { setShowBubble(false); handleBubbleAction("formal"); }}
+                color={design.colors.text.secondary}
+              />
+              <BubbleButton
+                icon={<Pen className="w-3.5 h-3.5" />}
+                label="Custom"
+                onClick={() => { setShowBubble(false); handleBubbleAction("custom"); }}
+                color={design.colors.text.secondary}
+              />
+            </div>
+          </div>
+        )}
         {isEmpty && !isStreaming && (
           <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
             <div className="flex flex-col items-center gap-3 text-center px-8">
@@ -260,6 +414,30 @@ export function DocView() {
         {isStreaming && <StreamingBar />}
       </div>
     </div>
+  );
+}
+
+function BubbleButton({
+  icon,
+  label,
+  onClick,
+  color,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  color: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-medium transition-colors hover:bg-black/5"
+      style={{ color }}
+      title={label}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
   );
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Table2, FileText, Undo2, ChevronRight, Home } from "lucide-react";
+import { Table2, FileText, Undo2, Redo2, ChevronRight, Home } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
 
@@ -8,6 +8,9 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
   const canUndo = useAppStore((s) => s.canUndo);
   const undo = useAppStore((s) => s.undo);
   const undoStack = useAppStore((s) => s.undoStack);
+  const canRedo = useAppStore((s) => s.canRedo);
+  const redo = useAppStore((s) => s.redo);
+  const redoStack = useAppStore((s) => s.redoStack);
   const currentProjectId = useAppStore((s) => s.currentProjectId);
   const currentEntityId = useAppStore((s) => s.currentEntityId);
   const currentEntityType = useAppStore((s) => s.currentEntityType);
@@ -148,6 +151,28 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
           >
             <Undo2 className="w-3.5 h-3.5" strokeWidth={2} />
             Undo
+          </button>
+        )}
+        {canRedo && (
+          <button
+            onClick={redo}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-ui-sm transition-colors duration-150"
+            style={{
+              color: design.colors.text.secondary,
+              backgroundColor: design.colors.bg.elevated,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = design.colors.brand.subtle;
+              e.currentTarget.style.color = design.colors.brand.primary;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = design.colors.bg.elevated;
+              e.currentTarget.style.color = design.colors.text.secondary;
+            }}
+            title={`Redo: ${redoStack[redoStack.length - 1]?.label}`}
+          >
+            <Redo2 className="w-3.5 h-3.5" strokeWidth={2} />
+            Redo
           </button>
         )}
         {actions}

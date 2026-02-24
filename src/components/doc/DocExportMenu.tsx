@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Download, FileText, Copy, ChevronDown, FileDown } from "lucide-react";
+import { Download, FileText, Copy, ChevronDown, FileDown, FileType } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 
@@ -15,6 +15,26 @@ function getEntityTitle(): string {
     }
   }
   return "document";
+}
+
+/** Parse markdown bold/italic/code inline formatting into TextRun array */
+function parseInlineFormatting(TextRun: any, text: string): any[] {
+  const runs: any[] = [];
+  // Match **bold**, *italic*, `code`, and plain text
+  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`|([^*`]+))/g;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    if (match[2]) {
+      runs.push(new TextRun({ text: match[2], bold: true }));
+    } else if (match[3]) {
+      runs.push(new TextRun({ text: match[3], italics: true }));
+    } else if (match[4]) {
+      runs.push(new TextRun({ text: match[4], font: "Courier New", size: 20 }));
+    } else if (match[5]) {
+      runs.push(new TextRun({ text: match[5] }));
+    }
+  }
+  return runs.length > 0 ? runs : [new TextRun({ text })];
 }
 
 export function DocExportMenu() {
@@ -127,6 +147,79 @@ export function DocExportMenu() {
     toast.success("Downloaded PDF");
   }, [docContent]);
 
+  const downloadDocx = useCallback(async () => {
+    const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = await import("docx");
+
+    const children: any[] = [];
+    const lines = docContent.split("\n");
+
+    for (const line of lines) {
+      if (line.startsWith("# ")) {
+        children.push(new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          children: parseInlineFormatting(TextRun, line.replace(/^# /, "")),
+        }));
+      } else if (line.startsWith("## ")) {
+        children.push(new Paragraph({
+          heading: HeadingLevel.HEADING_2,
+          children: parseInlineFormatting(TextRun, line.replace(/^## /, "")),
+        }));
+      } else if (line.startsWith("### ")) {
+        children.push(new Paragraph({
+          heading: HeadingLevel.HEADING_3,
+          children: parseInlineFormatting(TextRun, line.replace(/^### /, "")),
+        }));
+      } else if (line.startsWith("- ") || line.startsWith("* ")) {
+        children.push(new Paragraph({
+          bullet: { level: 0 },
+          children: parseInlineFormatting(TextRun, line.replace(/^[-*] /, "")),
+        }));
+      } else if (/^\d+\. /.test(line)) {
+        const text = line.replace(/^\d+\. /, "");
+        children.push(new Paragraph({
+          numbering: { reference: "default-numbering", level: 0 },
+          children: parseInlineFormatting(TextRun, text),
+        }));
+      } else if (line.startsWith("> ")) {
+        children.push(new Paragraph({
+          indent: { left: 720 },
+          children: [new TextRun({ text: line.replace(/^> /, ""), italics: true, color: "666666" })],
+        }));
+      } else if (line === "---") {
+        children.push(new Paragraph({
+          border: { bottom: { color: "CCCCCC", space: 1, style: "single" as any, size: 6 } },
+          children: [new TextRun("")],
+        }));
+      } else if (line.trim() === "") {
+        children.push(new Paragraph({ children: [] }));
+      } else {
+        children.push(new Paragraph({
+          children: parseInlineFormatting(TextRun, line),
+        }));
+      }
+    }
+
+    const doc = new Document({
+      numbering: {
+        config: [{
+          reference: "default-numbering",
+          levels: [{ level: 0, format: "decimal" as any, text: "%1.", alignment: AlignmentType.START }],
+        }],
+      },
+      sections: [{ children }],
+    });
+
+    const blob = await Packer.toBlob(doc);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${getEntityTitle()}.docx`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setOpen(false);
+    toast.success("Downloaded DOCX");
+  }, [docContent]);
+
   const downloadMarkdown = useCallback(() => {
     const blob = new Blob([docContent], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
@@ -167,6 +260,14 @@ export function DocExportMenu() {
 
       {open && (
         <div className="absolute right-0 top-full mt-1.5 w-48 bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl shadow-lg z-50 overflow-hidden animate-fade-in">
+          <button
+            onClick={downloadDocx}
+            className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] transition-colors"
+          >
+            <FileType className="w-4 h-4 text-blue-500" />
+            Download DOCX
+          </button>
+          <div className="mx-3 border-t border-[var(--color-border)]" />
           <button
             onClick={downloadPDF}
             className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] transition-colors"

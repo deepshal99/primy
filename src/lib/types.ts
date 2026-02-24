@@ -262,9 +262,11 @@ export interface AppState {
   projectMemory: ProjectMemory;
   readingFiles: string[];
 
-  // Undo history
+  // Undo/Redo history
   undoStack: UndoSnapshot[];
   canUndo: boolean;
+  redoStack: UndoSnapshot[];
+  canRedo: boolean;
 
   // Legacy conversation history (kept for migration)
   conversations: Conversation[];
@@ -303,6 +305,7 @@ export interface AppState {
   clearPendingAttachments: () => void;
   updateProjectMemory: (memory: Partial<ProjectMemory>) => void;
   undo: () => void;
+  redo: () => void;
   resetAll: () => void;
 
   // Legacy conversation actions (kept for backward compat)
@@ -324,12 +327,14 @@ export interface AppState {
 
   // Knowledge Unit CRUD
   createKnowledgeUnit: (projectId: string, title: string, content?: string) => KnowledgeUnit;
+  duplicateKnowledgeUnit: (projectId: string, kuId: string) => KnowledgeUnit | null;
   deleteKnowledgeUnit: (projectId: string, kuId: string) => void;
   renameKnowledgeUnit: (projectId: string, kuId: string, title: string) => void;
   openKnowledgeUnit: (kuId: string) => void;
 
   // Table CRUD
   createTable: (projectId: string, title: string, sheets?: SheetData[]) => ProjectTable;
+  duplicateTable: (projectId: string, tableId: string) => ProjectTable | null;
   deleteTable: (projectId: string, tableId: string) => void;
   renameTable: (projectId: string, tableId: string, title: string) => void;
   openTable: (tableId: string) => void;
