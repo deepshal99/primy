@@ -7,18 +7,15 @@ import {
   Table2,
   FileText,
   Loader2,
-  CheckCircle2,
-  Brain,
-  Search,
-  ListChecks,
   PenLine,
-  Lightbulb,
   ArrowRight,
   Copy,
   Check,
+  Sparkles,
 } from "lucide-react";
 import { Message } from "@/lib/types";
 import { design } from "@/lib/design";
+import { useAppStore } from "@/lib/store";
 import { MessageAttachments } from "./MessageAttachments";
 
 interface MessageBubbleProps {
@@ -59,15 +56,12 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
   return (
     <div className={`animate-fade-in ${isUser ? "flex justify-end" : ""}`}>
       {isUser ? (
-        /* ── User message ── */
         <div className="max-w-[85%]">
           {message.attachments && message.attachments.length > 0 && (
             <div className="flex justify-end mb-1.5">
               <div
                 className="rounded-xl px-3 py-2"
-                style={{
-                  backgroundColor: design.colors.bg.tertiary,
-                }}
+                style={{ backgroundColor: design.colors.bg.tertiary }}
               >
                 <MessageAttachments attachments={message.attachments} />
               </div>
@@ -81,14 +75,11 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
                 color: design.colors.text.primary,
               }}
             >
-              <p className="text-body whitespace-pre-wrap">
-                {message.content}
-              </p>
+              <p className="text-body whitespace-pre-wrap">{message.content}</p>
             </div>
           )}
         </div>
       ) : (
-        /* ── Assistant message — ChatGPT-style, just text ── */
         <div className="max-w-full group/msg">
           <div className="text-body markdown-content">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -145,33 +136,12 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
 }
 
 /* ══════════════════════════════════════════════
-   Streaming Bubble — Cascade-style step loading
+   Streaming Bubble — Clean, contextual loading
    ══════════════════════════════════════════════ */
 
 interface StreamingBubbleProps {
   content: string;
 }
-
-const THINKING_STEPS = [
-  { icon: Brain, label: "Thinking", delay: 0 },
-  { icon: Search, label: "Analyzing your request", delay: 1200 },
-  { icon: Lightbulb, label: "Planning approach", delay: 3000 },
-  { icon: ListChecks, label: "Preparing response", delay: 5000 },
-];
-
-const SHEET_STEPS = [
-  { icon: Brain, label: "Thinking", delay: 0 },
-  { icon: Search, label: "Analyzing data needs", delay: 1000 },
-  { icon: Table2, label: "Building spreadsheet", delay: 2500 },
-  { icon: PenLine, label: "Adding data", delay: 4000 },
-];
-
-const DOC_STEPS = [
-  { icon: Brain, label: "Thinking", delay: 0 },
-  { icon: Lightbulb, label: "Organizing ideas", delay: 1000 },
-  { icon: PenLine, label: "Writing content", delay: 2500 },
-  { icon: FileText, label: "Formatting document", delay: 4000 },
-];
 
 export function StreamingBubble({ content }: StreamingBubbleProps) {
   const hasSheetOps = content.includes("```sheetops");
@@ -201,108 +171,61 @@ export function StreamingBubble({ content }: StreamingBubbleProps) {
           )}
         </div>
       ) : (
-        <StepLoadingIndicator
-          steps={hasSheetOps || hasTableOps ? SHEET_STEPS : hasDocOps || hasKuOps ? DOC_STEPS : THINKING_STEPS}
-        />
+        <ThinkingIndicator />
       )}
     </div>
   );
 }
 
-/* ── Cascade-style step loading indicator ── */
+/* ── Clean thinking indicator ── */
 
-function StepLoadingIndicator({
-  steps,
-}: {
-  steps: { icon: typeof Brain; label: string; delay: number }[];
-}) {
-  const [activeIndex, setActiveIndex] = useState(0);
+function ThinkingIndicator() {
+  const readingFiles = useAppStore((s) => s.readingFiles);
+  const [phase, setPhase] = useState(0);
 
   useEffect(() => {
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    steps.forEach((step, i) => {
-      if (i > 0) {
-        timers.push(setTimeout(() => setActiveIndex(i), step.delay));
-      }
-    });
-    return () => timers.forEach(clearTimeout);
-  }, [steps]);
+    if (readingFiles.length > 0) return;
+    const t1 = setTimeout(() => setPhase(1), 3000);
+    const t2 = setTimeout(() => setPhase(2), 6000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [readingFiles]);
+
+  const labels = ["Thinking", "Analyzing", "Composing"];
+  const label = readingFiles.length > 0
+    ? `Reading ${readingFiles.join(", ")}`
+    : labels[phase];
 
   return (
-    <div className="flex flex-col gap-0.5 stagger-children">
-      {steps.map((step, i) => {
-        const Icon = step.icon;
-        const isActive = i === activeIndex;
-        const isComplete = i < activeIndex;
-
-        return (
-          <div
+    <div className="flex items-center gap-2.5 py-1">
+      <div
+        className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
+        style={{ backgroundColor: design.colors.accent.goldSubtle }}
+      >
+        <Sparkles
+          className="w-3.5 h-3.5"
+          style={{ color: design.colors.accent.gold }}
+          strokeWidth={2}
+        />
+      </div>
+      <span
+        className="text-[13px] font-medium"
+        style={{ color: design.colors.text.secondary }}
+      >
+        {label}
+      </span>
+      <span className="inline-flex items-center gap-[3px] ml-0.5">
+        {[0, 1, 2].map((i) => (
+          <span
             key={i}
-            className={`flex items-center gap-2.5 py-1.5 px-2 rounded-lg transition-all duration-300 animate-fade-in`}
+            className="w-[4px] h-[4px] rounded-full animate-bounce"
             style={{
-              animationDelay: `${i * 60}ms`,
-              backgroundColor: isActive ? design.colors.bg.secondary : "transparent",
+              backgroundColor: design.colors.text.muted,
+              animationDelay: `${i * 150}ms`,
+              animationDuration: "1s",
             }}
-          >
-            {/* Step icon */}
-            <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-              {isComplete ? (
-                <CheckCircle2
-                  className="w-4 h-4 icon-copy-success"
-                  style={{ color: design.colors.step.complete }}
-                  strokeWidth={2}
-                />
-              ) : isActive ? (
-                <Icon
-                  className="w-4 h-4 icon-draw"
-                  style={{ color: design.colors.step.active }}
-                  strokeWidth={1.5}
-                />
-              ) : (
-                <Icon
-                  className="w-4 h-4"
-                  style={{ color: design.colors.step.pending }}
-                  strokeWidth={1.5}
-                />
-              )}
-            </div>
-
-            {/* Label */}
-            <span
-              className={`text-body-sm transition-colors duration-300 ${
-                isActive ? "font-medium" : ""
-              }`}
-              style={{
-                color: isComplete
-                  ? design.colors.text.secondary
-                  : isActive
-                  ? design.colors.text.primary
-                  : design.colors.text.muted,
-              }}
-            >
-              {step.label}
-            </span>
-
-            {/* Active spinner */}
-            {isActive && (
-              <Loader2
-                className="w-3 h-3 animate-spin ml-auto"
-                style={{ color: design.colors.accent.gold }}
-                strokeWidth={2}
-              />
-            )}
-
-            {/* Complete checkmark text */}
-            {isComplete && (
-              <CheckCircle2
-                className="w-3 h-3 ml-auto icon-copy-success"
-                style={{ color: design.colors.step.complete }}
-                strokeWidth={2}
-              />
-            )}
-          </div>
-        );
-      })}
+          />
+        ))}
+      </span>
     </div>
   );
 }
@@ -310,29 +233,28 @@ function StepLoadingIndicator({
 /* ── Inline operation indicator ── */
 
 function OperationIndicator({ type }: { type: "sheet" | "doc" }) {
-  const Icon = type === "sheet" ? Table2 : FileText;
-  const label = type === "sheet" ? "Updating spreadsheet" : "Writing document";
-  const accentColor = type === "sheet" ? design.colors.accent.teal : design.colors.accent.purple;
+  const isSheet = type === "sheet";
+  const Icon = isSheet ? Table2 : PenLine;
+  const label = isSheet ? "Building spreadsheet" : "Writing document";
+  const accentColor = isSheet ? design.colors.accent.teal : design.colors.accent.purple;
+  const accentBg = isSheet ? design.colors.accent.tealSubtle : design.colors.accent.purpleSubtle;
 
   return (
     <div
-      className="flex items-center gap-2 px-3 py-2 rounded-lg border animate-fade-in"
-      style={{
-        borderColor: design.colors.border.default,
-        backgroundColor: design.colors.bg.secondary,
-      }}
+      className="inline-flex items-center gap-2 px-3 py-2 rounded-xl animate-fade-in"
+      style={{ backgroundColor: accentBg }}
     >
       <Icon
-        className="w-3.5 h-3.5 icon-draw"
+        className="w-3.5 h-3.5"
         style={{ color: accentColor }}
-        strokeWidth={1.5}
+        strokeWidth={2}
       />
-      <span className="text-ui-sm" style={{ color: design.colors.text.secondary }}>
+      <span className="text-[12px] font-medium" style={{ color: accentColor }}>
         {label}
       </span>
       <Loader2
-        className="w-3 h-3 animate-spin ml-auto"
-        style={{ color: design.colors.accent.gold }}
+        className="w-3 h-3 animate-spin"
+        style={{ color: accentColor }}
         strokeWidth={2}
       />
     </div>

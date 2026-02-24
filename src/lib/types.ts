@@ -279,6 +279,9 @@ export interface AppState {
   currentEntityId: string | null;
   currentEntityType: EntityType | null;
 
+  // Open file tabs
+  openTabs: { id: string; type: EntityType; title: string }[];
+
   // Chat/streaming actions
   addUserMessage: (content: string, attachments?: FileAttachment[]) => void;
   startStreaming: () => void;
@@ -338,6 +341,9 @@ export interface AppState {
   deleteTable: (projectId: string, tableId: string) => void;
   renameTable: (projectId: string, tableId: string, title: string) => void;
   openTable: (tableId: string) => void;
+
+  // Tab management
+  closeTab: (id: string) => void;
 
   // Entity sync
   saveCurrentEntity: () => void;

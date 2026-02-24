@@ -127,6 +127,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentProjectId: null,
   currentEntityId: null,
   currentEntityType: null,
+  openTabs: [],
 
   // ── Chat Actions ──
 
@@ -743,6 +744,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       canUndo: false,
       redoStack: [],
       canRedo: false,
+      openTabs: [],
     });
   },
 
@@ -889,6 +891,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       projectMemory: project.memory || {},
       undoStack: [],
       canUndo: false,
+      openTabs: [],
     });
 
     // Auto-update project details if missing and project has messages
@@ -936,6 +939,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       docVersion: state.docVersion + 1,
       activeTab: "doc",
       workspaceOpen: true,
+      openTabs: [...state.openTabs.filter((t) => t.id !== ku.id), { id: ku.id, type: "ku" as const, title: ku.title }],
     });
     saveProjectsToStorage(updated);
 
@@ -1008,6 +1012,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const isCurrent = state.currentEntityId === kuId;
     set({
       projects: updated,
+      openTabs: state.openTabs.filter((t) => t.id !== kuId),
       ...(isCurrent
         ? {
             currentEntityId: null,
@@ -1050,13 +1055,17 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   openKnowledgeUnit: (kuId: string) => {
     const state = get();
-    // Save current entity first
     if (state.currentEntityId) {
       state.saveCurrentEntity();
     }
 
     const found = findKnowledgeUnit(state.projects, kuId);
     if (!found) return;
+
+    // Add to open tabs if not already there
+    const newTabs = state.openTabs.some((t) => t.id === kuId)
+      ? state.openTabs
+      : [...state.openTabs, { id: kuId, type: "ku" as const, title: found.ku.title }];
 
     set({
       currentEntityId: found.ku.id,
@@ -1065,6 +1074,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       docVersion: state.docVersion + 1,
       activeTab: "doc",
       workspaceOpen: true,
+      openTabs: newTabs,
     });
   },
 
@@ -1102,6 +1112,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       sheetVersion: state.sheetVersion + 1,
       activeTab: "sheet",
       workspaceOpen: true,
+      openTabs: [...state.openTabs.filter((t) => t.id !== table.id), { id: table.id, type: "table" as const, title: table.title }],
     });
     saveProjectsToStorage(updated);
 
@@ -1174,6 +1185,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const isCurrent = state.currentEntityId === tableId;
     set({
       projects: updated,
+      openTabs: state.openTabs.filter((t) => t.id !== tableId),
       ...(isCurrent
         ? {
             currentEntityId: null,
@@ -1223,6 +1235,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     const found = findTable(state.projects, tableId);
     if (!found) return;
 
+    // Add to open tabs if not already there
+    const newTabs = state.openTabs.some((t) => t.id === tableId)
+      ? state.openTabs
+      : [...state.openTabs, { id: tableId, type: "table" as const, title: found.table.title }];
+
     set({
       currentEntityId: found.table.id,
       currentEntityType: "table",
@@ -1230,7 +1247,47 @@ export const useAppStore = create<AppState>((set, get) => ({
       sheetVersion: state.sheetVersion + 1,
       activeTab: "sheet",
       workspaceOpen: true,
+      openTabs: newTabs,
     });
+  },
+
+  // ══════════════════════════════════
+  // ── Tab Management ──
+  // ══════════════════════════════════
+
+  closeTab: (id: string) => {
+    const state = get();
+    const newTabs = state.openTabs.filter((t) => t.id !== id);
+    const isCurrent = state.currentEntityId === id;
+
+    if (isCurrent) {
+      // Switch to the next tab, or previous, or go to project home
+      const idx = state.openTabs.findIndex((t) => t.id === id);
+      const nextTab = newTabs[idx] || newTabs[idx - 1];
+
+      if (nextTab) {
+        // Save current entity first, then switch
+        state.saveCurrentEntity();
+        if (nextTab.type === "ku") {
+          set({ openTabs: newTabs });
+          get().openKnowledgeUnit(nextTab.id);
+        } else {
+          set({ openTabs: newTabs });
+          get().openTable(nextTab.id);
+        }
+      } else {
+        // No more tabs — go to project home
+        state.saveCurrentEntity();
+        set({
+          openTabs: newTabs,
+          currentEntityId: null,
+          currentEntityType: null,
+          workspaceOpen: false,
+        });
+      }
+    } else {
+      set({ openTabs: newTabs });
+    }
   },
 
   // ══════════════════════════════════

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { FileText, Table2, Plus, Clock, Sparkles, ArrowRight, ChevronDown, Check, Settings2, MoreHorizontal, Pencil, Trash2, Copy } from "lucide-react";
+import { FileText, Table2, Plus, Clock, Sparkles, ArrowRight, ChevronDown, Check, Settings2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
 import { PROJECT_TYPES } from "@/lib/constants";
@@ -20,8 +20,6 @@ export function ProjectHome() {
   const renameTable = useAppStore((s) => s.renameTable);
   const deleteKnowledgeUnit = useAppStore((s) => s.deleteKnowledgeUnit);
   const deleteTable = useAppStore((s) => s.deleteTable);
-  const duplicateKnowledgeUnit = useAppStore((s) => s.duplicateKnowledgeUnit);
-  const duplicateTable = useAppStore((s) => s.duplicateTable);
   const messages = useAppStore((s) => s.messages);
 
   // Entity rename state
@@ -268,7 +266,7 @@ export function ProjectHome() {
                     className="group relative flex flex-col text-left transition-all duration-200 cursor-pointer"
                     style={{
                       backgroundColor: design.colors.bg.elevated,
-                      border: `2px solid ${accent}`,
+                      border: `1.5px solid ${design.colors.border.default}`,
                       borderRadius: "14px",
                       padding: "18px",
                     }}
@@ -278,10 +276,12 @@ export function ProjectHome() {
                       else openTable(entity.id);
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.boxShadow = `0 8px 24px ${accentSubtle}, 0 0 0 1px ${accent}`;
-                      e.currentTarget.style.transform = "translateY(-2px)";
+                      e.currentTarget.style.borderColor = design.colors.border.focus;
+                      e.currentTarget.style.boxShadow = design.shadows.md;
+                      e.currentTarget.style.transform = "translateY(-1px)";
                     }}
                     onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = design.colors.border.default;
                       e.currentTarget.style.boxShadow = "none";
                       e.currentTarget.style.transform = "translateY(0)";
                       setMenuOpenId(null);
@@ -324,20 +324,6 @@ export function ProjectHome() {
                           >
                             <Pencil className="w-3.5 h-3.5" />
                             Rename
-                          </button>
-                          <button
-                            onClick={() => {
-                              setMenuOpenId(null);
-                              if (isKu) duplicateKnowledgeUnit(project.id, entity.id);
-                              else duplicateTable(project.id, entity.id);
-                            }}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-left transition-colors"
-                            style={{ color: design.colors.text.primary }}
-                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                            Duplicate
                           </button>
                           <button
                             onClick={() => {

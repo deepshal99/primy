@@ -380,6 +380,22 @@ html, body {
   animation: progressBar 1.5s ease-in-out infinite;
 }
 
+/* AI change highlight — gold flash that fades out */
+@keyframes aiHighlightFade {
+  0% { background-color: rgba(229, 149, 62, 0.25); }
+  70% { background-color: rgba(229, 149, 62, 0.12); }
+  100% { background-color: transparent; }
+}
+.ai-change-highlight {
+  animation: aiHighlightFade 3s ease-out forwards;
+  border-radius: 2px;
+  transition: background-color 0.3s ease;
+}
+
+/* Hide scrollbar but allow scrolling */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* Stagger children */
 .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
 .stagger-children > *:nth-child(2) { animation-delay: 60ms; }
@@ -721,9 +737,14 @@ html, body {
 
 /* Highlights */
 .doc-editor mark {
-  background-color: rgba(229, 149, 62, 0.18);
+  background-color: rgba(229, 149, 62, 0.22);
   border-radius: 2px;
   padding: 1px 2px;
+  animation: aiHighlightPulse 0.6s ease-out;
+}
+@keyframes aiHighlightPulse {
+  0% { background-color: rgba(229, 149, 62, 0.45); }
+  100% { background-color: rgba(229, 149, 62, 0.22); }
 }
 
 .ProseMirror:focus { outline: none; }

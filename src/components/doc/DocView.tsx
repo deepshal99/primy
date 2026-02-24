@@ -141,10 +141,28 @@ export function DocView() {
         cleaned = cleaned.replace(/^```\w*\n?/, "").replace(/\n?```$/, "").trim();
       }
 
-      // Replace the selected text with AI result
+      // Replace the selected text with AI result and highlight the change
       const { from, to } = editor.state.selection;
       if (from !== to) {
         editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, cleaned).run();
+
+        // Highlight the newly inserted text temporarily
+        const newTo = from + cleaned.length;
+        editor.chain()
+          .setTextSelection({ from, to: newTo })
+          .setHighlight()
+          .run();
+
+        // Remove highlight after 3 seconds
+        setTimeout(() => {
+          if (!editor.isDestroyed) {
+            editor.chain()
+              .setTextSelection({ from, to: newTo })
+              .unsetHighlight()
+              .setTextSelection(newTo)
+              .run();
+          }
+        }, 3000);
       }
     } catch (err) {
       if (process.env.NODE_ENV !== "production") console.error("AI edit error:", err);

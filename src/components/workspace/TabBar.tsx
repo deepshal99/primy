@@ -1,6 +1,6 @@
 "use client";
 
-import { Table2, FileText, Undo2, Redo2, ChevronRight, Home } from "lucide-react";
+import { Table2, FileText, Undo2, ChevronRight, Home, X } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
 
@@ -8,29 +8,18 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
   const canUndo = useAppStore((s) => s.canUndo);
   const undo = useAppStore((s) => s.undo);
   const undoStack = useAppStore((s) => s.undoStack);
-  const canRedo = useAppStore((s) => s.canRedo);
-  const redo = useAppStore((s) => s.redo);
-  const redoStack = useAppStore((s) => s.redoStack);
   const currentProjectId = useAppStore((s) => s.currentProjectId);
   const currentEntityId = useAppStore((s) => s.currentEntityId);
-  const currentEntityType = useAppStore((s) => s.currentEntityType);
+  const openTabs = useAppStore((s) => s.openTabs);
+  const openKnowledgeUnit = useAppStore((s) => s.openKnowledgeUnit);
+  const openTable = useAppStore((s) => s.openTable);
+  const closeTab = useAppStore((s) => s.closeTab);
   const projects = useAppStore((s) => s.projects);
 
-  // Get current entity name for breadcrumb
   let projectTitle = "";
-  let entityTitle = "";
   if (currentProjectId) {
     const project = projects.find((p) => p.id === currentProjectId);
-    if (project) {
-      projectTitle = project.title;
-      if (currentEntityId && currentEntityType === "ku") {
-        const ku = project.knowledgeUnits.find((k) => k.id === currentEntityId);
-        if (ku) entityTitle = ku.title;
-      } else if (currentEntityId && currentEntityType === "table") {
-        const table = project.tables.find((t) => t.id === currentEntityId);
-        if (table) entityTitle = table.title;
-      }
-    }
+    if (project) projectTitle = project.title;
   }
 
   const isProjectHome = !currentEntityId;
@@ -45,92 +34,127 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
 
   return (
     <div
-      className="flex items-center justify-between px-3 border-b"
+      className="flex items-center border-b"
       style={{
         height: design.layout.headerHeight,
         backgroundColor: design.colors.bg.secondary,
         borderColor: design.colors.border.default,
       }}
     >
-      <div className="flex items-center gap-1 min-w-0 flex-1">
-        {/* Always show breadcrumb: Home → File */}
-        <div className="flex items-center gap-1 min-w-0 mr-3">
-          {/* Home button */}
-          <button
-            onClick={navigateToProjectHome}
-            className="flex items-center justify-center w-8 h-8 rounded-lg transition-colors flex-shrink-0"
-            style={{
-              backgroundColor: isProjectHome ? design.colors.brand.subtle : "transparent",
-              color: isProjectHome ? design.colors.brand.primary : design.colors.text.muted,
-            }}
-            onMouseEnter={(e) => {
-              if (!isProjectHome) {
-                e.currentTarget.style.backgroundColor = design.colors.bg.hover;
-                e.currentTarget.style.color = design.colors.brand.primary;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isProjectHome) {
-                e.currentTarget.style.backgroundColor = "transparent";
-                e.currentTarget.style.color = design.colors.text.muted;
-              }
-            }}
-            title="Project home"
-          >
-            <Home className="w-4 h-4" strokeWidth={isProjectHome ? 2 : 1.5} />
-          </button>
+      {/* Left: Home + Tabs */}
+      <div className="flex items-center min-w-0 flex-1 overflow-x-auto no-scrollbar">
+        {/* Home button */}
+        <button
+          onClick={navigateToProjectHome}
+          className="flex items-center justify-center w-9 h-9 rounded-lg transition-colors flex-shrink-0 mx-1.5"
+          style={{
+            backgroundColor: isProjectHome && openTabs.length === 0 ? design.colors.brand.subtle : "transparent",
+            color: isProjectHome && openTabs.length === 0 ? design.colors.brand.primary : design.colors.text.muted,
+          }}
+          onMouseEnter={(e) => {
+            if (!(isProjectHome && openTabs.length === 0)) {
+              e.currentTarget.style.backgroundColor = design.colors.bg.hover;
+              e.currentTarget.style.color = design.colors.brand.primary;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!(isProjectHome && openTabs.length === 0)) {
+              e.currentTarget.style.backgroundColor = "transparent";
+              e.currentTarget.style.color = design.colors.text.muted;
+            }
+          }}
+          title={projectTitle || "Project home"}
+        >
+          <Home className="w-4 h-4" strokeWidth={isProjectHome ? 2 : 1.5} />
+        </button>
 
-          {entityTitle ? (
-            /* Entity breadcrumb: Home > file type icon + name */
-            <>
-              <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: design.colors.text.placeholder }} />
-              {currentEntityType === "ku" ? (
-                <FileText className="w-4 h-4 flex-shrink-0" style={{ color: design.colors.accent.purple }} />
-              ) : (
-                <Table2 className="w-4 h-4 flex-shrink-0" style={{ color: design.colors.accent.teal }} />
-              )}
-              <span
-                className="text-[14px] font-medium truncate"
-                style={{
-                  color: design.colors.text.primary,
-                  fontFamily: design.typography.family.heading,
-                }}
-              >
-                {entityTitle}
-              </span>
-              <span
-                className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded flex-shrink-0 ml-1"
-                style={{
-                  backgroundColor: currentEntityType === "ku"
-                    ? design.colors.accent.purpleSubtle
-                    : design.colors.accent.tealSubtle,
-                  color: currentEntityType === "ku"
-                    ? design.colors.accent.purple
-                    : design.colors.accent.teal,
-                  letterSpacing: "0.05em",
-                }}
-              >
-                {currentEntityType === "ku" ? "Doc" : "Sheet"}
-              </span>
-            </>
-          ) : (
-            /* Project Home — show project name */
-            <>
-              <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: design.colors.text.placeholder }} />
-              <span
-                className="text-[14px] font-medium truncate"
-                style={{
-                  color: design.colors.text.primary,
-                  fontFamily: design.typography.family.heading,
-                }}
-              >
-                {projectTitle || "Home"}
-              </span>
-            </>
-          )}
-        </div>
+        {/* File tabs */}
+        {openTabs.length > 0 && (
+          <>
+            <div
+              className="w-px h-5 flex-shrink-0"
+              style={{ backgroundColor: design.colors.border.default }}
+            />
+            <div className="flex items-center gap-0.5 px-1">
+              {openTabs.map((tab) => {
+                const isActive = tab.id === currentEntityId;
+                const isKu = tab.type === "ku";
+
+                return (
+                  <div
+                    key={tab.id}
+                    className="group flex items-center gap-1.5 pl-2.5 pr-1 py-1.5 rounded-lg transition-all duration-150 cursor-pointer max-w-[180px] flex-shrink-0"
+                    style={{
+                      backgroundColor: isActive ? design.colors.bg.elevated : "transparent",
+                      boxShadow: isActive ? design.shadows.sm : "none",
+                    }}
+                    onClick={() => {
+                      if (!isActive) {
+                        if (isKu) openKnowledgeUnit(tab.id);
+                        else openTable(tab.id);
+                      }
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = design.colors.bg.hover;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                      }
+                    }}
+                  >
+                    {isKu ? (
+                      <FileText
+                        className="w-3.5 h-3.5 flex-shrink-0"
+                        style={{ color: isActive ? design.colors.accent.purple : design.colors.text.muted }}
+                        strokeWidth={1.8}
+                      />
+                    ) : (
+                      <Table2
+                        className="w-3.5 h-3.5 flex-shrink-0"
+                        style={{ color: isActive ? design.colors.accent.teal : design.colors.text.muted }}
+                        strokeWidth={1.8}
+                      />
+                    )}
+                    <span
+                      className="text-[12px] truncate"
+                      style={{
+                        color: isActive ? design.colors.text.primary : design.colors.text.secondary,
+                        fontWeight: isActive ? 500 : 400,
+                      }}
+                    >
+                      {tab.title}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        closeTab(tab.id);
+                      }}
+                      className="w-4 h-4 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-0.5"
+                      style={{ color: design.colors.text.muted }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = design.colors.bg.tertiary;
+                        e.currentTarget.style.color = design.colors.text.primary;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                        e.currentTarget.style.color = design.colors.text.muted;
+                      }}
+                    >
+                      <X className="w-3 h-3" strokeWidth={2} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
+
+      {/* Right: actions */}
+      <div className="flex items-center gap-2 flex-shrink-0 px-3">
         {canUndo && (
           <button
             onClick={undo}
@@ -151,28 +175,6 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
           >
             <Undo2 className="w-3.5 h-3.5" strokeWidth={2} />
             Undo
-          </button>
-        )}
-        {canRedo && (
-          <button
-            onClick={redo}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-ui-sm transition-colors duration-150"
-            style={{
-              color: design.colors.text.secondary,
-              backgroundColor: design.colors.bg.elevated,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = design.colors.brand.subtle;
-              e.currentTarget.style.color = design.colors.brand.primary;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = design.colors.bg.elevated;
-              e.currentTarget.style.color = design.colors.text.secondary;
-            }}
-            title={`Redo: ${redoStack[redoStack.length - 1]?.label}`}
-          >
-            <Redo2 className="w-3.5 h-3.5" strokeWidth={2} />
-            Redo
           </button>
         )}
         {actions}
