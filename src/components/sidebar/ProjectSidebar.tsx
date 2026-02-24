@@ -12,12 +12,9 @@ import {
   FolderOpen,
   Folder,
   Ellipsis,
-  FileText,
-  Table2,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
-import { PROJECT_TYPES } from "@/lib/constants";
 
 export function ProjectSidebar() {
   const { data: session } = useSession();
@@ -244,16 +241,12 @@ export function ProjectSidebar() {
         ) : (
           filteredProjects.map((project) => {
             const isActive = project.id === currentProjectId;
-            const kuCount = project.knowledgeUnits.length;
-            const tableCount = project.tables.length;
-            const totalFiles = kuCount + tableCount;
 
             return (
               <div key={project.id} className="relative group mb-0.5">
                 <button
                   onClick={() => {
                     if (isActive) {
-                      // Go to project home (deselect entity)
                       useAppStore.getState().saveCurrentEntity();
                       useAppStore.setState({
                         currentEntityId: null,
@@ -264,13 +257,21 @@ export function ProjectSidebar() {
                     }
                   }}
                   onContextMenu={(e) => handleContextMenu(e, project.id)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-colors relative"
                   style={{
                     backgroundColor: isActive ? design.colors.bg.sidebarActive : "transparent",
                   }}
                   onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = design.colors.bg.sidebarHover; }}
                   onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = isActive ? design.colors.bg.sidebarActive : "transparent"; }}
                 >
+                  {/* Active indicator bar */}
+                  {isActive && (
+                    <div
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 rounded-full"
+                      style={{ backgroundColor: design.colors.brand.primary }}
+                    />
+                  )}
+
                   {/* Folder icon */}
                   {isActive ? (
                     <FolderOpen className="w-[18px] h-[18px] flex-shrink-0" style={{ color: design.colors.brand.primary }} strokeWidth={1.5} />
@@ -278,7 +279,7 @@ export function ProjectSidebar() {
                     <Folder className="w-[18px] h-[18px] flex-shrink-0" style={{ color: design.colors.text.sidebarDim }} strokeWidth={1.5} />
                   )}
 
-                  {/* Name + metadata */}
+                  {/* Name only — clean, minimal */}
                   <div className="flex-1 min-w-0">
                     {renamingId === project.id ? (
                       <input
@@ -291,56 +292,26 @@ export function ProjectSidebar() {
                           if (e.key === "Escape") setRenamingId(null);
                         }}
                         className="w-full text-[14px] bg-transparent outline-none border-b pb-0.5"
-                        style={{ color: design.colors.text.sidebar, borderColor: design.colors.brand.primary }}
+                        style={{
+                          color: design.colors.text.sidebar,
+                          borderColor: design.colors.brand.primary,
+                          fontFamily: design.typography.family.heading,
+                        }}
                         onClick={(e) => e.stopPropagation()}
                       />
                     ) : (
-                      <>
-                        <span
-                          className="block text-[14px] truncate leading-tight"
-                          style={{
-                            color: isActive ? design.colors.text.sidebar : design.colors.text.sidebarMuted,
-                            fontWeight: isActive ? 500 : 400,
-                          }}
-                        >
-                          {project.title}
-                        </span>
-                        {/* File count summary */}
-                        {totalFiles > 0 && (
-                          <span
-                            className="flex items-center gap-1.5 mt-0.5"
-                            style={{ fontSize: "11px", color: design.colors.text.sidebarDim }}
-                          >
-                            {kuCount > 0 && (
-                              <span className="flex items-center gap-0.5">
-                                <FileText className="w-2.5 h-2.5" />
-                                {kuCount}
-                              </span>
-                            )}
-                            {tableCount > 0 && (
-                              <span className="flex items-center gap-0.5">
-                                <Table2 className="w-2.5 h-2.5" />
-                                {tableCount}
-                              </span>
-                            )}
-                          </span>
-                        )}
-                      </>
+                      <span
+                        className="block text-[14px] truncate leading-tight"
+                        style={{
+                          color: isActive ? design.colors.text.sidebar : design.colors.text.sidebarMuted,
+                          fontWeight: isActive ? 500 : 400,
+                          fontFamily: design.typography.family.heading,
+                        }}
+                      >
+                        {project.title}
+                      </span>
                     )}
                   </div>
-
-                  {/* Type badge */}
-                  {!renamingId && project.projectType && (
-                    <span
-                      className="text-[10px] font-medium px-1.5 py-0.5 rounded flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                      style={{
-                        backgroundColor: design.colors.bg.sidebarHover,
-                        color: design.colors.text.sidebarDim,
-                      }}
-                    >
-                      {project.projectType}
-                    </span>
-                  )}
                 </button>
 
                 {/* Hover actions: ... button */}

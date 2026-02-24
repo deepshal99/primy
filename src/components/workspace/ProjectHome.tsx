@@ -72,16 +72,8 @@ export function ProjectHome() {
     >
       <div className="max-w-3xl mx-auto px-8 py-10">
 
-        {/* ── Hero section with editable fields ── */}
+        {/* ── Hero section ── */}
         <div className="mb-10">
-          {/* Accent bar */}
-          <div
-            className="w-10 h-1 rounded-full mb-6"
-            style={{
-              background: `linear-gradient(135deg, ${design.colors.brand.primary}, ${design.colors.accent.purple})`,
-            }}
-          />
-
           {/* Editable title */}
           <EditableTitle
             value={project.title}
@@ -94,20 +86,19 @@ export function ProjectHome() {
             onSave={(description) => updateProject(project.id, { description })}
           />
 
-          {/* Type picker + Stats row */}
-          <div className="flex items-center gap-3 mt-4">
+          {/* Type + Stats row */}
+          <div className="flex items-center gap-2.5 mt-5">
             <TypePicker
               value={project.projectType}
               onChange={(projectType) => updateProject(project.id, { projectType })}
             />
-            <span style={{ color: design.colors.border.default }}>·</span>
             <span
               style={{
                 fontSize: "13px",
                 color: design.colors.text.muted,
               }}
             >
-              {kuCount} {kuCount === 1 ? "doc" : "docs"} · {tableCount} {tableCount === 1 ? "table" : "tables"} · {messages.length} messages
+              {kuCount} {kuCount === 1 ? "doc" : "docs"} · {tableCount} {tableCount === 1 ? "table" : "tables"}
             </span>
           </div>
         </div>
@@ -119,28 +110,30 @@ export function ProjectHome() {
         <div className="flex gap-3 mb-8">
           <button
             onClick={() => createKnowledgeUnit(project.id, "New Document")}
-            className="group flex items-center gap-3 transition-all duration-200"
+            className="group flex items-center gap-3 transition-all duration-150"
             style={{
-              backgroundColor: design.colors.bg.elevated,
-              border: `1.5px solid ${design.colors.border.default}`,
-              borderRadius: "14px",
-              padding: "14px 20px",
+              backgroundColor: "transparent",
+              border: `1px dashed ${design.colors.border.default}`,
+              borderRadius: "12px",
+              padding: "12px 16px",
               flex: 1,
             }}
             onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = design.colors.accent.purpleSubtle;
               e.currentTarget.style.borderColor = design.colors.accent.purple;
-              e.currentTarget.style.boxShadow = design.shadows.lg;
+              e.currentTarget.style.borderStyle = "solid";
             }}
             onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
               e.currentTarget.style.borderColor = design.colors.border.default;
-              e.currentTarget.style.boxShadow = "none";
+              e.currentTarget.style.borderStyle = "dashed";
             }}
           >
             <div
               style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "10px",
+                width: "32px",
+                height: "32px",
+                borderRadius: "8px",
                 backgroundColor: design.colors.accent.purpleSubtle,
                 display: "flex",
                 alignItems: "center",
@@ -148,12 +141,12 @@ export function ProjectHome() {
                 flexShrink: 0,
               }}
             >
-              <FileText style={{ width: "20px", height: "20px", color: design.colors.accent.purple }} />
+              <FileText style={{ width: "16px", height: "16px", color: design.colors.accent.purple }} />
             </div>
             <div style={{ flex: 1, textAlign: "left" }}>
               <span
                 style={{
-                  fontSize: "15px",
+                  fontSize: "14px",
                   fontWeight: 500,
                   color: design.colors.text.primary,
                   fontFamily: design.typography.family.heading,
@@ -162,40 +155,38 @@ export function ProjectHome() {
               >
                 New Document
               </span>
-              <span style={{ fontSize: "12px", color: design.colors.text.muted }}>
+              <span style={{ fontSize: "11px", color: design.colors.text.muted }}>
                 Rich text & markdown
               </span>
             </div>
-            <Plus
-              className="opacity-0 group-hover:opacity-50 transition-opacity flex-shrink-0"
-              style={{ width: "16px", height: "16px", color: design.colors.text.muted }}
-            />
           </button>
 
           <button
             onClick={() => createTable(project.id, "New Table")}
-            className="group flex items-center gap-3 transition-all duration-200"
+            className="group flex items-center gap-3 transition-all duration-150"
             style={{
-              backgroundColor: design.colors.bg.elevated,
-              border: `1.5px solid ${design.colors.border.default}`,
-              borderRadius: "14px",
-              padding: "14px 20px",
+              backgroundColor: "transparent",
+              border: `1px dashed ${design.colors.border.default}`,
+              borderRadius: "12px",
+              padding: "12px 16px",
               flex: 1,
             }}
             onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = design.colors.accent.tealSubtle;
               e.currentTarget.style.borderColor = design.colors.accent.teal;
-              e.currentTarget.style.boxShadow = design.shadows.lg;
+              e.currentTarget.style.borderStyle = "solid";
             }}
             onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
               e.currentTarget.style.borderColor = design.colors.border.default;
-              e.currentTarget.style.boxShadow = "none";
+              e.currentTarget.style.borderStyle = "dashed";
             }}
           >
             <div
               style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "10px",
+                width: "32px",
+                height: "32px",
+                borderRadius: "8px",
                 backgroundColor: design.colors.accent.tealSubtle,
                 display: "flex",
                 alignItems: "center",
@@ -203,12 +194,12 @@ export function ProjectHome() {
                 flexShrink: 0,
               }}
             >
-              <Table2 style={{ width: "20px", height: "20px", color: design.colors.accent.teal }} />
+              <Table2 style={{ width: "16px", height: "16px", color: design.colors.accent.teal }} />
             </div>
             <div style={{ flex: 1, textAlign: "left" }}>
               <span
                 style={{
-                  fontSize: "15px",
+                  fontSize: "14px",
                   fontWeight: 500,
                   color: design.colors.text.primary,
                   fontFamily: design.typography.family.heading,
@@ -217,36 +208,24 @@ export function ProjectHome() {
               >
                 New Table
               </span>
-              <span style={{ fontSize: "12px", color: design.colors.text.muted }}>
+              <span style={{ fontSize: "11px", color: design.colors.text.muted }}>
                 Spreadsheet & formulas
               </span>
             </div>
-            <Plus
-              className="opacity-0 group-hover:opacity-50 transition-opacity flex-shrink-0"
-              style={{ width: "16px", height: "16px", color: design.colors.text.muted }}
-            />
           </button>
         </div>
 
         {/* ── Files section ── */}
         {entities.length === 0 ? (
           <div
-            className="flex flex-col items-center justify-center py-16 relative overflow-hidden"
+            className="flex flex-col items-center justify-center py-16"
             style={{
-              border: `1.5px dashed ${design.colors.border.default}`,
-              borderRadius: "14px",
+              border: `1px dashed ${design.colors.border.default}`,
+              borderRadius: "12px",
               backgroundColor: design.colors.bg.elevated,
             }}
           >
-            <div
-              className="absolute -top-8 -right-8 w-32 h-32 rounded-full opacity-30"
-              style={{ background: `radial-gradient(circle, ${design.colors.accent.purpleSubtle} 0%, transparent 70%)` }}
-            />
-            <div
-              className="absolute -bottom-6 -left-6 w-24 h-24 rounded-full opacity-30"
-              style={{ background: `radial-gradient(circle, ${design.colors.accent.tealSubtle} 0%, transparent 70%)` }}
-            />
-            <Sparkles className="w-7 h-7 mb-4" style={{ color: design.colors.accent.gold }} strokeWidth={1.5} />
+            <Sparkles className="w-6 h-6 mb-4" style={{ color: design.colors.accent.gold }} strokeWidth={1.5} />
             <p style={{ fontSize: "14px", fontWeight: 500, color: design.colors.text.primary, marginBottom: "4px" }}>
               Your workspace awaits
             </p>
@@ -277,12 +256,12 @@ export function ProjectHome() {
                 return (
                   <div
                     key={entity.id}
-                    className="group relative flex flex-col text-left transition-all duration-200 cursor-pointer"
+                    className="group relative flex flex-col text-left transition-all duration-150 cursor-pointer"
                     style={{
                       backgroundColor: design.colors.bg.elevated,
-                      border: `1.5px solid ${design.colors.border.default}`,
-                      borderRadius: "14px",
-                      padding: "18px",
+                      border: `1px solid ${design.colors.border.default}`,
+                      borderRadius: "12px",
+                      padding: "16px",
                     }}
                     onClick={() => {
                       if (isRenaming || menuOpenId === entity.id) return;
@@ -291,13 +270,11 @@ export function ProjectHome() {
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.borderColor = design.colors.border.focus;
-                      e.currentTarget.style.boxShadow = design.shadows.md;
-                      e.currentTarget.style.transform = "translateY(-1px)";
+                      e.currentTarget.style.boxShadow = design.shadows.sm;
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.borderColor = design.colors.border.default;
                       e.currentTarget.style.boxShadow = "none";
-                      e.currentTarget.style.transform = "translateY(0)";
                     }}
                   >
                     {/* ··· Menu button */}
@@ -361,11 +338,11 @@ export function ProjectHome() {
                     {/* Header: icon badge + file name */}
                     <div className="flex items-center gap-3 mb-2">
                       <div
-                        className="flex-shrink-0 transition-transform duration-200 group-hover:scale-110"
+                        className="flex-shrink-0"
                         style={{
-                          width: "36px",
-                          height: "36px",
-                          borderRadius: "10px",
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "8px",
                           backgroundColor: accentSubtle,
                           display: "flex",
                           alignItems: "center",
@@ -373,9 +350,9 @@ export function ProjectHome() {
                         }}
                       >
                         {isKu ? (
-                          <FileText style={{ width: "18px", height: "18px", color: accent }} strokeWidth={1.8} />
+                          <FileText style={{ width: "16px", height: "16px", color: accent }} strokeWidth={1.8} />
                         ) : (
-                          <Table2 style={{ width: "18px", height: "18px", color: accent }} strokeWidth={1.8} />
+                          <Table2 style={{ width: "16px", height: "16px", color: accent }} strokeWidth={1.8} />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -398,7 +375,7 @@ export function ProjectHome() {
                             }}
                             className="block w-full bg-transparent outline-none border-b-2 pb-0.5"
                             style={{
-                              fontSize: "16px",
+                              fontSize: "14px",
                               fontWeight: 600,
                               color: design.colors.text.primary,
                               fontFamily: design.typography.family.heading,
@@ -409,7 +386,7 @@ export function ProjectHome() {
                           <span
                             className="block truncate"
                             style={{
-                              fontSize: "16px",
+                              fontSize: "14px",
                               fontWeight: 600,
                               color: design.colors.text.primary,
                               fontFamily: design.typography.family.heading,
@@ -459,9 +436,9 @@ export function ProjectHome() {
             className="mt-8 flex items-center gap-3"
             style={{
               backgroundColor: design.colors.accent.goldSubtle,
-              border: `1.5px solid rgba(229, 149, 62, 0.12)`,
-              borderRadius: "14px",
-              padding: "14px 20px",
+              border: `1px solid rgba(229, 149, 62, 0.08)`,
+              borderRadius: "10px",
+              padding: "12px 16px",
             }}
           >
             <Sparkles className="w-4 h-4 flex-shrink-0" style={{ color: design.colors.accent.gold }} />
@@ -505,9 +482,9 @@ function EditableTitle({ value, onSave }: { value: string; onSave: (v: string) =
         className="w-full bg-transparent outline-none border-b-2 pb-1"
         style={{
           fontFamily: design.typography.family.heading,
-          fontSize: "26px",
-          fontWeight: 600,
-          letterSpacing: "-0.02em",
+          fontSize: "32px",
+          fontWeight: 700,
+          letterSpacing: "-0.03em",
           color: design.colors.text.primary,
           borderColor: design.colors.brand.primary,
         }}
@@ -521,9 +498,9 @@ function EditableTitle({ value, onSave }: { value: string; onSave: (v: string) =
       className="cursor-text rounded-lg transition-colors hover:bg-black/[0.03] -mx-2 px-2 py-1"
       style={{
         fontFamily: design.typography.family.heading,
-        fontSize: "26px",
-        fontWeight: 600,
-        letterSpacing: "-0.02em",
+        fontSize: "32px",
+        fontWeight: 700,
+        letterSpacing: "-0.03em",
         lineHeight: 1.2,
         color: design.colors.text.primary,
       }}
