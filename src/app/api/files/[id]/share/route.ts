@@ -1,11 +1,11 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { knowledgeUnits, projectTables, projects } from "@/db/schema";
+import { knowledgeUnits, projectTables, projectDiagrams, projects } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 /**
- * POST /api/files/[id]/share — Generate share token for a KU or table
+ * POST /api/files/[id]/share — Generate share token for a KU, table, or diagram
  * DELETE /api/files/[id]/share — Remove share token (unshare)
  */
 
@@ -22,7 +22,6 @@ async function verifyOwnership(fileId: string, userId: string) {
     .limit(1);
 
   if (ku) {
-    // Verify project belongs to user
     const [proj] = await db
       .select({ id: projects.id })
       .from(projects)
@@ -51,6 +50,26 @@ async function verifyOwnership(fileId: string, userId: string) {
     if (proj) return { type: "table" as const, entity: table };
   }
 
+  // Check if it's a diagram
+  const [diagram] = await db
+    .select({
+      id: projectDiagrams.id,
+      projectId: projectDiagrams.projectId,
+      shareToken: projectDiagrams.shareToken,
+    })
+    .from(projectDiagrams)
+    .where(eq(projectDiagrams.id, fileId))
+    .limit(1);
+
+  if (diagram) {
+    const [proj] = await db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.id, diagram.projectId), eq(projects.userId, userId)))
+      .limit(1);
+    if (proj) return { type: "diagram" as const, entity: diagram };
+  }
+
   return null;
 }
 
@@ -71,7 +90,6 @@ export async function POST(
       return Response.json({ error: "Not found" }, { status: 404 });
     }
 
-    // If already shared, return existing token
     if (result.entity.shareToken) {
       return Response.json({ shareToken: result.entity.shareToken });
     }
@@ -79,15 +97,11 @@ export async function POST(
     const token = nanoid(16);
 
     if (result.type === "ku") {
-      await db
-        .update(knowledgeUnits)
-        .set({ shareToken: token, updatedAt: new Date() })
-        .where(eq(knowledgeUnits.id, id));
+      await db.update(knowledgeUnits).set({ shareToken: token, updatedAt: new Date() }).where(eq(knowledgeUnits.id, id));
+    } else if (result.type === "table") {
+      await db.update(projectTables).set({ shareToken: token, updatedAt: new Date() }).where(eq(projectTables.id, id));
     } else {
-      await db
-        .update(projectTables)
-        .set({ shareToken: token, updatedAt: new Date() })
-        .where(eq(projectTables.id, id));
+      await db.update(projectDiagrams).set({ shareToken: token, updatedAt: new Date() }).where(eq(projectDiagrams.id, id));
     }
 
     return Response.json({ shareToken: token });
@@ -115,15 +129,11 @@ export async function DELETE(
     }
 
     if (result.type === "ku") {
-      await db
-        .update(knowledgeUnits)
-        .set({ shareToken: null, updatedAt: new Date() })
-        .where(eq(knowledgeUnits.id, id));
+      await db.update(knowledgeUnits).set({ shareToken: null, updatedAt: new Date() }).where(eq(knowledgeUnits.id, id));
+    } else if (result.type === "table") {
+      await db.update(projectTables).set({ shareToken: null, updatedAt: new Date() }).where(eq(projectTables.id, id));
     } else {
-      await db
-        .update(projectTables)
-        .set({ shareToken: null, updatedAt: new Date() })
-        .where(eq(projectTables.id, id));
+      await db.update(projectDiagrams).set({ shareToken: null, updatedAt: new Date() }).where(eq(projectDiagrams.id, id));
     }
 
     return Response.json({ success: true });

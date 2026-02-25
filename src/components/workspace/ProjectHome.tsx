@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { FileText, Table2, Plus, Clock, Pen, ArrowRight, ChevronDown, Check, Settings2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { FileText, Table2, GitBranch, Plus, Clock, Pen, ArrowRight, ChevronDown, Check, Settings2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
 import { PROJECT_TYPES } from "@/lib/constants";
@@ -11,15 +11,19 @@ export function ProjectHome() {
   const projects = useAppStore((s) => s.projects);
   const openKnowledgeUnit = useAppStore((s) => s.openKnowledgeUnit);
   const openTable = useAppStore((s) => s.openTable);
+  const openDiagram = useAppStore((s) => s.openDiagram);
   const createKnowledgeUnit = useAppStore((s) => s.createKnowledgeUnit);
   const createTable = useAppStore((s) => s.createTable);
+  const createDiagram = useAppStore((s) => s.createDiagram);
   const updateProject = useAppStore((s) => s.updateProject);
   const updateProjectMemory = useAppStore((s) => s.updateProjectMemory);
   const projectMemory = useAppStore((s) => s.projectMemory);
   const renameKnowledgeUnit = useAppStore((s) => s.renameKnowledgeUnit);
   const renameTable = useAppStore((s) => s.renameTable);
+  const renameDiagram = useAppStore((s) => s.renameDiagram);
   const deleteKnowledgeUnit = useAppStore((s) => s.deleteKnowledgeUnit);
   const deleteTable = useAppStore((s) => s.deleteTable);
+  const deleteDiagram = useAppStore((s) => s.deleteDiagram);
   const messages = useAppStore((s) => s.messages);
 
   // Entity rename state
@@ -59,11 +63,19 @@ export function ProjectHome() {
       updatedAt: t.updatedAt,
       preview: getTablePreview(t.sheets),
     })),
+    ...(project.diagrams || []).map((d) => ({
+      id: d.id,
+      title: d.title,
+      type: "diagram" as const,
+      updatedAt: d.updatedAt,
+      preview: d.diagramType === "mermaid" ? "Mermaid diagram" : "Data chart",
+    })),
   ].sort((a, b) => b.updatedAt - a.updatedAt);
 
   const kuCount = project.knowledgeUnits.length;
   const tableCount = project.tables.length;
-  const totalFiles = kuCount + tableCount;
+  const diagramCount = (project.diagrams || []).length;
+  const totalFiles = kuCount + tableCount + diagramCount;
 
   return (
     <div
@@ -98,7 +110,7 @@ export function ProjectHome() {
                 color: design.colors.text.muted,
               }}
             >
-              {kuCount} {kuCount === 1 ? "doc" : "docs"} · {tableCount} {tableCount === 1 ? "table" : "tables"}
+              {kuCount} {kuCount === 1 ? "doc" : "docs"} · {tableCount} {tableCount === 1 ? "table" : "tables"} · {diagramCount} {diagramCount === 1 ? "diagram" : "diagrams"}
             </span>
           </div>
         </div>
@@ -213,6 +225,59 @@ export function ProjectHome() {
               </span>
             </div>
           </button>
+
+          <button
+            onClick={() => createDiagram(project.id, "New Diagram")}
+            className="group flex items-center gap-3 transition-all duration-150"
+            style={{
+              backgroundColor: "transparent",
+              border: `1px dashed ${design.colors.border.default}`,
+              borderRadius: "12px",
+              padding: "12px 16px",
+              flex: 1,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = design.colors.accent.goldSubtle;
+              e.currentTarget.style.borderColor = design.colors.accent.gold;
+              e.currentTarget.style.borderStyle = "solid";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+              e.currentTarget.style.borderColor = design.colors.border.default;
+              e.currentTarget.style.borderStyle = "dashed";
+            }}
+          >
+            <div
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "8px",
+                backgroundColor: design.colors.accent.goldSubtle,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <GitBranch style={{ width: "16px", height: "16px", color: design.colors.accent.gold }} />
+            </div>
+            <div style={{ flex: 1, textAlign: "left" }}>
+              <span
+                style={{
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  color: design.colors.text.primary,
+                  fontFamily: design.typography.family.heading,
+                  display: "block",
+                }}
+              >
+                New Diagram
+              </span>
+              <span style={{ fontSize: "11px", color: design.colors.text.muted }}>
+                Flowcharts & charts
+              </span>
+            </div>
+          </button>
         </div>
 
         {/* ── Files section ── */}
@@ -248,9 +313,10 @@ export function ProjectHome() {
             <div className="grid grid-cols-2 gap-3">
               {entities.map((entity) => {
                 const isKu = entity.type === "ku";
-                const accent = isKu ? design.colors.accent.purple : design.colors.accent.teal;
-                const accentSubtle = isKu ? design.colors.accent.purpleSubtle : design.colors.accent.tealSubtle;
-                const typeLabel = isKu ? "Document" : "Spreadsheet";
+                const isDiagram = entity.type === "diagram";
+                const accent = isDiagram ? design.colors.accent.gold : isKu ? design.colors.accent.purple : design.colors.accent.teal;
+                const accentSubtle = isDiagram ? design.colors.accent.goldSubtle : isKu ? design.colors.accent.purpleSubtle : design.colors.accent.tealSubtle;
+                const typeLabel = isDiagram ? "Diagram" : isKu ? "Document" : "Spreadsheet";
                 const isRenaming = renamingId === entity.id;
 
                 return (
@@ -265,7 +331,8 @@ export function ProjectHome() {
                     }}
                     onClick={() => {
                       if (isRenaming || menuOpenId === entity.id) return;
-                      if (isKu) openKnowledgeUnit(entity.id);
+                      if (isDiagram) openDiagram(entity.id);
+                      else if (isKu) openKnowledgeUnit(entity.id);
                       else openTable(entity.id);
                     }}
                     onMouseEnter={(e) => {
@@ -320,7 +387,8 @@ export function ProjectHome() {
                             onClick={() => {
                               setMenuOpenId(null);
                               if (!window.confirm(`Delete "${entity.title}"? This cannot be undone.`)) return;
-                              if (isKu) deleteKnowledgeUnit(project.id, entity.id);
+                              if (isDiagram) deleteDiagram(project.id, entity.id);
+                              else if (isKu) deleteKnowledgeUnit(project.id, entity.id);
                               else deleteTable(project.id, entity.id);
                             }}
                             className="w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-left transition-colors"
@@ -349,7 +417,9 @@ export function ProjectHome() {
                           justifyContent: "center",
                         }}
                       >
-                        {isKu ? (
+                        {isDiagram ? (
+                          <GitBranch style={{ width: "16px", height: "16px", color: accent }} strokeWidth={1.8} />
+                        ) : isKu ? (
                           <FileText style={{ width: "16px", height: "16px", color: accent }} strokeWidth={1.8} />
                         ) : (
                           <Table2 style={{ width: "16px", height: "16px", color: accent }} strokeWidth={1.8} />
@@ -364,7 +434,8 @@ export function ProjectHome() {
                             onClick={(e) => e.stopPropagation()}
                             onBlur={() => {
                               if (renameValue.trim() && renameValue.trim() !== entity.title) {
-                                if (isKu) renameKnowledgeUnit(project.id, entity.id, renameValue.trim());
+                                if (isDiagram) renameDiagram(project.id, entity.id, renameValue.trim());
+                                else if (isKu) renameKnowledgeUnit(project.id, entity.id, renameValue.trim());
                                 else renameTable(project.id, entity.id, renameValue.trim());
                               }
                               setRenamingId(null);

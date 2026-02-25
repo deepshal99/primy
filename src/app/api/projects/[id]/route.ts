@@ -4,6 +4,7 @@ import {
   projects,
   knowledgeUnits,
   projectTables,
+  projectDiagrams,
   messages,
 } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
@@ -126,6 +127,37 @@ export async function PUT(
         );
     }
 
+    // Handle diagram upserts
+    if (body.diagrams) {
+      for (const diagram of body.diagrams) {
+        const [existingDiagram] = await db
+          .select()
+          .from(projectDiagrams)
+          .where(and(eq(projectDiagrams.id, diagram.id), eq(projectDiagrams.projectId, id)))
+          .limit(1);
+
+        if (existingDiagram) {
+          await db
+            .update(projectDiagrams)
+            .set({
+              title: diagram.title,
+              diagramType: diagram.diagramType,
+              source: diagram.source,
+              updatedAt: new Date(),
+            })
+            .where(and(eq(projectDiagrams.id, diagram.id), eq(projectDiagrams.projectId, id)));
+        } else {
+          await db.insert(projectDiagrams).values({
+            id: diagram.id,
+            projectId: id,
+            title: diagram.title,
+            diagramType: diagram.diagramType || "mermaid",
+            source: diagram.source || "",
+          });
+        }
+      }
+    }
+
     // Handle deleted tables
     if (body.deletedTableIds?.length > 0) {
       await db
@@ -134,6 +166,18 @@ export async function PUT(
           and(
             eq(projectTables.projectId, id),
             inArray(projectTables.id, body.deletedTableIds)
+          )
+        );
+    }
+
+    // Handle deleted diagrams
+    if (body.deletedDiagramIds?.length > 0) {
+      await db
+        .delete(projectDiagrams)
+        .where(
+          and(
+            eq(projectDiagrams.projectId, id),
+            inArray(projectDiagrams.id, body.deletedDiagramIds)
           )
         );
     }

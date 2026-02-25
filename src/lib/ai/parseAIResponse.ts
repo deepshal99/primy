@@ -1,4 +1,4 @@
-import { SheetOperation, DocOperation, KuOperation, TableOperation } from "@/lib/types";
+import { SheetOperation, DocOperation, KuOperation, TableOperation, DiagramOperation } from "@/lib/types";
 
 /**
  * Extract content between ```tag and ``` fences.
@@ -205,10 +205,28 @@ export function parseTableOperations(fullText: string): TableOperation[] {
   return operations;
 }
 
+// ── Diagram Operations Parser ──
+
+export function parseDiagramOperations(fullText: string): DiagramOperation[] {
+  const blocks = extractFencedBlocks(fullText, "diagramops");
+  const operations: DiagramOperation[] = [];
+
+  for (const block of blocks) {
+    const ops = parseOpsFromBlock<DiagramOperation>(block);
+    if (ops.length > 0) {
+      operations.push(...ops);
+    } else {
+      if (process.env.NODE_ENV !== "production") console.warn("[Drafta] Failed to parse diagramops block:", block.slice(0, 200));
+    }
+  }
+
+  return operations;
+}
+
 export function extractDisplayText(fullText: string): string {
   // Use the same extraction approach — find fenced blocks and remove them
   let result = fullText;
-  for (const tag of ["sheetops", "docops", "kuops", "tableops"]) {
+  for (const tag of ["sheetops", "docops", "kuops", "tableops", "diagramops"]) {
     const openPattern = new RegExp("```" + tag + "\\s*\\n?", "g");
     let openMatch: RegExpExecArray | null;
     const ranges: [number, number][] = [];

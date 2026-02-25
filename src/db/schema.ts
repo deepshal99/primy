@@ -76,6 +76,24 @@ export const projectTables = pgTable(
   (table) => [index("pt_project_id_idx").on(table.projectId)]
 );
 
+// ── Project Diagrams ──
+export const projectDiagrams = pgTable(
+  "project_diagrams",
+  {
+    id: text("id").primaryKey(), // client-provided nanoid
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    title: varchar("title", { length: 500 }).notNull().default("Untitled Diagram"),
+    diagramType: varchar("diagram_type", { length: 20 }).notNull().default("mermaid"), // "mermaid" | "chart"
+    source: text("source").notNull().default(""),
+    shareToken: varchar("share_token", { length: 32 }).unique(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [index("pd_project_id_idx").on(table.projectId)]
+);
+
 // ── Messages (Chat history per project) ──
 export const messages = pgTable(
   "messages",

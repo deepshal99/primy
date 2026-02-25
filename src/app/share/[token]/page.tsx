@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { design } from "@/lib/design";
-import { FileText, Table2, FolderOpen, Loader2, AlertCircle, Pen, ExternalLink } from "lucide-react";
+import { FileText, Table2, GitBranch, FolderOpen, Loader2, AlertCircle, Pen, ExternalLink } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const DocViewReadOnly = dynamic(
@@ -14,11 +14,16 @@ const SheetViewReadOnly = dynamic(
   () => import("@/components/sheet/SheetViewReadOnly").then((m) => m.SheetViewReadOnly),
   { ssr: false }
 );
+const DiagramViewReadOnly = dynamic(
+  () => import("@/components/diagram/DiagramViewReadOnly").then((m) => m.DiagramViewReadOnly),
+  { ssr: false }
+);
 
 type ShareData =
   | { type: "document"; title: string; content: string; projectTitle: string }
   | { type: "table"; title: string; sheets: any[]; projectTitle: string }
-  | { type: "project"; title: string; description?: string; documents: any[]; tables: any[] };
+  | { type: "diagram"; title: string; diagramType: "mermaid" | "chart"; source: string; projectTitle: string }
+  | { type: "project"; title: string; description?: string; documents: any[]; tables: any[]; diagrams?: any[] };
 
 export default function SharePage() {
   const params = useParams();
@@ -29,7 +34,7 @@ export default function SharePage() {
 
   // For project view: which file is selected
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState<"document" | "table" | null>(null);
+  const [selectedType, setSelectedType] = useState<"document" | "table" | "diagram" | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -48,6 +53,9 @@ export default function SharePage() {
           } else if (d.tables?.length > 0) {
             setSelectedId(d.tables[0].id);
             setSelectedType("table");
+          } else if (d.diagrams?.length > 0) {
+            setSelectedId(d.diagrams[0].id);
+            setSelectedType("diagram");
           }
         }
       })
@@ -120,9 +128,22 @@ export default function SharePage() {
     );
   }
 
+  // Single diagram
+  if (data.type === "diagram") {
+    return (
+      <div className="h-screen flex flex-col" style={{ backgroundColor: design.colors.bg.primary }}>
+        <ShareHeader title={data.title} subtitle={data.projectTitle} icon={<GitBranch className="w-4 h-4" style={{ color: design.colors.accent.gold }} />} />
+        <div className="flex-1 overflow-hidden">
+          <DiagramViewReadOnly source={data.source} diagramType={data.diagramType} />
+        </div>
+      </div>
+    );
+  }
+
   // Project view
   const selectedDoc = data.documents?.find((d: any) => d.id === selectedId);
   const selectedTable = data.tables?.find((t: any) => t.id === selectedId);
+  const selectedDiagram = data.diagrams?.find((d: any) => d.id === selectedId);
 
   return (
     <div className="h-screen flex flex-col" style={{ backgroundColor: design.colors.bg.primary }}>
@@ -171,7 +192,7 @@ export default function SharePage() {
               </div>
             )}
             {data.tables?.length > 0 && (
-              <div>
+              <div className="mb-3">
                 <p
                   className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 px-2"
                   style={{ color: design.colors.text.muted, letterSpacing: design.typography.letterSpacing.widest }}
@@ -202,6 +223,38 @@ export default function SharePage() {
                 ))}
               </div>
             )}
+            {data.diagrams && data.diagrams.length > 0 && (
+              <div>
+                <p
+                  className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 px-2"
+                  style={{ color: design.colors.text.muted, letterSpacing: design.typography.letterSpacing.widest }}
+                >
+                  Diagrams
+                </p>
+                {data.diagrams.map((diagram: any) => (
+                  <button
+                    key={diagram.id}
+                    onClick={() => { setSelectedId(diagram.id); setSelectedType("diagram"); }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12px] transition-colors text-left"
+                    style={{
+                      backgroundColor: selectedId === diagram.id ? design.colors.bg.elevated : "transparent",
+                      color: selectedId === diagram.id ? design.colors.text.primary : design.colors.text.secondary,
+                      fontWeight: selectedId === diagram.id ? 500 : 400,
+                      boxShadow: selectedId === diagram.id ? design.shadows.sm : "none",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (selectedId !== diagram.id) e.currentTarget.style.backgroundColor = design.colors.bg.hover;
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedId !== diagram.id) e.currentTarget.style.backgroundColor = "transparent";
+                    }}
+                  >
+                    <GitBranch className="w-3.5 h-3.5 flex-shrink-0" style={{ color: design.colors.accent.gold }} strokeWidth={1.8} />
+                    <span className="truncate">{diagram.title}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -212,6 +265,9 @@ export default function SharePage() {
           )}
           {selectedType === "table" && selectedTable && (
             <SheetViewReadOnly sheets={selectedTable.sheets || []} />
+          )}
+          {selectedType === "diagram" && selectedDiagram && (
+            <DiagramViewReadOnly source={selectedDiagram.source} diagramType={selectedDiagram.diagramType} />
           )}
           {!selectedId && (
             <div className="h-full flex items-center justify-center">

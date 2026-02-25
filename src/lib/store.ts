@@ -7,12 +7,14 @@ import {
   DocOperation,
   KuOperation,
   TableOperation,
+  DiagramOperation,
   FileAttachment,
   Conversation,
   UndoSnapshot,
   Project,
   KnowledgeUnit,
   ProjectTable,
+  ProjectDiagram,
 } from "@/lib/types";
 import { createEmptySheet } from "@/lib/sheet/defaultData";
 import { applyOperations, normalizeCells } from "@/lib/ai/sheetOperations";
@@ -97,6 +99,14 @@ function findTable(projects: Project[], tableId: string): { project: Project; ta
   return null;
 }
 
+function findDiagram(projects: Project[], diagramId: string): { project: Project; diagram: ProjectDiagram } | null {
+  for (const project of projects) {
+    const diagram = (project.diagrams || []).find((d) => d.id === diagramId);
+    if (diagram) return { project, diagram };
+  }
+  return null;
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   // Active view (flat fields synced to current entity)
   messages: [],
@@ -106,6 +116,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   sheetVersion: 0,
   docContent: "",
   docVersion: 0,
+  diagramSource: "",
+  diagramType: "mermaid" as const,
+  diagramVersion: 0,
   activeTab: "sheet",
   workspaceOpen: false,
   pendingAttachments: [],
@@ -164,6 +177,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     docOperations?: DocOperation[],
     kuOperations?: KuOperation[],
     tableOperations?: TableOperation[],
+    diagramOperations?: DiagramOperation[],
     suggestions?: string[]
   ) => {
     const state = get();
@@ -178,6 +192,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const hasDocOps = docOperations && docOperations.length > 0;
     const hasKuOps = kuOperations && kuOperations.length > 0;
     const hasTableOps = tableOperations && tableOperations.length > 0;
+    const hasDiagramOps = diagramOperations && diagramOperations.length > 0;
 
     // Snapshot current state before applying AI operations (for undo)
     // New AI operations clear the redo stack (standard editor behavior)
@@ -210,7 +225,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (hasDocOps) newActiveTab = "doc";
     if (hasSheetOps) newActiveTab = "sheet";
 
-    const shouldOpen = hasSheetOps || hasDocOps || hasKuOps || hasTableOps;
+    const shouldOpen = hasSheetOps || hasDocOps || hasKuOps || hasTableOps || hasDiagramOps;
+
+    // Diagram flat fields
+    let newDiagramSource = state.diagramSource;
+    let newDiagramType = state.diagramType;
+    let newDiagramVersion = state.diagramVersion;
 
     // Apply project-level KU and Table operations
     let newProjects = state.projects;
@@ -218,7 +238,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     let newCurrentEntityType = state.currentEntityType;
     let newOpenTabs = state.openTabs;
 
-    if (state.currentProjectId && (hasKuOps || hasTableOps)) {
+    if (state.currentProjectId && (hasKuOps || hasTableOps || hasDiagramOps)) {
       newProjects = [...state.projects];
       const projIdx = newProjects.findIndex((p) => p.id === state.currentProjectId);
       if (projIdx >= 0) {
@@ -385,6 +405,53 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
         }
 
+        // Apply Diagram operations
+        if (hasDiagramOps) {
+          project.diagrams = [...(project.diagrams || [])];
+          for (const op of diagramOperations) {
+            switch (op.type) {
+              case "CREATE": {
+                const newDiagram: ProjectDiagram = {
+                  id: nanoid(),
+                  projectId: project.id,
+                  title: op.title,
+                  diagramType: op.diagramType || "mermaid",
+                  source: op.source || "",
+                  createdAt: Date.now(),
+                  updatedAt: Date.now(),
+                };
+                project.diagrams.push(newDiagram);
+                // Auto-open the newly created diagram
+                newCurrentEntityId = newDiagram.id;
+                newCurrentEntityType = "diagram";
+                newDiagramSource = newDiagram.source;
+                newDiagramType = newDiagram.diagramType;
+                newDiagramVersion = state.diagramVersion + 1;
+                // Add to open tabs
+                if (!newOpenTabs.some((t) => t.id === newDiagram.id)) {
+                  newOpenTabs = [...newOpenTabs, { id: newDiagram.id, type: "diagram" as const, title: newDiagram.title }];
+                }
+                break;
+              }
+              case "UPDATE": {
+                const idx = (project.diagrams || []).findIndex((d) => d.id === op.diagramId);
+                if (idx >= 0) {
+                  project.diagrams[idx] = {
+                    ...project.diagrams[idx],
+                    source: op.source,
+                    updatedAt: Date.now(),
+                  };
+                  if (state.currentEntityId === op.diagramId) {
+                    newDiagramSource = op.source;
+                    newDiagramVersion = state.diagramVersion + 1;
+                  }
+                }
+                break;
+              }
+            }
+          }
+        }
+
         project.updatedAt = Date.now();
         newProjects[projIdx] = project;
       }
@@ -398,6 +465,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       sheetVersion: newSheetVersion,
       docContent: newDocContent,
       docVersion: newDocVersion,
+      diagramSource: newDiagramSource,
+      diagramType: newDiagramType,
+      diagramVersion: newDiagramVersion,
       activeTab: newActiveTab,
       workspaceOpen: state.workspaceOpen || !!shouldOpen,
       suggestions: suggestions || [],
@@ -803,6 +873,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       projectType: "Content",
       knowledgeUnits: [],
       tables: [],
+      diagrams: [],
       messages: [],
       memory: {},
       createdAt: now,
@@ -1314,6 +1385,102 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // ══════════════════════════════════
+  // ── Diagram CRUD ──
+  // ══════════════════════════════════
+
+  createDiagram: (projectId: string, title: string, diagramType: "mermaid" | "chart" = "mermaid", source: string = "") => {
+    const state = get();
+    const newDiagram: ProjectDiagram = {
+      id: nanoid(),
+      projectId,
+      title,
+      diagramType,
+      source: source || (diagramType === "mermaid" ? "graph TD\n    A[Start] --> B[End]" : '{"chartType":"bar","data":[],"xKey":"name","yKeys":["value"],"colors":["#6B8FA3"]}'),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    const newProjects = state.projects.map((p) => {
+      if (p.id === projectId) {
+        return { ...p, diagrams: [...(p.diagrams || []), newDiagram], updatedAt: Date.now() };
+      }
+      return p;
+    });
+
+    set({ projects: newProjects });
+    saveProjectsToStorage(newProjects);
+    get().openDiagram(newDiagram.id);
+    return newDiagram;
+  },
+
+  deleteDiagram: (projectId: string, diagramId: string) => {
+    const state = get();
+    const newProjects = state.projects.map((p) => {
+      if (p.id === projectId) {
+        return { ...p, diagrams: (p.diagrams || []).filter((d) => d.id !== diagramId), updatedAt: Date.now() };
+      }
+      return p;
+    });
+
+    // Close tab if open
+    const newTabs = state.openTabs.filter((t) => t.id !== diagramId);
+    const updates: any = { projects: newProjects, openTabs: newTabs };
+    if (state.currentEntityId === diagramId) {
+      updates.currentEntityId = null;
+      updates.currentEntityType = null;
+    }
+
+    set(updates);
+    saveProjectsToStorage(newProjects);
+  },
+
+  renameDiagram: (projectId: string, diagramId: string, title: string) => {
+    const state = get();
+    const newProjects = state.projects.map((p) => {
+      if (p.id === projectId) {
+        return {
+          ...p,
+          diagrams: (p.diagrams || []).map((d) => d.id === diagramId ? { ...d, title, updatedAt: Date.now() } : d),
+          updatedAt: Date.now(),
+        };
+      }
+      return p;
+    });
+
+    const newTabs = state.openTabs.map((t) => t.id === diagramId ? { ...t, title } : t);
+    set({ projects: newProjects, openTabs: newTabs });
+    saveProjectsToStorage(newProjects);
+  },
+
+  openDiagram: (diagramId: string) => {
+    const state = get();
+    if (state.currentEntityId) {
+      state.saveCurrentEntity();
+    }
+
+    const found = findDiagram(state.projects, diagramId);
+    if (!found) return;
+
+    const newTabs = state.openTabs.some((t) => t.id === diagramId)
+      ? state.openTabs
+      : [...state.openTabs, { id: diagramId, type: "diagram" as const, title: found.diagram.title }];
+
+    set({
+      currentEntityId: found.diagram.id,
+      currentEntityType: "diagram",
+      diagramSource: found.diagram.source,
+      diagramType: found.diagram.diagramType,
+      diagramVersion: state.diagramVersion + 1,
+      workspaceOpen: true,
+      openTabs: newTabs,
+    });
+  },
+
+  updateDiagramSource: (source: string) => {
+    set({ diagramSource: source });
+  },
+
+  // ══════════════════════════════════
   // ── Tab Management ──
   // ══════════════════════════════════
 
@@ -1333,8 +1500,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ openTabs: newTabs, currentEntityId: null, currentEntityType: null });
         if (nextTab.type === "ku") {
           get().openKnowledgeUnit(nextTab.id);
-        } else {
+        } else if (nextTab.type === "table") {
           get().openTable(nextTab.id);
+        } else if (nextTab.type === "diagram") {
+          get().openDiagram(nextTab.id);
         }
       } else {
         // No more tabs — go to project home
@@ -1388,6 +1557,12 @@ export const useAppStore = create<AppState>((set, get) => ({
           ? { ...t, sheets: sanitizedSheets, updatedAt: Date.now() }
           : t
       );
+    } else if (state.currentEntityId && state.currentEntityType === "diagram") {
+      project.diagrams = (project.diagrams || []).map((d) =>
+        d.id === state.currentEntityId
+          ? { ...d, source: state.diagramSource, diagramType: state.diagramType, updatedAt: Date.now() }
+          : d
+      );
     }
 
     project.updatedAt = Date.now();
@@ -1411,6 +1586,12 @@ export const useAppStore = create<AppState>((set, get) => ({
         id: t.id,
         title: t.title,
         sheets: t.sheets,
+      })),
+      diagrams: (project.diagrams || []).map((d) => ({
+        id: d.id,
+        title: d.title,
+        diagramType: d.diagramType,
+        source: d.source,
       })),
       newMessages: project.messages.slice(-2).map((m) => ({
         id: m.id,
@@ -1480,6 +1661,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         title: conv.title,
         knowledgeUnits: kus,
         tables,
+        diagrams: [],
         messages: conv.messages,
         memory: conv.memory || {},
         createdAt: conv.createdAt,

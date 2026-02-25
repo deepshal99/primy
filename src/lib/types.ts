@@ -174,6 +174,17 @@ export interface ProjectTable {
   updatedAt: number;
 }
 
+export interface ProjectDiagram {
+  id: string;
+  projectId: string;
+  title: string;
+  diagramType: "mermaid" | "chart";
+  source: string;              // mermaid code or recharts JSON
+  shareToken?: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -181,6 +192,7 @@ export interface Project {
   projectType?: string;       // "Marketing", "Content", "Research", "Engineering", "Design", "Other"
   knowledgeUnits: KnowledgeUnit[];
   tables: ProjectTable[];
+  diagrams: ProjectDiagram[];
   messages: Message[];       // Chat history scoped to project
   memory: ProjectMemory;
   shareToken?: string | null;
@@ -188,7 +200,7 @@ export interface Project {
   updatedAt: number;
 }
 
-export type EntityType = "ku" | "table";
+export type EntityType = "ku" | "table" | "diagram";
 
 // ═══ KU Operations (AI fence: ```kuops) ═══
 
@@ -240,6 +252,21 @@ export type TableOperation =
       };
     };
 
+// ═══ Diagram Operations (AI fence: ```diagramops) ═══
+
+export type DiagramOperation =
+  | {
+      type: "CREATE";
+      title: string;
+      diagramType: "mermaid" | "chart";
+      source: string;
+    }
+  | {
+      type: "UPDATE";
+      diagramId: string;
+      source: string;
+    };
+
 // ═══ Undo History ═══
 
 export interface UndoSnapshot {
@@ -260,6 +287,9 @@ export interface AppState {
   sheetVersion: number;
   docContent: string;
   docVersion: number;
+  diagramSource: string;
+  diagramType: "mermaid" | "chart";
+  diagramVersion: number;
   activeTab: WorkspaceTab;
   workspaceOpen: boolean;
   pendingAttachments: FileAttachment[];
@@ -299,6 +329,7 @@ export interface AppState {
     docOperations?: DocOperation[],
     kuOperations?: KuOperation[],
     tableOperations?: TableOperation[],
+    diagramOperations?: DiagramOperation[],
     suggestions?: string[]
   ) => void;
   abortStreaming: () => void;
@@ -348,6 +379,13 @@ export interface AppState {
   deleteTable: (projectId: string, tableId: string) => void;
   renameTable: (projectId: string, tableId: string, title: string) => void;
   openTable: (tableId: string) => void;
+
+  // Diagram CRUD
+  createDiagram: (projectId: string, title: string, diagramType?: "mermaid" | "chart", source?: string) => ProjectDiagram;
+  deleteDiagram: (projectId: string, diagramId: string) => void;
+  renameDiagram: (projectId: string, diagramId: string, title: string) => void;
+  openDiagram: (diagramId: string) => void;
+  updateDiagramSource: (source: string) => void;
 
   // Tab management
   closeTab: (id: string) => void;

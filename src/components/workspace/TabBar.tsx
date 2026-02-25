@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Table2, FileText, Undo2, ChevronRight, ChevronLeft, Home, X, Loader2, Check, Share2 } from "lucide-react";
+import { Table2, FileText, GitBranch, Undo2, ChevronRight, ChevronLeft, Home, X, Loader2, Check, Share2 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
 import { ShareModal } from "@/components/settings/ShareModal";
@@ -15,6 +15,7 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
   const openTabs = useAppStore((s) => s.openTabs);
   const openKnowledgeUnit = useAppStore((s) => s.openKnowledgeUnit);
   const openTable = useAppStore((s) => s.openTable);
+  const openDiagram = useAppStore((s) => s.openDiagram);
   const closeTab = useAppStore((s) => s.closeTab);
   const projects = useAppStore((s) => s.projects);
   const isSaving = useAppStore((s) => s.isSaving);
@@ -80,6 +81,9 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
     } else if (currentEntityType === "table") {
       const table = project.tables?.find((t) => t.id === currentEntityId);
       setShareToken(table?.shareToken || null);
+    } else if (currentEntityType === "diagram") {
+      const diagram = (project.diagrams || []).find((d) => d.id === currentEntityId);
+      setShareToken(diagram?.shareToken || null);
     }
   }, [currentEntityId, currentEntityType, currentProjectId, projects]);
 
@@ -154,6 +158,27 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
               {openTabs.map((tab) => {
                 const isActive = tab.id === currentEntityId;
                 const isKu = tab.type === "ku";
+                const isDiagram = tab.type === "diagram";
+
+                const tabIcon = isDiagram ? (
+                  <GitBranch
+                    className="w-3.5 h-3.5 flex-shrink-0"
+                    style={{ color: isActive ? design.colors.accent.gold : design.colors.text.muted }}
+                    strokeWidth={1.8}
+                  />
+                ) : isKu ? (
+                  <FileText
+                    className="w-3.5 h-3.5 flex-shrink-0"
+                    style={{ color: isActive ? design.colors.accent.purple : design.colors.text.muted }}
+                    strokeWidth={1.8}
+                  />
+                ) : (
+                  <Table2
+                    className="w-3.5 h-3.5 flex-shrink-0"
+                    style={{ color: isActive ? design.colors.accent.teal : design.colors.text.muted }}
+                    strokeWidth={1.8}
+                  />
+                );
 
                 return (
                   <div
@@ -165,7 +190,8 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
                     }}
                     onClick={() => {
                       if (!isActive) {
-                        if (isKu) openKnowledgeUnit(tab.id);
+                        if (isDiagram) openDiagram(tab.id);
+                        else if (isKu) openKnowledgeUnit(tab.id);
                         else openTable(tab.id);
                       }
                     }}
@@ -180,19 +206,7 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
                       }
                     }}
                   >
-                    {isKu ? (
-                      <FileText
-                        className="w-3.5 h-3.5 flex-shrink-0"
-                        style={{ color: isActive ? design.colors.accent.purple : design.colors.text.muted }}
-                        strokeWidth={1.8}
-                      />
-                    ) : (
-                      <Table2
-                        className="w-3.5 h-3.5 flex-shrink-0"
-                        style={{ color: isActive ? design.colors.accent.teal : design.colors.text.muted }}
-                        strokeWidth={1.8}
-                      />
-                    )}
+                    {tabIcon}
                     <span
                       className="text-[12px] truncate"
                       style={{
@@ -327,6 +341,9 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
               } else if (currentEntityType === "table") {
                 const table = project.tables?.find((t) => t.id === currentEntityId);
                 if (table) table.shareToken = token;
+              } else if (currentEntityType === "diagram") {
+                const diagram = (project.diagrams || []).find((d) => d.id === currentEntityId);
+                if (diagram) diagram.shareToken = token;
               }
               useAppStore.setState({ projects: [...state.projects] });
             }

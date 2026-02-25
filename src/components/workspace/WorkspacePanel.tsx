@@ -6,6 +6,7 @@ import { TabBar } from "./TabBar";
 import { ProjectHome } from "./ProjectHome";
 import { SheetPanel } from "@/components/sheet/SheetPanel";
 import { DocPanel } from "@/components/doc/DocPanel";
+import { DiagramPanel } from "@/components/diagram/DiagramPanel";
 import { ExportMenu } from "@/components/sheet/ExportMenu";
 import { DocExportMenu } from "@/components/doc/DocExportMenu";
 
@@ -26,15 +27,16 @@ export function WorkspacePanel() {
   }
 
   // Entity open — show the correct panel based on entity type
+  const isDiagram = currentEntityType === "diagram";
   const isTable = currentEntityType === "table";
 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: design.colors.bg.primary }}>
       <TabBar
-        actions={isTable ? <ExportMenu /> : <DocExportMenu />}
+        actions={isDiagram ? undefined : isTable ? <ExportMenu /> : <DocExportMenu />}
       />
       <div className="flex-1 overflow-hidden relative">
-        {isTable ? <SheetPanel /> : <DocPanel />}
+        {isDiagram ? <DiagramPanel /> : isTable ? <SheetPanel /> : <DocPanel />}
       </div>
     </div>
   );

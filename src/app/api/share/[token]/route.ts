@@ -1,10 +1,10 @@
 import { db } from "@/db";
-import { projects, knowledgeUnits, projectTables } from "@/db/schema";
+import { projects, knowledgeUnits, projectTables, projectDiagrams } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 /**
  * GET /api/share/[token] — Public endpoint (no auth).
- * Looks up the share token across projects, KUs, and tables.
+ * Looks up the share token across projects, KUs, tables, and diagrams.
  */
 
 export async function GET(
@@ -26,28 +26,39 @@ export async function GET(
       .limit(1);
 
     if (project) {
-      // Fetch all KUs and tables for this project
-      const kus = await db
-        .select({
-          id: knowledgeUnits.id,
-          title: knowledgeUnits.title,
-          content: knowledgeUnits.content,
-          createdAt: knowledgeUnits.createdAt,
-          updatedAt: knowledgeUnits.updatedAt,
-        })
-        .from(knowledgeUnits)
-        .where(eq(knowledgeUnits.projectId, project.id));
-
-      const tables = await db
-        .select({
-          id: projectTables.id,
-          title: projectTables.title,
-          sheets: projectTables.sheets,
-          createdAt: projectTables.createdAt,
-          updatedAt: projectTables.updatedAt,
-        })
-        .from(projectTables)
-        .where(eq(projectTables.projectId, project.id));
+      const [kus, tables, diagrams] = await Promise.all([
+        db
+          .select({
+            id: knowledgeUnits.id,
+            title: knowledgeUnits.title,
+            content: knowledgeUnits.content,
+            createdAt: knowledgeUnits.createdAt,
+            updatedAt: knowledgeUnits.updatedAt,
+          })
+          .from(knowledgeUnits)
+          .where(eq(knowledgeUnits.projectId, project.id)),
+        db
+          .select({
+            id: projectTables.id,
+            title: projectTables.title,
+            sheets: projectTables.sheets,
+            createdAt: projectTables.createdAt,
+            updatedAt: projectTables.updatedAt,
+          })
+          .from(projectTables)
+          .where(eq(projectTables.projectId, project.id)),
+        db
+          .select({
+            id: projectDiagrams.id,
+            title: projectDiagrams.title,
+            diagramType: projectDiagrams.diagramType,
+            source: projectDiagrams.source,
+            createdAt: projectDiagrams.createdAt,
+            updatedAt: projectDiagrams.updatedAt,
+          })
+          .from(projectDiagrams)
+          .where(eq(projectDiagrams.projectId, project.id)),
+      ]);
 
       return Response.json({
         type: "project",
@@ -55,6 +66,7 @@ export async function GET(
         description: project.description,
         documents: kus,
         tables,
+        diagrams,
       });
     }
 
@@ -73,7 +85,6 @@ export async function GET(
       .limit(1);
 
     if (ku) {
-      // Get project title for context
       const [proj] = await db
         .select({ title: projects.title })
         .from(projects)
@@ -113,6 +124,37 @@ export async function GET(
         type: "table",
         title: table.title,
         sheets: table.sheets,
+        projectTitle: proj?.title || "",
+      });
+    }
+
+    // 4. Check diagrams
+    const [diagram] = await db
+      .select({
+        id: projectDiagrams.id,
+        title: projectDiagrams.title,
+        diagramType: projectDiagrams.diagramType,
+        source: projectDiagrams.source,
+        projectId: projectDiagrams.projectId,
+        createdAt: projectDiagrams.createdAt,
+        updatedAt: projectDiagrams.updatedAt,
+      })
+      .from(projectDiagrams)
+      .where(eq(projectDiagrams.shareToken, token))
+      .limit(1);
+
+    if (diagram) {
+      const [proj] = await db
+        .select({ title: projects.title })
+        .from(projects)
+        .where(eq(projects.id, diagram.projectId))
+        .limit(1);
+
+      return Response.json({
+        type: "diagram",
+        title: diagram.title,
+        diagramType: diagram.diagramType,
+        source: diagram.source,
         projectTitle: proj?.title || "",
       });
     }

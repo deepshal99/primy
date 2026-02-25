@@ -4,6 +4,7 @@ import {
   projects,
   knowledgeUnits,
   projectTables,
+  projectDiagrams,
   messages,
 } from "@/db/schema";
 import { eq, desc, inArray } from "drizzle-orm";
@@ -29,10 +30,10 @@ export async function GET() {
       return Response.json([]);
     }
 
-    // Batch-fetch all related entities in 3 queries (avoids N+1)
+    // Batch-fetch all related entities in 4 queries (avoids N+1)
     const projectIds = userProjects.map((p) => p.id);
 
-    const [allKUs, allTables, allMessages] = await Promise.all([
+    const [allKUs, allTables, allDiagrams, allMessages] = await Promise.all([
       db
         .select()
         .from(knowledgeUnits)
@@ -43,6 +44,11 @@ export async function GET() {
         .from(projectTables)
         .where(inArray(projectTables.projectId, projectIds))
         .orderBy(desc(projectTables.updatedAt)),
+      db
+        .select()
+        .from(projectDiagrams)
+        .where(inArray(projectDiagrams.projectId, projectIds))
+        .orderBy(desc(projectDiagrams.updatedAt)),
       db
         .select()
         .from(messages)
@@ -63,6 +69,13 @@ export async function GET() {
       const arr = tablesByProject.get(t.projectId) || [];
       arr.push(t);
       tablesByProject.set(t.projectId, arr);
+    }
+
+    const diagramsByProject = new Map<string, typeof allDiagrams>();
+    for (const d of allDiagrams) {
+      const arr = diagramsByProject.get(d.projectId) || [];
+      arr.push(d);
+      diagramsByProject.set(d.projectId, arr);
     }
 
     const msgsByProject = new Map<string, typeof allMessages>();
@@ -98,6 +111,16 @@ export async function GET() {
         shareToken: t.shareToken || null,
         createdAt: t.createdAt.getTime(),
         updatedAt: t.updatedAt.getTime(),
+      })),
+      diagrams: (diagramsByProject.get(p.id) || []).map((d) => ({
+        id: d.id,
+        projectId: d.projectId,
+        title: d.title,
+        diagramType: d.diagramType,
+        source: d.source,
+        shareToken: d.shareToken || null,
+        createdAt: d.createdAt.getTime(),
+        updatedAt: d.updatedAt.getTime(),
       })),
       messages: (msgsByProject.get(p.id) || []).map((m) => ({
         id: m.id,
@@ -153,6 +176,7 @@ export async function POST(req: Request) {
       updatedAt: newProject.updatedAt.getTime(),
       knowledgeUnits: [],
       tables: [],
+      diagrams: [],
       messages: [],
     });
   } catch (error) {
