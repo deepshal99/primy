@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Table2, FileText, GitBranch, Undo2, ChevronRight, ChevronLeft, Home, X, Loader2, Check, Share2 } from "lucide-react";
+import { Table2, FileText, GitBranch, Undo2, ChevronRight, ChevronLeft, Home, X, Loader2, Check, Share2, MoreVertical, MessageSquareText } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
 import { ShareModal } from "@/components/settings/ShareModal";
+import { CustomInstructionsModal } from "@/components/workspace/CustomInstructionsModal";
 
 export function TabBar({ actions }: { actions?: React.ReactNode }) {
   const canUndo = useAppStore((s) => s.canUndo);
@@ -69,6 +70,22 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareToken, setShareToken] = useState<string | null>(null);
   const currentEntityType = useAppStore((s) => s.currentEntityType);
+
+  // 3-dot menu + custom instructions
+  const [dotMenuOpen, setDotMenuOpen] = useState(false);
+  const [instructionsOpen, setInstructionsOpen] = useState(false);
+  const dotMenuRef = useRef<HTMLDivElement>(null);
+  const projectMemory = useAppStore((s) => s.projectMemory);
+  const hasCustomInstructions = !!projectMemory.customInstructions;
+
+  useEffect(() => {
+    if (!dotMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (dotMenuRef.current && !dotMenuRef.current.contains(e.target as Node)) setDotMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [dotMenuOpen]);
 
   // Get the current entity's share token from the project
   useEffect(() => {
@@ -318,7 +335,61 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
           </button>
         )}
         {actions}
+
+        {/* 3-dot menu */}
+        <div ref={dotMenuRef} className="relative">
+          <button
+            onClick={() => setDotMenuOpen(!dotMenuOpen)}
+            className="flex items-center justify-center w-7 h-7 rounded-lg transition-colors"
+            style={{
+              backgroundColor: dotMenuOpen ? design.colors.bg.tertiary : "transparent",
+              color: design.colors.text.muted,
+            }}
+            onMouseEnter={(e) => {
+              if (!dotMenuOpen) e.currentTarget.style.backgroundColor = design.colors.bg.hover;
+            }}
+            onMouseLeave={(e) => {
+              if (!dotMenuOpen) e.currentTarget.style.backgroundColor = "transparent";
+            }}
+          >
+            <MoreVertical className="w-4 h-4" />
+          </button>
+
+          {dotMenuOpen && (
+            <div
+              className="absolute top-full right-0 mt-1 border rounded-xl py-1 min-w-[200px] z-50 animate-scale-in"
+              style={{
+                backgroundColor: design.colors.bg.elevated,
+                borderColor: design.colors.border.default,
+                boxShadow: design.shadows.dropdown,
+              }}
+            >
+              <button
+                onClick={() => {
+                  setInstructionsOpen(true);
+                  setDotMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] text-left transition-colors"
+                style={{ color: design.colors.text.primary }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+              >
+                <MessageSquareText className="w-4 h-4" style={{ color: design.colors.text.muted }} />
+                Add Context
+                {hasCustomInstructions && (
+                  <span
+                    className="w-1.5 h-1.5 rounded-full ml-auto"
+                    style={{ backgroundColor: design.colors.brand.primary }}
+                  />
+                )}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Custom Instructions Modal */}
+      <CustomInstructionsModal open={instructionsOpen} onClose={() => setInstructionsOpen(false)} />
 
       {/* Share modal for active file */}
       {currentEntityId && activeTab && (

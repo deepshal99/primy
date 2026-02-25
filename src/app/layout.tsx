@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
+import { Agentation } from "agentation";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import "./globals.css";
 
@@ -19,6 +20,7 @@ export default function RootLayout({
         <SessionProvider>
           {children}
         </SessionProvider>
+        {process.env.NODE_ENV === "development" && <Agentation />}
         <Toaster
           theme="light"
           position="bottom-right"

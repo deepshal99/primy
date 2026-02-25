@@ -19,6 +19,7 @@ import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 import { ExamplePrompts } from "./ExamplePrompts";
 
+
 interface ChatPanelProps {
   centered?: boolean;
 }

@@ -271,20 +271,29 @@ export function ProjectSidebar() {
                   onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = design.colors.bg.sidebarHover; }}
                   onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = isActive ? design.colors.bg.sidebarActive : "transparent"; }}
                 >
-                  {/* Active indicator bar */}
-                  {isActive && (
-                    <div
-                      className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 rounded-full"
-                      style={{ backgroundColor: design.colors.brand.primary }}
-                    />
-                  )}
-
-                  {/* Folder icon */}
-                  {isActive ? (
-                    <FolderOpen className="w-[18px] h-[18px] flex-shrink-0" style={{ color: design.colors.brand.primary }} strokeWidth={1.5} />
-                  ) : (
-                    <Folder className="w-[18px] h-[18px] flex-shrink-0" style={{ color: design.colors.text.sidebarDim }} strokeWidth={1.5} />
-                  )}
+                  {/* Project icon — animates on hover/active */}
+                  <div className="flex-shrink-0 w-[18px] h-[18px] relative">
+                    {isActive ? (
+                      <FolderOpen
+                        className="w-[18px] h-[18px] transition-transform duration-200 group-hover:scale-110"
+                        style={{ color: design.colors.brand.primary }}
+                        strokeWidth={1.5}
+                      />
+                    ) : (
+                      <>
+                        <Folder
+                          className="w-[18px] h-[18px] absolute inset-0 transition-all duration-200 group-hover:opacity-0 group-hover:scale-90"
+                          style={{ color: design.colors.text.sidebarDim }}
+                          strokeWidth={1.5}
+                        />
+                        <FolderOpen
+                          className="w-[18px] h-[18px] absolute inset-0 transition-all duration-200 opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100"
+                          style={{ color: design.colors.text.sidebarMuted }}
+                          strokeWidth={1.5}
+                        />
+                      </>
+                    )}
+                  </div>
 
                   {/* Name only — clean, minimal */}
                   <div className="flex-1 min-w-0">
