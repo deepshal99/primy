@@ -48,6 +48,9 @@ export function SheetView() {
     workbookRef = ref;
   }, []);
 
+  // When sheetVersion changes (AI ops applied), we force-remount the Workbook
+  // via key prop. Block handleChange briefly to prevent the remount's onChange
+  // from writing stale data back.
   const prevVersionRef = useRef(sheetVersion);
   useEffect(() => {
     if (sheetVersion !== prevVersionRef.current) {
@@ -59,6 +62,14 @@ export function SheetView() {
       return () => clearTimeout(timer);
     }
   }, [sheetVersion]);
+
+  // Force Fortune Sheet to recalculate layout after mount/remount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      window.dispatchEvent(new Event("resize"));
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [sheetVersion, currentEntityId]);
 
   const hasData = sheets.some((s) => s.celldata && s.celldata.length > 0);
 
@@ -102,7 +113,7 @@ export function SheetView() {
           </div>
         </div>
       )}
-      <div className="w-full h-full">
+      <div className="w-full h-full" key={`${currentEntityId}-${sheetVersion}`}>
         <Workbook
           ref={handleRef}
           data={sheets as any}

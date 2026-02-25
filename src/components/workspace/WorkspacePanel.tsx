@@ -34,13 +34,7 @@ export function WorkspacePanel() {
         actions={isTable ? <ExportMenu /> : <DocExportMenu />}
       />
       <div className="flex-1 overflow-hidden relative">
-        {/* Keep both mounted to preserve state, toggle visibility */}
-        <div className={`h-full ${isTable ? "" : "hidden"}`}>
-          <SheetPanel />
-        </div>
-        <div className={`h-full ${!isTable ? "" : "hidden"}`}>
-          <DocPanel />
-        </div>
+        {isTable ? <SheetPanel /> : <DocPanel />}
       </div>
     </div>
   );

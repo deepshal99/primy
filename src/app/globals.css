@@ -431,7 +431,7 @@ html, body {
    Fortune Sheet Warm Theme
    ═══════════════════════════════════════ */
 
-.fortune-sheet-container { background: #FAFAF8 !important; }
+.fortune-sheet-container { background: #FAFAF8 !important; width: 100% !important; height: 100% !important; }
 .luckysheet-grid-window { background: #FAFAF8 !important; }
 
 .luckysheet-cell-input {
