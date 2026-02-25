@@ -13,10 +13,12 @@ import {
   Folder,
   Ellipsis,
   Settings,
+  Share2,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
 import { SettingsModal } from "@/components/settings/SettingsModal";
+import { ShareModal } from "@/components/settings/ShareModal";
 
 export function ProjectSidebar() {
   const { data: session } = useSession();
@@ -39,6 +41,8 @@ export function ProjectSidebar() {
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [shareProjectId, setShareProjectId] = useState<string | null>(null);
+  const [shareProjectToken, setShareProjectToken] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
@@ -373,6 +377,23 @@ export function ProjectSidebar() {
           <button
             onClick={() => {
               const project = projects.find((p) => p.id === contextMenu.id);
+              if (project) {
+                setShareProjectId(project.id);
+                setShareProjectToken(project.shareToken || null);
+              }
+              setContextMenu(null);
+            }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors text-left"
+            style={{ color: design.colors.text.sidebar }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.sidebarActive; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            Share
+          </button>
+          <button
+            onClick={() => {
+              const project = projects.find((p) => p.id === contextMenu.id);
               const name = project?.title || "this project";
               if (window.confirm(`Delete "${name}"? This will remove all its documents and tables.`)) {
                 deleteProject(contextMenu.id);
@@ -469,6 +490,28 @@ export function ProjectSidebar() {
 
       {/* Settings modal */}
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      {/* Share project modal */}
+      {shareProjectId && (
+        <ShareModal
+          open={!!shareProjectId}
+          onClose={() => setShareProjectId(null)}
+          mode="project"
+          entityId={shareProjectId}
+          entityTitle={projects.find((p) => p.id === shareProjectId)?.title || "Project"}
+          currentToken={shareProjectToken}
+          onTokenChange={(token) => {
+            setShareProjectToken(token);
+            // Update the store's project data
+            const state = useAppStore.getState();
+            const project = state.projects.find((p) => p.id === shareProjectId);
+            if (project) {
+              project.shareToken = token;
+              useAppStore.setState({ projects: [...state.projects] });
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -78,6 +78,7 @@ export async function GET() {
       description: p.description,
       projectType: p.projectType,
       memory: p.memory || {},
+      shareToken: p.shareToken || null,
       createdAt: p.createdAt.getTime(),
       updatedAt: p.updatedAt.getTime(),
       knowledgeUnits: (kusByProject.get(p.id) || []).map((k) => ({
@@ -85,6 +86,7 @@ export async function GET() {
         projectId: k.projectId,
         title: k.title,
         content: k.content,
+        shareToken: k.shareToken || null,
         createdAt: k.createdAt.getTime(),
         updatedAt: k.updatedAt.getTime(),
       })),
@@ -93,6 +95,7 @@ export async function GET() {
         projectId: t.projectId,
         title: t.title,
         sheets: t.sheets,
+        shareToken: t.shareToken || null,
         createdAt: t.createdAt.getTime(),
         updatedAt: t.updatedAt.getTime(),
       })),

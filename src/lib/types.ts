@@ -159,6 +159,7 @@ export interface KnowledgeUnit {
   projectId: string;
   title: string;
   content: string;          // Tiptap HTML or markdown
+  shareToken?: string | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -168,6 +169,7 @@ export interface ProjectTable {
   projectId: string;
   title: string;
   sheets: SheetData[];      // Fortune Sheet format
+  shareToken?: string | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -181,6 +183,7 @@ export interface Project {
   tables: ProjectTable[];
   messages: Message[];       // Chat history scoped to project
   memory: ProjectMemory;
+  shareToken?: string | null;
   createdAt: number;
   updatedAt: number;
 }

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Table2, FileText, Undo2, ChevronRight, ChevronLeft, Home, X, Loader2, Check } from "lucide-react";
+import { Table2, FileText, Undo2, ChevronRight, ChevronLeft, Home, X, Loader2, Check, Share2 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
+import { ShareModal } from "@/components/settings/ShareModal";
 
 export function TabBar({ actions }: { actions?: React.ReactNode }) {
   const canUndo = useAppStore((s) => s.canUndo);
@@ -63,7 +64,28 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
     if (project) projectTitle = project.title;
   }
 
+  // Share modal state
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareToken, setShareToken] = useState<string | null>(null);
+  const currentEntityType = useAppStore((s) => s.currentEntityType);
+
+  // Get the current entity's share token from the project
+  useEffect(() => {
+    if (!currentEntityId || !currentProjectId) return;
+    const project = projects.find((p) => p.id === currentProjectId);
+    if (!project) return;
+    if (currentEntityType === "ku") {
+      const ku = project.knowledgeUnits?.find((k) => k.id === currentEntityId);
+      setShareToken(ku?.shareToken || null);
+    } else if (currentEntityType === "table") {
+      const table = project.tables?.find((t) => t.id === currentEntityId);
+      setShareToken(table?.shareToken || null);
+    }
+  }, [currentEntityId, currentEntityType, currentProjectId, projects]);
+
   const isProjectHome = !currentEntityId;
+
+  const activeTab = openTabs.find((t) => t.id === currentEntityId);
 
   const navigateToProjectHome = () => {
     useAppStore.getState().saveCurrentEntity();
@@ -236,6 +258,29 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
             )}
           </div>
         )}
+        {/* Share button for active file */}
+        {currentEntityId && activeTab && (
+          <button
+            onClick={() => setShareOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-ui-sm transition-colors duration-150"
+            style={{
+              color: shareToken ? design.colors.brand.primary : design.colors.text.secondary,
+              backgroundColor: shareToken ? design.colors.brand.subtle : design.colors.bg.elevated,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = design.colors.brand.subtle;
+              e.currentTarget.style.color = design.colors.brand.primary;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = shareToken ? design.colors.brand.subtle : design.colors.bg.elevated;
+              e.currentTarget.style.color = shareToken ? design.colors.brand.primary : design.colors.text.secondary;
+            }}
+            title="Share this file"
+          >
+            <Share2 className="w-3.5 h-3.5" strokeWidth={2} />
+            Share
+          </button>
+        )}
         {canUndo && (
           <button
             onClick={undo}
@@ -260,6 +305,34 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
         )}
         {actions}
       </div>
+
+      {/* Share modal for active file */}
+      {currentEntityId && activeTab && (
+        <ShareModal
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          mode="file"
+          entityId={currentEntityId}
+          entityTitle={activeTab.title}
+          currentToken={shareToken}
+          onTokenChange={(token) => {
+            setShareToken(token);
+            // Update the store's project data to reflect the new share token
+            const state = useAppStore.getState();
+            const project = state.projects.find((p) => p.id === state.currentProjectId);
+            if (project) {
+              if (currentEntityType === "ku") {
+                const ku = project.knowledgeUnits?.find((k) => k.id === currentEntityId);
+                if (ku) ku.shareToken = token;
+              } else if (currentEntityType === "table") {
+                const table = project.tables?.find((t) => t.id === currentEntityId);
+                if (table) table.shareToken = token;
+              }
+              useAppStore.setState({ projects: [...state.projects] });
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

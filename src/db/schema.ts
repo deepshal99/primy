@@ -35,6 +35,7 @@ export const projects = pgTable(
       goals?: string;
       customInstructions?: string;
     }>().default({}),
+    shareToken: varchar("share_token", { length: 32 }).unique(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -51,6 +52,7 @@ export const knowledgeUnits = pgTable(
       .references(() => projects.id, { onDelete: "cascade" }),
     title: varchar("title", { length: 500 }).notNull().default("Untitled Document"),
     content: text("content").notNull().default(""),
+    shareToken: varchar("share_token", { length: 32 }).unique(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -67,6 +69,7 @@ export const projectTables = pgTable(
       .references(() => projects.id, { onDelete: "cascade" }),
     title: varchar("title", { length: 500 }).notNull().default("Untitled Table"),
     sheets: jsonb("sheets").notNull().default([]),
+    shareToken: varchar("share_token", { length: 32 }).unique(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
