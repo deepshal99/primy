@@ -12,9 +12,11 @@ import {
   FolderOpen,
   Folder,
   Ellipsis,
+  Settings,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
+import { SettingsModal } from "@/components/settings/SettingsModal";
 
 export function ProjectSidebar() {
   const { data: session } = useSession();
@@ -33,6 +35,7 @@ export function ProjectSidebar() {
 
   const [search, setSearch] = useState("");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -437,6 +440,19 @@ export function ProjectSidebar() {
             <button
               onClick={() => {
                 setUserMenuOpen(false);
+                setSettingsOpen(true);
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors text-left"
+              style={{ color: design.colors.text.sidebar }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.sidebarActive; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+            >
+              <Settings className="w-3.5 h-3.5" />
+              Settings
+            </button>
+            <button
+              onClick={() => {
+                setUserMenuOpen(false);
                 signOut({ callbackUrl: "/login" });
               }}
               className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors text-left"
@@ -450,6 +466,9 @@ export function ProjectSidebar() {
           </div>
         )}
       </div>
+
+      {/* Settings modal */}
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }
