@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
+import { ZoomPanWrapper } from "./ZoomPanWrapper";
 import {
   BarChart, Bar, LineChart, Line, AreaChart, Area,
   PieChart, Pie, Cell, ScatterChart, Scatter,
@@ -92,12 +93,9 @@ function MermaidRenderer({ source }: { source: string }) {
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="min-h-full w-full flex items-start justify-center p-8"
-    >
-      <div className="my-auto" dangerouslySetInnerHTML={{ __html: svgHtml }} />
-    </div>
+    <ZoomPanWrapper>
+      <div ref={containerRef} className="p-8" dangerouslySetInnerHTML={{ __html: svgHtml }} />
+    </ZoomPanWrapper>
   );
 }
 
@@ -163,21 +161,23 @@ function ChartRenderer({ source }: { source: string }) {
   const { chartType, data, xKey = "name", yKeys = ["value"], colors = DEFAULT_COLORS } = config;
 
   return (
-    <div className="h-full flex flex-col items-center justify-center p-8">
-      {config.title && (
-        <h3
-          className="mb-4 text-[16px] font-semibold"
-          style={{ color: design.colors.text.primary, fontFamily: design.typography.family.heading }}
-        >
-          {config.title}
-        </h3>
-      )}
-      <div className="w-full max-w-3xl" style={{ height: "400px" }}>
-        <ResponsiveContainer width="100%" height="100%">
-          {renderChart(chartType, data, xKey, yKeys, colors)}
-        </ResponsiveContainer>
+    <ZoomPanWrapper>
+      <div className="p-8 flex flex-col items-center">
+        {config.title && (
+          <h3
+            className="mb-4 text-[16px] font-semibold"
+            style={{ color: design.colors.text.primary, fontFamily: design.typography.family.heading }}
+          >
+            {config.title}
+          </h3>
+        )}
+        <div style={{ width: "768px", height: "400px" }}>
+          <ResponsiveContainer width="100%" height="100%">
+            {renderChart(chartType, data, xKey, yKeys, colors)}
+          </ResponsiveContainer>
+        </div>
       </div>
-    </div>
+    </ZoomPanWrapper>
   );
 }
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { design } from "@/lib/design";
+import { ZoomPanWrapper } from "./ZoomPanWrapper";
 import {
   BarChart, Bar, LineChart, Line, AreaChart, Area,
   PieChart, Pie, Cell, ScatterChart, Scatter,
@@ -54,10 +55,9 @@ function MermaidRendererRO({ source }: { source: string }) {
   }
 
   return (
-    <div
-      className="h-full flex items-center justify-center overflow-auto p-8"
-      dangerouslySetInnerHTML={{ __html: svgHtml }}
-    />
+    <ZoomPanWrapper>
+      <div className="p-8" dangerouslySetInnerHTML={{ __html: svgHtml }} />
+    </ZoomPanWrapper>
   );
 }
 
@@ -141,17 +141,19 @@ function ChartRendererRO({ source }: { source: string }) {
   };
 
   return (
-    <div className="h-full flex flex-col items-center justify-center p-8">
-      {title && (
-        <h3 className="mb-4 text-[16px] font-semibold" style={{ color: design.colors.text.primary }}>
-          {title}
-        </h3>
-      )}
-      <div className="w-full max-w-3xl" style={{ height: "400px" }}>
-        <ResponsiveContainer width="100%" height="100%">
-          {renderChart()}
-        </ResponsiveContainer>
+    <ZoomPanWrapper>
+      <div className="p-8 flex flex-col items-center">
+        {title && (
+          <h3 className="mb-4 text-[16px] font-semibold" style={{ color: design.colors.text.primary }}>
+            {title}
+          </h3>
+        )}
+        <div style={{ width: "768px", height: "400px" }}>
+          <ResponsiveContainer width="100%" height="100%">
+            {renderChart()}
+          </ResponsiveContainer>
+        </div>
       </div>
-    </div>
+    </ZoomPanWrapper>
   );
 }
