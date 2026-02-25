@@ -637,9 +637,15 @@ html, body {
 
 .doc-editor p { margin: 0.5em 0; color: #4A4842; }
 
-.doc-editor ul, .doc-editor ol { padding-left: 1.5em; margin: 0.5em 0; }
+.doc-editor ul { padding-left: 1.5em; margin: 0.5em 0; list-style-type: disc; }
+.doc-editor ol { padding-left: 1.5em; margin: 0.5em 0; list-style-type: decimal; }
+.doc-editor ul ul { list-style-type: circle; }
+.doc-editor ul ul ul { list-style-type: square; }
+.doc-editor ol ol { list-style-type: lower-alpha; }
+.doc-editor ol ol ol { list-style-type: lower-roman; }
 .doc-editor li { margin: 0.25em 0; color: #4A4842; line-height: 1.7; }
 .doc-editor li p { margin: 0; }
+.doc-editor li > ul, .doc-editor li > ol { margin: 0.15em 0; }
 
 .doc-editor blockquote {
   border-left: 3px solid #E6E4DF;
