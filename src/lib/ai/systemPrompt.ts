@@ -79,14 +79,52 @@ Use to add additional sheets to the workbook (e.g., "Summary", "Timeline", "Budg
 { "type": "SORT", "sheetIndex": 0, "column": 2, "ascending": true }
 
 ### Cell Value Format
-- v: display value (string or number)
-- f: formula (e.g., "=SUM(A2:A10)")
-- ct: cell type { fa: format string, t: type ("g"=general, "n"=number, "s"=string) }
+- v: display value (string or number) — REQUIRED for all cells
+- m: display string (formatted representation, e.g., "150" for number 150) — always include for formulas and numbers
+- f: formula (e.g., "=SUM(A2:A10)") — use Excel-style formulas
+- ct: cell type — REQUIRED for formula and number cells: { "fa": "General", "t": "n" } for numbers, { "fa": "General", "t": "s" } for strings
 - bl: 1 for bold, 0 or omit for normal
 - it: 1 for italic
 - fc: font color (hex string like "#333333")
 - bg: background color (hex string like "#FFFFFF")
 - fs: font size in points (default is 10)
+
+### Formula Rules — CRITICAL
+Formulas are essential for automating calculations across columns and rows. Use them whenever cells should compute values from other cells.
+
+**Formula cell format** — ALL THREE fields (f, v, ct) are required:
+{ "r": 5, "c": 2, "v": { "f": "=SUM(C2:C5)", "v": 0, "m": "0", "ct": { "fa": "General", "t": "n" } } }
+
+**When to use formulas:**
+- Totals/subtotals: =SUM(B2:B20)
+- Calculated columns (e.g., "Total" = Price × Quantity): =B2*C2
+- Percentage columns: =B2/B$20 (use $ for absolute references)
+- Conditional values: =IF(C2>100,"High","Low")
+- Running counts: =COUNTA(A$2:A2)
+- Averages, min, max across rows: =AVERAGE(B2:B20)
+
+**Column automation pattern** — when the user wants a formula to apply down a column, generate the formula for EACH data row with the correct row reference:
+Row 1: { "r": 1, "c": 3, "v": { "f": "=B2*C2", "v": 0, "m": "0", "ct": { "fa": "General", "t": "n" } } }
+Row 2: { "r": 2, "c": 3, "v": { "f": "=B3*C3", "v": 0, "m": "0", "ct": { "fa": "General", "t": "n" } } }
+Row 3: { "r": 3, "c": 3, "v": { "f": "=B4*C4", "v": 0, "m": "0", "ct": { "fa": "General", "t": "n" } } }
+
+**Important formula notes:**
+- Cell references use A1 notation in formulas (A=col0, B=col1, C=col2, etc.) but celldata uses 0-indexed r/c
+- Row in A1 notation is 1-indexed (r:0 = row 1 in formulas, r:1 = row 2, etc.)
+- Use $ for absolute references: B$1 locks the row, $B1 locks the column
+- Formula cells MUST include "ct": { "fa": "General", "t": "n" } — without this, formulas will not evaluate
+- Always set "v": 0 and "m": "0" as placeholder values for formula cells — the spreadsheet engine will recalculate
+- When the current sheet data shows formulas (starting with =), PRESERVE them — do not overwrite formula cells with static values unless the user explicitly asks to
+
+**Common formula examples:**
+- Sum: =SUM(A2:A100)
+- Average: =AVERAGE(B2:B50)
+- Count non-empty: =COUNTA(A2:A100)
+- Conditional: =IF(B2>0, B2*0.1, 0)
+- Text join: =CONCATENATE(A2, " ", B2)
+- Lookup: =VLOOKUP(A2, E2:F10, 2, FALSE)
+- Percentage: =B2/SUM(B$2:B$10)*100
+- Max/Min: =MAX(C2:C100), =MIN(C2:C100)
 
 ### Sheet Rules
 1. Use 0-indexed row (r) and column (c) coordinates
@@ -95,9 +133,10 @@ Use to add additional sheets to the workbook (e.g., "Summary", "Timeline", "Budg
 4. Always make headers bold (bl: 1) with background color #6B8FA3 and white text (#FFFFFF)
 5. Set appropriate column widths using SET_COLUMN_WIDTHS so data isn't truncated
 6. When the current sheet data is empty, use SET_SHEET_DATA
-7. For numbers, use actual number types, not strings
+7. For numbers, use actual number types, not strings — and include "m" (display string) and "ct" (cell type)
 8. When sorting, remember row 0 is the header row — don't include it in the sort
 9. You can create multiple sheet tabs for different aspects of a project (e.g., "Tasks" + "Budget" + "Timeline")
+10. When the current sheet data contains formulas (cells starting with =), preserve them in any UPDATE_CELLS operation — only overwrite formulas if the user explicitly asks to change the calculation logic
 
 ## Document Operations
 

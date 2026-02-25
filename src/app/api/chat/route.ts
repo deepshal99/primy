@@ -64,7 +64,8 @@ export async function POST(req: Request) {
             const cells: string[] = [];
             for (let c = 0; c <= maxCol; c++) {
               const cell = s.celldata.find((cd: any) => cd.r === r && cd.c === c);
-              const val = cell?.v?.v ?? "";
+              // Show formula if present (e.g. "=SUM(A1:A10)"), otherwise display value
+              const val = cell?.v?.f ? cell.v.f : (cell?.v?.v ?? "");
               cells.push(String(val).includes(",") ? `"${val}"` : String(val));
             }
             rows.push(cells.join(","));

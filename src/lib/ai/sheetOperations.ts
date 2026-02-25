@@ -1,5 +1,5 @@
 import { produce } from "immer";
-import { SheetData, SheetOperation, CellData } from "@/lib/types";
+import { SheetData, SheetOperation, CellData, CellValue } from "@/lib/types";
 
 /** Safe max that doesn't blow the stack on large arrays */
 function safeMax(arr: number[], fallback: number): number {
@@ -9,6 +9,48 @@ function safeMax(arr: number[], fallback: number): number {
     if (arr[i] > max) max = arr[i];
   }
   return max;
+}
+
+/**
+ * Normalize a cell value for Fortune Sheet compatibility.
+ * - Formula cells get `ct` metadata so the engine evaluates them
+ * - Number cells get `ct` with type "n" and `m` display string
+ * - Ensures `m` (display/monitor) field is populated
+ */
+function normalizeCell(cell: CellData): CellData {
+  if (!cell.v) return cell;
+  const v = { ...cell.v };
+
+  // Formula cells: ensure ct metadata exists so Fortune Sheet evaluates them
+  if (v.f) {
+    if (!v.ct) {
+      v.ct = { fa: "General", t: "n" };
+    }
+    // If no computed value yet, set a placeholder — Fortune Sheet will recalculate
+    if (v.v === undefined && v.m === undefined) {
+      v.v = 0;
+      v.m = "0";
+    }
+  }
+
+  // Number values: ensure m (display string) and ct are set
+  if (typeof v.v === "number" && !v.f) {
+    if (!v.m) v.m = String(v.v);
+    if (!v.ct) v.ct = { fa: "General", t: "n" };
+  }
+
+  // String values: ensure m is set
+  if (typeof v.v === "string" && !v.f) {
+    if (!v.m) v.m = v.v;
+    if (!v.ct) v.ct = { fa: "General", t: "s" };
+  }
+
+  return { ...cell, v };
+}
+
+/** Normalize all cells in an array */
+export function normalizeCells(cells: CellData[]): CellData[] {
+  return cells.map(normalizeCell);
 }
 
 export function applyOperations(
@@ -36,7 +78,7 @@ function applyOperation(
       case "SET_SHEET_DATA": {
         if (op.sheetIndex >= draft.length) break;
         const sheet = draft[op.sheetIndex];
-        sheet.celldata = op.data.celldata || [];
+        sheet.celldata = normalizeCells(op.data.celldata || []);
         if (op.data.name) sheet.name = op.data.name;
         if (op.data.config) {
           sheet.config = { ...sheet.config, ...op.data.config };
@@ -53,7 +95,7 @@ function applyOperation(
           name: op.name,
           order: draft.length,
           status: 0,
-          celldata: op.celldata,
+          celldata: normalizeCells(op.celldata || []),
           config: {},
           row: 50,
           column: 26,
@@ -65,7 +107,8 @@ function applyOperation(
         if (op.sheetIndex >= draft.length) break;
         const sheet = draft[op.sheetIndex];
         if (!op.cells || !Array.isArray(op.cells)) break;
-        for (const cell of op.cells) {
+        const normalized = normalizeCells(op.cells);
+        for (const cell of normalized) {
           if (cell.r == null || cell.c == null) continue;
           const idx = sheet.celldata.findIndex(
             (c) => c.r === cell.r && c.c === cell.c

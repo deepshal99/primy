@@ -1,7 +1,8 @@
 export interface CellValue {
   v?: string | number;
+  m?: string | number;
   f?: string;
-  ct?: { fa: string; t: string };
+  ct?: { fa?: string; t?: string };
   bl?: number;
   it?: number;
   fc?: string;

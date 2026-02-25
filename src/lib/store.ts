@@ -15,7 +15,7 @@ import {
   ProjectTable,
 } from "@/lib/types";
 import { createEmptySheet } from "@/lib/sheet/defaultData";
-import { applyOperations } from "@/lib/ai/sheetOperations";
+import { applyOperations, normalizeCells } from "@/lib/ai/sheetOperations";
 import { applyDocOps } from "@/lib/ai/docOperations";
 import {
   fetchProjects,
@@ -314,7 +314,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                     name: "Sheet1",
                     order: 0,
                     status: 1,
-                    celldata: op.celldata,
+                    celldata: normalizeCells(op.celldata || []),
                     config: op.config || {},
                     row: 50,
                     column: 26,
@@ -345,7 +345,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                     const sheet = { ...table.sheets[si] };
                     // Merge cells
                     const cellMap = new Map(sheet.celldata.map((c) => [`${c.r},${c.c}`, c]));
-                    for (const cell of op.cells) {
+                    for (const cell of normalizeCells(op.cells || [])) {
                       cellMap.set(`${cell.r},${cell.c}`, cell);
                     }
                     sheet.celldata = Array.from(cellMap.values());
