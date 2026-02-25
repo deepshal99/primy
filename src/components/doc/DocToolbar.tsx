@@ -18,7 +18,7 @@ import {
   Undo,
   Redo,
   Link,
-  Sparkles,
+  Wand2,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -333,7 +333,7 @@ export function DocToolbar({ editor, onAIEdit }: DocToolbarProps) {
             disabled={editor.state.selection.empty}
             title="AI Edit — select text first"
           >
-            <Sparkles className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: design.colors.accent.gold }} />
+            <Wand2 className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: design.colors.accent.gold }} />
           </ToolbarButton>
         </>
       )}

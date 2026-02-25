@@ -1,6 +1,7 @@
 "use client";
 
-import { Table2, FileText, Undo2, ChevronRight, Home, X } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Table2, FileText, Undo2, ChevronRight, ChevronLeft, Home, X, Loader2, Check } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
 
@@ -15,6 +16,46 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
   const openTable = useAppStore((s) => s.openTable);
   const closeTab = useAppStore((s) => s.closeTab);
   const projects = useAppStore((s) => s.projects);
+  const isSaving = useAppStore((s) => s.isSaving);
+  const lastSavedAt = useAppStore((s) => s.lastSavedAt);
+
+  // Save indicator state
+  const [showSaved, setShowSaved] = useState(false);
+  useEffect(() => {
+    if (lastSavedAt > 0 && !isSaving) {
+      setShowSaved(true);
+      const t = setTimeout(() => setShowSaved(false), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [lastSavedAt, isSaving]);
+
+  // Tab overflow detection
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkOverflow = useCallback(() => {
+    const el = tabsContainerRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 2);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }, []);
+
+  useEffect(() => {
+    checkOverflow();
+    const el = tabsContainerRef.current;
+    if (el) {
+      el.addEventListener("scroll", checkOverflow);
+      const ro = new ResizeObserver(checkOverflow);
+      ro.observe(el);
+      return () => { el.removeEventListener("scroll", checkOverflow); ro.disconnect(); };
+    }
+  }, [checkOverflow, openTabs.length]);
+
+  const scrollTabs = (dir: "left" | "right") => {
+    const el = tabsContainerRef.current;
+    if (el) el.scrollBy({ left: dir === "left" ? -150 : 150, behavior: "smooth" });
+  };
 
   let projectTitle = "";
   if (currentProjectId) {
@@ -42,7 +83,7 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
       }}
     >
       {/* Left: Home + Tabs */}
-      <div className="flex items-center min-w-0 flex-1 overflow-x-auto no-scrollbar">
+      <div className="flex items-center min-w-0 flex-1">
         {/* Home button */}
         <button
           onClick={navigateToProjectHome}
@@ -75,7 +116,19 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
               className="w-px h-5 flex-shrink-0"
               style={{ backgroundColor: design.colors.border.default }}
             />
-            <div className="flex items-center gap-0.5 px-1">
+            {/* Scroll left arrow */}
+            {canScrollLeft && (
+              <button
+                onClick={() => scrollTabs("left")}
+                className="flex items-center justify-center w-6 h-6 flex-shrink-0 rounded transition-colors"
+                style={{ color: design.colors.text.muted }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <div ref={tabsContainerRef} className="flex items-center gap-0.5 px-1 overflow-x-auto no-scrollbar min-w-0">
               {openTabs.map((tab) => {
                 const isActive = tab.id === currentEntityId;
                 const isKu = tab.type === "ku";
@@ -149,12 +202,40 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
                 );
               })}
             </div>
+            {/* Scroll right arrow */}
+            {canScrollRight && (
+              <button
+                onClick={() => scrollTabs("right")}
+                className="flex items-center justify-center w-6 h-6 flex-shrink-0 rounded transition-colors"
+                style={{ color: design.colors.text.muted }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
           </>
         )}
       </div>
 
-      {/* Right: actions */}
+      {/* Right: save indicator + actions */}
       <div className="flex items-center gap-2 flex-shrink-0 px-3">
+        {/* Save indicator */}
+        {(isSaving || showSaved) && (
+          <div className="flex items-center gap-1 text-[11px] animate-fade-in" style={{ color: design.colors.text.muted }}>
+            {isSaving ? (
+              <>
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span>Saving…</span>
+              </>
+            ) : (
+              <>
+                <Check className="w-3 h-3" style={{ color: design.colors.status.success }} />
+                <span>Saved</span>
+              </>
+            )}
+          </div>
+        )}
         {canUndo && (
           <button
             onClick={undo}

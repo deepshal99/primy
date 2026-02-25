@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Sparkles, Loader2, ArrowUp, Grid3X3 } from "lucide-react";
+import { Wand2, Loader2, ArrowUp, Grid3X3 } from "lucide-react";
 import { design } from "@/lib/design";
 import { useAppStore } from "@/lib/store";
 import { getWorkbookApi } from "./SheetView";
@@ -142,7 +142,7 @@ export function SheetAIBar() {
 
           {/* Input */}
           <div className="flex items-center gap-2 p-2.5">
-            <Sparkles className="w-3.5 h-3.5 flex-shrink-0" style={{ color: design.colors.accent.gold }} strokeWidth={2} />
+            <Wand2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: design.colors.accent.gold }} strokeWidth={2} />
             <input
               ref={inputRef}
               type="text"
@@ -208,7 +208,7 @@ export function SheetAIBar() {
         }}
         title="AI actions on sheet data"
       >
-        <Sparkles className="w-4 h-4" strokeWidth={2} />
+        <Wand2 className="w-4 h-4" strokeWidth={2} />
       </button>
     </div>
   );

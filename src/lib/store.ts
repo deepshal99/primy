@@ -116,6 +116,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   canUndo: false,
   redoStack: [],
   canRedo: false,
+  isSaving: false,
+  lastSavedAt: 0,
 
   // Legacy conversations
   conversations: [],
@@ -411,6 +413,20 @@ export const useAppStore = create<AppState>((set, get) => ({
       openTabs: newOpenTabs,
     });
 
+    // Success toasts for AI operations
+    if (hasSheetOps) toast.success("Spreadsheet updated");
+    else if (hasDocOps) toast.success("Document updated");
+    if (hasKuOps) {
+      for (const op of kuOperations) {
+        if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
+      }
+    }
+    if (hasTableOps) {
+      for (const op of tableOperations) {
+        if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
+      }
+    }
+
     // Auto-save
     setTimeout(() => {
       const s = get();
@@ -682,6 +698,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       redoStack: [...state.redoStack, redoSnapshot],
       canRedo: true,
     });
+
+    toast(`Undone: ${snapshot.label}`);
 
     setTimeout(() => {
       const s = get();
@@ -1332,6 +1350,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   saveCurrentEntity: () => {
     const state = get();
     if (!state.currentProjectId) return;
+    set({ isSaving: true });
 
     const projIdx = state.projects.findIndex((p) => p.id === state.currentProjectId);
     if (projIdx < 0) return;
@@ -1388,7 +1407,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         attachments: m.attachments,
       })),
     };
-    updateProjectOnServer(project.id, syncPayload).catch(() => {});
+    updateProjectOnServer(project.id, syncPayload)
+      .catch(() => {})
+      .finally(() => set({ isSaving: false, lastSavedAt: Date.now() }));
   },
 
   loadProjects: async () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { FileText, Table2, Plus, Clock, Sparkles, ArrowRight, ChevronDown, Check, Settings2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { FileText, Table2, Plus, Clock, Pen, ArrowRight, ChevronDown, Check, Settings2, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
 import { PROJECT_TYPES } from "@/lib/constants";
@@ -225,7 +225,7 @@ export function ProjectHome() {
               backgroundColor: design.colors.bg.elevated,
             }}
           >
-            <Sparkles className="w-6 h-6 mb-4" style={{ color: design.colors.accent.gold }} strokeWidth={1.5} />
+            <Pen className="w-6 h-6 mb-4" style={{ color: design.colors.accent.gold }} strokeWidth={1.5} />
             <p style={{ fontSize: "14px", fontWeight: 500, color: design.colors.text.primary, marginBottom: "4px" }}>
               Your workspace awaits
             </p>
@@ -441,7 +441,7 @@ export function ProjectHome() {
               padding: "12px 16px",
             }}
           >
-            <Sparkles className="w-4 h-4 flex-shrink-0" style={{ color: design.colors.accent.gold }} />
+            <Pen className="w-4 h-4 flex-shrink-0" style={{ color: design.colors.accent.gold }} />
             <p style={{ fontSize: "13px", color: design.colors.text.secondary }}>
               <span style={{ fontWeight: 600, color: design.colors.accent.goldDark }}>Tip: </span>
               Chat with AI to create, edit, or analyze any file in this project

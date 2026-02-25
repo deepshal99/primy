@@ -1,6 +1,6 @@
 "use client";
 
-import { Table2, FileText, Sparkles } from "lucide-react";
+import { Table2, FileText, Pen } from "lucide-react";
 import { design } from "@/lib/design";
 
 const examples = [
@@ -53,7 +53,7 @@ export function ExamplePrompts({ onSelect, centered }: ExamplePromptsProps) {
       {/* Hero */}
       <div className="text-center mb-8 animate-fade-in">
         <div className="flex items-center justify-center gap-2 mb-3">
-          <Sparkles className="w-5 h-5" style={{ color: design.colors.accent.gold }} strokeWidth={1.5} />
+          <Pen className="w-5 h-5" style={{ color: design.colors.accent.gold }} strokeWidth={1.5} />
         </div>
         <h2
           style={{

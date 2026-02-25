@@ -12,7 +12,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import { Markdown } from "tiptap-markdown";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAppStore } from "@/lib/store";
-import { FileText, Sparkles, Loader2, Wand2, Shrink, Expand, MessageSquare, Pen } from "lucide-react";
+import { FileText, Loader2, Wand2, Shrink, Expand, MessageSquare, Pen } from "lucide-react";
 import { design } from "@/lib/design";
 import { DocToolbar } from "./DocToolbar";
 
@@ -309,7 +309,7 @@ export function DocView() {
             }}
           >
             <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="w-4 h-4" style={{ color: design.colors.accent.gold }} strokeWidth={2} />
+              <Wand2 className="w-4 h-4" style={{ color: design.colors.accent.gold }} strokeWidth={2} />
               <span className="text-heading-sm" style={{ color: design.colors.text.primary }}>
                 AI Edit
               </span>

@@ -270,6 +270,16 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           const partial = useAppStore.getState().streamingContent;
           if (partial.trim()) {
             finishStreaming(extractDisplayText(partial) || partial);
+            // Mark the saved message as interrupted
+            const msgs = useAppStore.getState().messages;
+            if (msgs.length > 0) {
+              const last = msgs[msgs.length - 1];
+              if (last.role === "assistant") {
+                useAppStore.setState({
+                  messages: msgs.map((m, i) => i === msgs.length - 1 ? { ...m, interrupted: true } : m),
+                });
+              }
+            }
           } else {
             abortStreaming();
           }

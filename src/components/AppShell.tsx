@@ -29,6 +29,30 @@ export function AppShell() {
           e.preventDefault();
           toggleSidebar();
         }
+        if (e.key === "1") {
+          e.preventDefault();
+          const s = useAppStore.getState();
+          if (s.currentProjectId) {
+            // Find the first table and open it
+            const project = s.projects.find((p) => p.id === s.currentProjectId);
+            if (project && project.tables.length > 0) {
+              s.openTable(project.tables[0].id);
+              if (!s.workspaceOpen) useAppStore.setState({ workspaceOpen: true });
+            }
+          }
+        }
+        if (e.key === "2") {
+          e.preventDefault();
+          const s = useAppStore.getState();
+          if (s.currentProjectId) {
+            // Find the first KU and open it
+            const project = s.projects.find((p) => p.id === s.currentProjectId);
+            if (project && project.knowledgeUnits.length > 0) {
+              s.openKnowledgeUnit(project.knowledgeUnits[0].id);
+              if (!s.workspaceOpen) useAppStore.setState({ workspaceOpen: true });
+            }
+          }
+        }
         if (e.key === "z" && !e.shiftKey && canUndo) {
           // Only intercept if not focused in an input/editor
           const tag = (e.target as HTMLElement)?.tagName;

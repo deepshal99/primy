@@ -86,6 +86,16 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
             </ReactMarkdown>
           </div>
 
+          {/* Interrupted label */}
+          {message.interrupted && (
+            <div
+              className="flex items-center gap-1 mt-1.5"
+              style={{ color: design.colors.text.muted }}
+            >
+              <span className="text-[11px] italic">Response interrupted</span>
+            </div>
+          )}
+
           {/* Action buttons — visible on hover */}
           <div className="flex items-center gap-1 mt-2 opacity-0 group-hover/msg:opacity-100 transition-opacity duration-200">
             <button

@@ -126,6 +126,7 @@ export interface Message {
   content: string;
   timestamp: number;
   attachments?: FileAttachment[];
+  interrupted?: boolean;
 }
 
 // ═══ Conversation History (legacy — kept for migration) ═══
@@ -267,6 +268,8 @@ export interface AppState {
   canUndo: boolean;
   redoStack: UndoSnapshot[];
   canRedo: boolean;
+  isSaving: boolean;
+  lastSavedAt: number;
 
   // Legacy conversation history (kept for migration)
   conversations: Conversation[];

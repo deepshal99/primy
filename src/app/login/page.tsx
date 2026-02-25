@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { Sparkles, Loader2, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
+import { Pen, Loader2, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { design } from "@/lib/design";
 
 export default function LoginPage() {
@@ -74,7 +74,7 @@ export default function LoginPage() {
             className="flex items-center justify-center w-12 h-12 rounded-2xl mb-4"
             style={{ backgroundColor: design.colors.brand.primary }}
           >
-            <Sparkles className="w-6 h-6 text-white" strokeWidth={2} />
+            <Pen className="w-6 h-6 text-white" strokeWidth={2} />
           </div>
           <h1
             className="text-display-sm"
