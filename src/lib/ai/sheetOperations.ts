@@ -21,6 +21,14 @@ function normalizeCell(cell: CellData): CellData {
   if (!cell.v) return cell;
   const v = { ...cell.v };
 
+  // Detect formula strings mistakenly placed in v.v instead of v.f
+  if (typeof v.v === "string" && v.v.startsWith("=") && !v.f) {
+    v.f = v.v;
+    v.v = 0;
+    v.m = "0";
+    if (!v.ct) v.ct = { fa: "General", t: "n" };
+  }
+
   // Formula cells: ensure ct metadata exists so Fortune Sheet evaluates them
   if (v.f) {
     if (!v.ct) {
@@ -218,6 +226,27 @@ function applyOperation(
         if (op.sheetIndex >= draft.length) break;
         const sheet = draft[op.sheetIndex];
         sortSheet(sheet, op.column, op.ascending);
+        break;
+      }
+
+      case "SET_DROPDOWN": {
+        if (op.sheetIndex >= draft.length) break;
+        const sheet = draft[op.sheetIndex];
+        if (!sheet.dataVerification) sheet.dataVerification = {};
+        const optionStr = op.options.join(",");
+        for (let r = op.rowStart; r <= op.rowEnd; r++) {
+          const key = `${r}_${op.column}`;
+          sheet.dataVerification[key] = {
+            type: "dropdown",
+            type2: "",
+            value1: optionStr,
+            value2: "",
+            remote: false,
+            prohibitInput: false,
+            hintShow: false,
+            hintValue: "",
+          };
+        }
         break;
       }
     }

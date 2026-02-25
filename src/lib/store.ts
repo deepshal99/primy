@@ -1432,6 +1432,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     set(updates);
     saveProjectsToStorage(newProjects);
+
+    // Background sync: delete diagram on server
+    updateProjectOnServer(projectId, {
+      deletedDiagramIds: [diagramId],
+    }).catch(() => {});
   },
 
   renameDiagram: (projectId: string, diagramId: string, title: string) => {
@@ -1450,6 +1455,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     const newTabs = state.openTabs.map((t) => t.id === diagramId ? { ...t, title } : t);
     set({ projects: newProjects, openTabs: newTabs });
     saveProjectsToStorage(newProjects);
+
+    // Background sync to Neon
+    updateProjectOnServer(projectId, {
+      diagrams: [{ id: diagramId, title }],
+    }).catch(() => {});
   },
 
   openDiagram: (diagramId: string) => {
@@ -1478,6 +1488,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   updateDiagramSource: (source: string) => {
     set({ diagramSource: source });
+    // Debounced auto-save (800ms)
+    if (typeof window !== "undefined") {
+      if ((window as any).__diagramSaveTimer) clearTimeout((window as any).__diagramSaveTimer);
+      (window as any).__diagramSaveTimer = setTimeout(() => {
+        get().saveCurrentEntity();
+      }, 800);
+    }
   },
 
   // ══════════════════════════════════

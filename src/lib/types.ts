@@ -21,6 +21,17 @@ export interface SheetConfig {
   rowlen?: Record<string, number>;
 }
 
+export interface DataVerification {
+  type: string;       // "dropdown" | "checkbox" | "number" etc.
+  type2: string;      // "" for single-select, "true" for multi-select
+  value1: string;     // comma-separated options for dropdown
+  value2: string;
+  remote: boolean;
+  prohibitInput: boolean;
+  hintShow: boolean;
+  hintValue: string;
+}
+
 export interface SheetData {
   name: string;
   order: number;
@@ -29,6 +40,7 @@ export interface SheetData {
   config?: SheetConfig;
   row?: number;
   column?: number;
+  dataVerification?: Record<string, DataVerification>;
 }
 
 export interface CellRange {
@@ -84,6 +96,14 @@ export type SheetOperation =
       sheetIndex: number;
       column: number;
       ascending: boolean;
+    }
+  | {
+      type: "SET_DROPDOWN";
+      sheetIndex: number;
+      column: number;
+      rowStart: number;
+      rowEnd: number;
+      options: string[];
     };
 
 // ═══ Document Operations ═══

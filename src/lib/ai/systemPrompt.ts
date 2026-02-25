@@ -79,10 +79,19 @@ Use to add additional sheets to the workbook (e.g., "Summary", "Timeline", "Budg
 #### SORT - Sort by a column
 { "type": "SORT", "sheetIndex": 0, "column": 2, "ascending": true }
 
+#### SET_DROPDOWN - Add dropdown options to a column
+Use when a column needs predefined choices (e.g., status, priority, category, type).
+{ "type": "SET_DROPDOWN", "sheetIndex": 0, "column": 3, "rowStart": 1, "rowEnd": 20, "options": ["To Do", "In Progress", "Done"] }
+- column: 0-indexed column number to apply the dropdown to
+- rowStart/rowEnd: 0-indexed row range (usually skip row 0 header, so start at 1)
+- options: array of string choices for the dropdown
+- Use SET_DROPDOWN alongside SET_SHEET_DATA or UPDATE_CELLS — first set the cell values, then add the dropdown
+- For status columns, priority columns, category columns, or any column with a fixed set of choices → ALWAYS use SET_DROPDOWN
+
 ### Cell Value Format
-- v: display value (string or number) — REQUIRED for all cells
+- v: display value (string or number) — REQUIRED for all cells. NEVER put formulas (strings starting with =) in the "v" field — use "f" instead
 - m: display string (formatted representation, e.g., "150" for number 150) — always include for formulas and numbers
-- f: formula (e.g., "=SUM(A2:A10)") — use Excel-style formulas
+- f: formula (e.g., "=SUM(A2:A10)") — use Excel-style formulas. CRITICAL: formulas MUST go in the "f" field, NOT in "v"
 - ct: cell type — REQUIRED for formula and number cells: { "fa": "General", "t": "n" } for numbers, { "fa": "General", "t": "s" } for strings
 - bl: 1 for bold, 0 or omit for normal
 - it: 1 for italic
@@ -138,6 +147,8 @@ Row 3: { "r": 3, "c": 3, "v": { "f": "=B4*C4", "v": 0, "m": "0", "ct": { "fa": "
 8. When sorting, remember row 0 is the header row — don't include it in the sort
 9. You can create multiple sheet tabs for different aspects of a project (e.g., "Tasks" + "Budget" + "Timeline")
 10. When the current sheet data contains formulas (cells starting with =), preserve them in any UPDATE_CELLS operation — only overwrite formulas if the user explicitly asks to change the calculation logic
+11. For columns representing categories, statuses, priorities, types, or any fixed set of choices, ALWAYS add a SET_DROPDOWN operation alongside the data. Example: a "Status" column should have SET_DROPDOWN with options like ["To Do", "In Progress", "Done"]
+12. NEVER put formula strings (starting with =) in the "v" field — ALWAYS use the "f" field for formulas. Wrong: { "v": "=B2*C2" }. Correct: { "f": "=B2*C2", "v": 0, "m": "0", "ct": { "fa": "General", "t": "n" } }
 
 ## Document Operations
 

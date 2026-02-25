@@ -3,6 +3,9 @@ import { SYSTEM_PROMPT } from "@/lib/ai/systemPrompt";
 import { auth } from "@/lib/auth";
 import "@/lib/env";
 
+// Allow longer processing for file-heavy requests
+export const maxDuration = 60;
+
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 /** Strip context-injection tags from user input to prevent prompt injection. */
