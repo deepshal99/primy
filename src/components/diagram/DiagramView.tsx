@@ -94,9 +94,10 @@ function MermaidRenderer({ source }: { source: string }) {
   return (
     <div
       ref={containerRef}
-      className="h-full flex items-center justify-center overflow-auto p-8"
-      dangerouslySetInnerHTML={{ __html: svgHtml }}
-    />
+      className="min-h-full w-full flex items-start justify-center p-8"
+    >
+      <div className="my-auto" dangerouslySetInnerHTML={{ __html: svgHtml }} />
+    </div>
   );
 }
 
