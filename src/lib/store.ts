@@ -344,7 +344,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                   if (table.sheets[si]) {
                     const sheet = { ...table.sheets[si] };
                     // Merge cells
-                    const cellMap = new Map(sheet.celldata.map((c) => [`${c.r},${c.c}`, c]));
+                    const cellMap = new Map((sheet.celldata || []).map((c) => [`${c.r},${c.c}`, c]));
                     for (const cell of normalizeCells(op.cells || [])) {
                       cellMap.set(`${cell.r},${cell.c}`, cell);
                     }
@@ -453,7 +453,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       docVersion: state.docVersion + 1,
     })),
 
-  updateSheetData: (data) => set({ sheets: data }),
+  updateSheetData: (data) => {
+    if (!Array.isArray(data)) return;
+    // Ensure every sheet has celldata array
+    const safe = data.map((s: any) => ({
+      ...s,
+      celldata: Array.isArray(s.celldata) ? s.celldata : [],
+    }));
+    set({ sheets: safe });
+  },
 
   updateDocContent: (content: string) => set({ docContent: content }),
 
@@ -1370,9 +1378,14 @@ export const useAppStore = create<AppState>((set, get) => ({
           : k
       );
     } else if (state.currentEntityId && state.currentEntityType === "table") {
+      // Sanitize sheets before saving — ensure celldata is always an array
+      const sanitizedSheets = state.sheets.map((s) => ({
+        ...s,
+        celldata: Array.isArray(s.celldata) ? s.celldata : [],
+      }));
       project.tables = project.tables.map((t) =>
         t.id === state.currentEntityId
-          ? { ...t, sheets: state.sheets, updatedAt: Date.now() }
+          ? { ...t, sheets: sanitizedSheets, updatedAt: Date.now() }
           : t
       );
     }

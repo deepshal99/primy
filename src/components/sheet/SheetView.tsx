@@ -36,10 +36,22 @@ export function SheetView() {
     if (isUpdatingRef.current) return;
     // Guard: don't write sheet data when a doc (KU) is the active entity
     if (useAppStore.getState().currentEntityType !== "table" && useAppStore.getState().currentEntityType !== null) return;
+    // Guard: validate data is a non-empty array of sheet objects with celldata
+    if (!Array.isArray(data) || data.length === 0) return;
+    // Ensure every sheet has celldata array (Fortune Sheet may return undefined/null)
+    const sanitized = data.map((s: any) => ({
+      ...s,
+      celldata: Array.isArray(s.celldata) ? s.celldata : [],
+    }));
+    // Guard: don't write back if all sheets have empty celldata (likely a transient render glitch)
+    const hasAnyData = sanitized.some((s: any) => s.celldata.length > 0);
+    const storeSheets = useAppStore.getState().sheets;
+    const storeHasData = storeSheets.some((s) => s.celldata && s.celldata.length > 0);
+    if (storeHasData && !hasAnyData) return; // Prevent blanking out existing data
     // Debounce: persist manual edits to store after 300ms of inactivity
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      useAppStore.getState().updateSheetData(data);
+      useAppStore.getState().updateSheetData(sanitized);
     }, 300);
   }, []);
 

@@ -1,11 +1,21 @@
 import Papa from "papaparse";
 import { SheetData } from "@/lib/types";
 
-export function sheetToCSV(sheet: SheetData): string {
-  if (sheet.celldata.length === 0) return "";
+/** Safe max that doesn't blow the stack on large arrays */
+function safeMax(arr: number[], fallback: number): number {
+  if (arr.length === 0) return fallback;
+  let max = arr[0];
+  for (let i = 1; i < arr.length; i++) {
+    if (arr[i] > max) max = arr[i];
+  }
+  return max;
+}
 
-  const maxRow = Math.max(...sheet.celldata.map((c) => c.r));
-  const maxCol = Math.max(...sheet.celldata.map((c) => c.c));
+export function sheetToCSV(sheet: SheetData): string {
+  if (!sheet.celldata || sheet.celldata.length === 0) return "";
+
+  const maxRow = safeMax(sheet.celldata.map((c) => c.r), 0);
+  const maxCol = safeMax(sheet.celldata.map((c) => c.c), 0);
 
   const grid: (string | number)[][] = [];
   for (let r = 0; r <= maxRow; r++) {
@@ -13,17 +23,17 @@ export function sheetToCSV(sheet: SheetData): string {
   }
 
   for (const cell of sheet.celldata) {
-    grid[cell.r][cell.c] = cell.v?.v ?? "";
+    if (cell.r <= maxRow) grid[cell.r][cell.c] = cell.v?.v ?? "";
   }
 
   return Papa.unparse(grid);
 }
 
 export function sheetToTSV(sheet: SheetData): string {
-  if (sheet.celldata.length === 0) return "";
+  if (!sheet.celldata || sheet.celldata.length === 0) return "";
 
-  const maxRow = Math.max(...sheet.celldata.map((c) => c.r));
-  const maxCol = Math.max(...sheet.celldata.map((c) => c.c));
+  const maxRow = safeMax(sheet.celldata.map((c) => c.r), 0);
+  const maxCol = safeMax(sheet.celldata.map((c) => c.c), 0);
 
   const lines: string[] = [];
   for (let r = 0; r <= maxRow; r++) {

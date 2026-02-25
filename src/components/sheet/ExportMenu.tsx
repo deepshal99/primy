@@ -56,9 +56,10 @@ export function ExportMenu() {
     const XLSX = (await import("xlsx")).default;
 
     // Convert celldata to 2D array (use loop to avoid stack overflow on large sheets)
+    const celldata = activeSheet.celldata || [];
     let maxRow = 0;
     let maxCol = 0;
-    for (const c of activeSheet.celldata) {
+    for (const c of celldata) {
       if (c.r > maxRow) maxRow = c.r;
       if (c.c > maxCol) maxCol = c.c;
     }
@@ -67,7 +68,7 @@ export function ExportMenu() {
     for (let r = 0; r <= maxRow; r++) {
       const row: (string | number | undefined)[] = [];
       for (let c = 0; c <= maxCol; c++) {
-        const cell = activeSheet.celldata.find((cd) => cd.r === r && cd.c === c);
+        const cell = celldata.find((cd) => cd.r === r && cd.c === c);
         row.push(cell?.v?.v ?? undefined);
       }
       data.push(row);

@@ -74,6 +74,11 @@ function applyOperation(
   op: SheetOperation
 ): SheetData[] {
   return produce(sheets, (draft) => {
+    // Ensure all sheets have celldata array
+    for (const s of draft) {
+      if (!s.celldata) s.celldata = [];
+    }
+
     switch (op.type) {
       case "SET_SHEET_DATA": {
         if (op.sheetIndex >= draft.length) break;
@@ -224,6 +229,7 @@ function sortSheet(
   column: number,
   ascending: boolean
 ): void {
+  if (!sheet.celldata || sheet.celldata.length === 0) return;
   // Separate header (row 0) from data
   const headers = sheet.celldata.filter((c) => c.r === 0);
   const data = sheet.celldata.filter((c) => c.r > 0);
