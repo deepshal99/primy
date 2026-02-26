@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { FileText, Table2, GitBranch, Pen, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { FileText, Table2, GitBranch, Presentation, Pen, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
 
@@ -11,16 +11,20 @@ export function ProjectHome() {
   const openKnowledgeUnit = useAppStore((s) => s.openKnowledgeUnit);
   const openTable = useAppStore((s) => s.openTable);
   const openDiagram = useAppStore((s) => s.openDiagram);
+  const openDeck = useAppStore((s) => s.openDeck);
   const createKnowledgeUnit = useAppStore((s) => s.createKnowledgeUnit);
   const createTable = useAppStore((s) => s.createTable);
   const createDiagram = useAppStore((s) => s.createDiagram);
+  const createDeck = useAppStore((s) => s.createDeck);
   const updateProject = useAppStore((s) => s.updateProject);
   const renameKnowledgeUnit = useAppStore((s) => s.renameKnowledgeUnit);
   const renameTable = useAppStore((s) => s.renameTable);
   const renameDiagram = useAppStore((s) => s.renameDiagram);
+  const renameDeck = useAppStore((s) => s.renameDeck);
   const deleteKnowledgeUnit = useAppStore((s) => s.deleteKnowledgeUnit);
   const deleteTable = useAppStore((s) => s.deleteTable);
   const deleteDiagram = useAppStore((s) => s.deleteDiagram);
+  const deleteDeck = useAppStore((s) => s.deleteDeck);
   // Entity rename state
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -61,12 +65,19 @@ export function ProjectHome() {
       type: "diagram" as const,
       updatedAt: d.updatedAt,
     })),
+    ...(project.decks || []).map((d) => ({
+      id: d.id,
+      title: d.title,
+      type: "deck" as const,
+      updatedAt: d.updatedAt,
+    })),
   ].sort((a, b) => b.updatedAt - a.updatedAt);
 
   const kuCount = project.knowledgeUnits.length;
   const tableCount = project.tables.length;
   const diagramCount = (project.diagrams || []).length;
-  const totalFiles = kuCount + tableCount + diagramCount;
+  const deckCount = (project.decks || []).length;
+  const totalFiles = kuCount + tableCount + diagramCount + deckCount;
 
   return (
     <div
@@ -106,6 +117,7 @@ export function ProjectHome() {
               <CreatePill icon={<FileText className="w-3 h-3" />} label="Doc" color={design.colors.accent.purple} onClick={() => createKnowledgeUnit(project.id, "New Document")} />
               <CreatePill icon={<Table2 className="w-3 h-3" />} label="Table" color={design.colors.accent.teal} onClick={() => createTable(project.id, "New Table")} />
               <CreatePill icon={<GitBranch className="w-3 h-3" />} label="Diagram" color={design.colors.accent.gold} onClick={() => createDiagram(project.id, "New Diagram")} />
+              <CreatePill icon={<Presentation className="w-3 h-3" />} label="Deck" color={design.colors.accent.blue} onClick={() => createDeck(project.id, "New Deck")} />
             </div>
           </div>
 
@@ -142,7 +154,7 @@ export function ProjectHome() {
               </div>
 
               {/* Quick start action cards */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 <QuickStartCard
                   icon={<FileText className="w-5 h-5" />}
                   label="Document"
@@ -166,6 +178,14 @@ export function ProjectHome() {
                   color={design.colors.accent.gold}
                   bg={design.colors.accent.goldSubtle}
                   onClick={() => createDiagram(project.id, "New Diagram")}
+                />
+                <QuickStartCard
+                  icon={<Presentation className="w-5 h-5" />}
+                  label="Deck"
+                  desc="Slides, presentations"
+                  color={design.colors.accent.blue}
+                  bg={design.colors.accent.blueSubtle}
+                  onClick={() => createDeck(project.id, "New Deck")}
                 />
               </div>
 
@@ -200,11 +220,12 @@ export function ProjectHome() {
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {entities.map((entity, i) => {
+              {entities.map((entity) => {
                 const isKu = entity.type === "ku";
                 const isDiagram = entity.type === "diagram";
-                const accent = isDiagram ? design.colors.accent.gold : isKu ? design.colors.accent.purple : design.colors.accent.teal;
-                const accentSubtle = isDiagram ? design.colors.accent.goldSubtle : isKu ? design.colors.accent.purpleSubtle : design.colors.accent.tealSubtle;
+                const isDeck = entity.type === "deck";
+                const accent = isDeck ? design.colors.accent.blue : isDiagram ? design.colors.accent.gold : isKu ? design.colors.accent.purple : design.colors.accent.teal;
+                const accentSubtle = isDeck ? design.colors.accent.blueSubtle : isDiagram ? design.colors.accent.goldSubtle : isKu ? design.colors.accent.purpleSubtle : design.colors.accent.tealSubtle;
 
                 return (
                   <FileRow
@@ -213,18 +234,21 @@ export function ProjectHome() {
                     accent={accent}
                     accentSubtle={accentSubtle}
                     onOpen={() => {
-                      if (isDiagram) openDiagram(entity.id);
+                      if (isDeck) openDeck(entity.id);
+                      else if (isDiagram) openDiagram(entity.id);
                       else if (isKu) openKnowledgeUnit(entity.id);
                       else openTable(entity.id);
                     }}
                     onRename={(name) => {
-                      if (isDiagram) renameDiagram(project.id, entity.id, name);
+                      if (isDeck) renameDeck(project.id, entity.id, name);
+                      else if (isDiagram) renameDiagram(project.id, entity.id, name);
                       else if (isKu) renameKnowledgeUnit(project.id, entity.id, name);
                       else renameTable(project.id, entity.id, name);
                     }}
                     onDelete={() => {
                       if (!window.confirm(`Delete "${entity.title}"? This cannot be undone.`)) return;
-                      if (isDiagram) deleteDiagram(project.id, entity.id);
+                      if (isDeck) deleteDeck(project.id, entity.id);
+                      else if (isDiagram) deleteDiagram(project.id, entity.id);
                       else if (isKu) deleteKnowledgeUnit(project.id, entity.id);
                       else deleteTable(project.id, entity.id);
                     }}
@@ -375,7 +399,7 @@ function EditableDescription({ value, onSave }: { value: string; onSave: (v: str
 interface FileEntity {
   id: string;
   title: string;
-  type: "ku" | "table" | "diagram";
+  type: "ku" | "table" | "diagram" | "deck";
   updatedAt: number;
 }
 
@@ -434,7 +458,9 @@ function FileRow({
         className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
         style={{ backgroundColor: accentSubtle }}
       >
-        {entity.type === "diagram" ? (
+        {entity.type === "deck" ? (
+          <Presentation className="w-4 h-4" style={{ color: accent }} strokeWidth={1.8} />
+        ) : entity.type === "diagram" ? (
           <GitBranch className="w-4 h-4" style={{ color: accent }} strokeWidth={1.8} />
         ) : entity.type === "ku" ? (
           <FileText className="w-4 h-4" style={{ color: accent }} strokeWidth={1.8} />

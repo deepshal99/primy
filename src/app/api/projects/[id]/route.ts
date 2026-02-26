@@ -5,6 +5,7 @@ import {
   knowledgeUnits,
   projectTables,
   projectDiagrams,
+  projectDecks,
   messages,
 } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
@@ -178,6 +179,49 @@ export async function PUT(
           and(
             eq(projectDiagrams.projectId, id),
             inArray(projectDiagrams.id, body.deletedDiagramIds)
+          )
+        );
+    }
+
+    // Handle deck upserts
+    if (body.decks) {
+      for (const deck of body.decks) {
+        const [existingDeck] = await db
+          .select()
+          .from(projectDecks)
+          .where(and(eq(projectDecks.id, deck.id), eq(projectDecks.projectId, id)))
+          .limit(1);
+
+        if (existingDeck) {
+          await db
+            .update(projectDecks)
+            .set({
+              title: deck.title,
+              theme: deck.theme,
+              slides: deck.slides,
+              updatedAt: new Date(),
+            })
+            .where(and(eq(projectDecks.id, deck.id), eq(projectDecks.projectId, id)));
+        } else {
+          await db.insert(projectDecks).values({
+            id: deck.id,
+            projectId: id,
+            title: deck.title,
+            theme: deck.theme || "light",
+            slides: deck.slides || [],
+          });
+        }
+      }
+    }
+
+    // Handle deleted decks
+    if (body.deletedDeckIds?.length > 0) {
+      await db
+        .delete(projectDecks)
+        .where(
+          and(
+            eq(projectDecks.projectId, id),
+            inArray(projectDecks.id, body.deletedDeckIds)
           )
         );
     }

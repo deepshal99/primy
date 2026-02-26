@@ -121,7 +121,7 @@ export function DiagramToolbar({
           className="text-[11px] font-semibold uppercase tracking-wider"
           style={{ color: design.colors.text.muted }}
         >
-          {diagramType === "mermaid" ? "Mermaid Diagram" : "Data Chart"}
+          {diagramType === "mermaid" ? "Diagram" : "Chart"}
         </span>
       </div>
 

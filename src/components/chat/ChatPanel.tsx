@@ -10,6 +10,7 @@ import {
   parseKuOperations,
   parseTableOperations,
   parseDiagramOperations,
+  parseDeckOperations,
   extractDisplayText,
   parseSuggestions,
 } from "@/lib/ai/parseAIResponse";
@@ -266,20 +267,21 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         const kuOps = parseKuOperations(fullText);
         const tableOps = parseTableOperations(fullText);
         const diagramOps = parseDiagramOperations(fullText);
+        const deckOps = parseDeckOperations(fullText);
         const suggestions = parseSuggestions(fullText);
         const displayText = extractDisplayText(fullText);
 
         // Warn if AI tried to output ops but parsing failed
-        const hasAnyOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || diagramOps.length > 0;
+        const hasAnyOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || diagramOps.length > 0 || deckOps.length > 0;
         if (!hasAnyOps) {
-          const hasFences = fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops") || fullText.includes("```diagramops");
+          const hasFences = fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops") || fullText.includes("```diagramops") || fullText.includes("```deckops");
           if (hasFences) {
             console.warn("[Drafta] Operation blocks found but none parsed. Raw tail:", fullText.slice(-600));
             toast.error("AI response had formatting issues — some changes may not have been applied. Try again.");
           }
         }
 
-        finishStreaming(displayText || fullText, sheetOps, docOps, kuOps, tableOps, diagramOps, suggestions);
+        finishStreaming(displayText || fullText, sheetOps, docOps, kuOps, tableOps, diagramOps, deckOps, suggestions);
 
         // Attach grounding sources to the assistant message if web search was used
         if (groundingSources.length > 0) {

@@ -27,6 +27,9 @@ export const design = {
       teal: "#2DB67D",          // Alias to brand green for sheet indicators
       tealDark: "#1E9B68",
       tealSubtle: "rgba(45, 182, 125, 0.07)",
+      blue: "#3B82F6",          // Blue — presentations/decks
+      blueDark: "#2563EB",
+      blueSubtle: "rgba(59, 130, 246, 0.07)",
     },
     bg: {
       primary: "#FAFAF8",       // Warm off-white — slightly less yellow than before

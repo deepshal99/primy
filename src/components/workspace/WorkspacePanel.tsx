@@ -21,6 +21,10 @@ const DiagramPanel = dynamic(
   () => import("@/components/diagram/DiagramPanel").then((m) => ({ default: m.DiagramPanel })),
   { ssr: false, loading: () => <PanelSkeleton /> }
 );
+const DeckPanel = dynamic(
+  () => import("@/components/deck/DeckPanel").then((m) => ({ default: m.DeckPanel })),
+  { ssr: false, loading: () => <PanelSkeleton /> }
+);
 
 function PanelSkeleton() {
   return (
@@ -55,14 +59,26 @@ export function WorkspacePanel() {
   // Entity open — show the correct panel based on entity type
   const isDiagram = currentEntityType === "diagram";
   const isTable = currentEntityType === "table";
+  const isDeck = currentEntityType === "deck";
+
+  const renderPanel = () => {
+    if (isDeck) return <DeckPanel />;
+    if (isDiagram) return <DiagramPanel />;
+    if (isTable) return <SheetPanel />;
+    return <DocPanel />;
+  };
+
+  const renderActions = () => {
+    if (isDeck || isDiagram) return undefined;
+    if (isTable) return <ExportMenu />;
+    return <DocExportMenu />;
+  };
 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: design.colors.bg.primary }}>
-      <TabBar
-        actions={isDiagram ? undefined : isTable ? <ExportMenu /> : <DocExportMenu />}
-      />
+      <TabBar actions={renderActions()} />
       <div className="flex-1 overflow-hidden relative">
-        {isDiagram ? <DiagramPanel /> : isTable ? <SheetPanel /> : <DocPanel />}
+        {renderPanel()}
       </div>
     </div>
   );

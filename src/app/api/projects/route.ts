@@ -5,6 +5,7 @@ import {
   knowledgeUnits,
   projectTables,
   projectDiagrams,
+  projectDecks,
   messages,
 } from "@/db/schema";
 import { eq, desc, inArray } from "drizzle-orm";
@@ -33,7 +34,7 @@ export async function GET() {
     // Batch-fetch all related entities in 4 queries (avoids N+1)
     const projectIds = userProjects.map((p) => p.id);
 
-    const [allKUs, allTables, allDiagrams, allMessages] = await Promise.all([
+    const [allKUs, allTables, allDiagrams, allDecks, allMessages] = await Promise.all([
       db
         .select()
         .from(knowledgeUnits)
@@ -49,6 +50,11 @@ export async function GET() {
         .from(projectDiagrams)
         .where(inArray(projectDiagrams.projectId, projectIds))
         .orderBy(desc(projectDiagrams.updatedAt)),
+      db
+        .select()
+        .from(projectDecks)
+        .where(inArray(projectDecks.projectId, projectIds))
+        .orderBy(desc(projectDecks.updatedAt)),
       db
         .select()
         .from(messages)
@@ -76,6 +82,13 @@ export async function GET() {
       const arr = diagramsByProject.get(d.projectId) || [];
       arr.push(d);
       diagramsByProject.set(d.projectId, arr);
+    }
+
+    const decksByProject = new Map<string, typeof allDecks>();
+    for (const d of allDecks) {
+      const arr = decksByProject.get(d.projectId) || [];
+      arr.push(d);
+      decksByProject.set(d.projectId, arr);
     }
 
     const msgsByProject = new Map<string, typeof allMessages>();
@@ -118,6 +131,16 @@ export async function GET() {
         title: d.title,
         diagramType: d.diagramType,
         source: d.source,
+        shareToken: d.shareToken || null,
+        createdAt: d.createdAt.getTime(),
+        updatedAt: d.updatedAt.getTime(),
+      })),
+      decks: (decksByProject.get(p.id) || []).map((d) => ({
+        id: d.id,
+        projectId: d.projectId,
+        title: d.title,
+        theme: d.theme,
+        slides: d.slides,
         shareToken: d.shareToken || null,
         createdAt: d.createdAt.getTime(),
         updatedAt: d.updatedAt.getTime(),
@@ -177,6 +200,7 @@ export async function POST(req: Request) {
       knowledgeUnits: [],
       tables: [],
       diagrams: [],
+      decks: [],
       messages: [],
     });
   } catch (error) {

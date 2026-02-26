@@ -94,6 +94,24 @@ export const projectDiagrams = pgTable(
   (table) => [index("pd_project_id_idx").on(table.projectId)]
 );
 
+// ── Project Decks (Presentations) ──
+export const projectDecks = pgTable(
+  "project_decks",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    title: varchar("title", { length: 500 }).notNull().default("Untitled Deck"),
+    theme: varchar("theme", { length: 20 }).notNull().default("light"),
+    slides: jsonb("slides").notNull().default([]),
+    shareToken: varchar("share_token", { length: 32 }).unique(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [index("pdk_project_id_idx").on(table.projectId)]
+);
+
 // ── Messages (Chat history per project) ──
 export const messages = pgTable(
   "messages",

@@ -219,6 +219,7 @@ export interface Project {
   knowledgeUnits: KnowledgeUnit[];
   tables: ProjectTable[];
   diagrams: ProjectDiagram[];
+  decks: ProjectDeck[];
   messages: Message[];       // Chat history scoped to project
   memory: ProjectMemory;
   shareToken?: string | null;
@@ -226,7 +227,46 @@ export interface Project {
   updatedAt: number;
 }
 
-export type EntityType = "ku" | "table" | "diagram";
+export type EntityType = "ku" | "table" | "diagram" | "deck";
+
+// ═══ Deck / Presentation ═══
+
+export type DeckTheme = "light" | "dark" | "gradient" | "minimal" | "corporate";
+
+export interface DeckSlide {
+  id: string;
+  layout: "title" | "bullets" | "titleContent" | "twoColumn" | "section" | "quote" | "blank";
+  title?: string;
+  subtitle?: string;
+  content?: string;
+  bullets?: string[];
+  notes?: string;
+}
+
+export interface ProjectDeck {
+  id: string;
+  projectId: string;
+  title: string;
+  theme: DeckTheme;
+  slides: DeckSlide[];
+  shareToken?: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type DeckOperation =
+  | {
+      type: "CREATE";
+      title: string;
+      theme?: DeckTheme;
+      slides: DeckSlide[];
+    }
+  | {
+      type: "UPDATE";
+      deckId: string;
+      slides: DeckSlide[];
+      theme?: DeckTheme;
+    };
 
 // ═══ KU Operations (AI fence: ```kuops) ═══
 
@@ -316,6 +356,9 @@ export interface AppState {
   diagramSource: string;
   diagramType: "mermaid" | "chart";
   diagramVersion: number;
+  deckSlides: DeckSlide[];
+  deckTheme: DeckTheme;
+  deckVersion: number;
   activeTab: WorkspaceTab;
   workspaceOpen: boolean;
   pendingAttachments: FileAttachment[];
@@ -356,6 +399,7 @@ export interface AppState {
     kuOperations?: KuOperation[],
     tableOperations?: TableOperation[],
     diagramOperations?: DiagramOperation[],
+    deckOperations?: DeckOperation[],
     suggestions?: string[]
   ) => void;
   abortStreaming: () => void;
@@ -412,6 +456,14 @@ export interface AppState {
   renameDiagram: (projectId: string, diagramId: string, title: string) => void;
   openDiagram: (diagramId: string) => void;
   updateDiagramSource: (source: string) => void;
+
+  // Deck CRUD
+  createDeck: (projectId: string, title: string, theme?: DeckTheme, slides?: DeckSlide[]) => ProjectDeck;
+  deleteDeck: (projectId: string, deckId: string) => void;
+  renameDeck: (projectId: string, deckId: string, title: string) => void;
+  openDeck: (deckId: string) => void;
+  updateDeckSlides: (slides: DeckSlide[]) => void;
+  updateDeckTheme: (theme: DeckTheme) => void;
 
   // Tab management
   closeTab: (id: string) => void;

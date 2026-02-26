@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Table2, FileText, GitBranch, Undo2, ChevronRight, ChevronLeft, Home, X, Loader2, Check, Share2, MoreVertical, MessageSquareText } from "lucide-react";
+import { Table2, FileText, GitBranch, Presentation, Undo2, ChevronRight, ChevronLeft, Home, X, Loader2, Check, Share2, MoreVertical, MessageSquareText } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
 import { ShareModal } from "@/components/settings/ShareModal";
@@ -17,6 +17,7 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
   const openKnowledgeUnit = useAppStore((s) => s.openKnowledgeUnit);
   const openTable = useAppStore((s) => s.openTable);
   const openDiagram = useAppStore((s) => s.openDiagram);
+  const openDeck = useAppStore((s) => s.openDeck);
   const closeTab = useAppStore((s) => s.closeTab);
   const projects = useAppStore((s) => s.projects);
   const isSaving = useAppStore((s) => s.isSaving);
@@ -101,6 +102,9 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
     } else if (currentEntityType === "diagram") {
       const diagram = (project.diagrams || []).find((d) => d.id === currentEntityId);
       setShareToken(diagram?.shareToken || null);
+    } else if (currentEntityType === "deck") {
+      const deck = (project.decks || []).find((d) => d.id === currentEntityId);
+      setShareToken(deck?.shareToken || null);
     }
   }, [currentEntityId, currentEntityType, currentProjectId, projects]);
 
@@ -176,8 +180,15 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
                 const isActive = tab.id === currentEntityId;
                 const isKu = tab.type === "ku";
                 const isDiagram = tab.type === "diagram";
+                const isDeck = tab.type === "deck";
 
-                const tabIcon = isDiagram ? (
+                const tabIcon = isDeck ? (
+                  <Presentation
+                    className="w-3.5 h-3.5 flex-shrink-0"
+                    style={{ color: isActive ? design.colors.accent.blue : design.colors.text.muted }}
+                    strokeWidth={1.8}
+                  />
+                ) : isDiagram ? (
                   <GitBranch
                     className="w-3.5 h-3.5 flex-shrink-0"
                     style={{ color: isActive ? design.colors.accent.gold : design.colors.text.muted }}
@@ -207,7 +218,8 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
                     }}
                     onClick={() => {
                       if (!isActive) {
-                        if (isDiagram) openDiagram(tab.id);
+                        if (isDeck) openDeck(tab.id);
+                        else if (isDiagram) openDiagram(tab.id);
                         else if (isKu) openKnowledgeUnit(tab.id);
                         else openTable(tab.id);
                       }
@@ -415,6 +427,9 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
               } else if (currentEntityType === "diagram") {
                 const diagram = (project.diagrams || []).find((d) => d.id === currentEntityId);
                 if (diagram) diagram.shareToken = token;
+              } else if (currentEntityType === "deck") {
+                const deck = (project.decks || []).find((d) => d.id === currentEntityId);
+                if (deck) deck.shareToken = token;
               }
               useAppStore.setState({ projects: [...state.projects] });
             }

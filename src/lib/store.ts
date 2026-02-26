@@ -8,6 +8,8 @@ import {
   KuOperation,
   TableOperation,
   DiagramOperation,
+  DeckOperation,
+  DeckSlide,
   FileAttachment,
   Conversation,
   UndoSnapshot,
@@ -15,6 +17,7 @@ import {
   KnowledgeUnit,
   ProjectTable,
   ProjectDiagram,
+  ProjectDeck,
 } from "@/lib/types";
 import { createEmptySheet } from "@/lib/sheet/defaultData";
 import { applyOperations, normalizeCells } from "@/lib/ai/sheetOperations";
@@ -135,6 +138,14 @@ function findDiagram(projects: Project[], diagramId: string): { project: Project
   return null;
 }
 
+function findDeck(projects: Project[], deckId: string): { project: Project; deck: ProjectDeck } | null {
+  for (const project of projects) {
+    const deck = (project.decks || []).find((d) => d.id === deckId);
+    if (deck) return { project, deck };
+  }
+  return null;
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   // Active view (flat fields synced to current entity)
   messages: [],
@@ -147,6 +158,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   diagramSource: "",
   diagramType: "mermaid" as const,
   diagramVersion: 0,
+  deckSlides: [] as DeckSlide[],
+  deckTheme: "light" as const,
+  deckVersion: 0,
   activeTab: "sheet",
   workspaceOpen: false,
   pendingAttachments: [],
@@ -206,6 +220,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     kuOperations?: KuOperation[],
     tableOperations?: TableOperation[],
     diagramOperations?: DiagramOperation[],
+    deckOperations?: DeckOperation[],
     suggestions?: string[]
   ) => {
     const state = get();
@@ -221,6 +236,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const hasKuOps = kuOperations && kuOperations.length > 0;
     const hasTableOps = tableOperations && tableOperations.length > 0;
     const hasDiagramOps = diagramOperations && diagramOperations.length > 0;
+    const hasDeckOps = deckOperations && deckOperations.length > 0;
 
     // Snapshot current state before applying AI operations (for undo)
     // New AI operations clear the redo stack (standard editor behavior)
@@ -253,12 +269,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (hasDocOps) newActiveTab = "doc";
     if (hasSheetOps) newActiveTab = "sheet";
 
-    const shouldOpen = hasSheetOps || hasDocOps || hasKuOps || hasTableOps || hasDiagramOps;
+    const shouldOpen = hasSheetOps || hasDocOps || hasKuOps || hasTableOps || hasDiagramOps || hasDeckOps;
 
     // Diagram flat fields
     let newDiagramSource = state.diagramSource;
     let newDiagramType = state.diagramType;
     let newDiagramVersion = state.diagramVersion;
+
+    // Deck flat fields
+    let newDeckSlides = state.deckSlides;
+    let newDeckTheme = state.deckTheme;
+    let newDeckVersion = state.deckVersion;
 
     // Apply project-level KU and Table operations
     let newProjects = state.projects;
@@ -266,7 +287,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     let newCurrentEntityType = state.currentEntityType;
     let newOpenTabs = state.openTabs;
 
-    if (state.currentProjectId && (hasKuOps || hasTableOps || hasDiagramOps)) {
+    if (state.currentProjectId && (hasKuOps || hasTableOps || hasDiagramOps || hasDeckOps)) {
       newProjects = [...state.projects];
       const projIdx = newProjects.findIndex((p) => p.id === state.currentProjectId);
       if (projIdx >= 0) {
@@ -480,6 +501,53 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
         }
 
+        // Handle deck operations
+        if (hasDeckOps) {
+          if (!project.decks) project.decks = [];
+          for (const op of deckOperations) {
+            switch (op.type) {
+              case "CREATE": {
+                const newDeck: ProjectDeck = {
+                  id: nanoid(),
+                  projectId: project.id,
+                  title: op.title,
+                  theme: op.theme || "light",
+                  slides: op.slides || [],
+                  createdAt: Date.now(),
+                  updatedAt: Date.now(),
+                };
+                project.decks.push(newDeck);
+                newCurrentEntityId = newDeck.id;
+                newCurrentEntityType = "deck";
+                newDeckSlides = newDeck.slides;
+                newDeckTheme = newDeck.theme;
+                newDeckVersion = state.deckVersion + 1;
+                if (!newOpenTabs.some((t) => t.id === newDeck.id)) {
+                  newOpenTabs = [...newOpenTabs, { id: newDeck.id, type: "deck" as const, title: newDeck.title }];
+                }
+                break;
+              }
+              case "UPDATE": {
+                const idx = (project.decks || []).findIndex((d) => d.id === op.deckId);
+                if (idx >= 0) {
+                  project.decks[idx] = {
+                    ...project.decks[idx],
+                    slides: op.slides,
+                    ...(op.theme ? { theme: op.theme } : {}),
+                    updatedAt: Date.now(),
+                  };
+                  if (state.currentEntityId === op.deckId) {
+                    newDeckSlides = op.slides;
+                    if (op.theme) newDeckTheme = op.theme;
+                    newDeckVersion = state.deckVersion + 1;
+                  }
+                }
+                break;
+              }
+            }
+          }
+        }
+
         project.updatedAt = Date.now();
         newProjects[projIdx] = project;
       }
@@ -496,6 +564,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       diagramSource: newDiagramSource,
       diagramType: newDiagramType,
       diagramVersion: newDiagramVersion,
+      deckSlides: newDeckSlides,
+      deckTheme: newDeckTheme,
+      deckVersion: newDeckVersion,
       activeTab: newActiveTab,
       workspaceOpen: state.workspaceOpen || !!shouldOpen,
       suggestions: suggestions || [],
@@ -521,6 +592,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     if (hasTableOps) {
       for (const op of tableOperations) {
+        if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
+      }
+    }
+    if (hasDiagramOps) {
+      for (const op of diagramOperations) {
+        if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
+      }
+    }
+    if (hasDeckOps) {
+      for (const op of deckOperations) {
         if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
       }
     }
@@ -637,6 +718,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       sheetVersion: state.sheetVersion + 1,
       docContent: conv.docContent || "",
       docVersion: state.docVersion + 1,
+      diagramSource: "",
+      diagramType: "mermaid",
+      diagramVersion: state.diagramVersion + 1,
+      deckSlides: [],
+      deckTheme: "light" as const,
+      deckVersion: state.deckVersion + 1,
       workspaceOpen: conv.hasSheet || conv.hasDoc,
       activeTab: conv.hasDoc ? "doc" : "sheet",
       isStreaming: false,
@@ -665,6 +752,12 @@ export const useAppStore = create<AppState>((set, get) => ({
             sheetVersion: state.sheetVersion + 1,
             docContent: "",
             docVersion: state.docVersion + 1,
+            diagramSource: "",
+            diagramType: "mermaid",
+            diagramVersion: state.diagramVersion + 1,
+            deckSlides: [],
+            deckTheme: "light" as const,
+            deckVersion: state.deckVersion + 1,
             workspaceOpen: false,
             isStreaming: false,
             streamingContent: "",
@@ -705,6 +798,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       sheetVersion: state.sheetVersion + 1,
       docContent: "",
       docVersion: state.docVersion + 1,
+      diagramSource: "",
+      diagramType: "mermaid",
+      diagramVersion: state.diagramVersion + 1,
+      deckSlides: [],
+      deckTheme: "light" as const,
+      deckVersion: state.deckVersion + 1,
       activeTab: "sheet",
       workspaceOpen: false,
       pendingAttachments: [],
@@ -909,6 +1008,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       knowledgeUnits: [],
       tables: [],
       diagrams: [],
+      decks: [],
       messages: [],
       memory: {},
       createdAt: now,
@@ -937,6 +1037,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       sheetVersion: state.sheetVersion + 1,
       docContent: "",
       docVersion: state.docVersion + 1,
+      diagramSource: "",
+      diagramType: "mermaid",
+      diagramVersion: state.diagramVersion + 1,
+      deckSlides: [],
+      deckTheme: "light" as const,
+      deckVersion: state.deckVersion + 1,
       workspaceOpen: true,
       activeTab: "sheet",
       pendingAttachments: [],
@@ -973,6 +1079,12 @@ export const useAppStore = create<AppState>((set, get) => ({
             sheetVersion: state.sheetVersion + 1,
             docContent: "",
             docVersion: state.docVersion + 1,
+            diagramSource: "",
+            diagramType: "mermaid",
+            diagramVersion: state.diagramVersion + 1,
+            deckSlides: [],
+            deckTheme: "light" as const,
+            deckVersion: state.deckVersion + 1,
             workspaceOpen: false,
             isStreaming: false,
             streamingContent: "",
@@ -1040,6 +1152,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       sheetVersion: state.sheetVersion + 1,
       docContent: "",
       docVersion: state.docVersion + 1,
+      diagramSource: "",
+      diagramType: "mermaid",
+      diagramVersion: state.diagramVersion + 1,
+      deckSlides: [],
+      deckTheme: "light" as const,
+      deckVersion: state.deckVersion + 1,
       workspaceOpen: true,
       activeTab: "sheet",
       isStreaming: false,
@@ -1425,6 +1543,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   createDiagram: (projectId: string, title: string, diagramType: "mermaid" | "chart" = "mermaid", source: string = "") => {
     const state = get();
+    state.saveCurrentEntity();
     const newDiagram: ProjectDiagram = {
       id: nanoid(),
       projectId,
@@ -1533,6 +1652,109 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   // ══════════════════════════════════
+  // ── Deck CRUD ──
+  // ══════════════════════════════════
+
+  createDeck: (projectId, title, theme = "light", slides) => {
+    get().saveCurrentEntity();
+    const now = Date.now();
+    const newDeck: ProjectDeck = {
+      id: nanoid(),
+      projectId,
+      title,
+      theme,
+      slides: slides || [{ id: nanoid(), layout: "title", title, subtitle: "" }],
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const state = get();
+    const newProjects = state.projects.map((p) => {
+      if (p.id === projectId) {
+        return { ...p, decks: [...(p.decks || []), newDeck], updatedAt: now };
+      }
+      return p;
+    });
+
+    set({ projects: newProjects });
+    saveProjectsToStorage(newProjects);
+    get().openDeck(newDeck.id);
+    return newDeck;
+  },
+
+  deleteDeck: (projectId, deckId) => {
+    const state = get();
+    const newProjects = state.projects.map((p) => {
+      if (p.id === projectId) {
+        return { ...p, decks: (p.decks || []).filter((d) => d.id !== deckId), updatedAt: Date.now() };
+      }
+      return p;
+    });
+
+    const newTabs = state.openTabs.filter((t) => t.id !== deckId);
+    const updates: any = { projects: newProjects, openTabs: newTabs };
+    if (state.currentEntityId === deckId) {
+      updates.currentEntityId = null;
+      updates.currentEntityType = null;
+    }
+
+    set(updates);
+    saveProjectsToStorage(newProjects);
+    updateProjectOnServer(projectId, { deletedDeckIds: [deckId] }).catch(() => {});
+  },
+
+  renameDeck: (projectId, deckId, title) => {
+    const state = get();
+    const newProjects = state.projects.map((p) => {
+      if (p.id === projectId) {
+        return {
+          ...p,
+          decks: (p.decks || []).map((d) => d.id === deckId ? { ...d, title, updatedAt: Date.now() } : d),
+          updatedAt: Date.now(),
+        };
+      }
+      return p;
+    });
+
+    const newTabs = state.openTabs.map((t) => t.id === deckId ? { ...t, title } : t);
+    set({ projects: newProjects, openTabs: newTabs });
+    saveProjectsToStorage(newProjects);
+    updateProjectOnServer(projectId, { decks: [{ id: deckId, title }] }).catch(() => {});
+  },
+
+  openDeck: (deckId) => {
+    const state = get();
+    if (state.currentEntityId) state.saveCurrentEntity();
+
+    const found = findDeck(state.projects, deckId);
+    if (!found) return;
+
+    const newTabs = state.openTabs.some((t) => t.id === deckId)
+      ? state.openTabs
+      : [...state.openTabs, { id: deckId, type: "deck" as const, title: found.deck.title }];
+
+    set({
+      currentEntityId: found.deck.id,
+      currentEntityType: "deck",
+      deckSlides: found.deck.slides,
+      deckTheme: found.deck.theme,
+      deckVersion: state.deckVersion + 1,
+      workspaceOpen: true,
+      openTabs: newTabs,
+    });
+  },
+
+  updateDeckSlides: (slides) => {
+    set({ deckSlides: slides });
+    scheduleDebouncedSave();
+  },
+
+  updateDeckTheme: (theme) => {
+    set({ deckTheme: theme });
+    scheduleDebouncedSave();
+  },
+
+  // ══════════════════════════════════
   // ── Tab Management ──
   // ══════════════════════════════════
 
@@ -1556,6 +1778,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           get().openTable(nextTab.id);
         } else if (nextTab.type === "diagram") {
           get().openDiagram(nextTab.id);
+        } else if (nextTab.type === "deck") {
+          get().openDeck(nextTab.id);
         }
       } else {
         // No more tabs — go to project home
@@ -1615,6 +1839,12 @@ export const useAppStore = create<AppState>((set, get) => ({
           ? { ...d, source: state.diagramSource, diagramType: state.diagramType, updatedAt: Date.now() }
           : d
       );
+    } else if (state.currentEntityId && state.currentEntityType === "deck") {
+      project.decks = (project.decks || []).map((d) =>
+        d.id === state.currentEntityId
+          ? { ...d, slides: state.deckSlides, theme: state.deckTheme, updatedAt: Date.now() }
+          : d
+      );
     }
 
     project.updatedAt = Date.now();
@@ -1644,6 +1874,12 @@ export const useAppStore = create<AppState>((set, get) => ({
         title: d.title,
         diagramType: d.diagramType,
         source: d.source,
+      })),
+      decks: (project.decks || []).map((d) => ({
+        id: d.id,
+        title: d.title,
+        theme: d.theme,
+        slides: d.slides,
       })),
       newMessages: project.messages.slice(-2).map((m) => ({
         id: m.id,
@@ -1721,6 +1957,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         knowledgeUnits: kus,
         tables,
         diagrams: [],
+        decks: [],
         messages: conv.messages,
         memory: conv.memory || {},
         createdAt: conv.createdAt,
