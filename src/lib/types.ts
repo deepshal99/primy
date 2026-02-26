@@ -130,7 +130,7 @@ export type WorkspaceTab = "sheet" | "doc";
 export interface FileAttachment {
   id: string;
   name: string;
-  type: "text" | "image" | "pdf" | "docx";
+  type: "text" | "image" | "pdf" | "docx" | "zip";
   mimeType: string;
   size: number;
   previewUrl?: string;

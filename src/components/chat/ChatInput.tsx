@@ -91,7 +91,7 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
           continue;
         }
         if (file.size > MAX_FILE_SIZE) {
-          toast.error(`File too large: ${file.name} (max 10MB)`);
+          toast.error(`File too large: ${file.name} (max 50MB)`);
           continue;
         }
 

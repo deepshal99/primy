@@ -732,6 +732,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     // For projects: need at least 2 messages
     if (isProject && state.messages.length < 2) return;
 
+    // Only auto-generate title once — skip if project already has a real title
+    if (isProject && state.currentProjectId) {
+      const project = state.projects.find((p) => p.id === state.currentProjectId);
+      if (project && project.title !== "New Project") return;
+    }
+
     // Use the latest user and assistant messages for best context
     const userMsgs = state.messages.filter((m) => m.role === "user");
     const assistantMsgs = state.messages.filter((m) => m.role === "assistant");

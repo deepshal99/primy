@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Image as ImageIcon, File } from "lucide-react";
+import { FileText, Image as ImageIcon, File, FolderArchive } from "lucide-react";
 import { FileAttachment } from "@/lib/types";
 import { formatFileSize } from "@/lib/fileUtils";
 import { design } from "@/lib/design";
@@ -14,6 +14,7 @@ const iconMap = {
   pdf: FileText,
   docx: FileText,
   image: ImageIcon,
+  zip: FolderArchive,
 } as const;
 
 const labelMap: Record<string, string> = {
@@ -21,6 +22,7 @@ const labelMap: Record<string, string> = {
   pdf: "PDF",
   docx: "DOCX",
   image: "IMG",
+  zip: "ZIP",
 };
 
 export function MessageAttachments({ attachments }: MessageAttachmentsProps) {

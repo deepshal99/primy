@@ -5,6 +5,7 @@ export const ACCEPTED_EXTENSIONS = [
   ".txt", ".csv", ".md", ".json",
   ".pdf", ".docx",
   ".png", ".jpg", ".jpeg", ".webp",
+  ".zip",
 ];
 
 export const ACCEPTED_MIME_TYPES: Record<string, string[]> = {
@@ -17,15 +18,18 @@ export const ACCEPTED_MIME_TYPES: Record<string, string[]> = {
   "image/png": [".png"],
   "image/jpeg": [".jpg", ".jpeg"],
   "image/webp": [".webp"],
+  "application/zip": [".zip"],
+  "application/x-zip-compressed": [".zip"],
 };
 
-export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB (increased for zip files)
 export const MAX_FILES_PER_MESSAGE = 5;
 
 export function getFileCategory(file: File): FileAttachment["type"] {
   if (file.type.startsWith("image/")) return "image";
   if (file.type === "application/pdf") return "pdf";
   if (file.type.includes("wordprocessingml") || file.name.endsWith(".docx")) return "docx";
+  if (file.type === "application/zip" || file.type === "application/x-zip-compressed" || file.name.endsWith(".zip")) return "zip";
   return "text";
 }
 
@@ -48,7 +52,7 @@ export function createAttachmentFromFile(file: File): FileAttachment {
     type: category,
     mimeType: file.type,
     size: file.size,
-    isExtracting: category !== "text", // text is instant, others need processing
+    isExtracting: category !== "text", // text is instant; images, pdf, docx, zip need processing
   };
 }
 
@@ -165,7 +169,8 @@ export async function processFile(
       return { base64, previewUrl, isExtracting: false };
     }
     case "pdf":
-    case "docx": {
+    case "docx":
+    case "zip": {
       const text = await extractViaServer(file);
       return { extractedText: text, isExtracting: false };
     }

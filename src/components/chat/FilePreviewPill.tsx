@@ -1,6 +1,6 @@
 "use client";
 
-import { X, FileText, Image as ImageIcon, File, Loader2 } from "lucide-react";
+import { X, FileText, Image as ImageIcon, File, FolderArchive, Loader2 } from "lucide-react";
 import { FileAttachment } from "@/lib/types";
 import { formatFileSize } from "@/lib/fileUtils";
 import { design } from "@/lib/design";
@@ -15,6 +15,7 @@ const iconMap = {
   pdf: FileText,
   docx: FileText,
   image: ImageIcon,
+  zip: FolderArchive,
 } as const;
 
 export function FilePreviewPill({ attachment, onRemove }: FilePreviewPillProps) {
