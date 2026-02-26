@@ -160,6 +160,7 @@ export async function POST(req: Request) {
       config: {
         systemInstruction: SYSTEM_PROMPT,
         maxOutputTokens: 8192,
+        tools: [{ googleSearch: {} }],
       },
       contents,
     });
@@ -185,6 +186,9 @@ export async function POST(req: Request) {
         }, 5000);
 
         try {
+          let groundingSources: { title: string; uri: string }[] = [];
+          let searchQueries: string[] = [];
+
           for await (const chunk of response) {
             lastChunkTime = Date.now();
             const text = chunk.text;
@@ -192,7 +196,27 @@ export async function POST(req: Request) {
               const data = JSON.stringify({ text });
               controller.enqueue(encoder.encode(`data: ${data}\n\n`));
             }
+
+            // Capture grounding metadata (typically in last chunk)
+            const gm = chunk.candidates?.[0]?.groundingMetadata;
+            if (gm) {
+              if (gm.groundingChunks?.length) {
+                groundingSources = gm.groundingChunks
+                  .filter((c: any) => c.web?.uri)
+                  .map((c: any) => ({ title: c.web.title || c.web.domain || c.web.uri, uri: c.web.uri }));
+              }
+              if (gm.webSearchQueries?.length) {
+                searchQueries = gm.webSearchQueries;
+              }
+            }
           }
+
+          // Send grounding sources if web search was used
+          if (groundingSources.length > 0) {
+            const groundingData = JSON.stringify({ grounding: { sources: groundingSources, queries: searchQueries } });
+            controller.enqueue(encoder.encode(`data: ${groundingData}\n\n`));
+          }
+
           clearInterval(timeoutCheck);
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();

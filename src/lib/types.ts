@@ -141,6 +141,11 @@ export interface FileAttachment {
 
 // ═══ Messages ═══
 
+export interface GroundingSource {
+  title: string;
+  uri: string;
+}
+
 export interface Message {
   id: string;
   role: "user" | "assistant";
@@ -148,6 +153,7 @@ export interface Message {
   timestamp: number;
   attachments?: FileAttachment[];
   interrupted?: boolean;
+  groundingSources?: GroundingSource[];
 }
 
 // ═══ Conversation History (legacy — kept for migration) ═══

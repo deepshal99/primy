@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Copy,
   Check,
+  Globe,
 } from "lucide-react";
 import { Message } from "@/lib/types";
 import { design } from "@/lib/design";
@@ -85,6 +86,38 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
               {message.content}
             </ReactMarkdown>
           </div>
+
+          {/* Web search sources */}
+          {message.groundingSources && message.groundingSources.length > 0 && (
+            <div
+              className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t"
+              style={{ borderColor: `${design.colors.border.default}` }}
+            >
+              <Globe
+                className="w-3 h-3 flex-shrink-0"
+                style={{ color: design.colors.text.muted }}
+              />
+              <span className="text-[11px] font-medium" style={{ color: design.colors.text.muted }}>
+                Sources
+              </span>
+              {message.groundingSources.map((src, i) => (
+                <a
+                  key={i}
+                  href={src.uri}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors hover:opacity-80 truncate max-w-[200px]"
+                  style={{
+                    backgroundColor: design.colors.bg.secondary,
+                    color: design.colors.brand.primary,
+                  }}
+                  title={src.uri}
+                >
+                  {src.title}
+                </a>
+              ))}
+            </div>
+          )}
 
           {/* Interrupted label */}
           {message.interrupted && (

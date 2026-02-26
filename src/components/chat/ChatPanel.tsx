@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
-import { FileAttachment } from "@/lib/types";
+import { FileAttachment, GroundingSource } from "@/lib/types";
 import {
   parseSheetOperations,
   parseDocOperations,
@@ -200,6 +200,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         let fullText = "";
         let buffer = "";
         let streamError = "";
+        let groundingSources: GroundingSource[] = [];
 
         // Process a single SSE line
         const processLine = (line: string) => {
@@ -212,6 +213,9 @@ export function ChatPanel({ centered }: ChatPanelProps) {
             if (parsed.text) {
               fullText += parsed.text;
               appendStreamChunk(parsed.text);
+            }
+            if (parsed.grounding) {
+              groundingSources = parsed.grounding.sources || [];
             }
             if (parsed.error) {
               streamError = parsed.error;
@@ -276,6 +280,18 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         }
 
         finishStreaming(displayText || fullText, sheetOps, docOps, kuOps, tableOps, diagramOps, suggestions);
+
+        // Attach grounding sources to the assistant message if web search was used
+        if (groundingSources.length > 0) {
+          const msgs = useAppStore.getState().messages;
+          if (msgs.length > 0 && msgs[msgs.length - 1].role === "assistant") {
+            useAppStore.setState({
+              messages: msgs.map((m, i) =>
+                i === msgs.length - 1 ? { ...m, groundingSources } : m
+              ),
+            });
+          }
+        }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           // User cancelled — keep any partial content that was streamed
