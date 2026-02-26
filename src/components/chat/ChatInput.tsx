@@ -91,7 +91,7 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
           continue;
         }
         if (file.size > MAX_FILE_SIZE) {
-          toast.error(`File too large: ${file.name} (max 50MB)`);
+          toast.error(`File too large: ${file.name} (max 100MB)`);
           continue;
         }
 
@@ -132,8 +132,9 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
           const file = item.getAsFile();
           if (file) {
             // Give pasted images a descriptive name
-            const ext = file.type.split("/")[1] || "png";
-            const named = new File([file], `Pasted image ${new Date().toLocaleTimeString()}.${ext}`, { type: file.type });
+            const mimeType = file.type || "image/png";
+            const ext = mimeType.split("/")[1] || "png";
+            const named = new File([file], `Pasted image ${new Date().toLocaleTimeString()}.${ext}`, { type: mimeType });
             imageFiles.push(named);
           }
         }

@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 
+async function parsePdfBuffer(buffer: Buffer): Promise<string> {
+  const { extractText } = await import("unpdf");
+  const result = await extractText(new Uint8Array(buffer));
+  return (result.text || []).join("\n");
+}
+
 // Supported text extensions inside zip files
 const ZIP_TEXT_EXTENSIONS = new Set([
   ".txt", ".csv", ".md", ".json", ".js", ".ts", ".tsx", ".jsx",
@@ -43,7 +49,7 @@ async function extractZipContents(buffer: Buffer): Promise<string> {
   const parts: string[] = [];
   const fileList: string[] = [];
   let totalChars = 0;
-  const MAX_TOTAL = 100000; // 100k chars total across all files
+  const MAX_TOTAL = 200000; // 200k chars total across all files
 
   // Collect and sort file paths
   const entries: { path: string; file: any }[] = [];
@@ -84,10 +90,8 @@ async function extractZipContents(buffer: Buffer): Promise<string> {
     } else if (path.endsWith(".pdf")) {
       try {
         const pdfBuffer = Buffer.from(await file.async("arraybuffer"));
-        const pdfParseModule = await import("pdf-parse");
-        const pdfParse = (pdfParseModule as any).default || pdfParseModule;
-        const result = await pdfParse(pdfBuffer);
-        const truncated = result.text.slice(0, Math.min(10000, MAX_TOTAL - totalChars));
+        const pdfText = await parsePdfBuffer(pdfBuffer);
+        const truncated = pdfText.slice(0, Math.min(10000, MAX_TOTAL - totalChars));
         parts.push(`\n--- ${path} ---\n${truncated}`);
         totalChars += truncated.length;
       } catch {
@@ -128,10 +132,7 @@ export async function POST(req: Request) {
     let text = "";
 
     if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
-      const pdfParseModule = await import("pdf-parse");
-      const pdfParse = (pdfParseModule as any).default || pdfParseModule;
-      const result = await pdfParse(buffer);
-      text = result.text;
+      text = await parsePdfBuffer(buffer);
     } else if (
       file.type.includes("wordprocessingml") ||
       file.name.endsWith(".docx")
@@ -140,6 +141,21 @@ export async function POST(req: Request) {
       const result = await mammoth.extractRawText({ buffer });
       text = result.value;
     } else if (
+      file.type.includes("spreadsheetml") ||
+      file.type === "application/vnd.ms-excel" ||
+      file.name.endsWith(".xlsx") ||
+      file.name.endsWith(".xls")
+    ) {
+      const XLSX = await import("xlsx");
+      const workbook = XLSX.read(buffer, { type: "buffer" });
+      const parts: string[] = [];
+      for (const sheetName of workbook.SheetNames) {
+        const sheet = workbook.Sheets[sheetName];
+        const csv = XLSX.utils.sheet_to_csv(sheet);
+        parts.push(`Sheet: ${sheetName}\n${csv}`);
+      }
+      text = parts.join("\n\n");
+    } else if (
       file.type === "application/zip" ||
       file.type === "application/x-zip-compressed" ||
       file.name.endsWith(".zip")
@@ -147,17 +163,18 @@ export async function POST(req: Request) {
       text = await extractZipContents(buffer);
     } else {
       return NextResponse.json(
-        { error: "Unsupported file type. Use PDF, DOCX, or ZIP." },
+        { error: "Unsupported file type. Use PDF, DOCX, XLSX, or ZIP." },
         { status: 400 }
       );
     }
 
-    // Truncate to 100k chars (increased for zip files with multiple documents)
-    text = text.slice(0, 100000);
+    // Truncate to 200k chars
+    text = text.slice(0, 200000);
 
     return NextResponse.json({ text });
   } catch (error) {
-    console.error("[Extract API] Error:", error);
+    console.error("[Extract API] Error:", error instanceof Error ? error.message : error);
+    console.error("[Extract API] Stack:", error instanceof Error ? error.stack : "no stack");
     return NextResponse.json(
       { error: "Failed to extract text from file" },
       { status: 500 }

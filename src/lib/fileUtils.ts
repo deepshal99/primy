@@ -3,7 +3,7 @@ import { FileAttachment } from "@/lib/types";
 
 export const ACCEPTED_EXTENSIONS = [
   ".txt", ".csv", ".md", ".json",
-  ".pdf", ".docx",
+  ".pdf", ".docx", ".xlsx", ".xls",
   ".png", ".jpg", ".jpeg", ".webp",
   ".zip",
 ];
@@ -15,6 +15,8 @@ export const ACCEPTED_MIME_TYPES: Record<string, string[]> = {
   "application/json": [".json"],
   "application/pdf": [".pdf"],
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+  "application/vnd.ms-excel": [".xls"],
   "image/png": [".png"],
   "image/jpeg": [".jpg", ".jpeg"],
   "image/webp": [".webp"],
@@ -22,13 +24,14 @@ export const ACCEPTED_MIME_TYPES: Record<string, string[]> = {
   "application/x-zip-compressed": [".zip"],
 };
 
-export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB (increased for zip files)
-export const MAX_FILES_PER_MESSAGE = 5;
+export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+export const MAX_FILES_PER_MESSAGE = 10;
 
 export function getFileCategory(file: File): FileAttachment["type"] {
   if (file.type.startsWith("image/")) return "image";
   if (file.type === "application/pdf") return "pdf";
   if (file.type.includes("wordprocessingml") || file.name.endsWith(".docx")) return "docx";
+  if (file.type.includes("spreadsheetml") || file.type === "application/vnd.ms-excel" || file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) return "pdf";
   if (file.type === "application/zip" || file.type === "application/x-zip-compressed" || file.name.endsWith(".zip")) return "zip";
   return "text";
 }
@@ -52,7 +55,7 @@ export function createAttachmentFromFile(file: File): FileAttachment {
     type: category,
     mimeType: file.type,
     size: file.size,
-    isExtracting: category !== "text", // text is instant; images, pdf, docx, zip need processing
+    isExtracting: true,
   };
 }
 
@@ -123,12 +126,12 @@ export async function extractTextFile(file: File): Promise<string> {
     try {
       const Papa = (await import("papaparse")).default;
       const parsed = Papa.parse(text, { header: true });
-      return JSON.stringify(parsed.data.slice(0, 200), null, 2);
+      return JSON.stringify(parsed.data.slice(0, 500), null, 2);
     } catch {
-      return text.slice(0, 50000);
+      return text.slice(0, 200000);
     }
   }
-  return text.slice(0, 50000);
+  return text.slice(0, 200000);
 }
 
 /** Extract text from PDF/DOCX via server-side API */
