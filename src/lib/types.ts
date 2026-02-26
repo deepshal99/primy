@@ -231,15 +231,19 @@ export type EntityType = "ku" | "table" | "diagram" | "deck";
 
 // ═══ Deck / Presentation ═══
 
-export type DeckTheme = "light" | "dark" | "gradient" | "minimal" | "corporate";
+export type DeckTheme =
+  | "executive" | "startup" | "editorial" | "neon" | "earth" | "arctic"
+  | "sunset" | "monochrome" | "ocean" | "forest" | "coral" | "slate"
+  | "light" | "dark" | "gradient" | "minimal" | "corporate"; // legacy
 
 export interface DeckSlide {
   id: string;
-  layout: "title" | "bullets" | "titleContent" | "twoColumn" | "section" | "quote" | "blank";
+  layout: "title" | "bullets" | "titleContent" | "twoColumn" | "section" | "quote" | "blank" | "stats";
   title?: string;
   subtitle?: string;
   content?: string;
   bullets?: string[];
+  stats?: { value: string; label: string }[];
   notes?: string;
 }
 

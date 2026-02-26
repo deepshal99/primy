@@ -5,9 +5,9 @@ import { nanoid } from "nanoid";
 import { Plus, Trash2, ChevronUp, ChevronDown, Download, Palette } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
-import { DeckSlide, DeckTheme } from "@/lib/types";
+import { DeckSlide } from "@/lib/types";
 import { SlideRenderer, SlideEditHandlers } from "./SlideRenderer";
-import { deckThemes } from "./deckThemes";
+import { deckThemes, activeThemeKeys, resolveTheme, getThemeConfig, loadThemeFonts } from "./deckThemes";
 
 export function DeckPanel() {
   const slides = useAppStore((s) => s.deckSlides);
@@ -21,7 +21,14 @@ export function DeckPanel() {
   const themeRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
 
+  const resolvedTheme = resolveTheme(theme);
+  const themeConfig = getThemeConfig(theme);
   const activeSlide = slides[activeIdx] || null;
+
+  // Load Google Fonts for current theme
+  useEffect(() => {
+    loadThemeFonts(theme);
+  }, [theme]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -80,7 +87,7 @@ export function DeckPanel() {
     }
   }, [slides.length, activeIdx]);
 
-  // Edit handlers for the active slide — memoized to avoid re-renders
+  // Edit handlers for the active slide
   const editHandlers: SlideEditHandlers | undefined = useMemo(() => {
     if (!activeSlide) return undefined;
     return {
@@ -88,6 +95,7 @@ export function DeckPanel() {
       onSubtitleChange: (value: string) => updateSlide(activeIdx, { subtitle: value }),
       onContentChange: (value: string) => updateSlide(activeIdx, { content: value }),
       onBulletsChange: (bullets: string[]) => updateSlide(activeIdx, { bullets }),
+      onStatsChange: (stats: { value: string; label: string }[]) => updateSlide(activeIdx, { stats }),
     };
   }, [activeIdx, activeSlide, updateSlide]);
 
@@ -124,7 +132,7 @@ export function DeckPanel() {
               </div>
               <SlideRenderer
                 slide={slide}
-                theme={theme}
+                theme={resolvedTheme}
                 scale={186 / 960}
                 onClick={() => setActiveIdx(i)}
                 isActive={i === activeIdx}
@@ -163,6 +171,7 @@ export function DeckPanel() {
             <option value="twoColumn">Two Columns</option>
             <option value="section">Section Break</option>
             <option value="quote">Quote</option>
+            <option value="stats">Stats / Metrics</option>
             <option value="blank">Blank</option>
           </select>
 
@@ -182,33 +191,45 @@ export function DeckPanel() {
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
             >
               <Palette className="w-3.5 h-3.5" />
-              {deckThemes[theme].label}
+              {themeConfig.label}
             </button>
             {showThemePicker && (
               <div
-                className="absolute right-0 top-full mt-1 border rounded-xl py-1.5 z-50 min-w-[180px]"
-                style={{ backgroundColor: design.colors.bg.elevated, borderColor: design.colors.border.default, boxShadow: design.shadows.dropdown }}
+                className="absolute right-0 top-full mt-1 border rounded-xl py-1.5 z-50 grid grid-cols-2 gap-0"
+                style={{
+                  backgroundColor: design.colors.bg.elevated,
+                  borderColor: design.colors.border.default,
+                  boxShadow: design.shadows.dropdown,
+                  width: 280,
+                }}
               >
-                {(Object.keys(deckThemes) as DeckTheme[]).map((key) => (
-                  <button
-                    key={key}
-                    onClick={() => { updateTheme(key); setShowThemePicker(false); }}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-[13px] text-left transition-colors"
-                    style={{ color: theme === key ? design.colors.brand.primary : design.colors.text.primary, fontWeight: theme === key ? 600 : 400 }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-                  >
-                    <div
-                      className="w-6 h-4 rounded border flex-shrink-0"
+                {activeThemeKeys.map((key) => {
+                  const cfg = deckThemes[key];
+                  const isSelected = resolvedTheme === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => { updateTheme(key as any); setShowThemePicker(false); }}
+                      className="flex items-center gap-2.5 px-3 py-2 text-[12px] text-left transition-colors"
                       style={{
-                        background: deckThemes[key].bg,
-                        borderColor: design.colors.border.default,
-                        boxShadow: theme === key ? `0 0 0 2px ${design.colors.brand.primary}` : "none",
+                        color: isSelected ? design.colors.brand.primary : design.colors.text.primary,
+                        fontWeight: isSelected ? 600 : 400,
                       }}
-                    />
-                    {deckThemes[key].label}
-                  </button>
-                ))}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                    >
+                      <div
+                        className="w-5 h-3.5 rounded flex-shrink-0"
+                        style={{
+                          background: cfg.bg,
+                          border: `1px solid ${design.colors.border.default}`,
+                          boxShadow: isSelected ? `0 0 0 1.5px ${design.colors.brand.primary}` : "none",
+                        }}
+                      />
+                      {cfg.label}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -266,12 +287,12 @@ export function DeckPanel() {
           )}
         </div>
 
-        {/* Slide canvas — single SlideRenderer with edit handlers, no overlay */}
+        {/* Slide canvas */}
         <div className="flex-1 flex items-center justify-center overflow-auto p-8" style={{ backgroundColor: design.colors.bg.tertiary }}>
           {activeSlide ? (
             <SlideRenderer
               slide={activeSlide}
-              theme={theme}
+              theme={resolvedTheme}
               scale={0.75}
               edit={editHandlers}
             />
