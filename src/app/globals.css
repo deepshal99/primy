@@ -5,7 +5,7 @@
    Design Tokens (CSS Variables)
    ═══════════════════════════════════════ */
 
-:root {
+:root, [data-theme="light"] {
   /* Colors */
   --color-brand: #2DB67D;
   --color-brand-light: #3DC98E;
@@ -29,11 +29,50 @@
   --color-border-light: #EEEDEA;
   --color-success: #2DB67D;
   --color-error: #E5484D;
+  --color-bg-sidebar: #1C1B18;
+  --color-bg-sidebar-hover: #282723;
+  --color-bg-sidebar-active: #33322D;
+  --color-text-sidebar: #D4D1CC;
+  --color-text-sidebar-muted: #8A8680;
+  --color-border-sidebar: #33322D;
+  --color-bg-overlay: rgba(250, 250, 248, 0.85);
 
   /* Typography */
   --font-heading: 'DM Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+[data-theme="dark"] {
+  --color-brand: #3DC98E;
+  --color-brand-light: #4DD99E;
+  --color-brand-dark: #2DB67D;
+  --color-brand-subtle: rgba(61, 201, 142, 0.12);
+  --color-accent-gold: #F0A54D;
+  --color-accent-purple: #A78BFA;
+  --color-accent-teal: #3DC98E;
+  --color-bg-primary: #141413;
+  --color-bg-secondary: #1C1B19;
+  --color-bg-tertiary: #252422;
+  --color-bg-chat: #141413;
+  --color-bg-input: #1C1B19;
+  --color-bg-hover: #252422;
+  --color-bg-elevated: #1C1B19;
+  --color-text-primary: #E8E6E1;
+  --color-text-secondary: #A09D97;
+  --color-text-muted: #6B6963;
+  --color-text-placeholder: #4A4842;
+  --color-border: #2E2D2A;
+  --color-border-light: #252422;
+  --color-success: #3DC98E;
+  --color-error: #F87171;
+  --color-bg-sidebar: #0F0F0E;
+  --color-bg-sidebar-hover: #1A1918;
+  --color-bg-sidebar-active: #252422;
+  --color-text-sidebar: #D4D1CC;
+  --color-text-sidebar-muted: #6B6963;
+  --color-border-sidebar: #252422;
+  --color-bg-overlay: rgba(20, 20, 19, 0.85);
 }
 
 @theme {
@@ -776,3 +815,64 @@ html, body {
 
 .ProseMirror:focus { outline: none; }
 .ProseMirror { min-height: 100%; }
+
+/* ═══════════════════════════════════════
+   Dark Theme Overrides
+   ═══════════════════════════════════════ */
+
+[data-theme="dark"] .markdown-content h1,
+[data-theme="dark"] .markdown-content h2,
+[data-theme="dark"] .markdown-content h3 { color: var(--color-text-primary); }
+[data-theme="dark"] .markdown-content p,
+[data-theme="dark"] .markdown-content li,
+[data-theme="dark"] .markdown-content td { color: #B0ADA7; }
+[data-theme="dark"] .markdown-content code { background: var(--color-bg-secondary); color: var(--color-brand); }
+[data-theme="dark"] .markdown-content pre { background: var(--color-bg-secondary); border-color: var(--color-border); }
+[data-theme="dark"] .markdown-content pre code { color: var(--color-text-primary); }
+[data-theme="dark"] .markdown-content th { background: var(--color-bg-secondary); color: var(--color-text-muted); }
+[data-theme="dark"] .markdown-content th,
+[data-theme="dark"] .markdown-content td { border-color: var(--color-border); }
+[data-theme="dark"] .markdown-content blockquote { border-color: var(--color-border); color: var(--color-text-muted); }
+[data-theme="dark"] .markdown-content strong { color: var(--color-text-primary); }
+[data-theme="dark"] .markdown-content em { color: var(--color-text-secondary); }
+
+[data-theme="dark"] .doc-editor { color: var(--color-text-primary); }
+[data-theme="dark"] .doc-editor h1,
+[data-theme="dark"] .doc-editor h2,
+[data-theme="dark"] .doc-editor h3,
+[data-theme="dark"] .doc-editor h4 { color: var(--color-text-primary); }
+[data-theme="dark"] .doc-editor p,
+[data-theme="dark"] .doc-editor li,
+[data-theme="dark"] .doc-editor td { color: #B0ADA7; }
+[data-theme="dark"] .doc-editor code { background: var(--color-bg-secondary); color: var(--color-brand); }
+[data-theme="dark"] .doc-code-block { background: var(--color-bg-secondary); border-color: var(--color-border); color: var(--color-text-primary); }
+[data-theme="dark"] .doc-code-block code { color: var(--color-text-primary); }
+[data-theme="dark"] .doc-editor th { background: var(--color-bg-secondary); color: var(--color-text-muted); }
+[data-theme="dark"] .doc-editor th,
+[data-theme="dark"] .doc-editor td { border-color: var(--color-border); }
+[data-theme="dark"] .doc-editor blockquote { border-color: var(--color-border); color: var(--color-text-muted); }
+[data-theme="dark"] .doc-editor strong { color: var(--color-text-primary); }
+[data-theme="dark"] .doc-editor hr { border-top-color: var(--color-border); }
+
+[data-theme="dark"] .fortune-sheet-container { background: var(--color-bg-primary) !important; }
+[data-theme="dark"] .luckysheet-grid-window { background: var(--color-bg-primary) !important; }
+[data-theme="dark"] .luckysheet-cell-input { background: var(--color-bg-elevated) !important; color: var(--color-text-primary) !important; }
+[data-theme="dark"] .luckysheet-sheet-area { background: var(--color-bg-secondary) !important; border-top-color: var(--color-border) !important; }
+[data-theme="dark"] .luckysheet-sheet-area .luckysheet-sheets-item { background: var(--color-bg-tertiary) !important; color: var(--color-text-secondary) !important; border-color: var(--color-border) !important; }
+[data-theme="dark"] .luckysheet-sheet-area .luckysheet-sheets-item-active { background: var(--color-bg-primary) !important; color: var(--color-text-primary) !important; }
+[data-theme="dark"] .luckysheet-wa-editor { background: var(--color-bg-secondary) !important; border-bottom-color: var(--color-border) !important; }
+[data-theme="dark"] .luckysheet-toolbar-menu-button { color: var(--color-text-muted) !important; }
+[data-theme="dark"] .luckysheet-toolbar-menu-button:hover { color: var(--color-text-primary) !important; background: var(--color-bg-tertiary) !important; }
+[data-theme="dark"] .luckysheet-cols-h-cells .luckysheet-cols-h-cells-c,
+[data-theme="dark"] .luckysheet-rows-h-cells .luckysheet-rows-h-cells-c { background: var(--color-bg-secondary) !important; color: var(--color-text-muted) !important; border-color: var(--color-border) !important; }
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #3A3835; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #5C5955; }
+
+[data-theme="dark"] .shimmer-text {
+  background: linear-gradient(90deg, #6B6963 0%, #6B6963 40%, #E8E6E1 50%, #6B6963 60%, #6B6963 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}

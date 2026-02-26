@@ -110,34 +110,93 @@ export function ProjectHome() {
           </div>
 
           {entities.length === 0 ? (
-            <div
-              className="flex flex-col items-center justify-center py-16"
-              style={{
-                borderRadius: "14px",
-                backgroundColor: design.colors.bg.elevated,
-                border: `1px solid ${design.colors.border.light}`,
-              }}
-            >
+            <div className="py-6">
               <div
+                className="flex flex-col items-center justify-center py-10 mb-6"
                 style={{
-                  width: "44px",
-                  height: "44px",
-                  borderRadius: "12px",
-                  backgroundColor: design.colors.accent.goldSubtle,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginBottom: "14px",
+                  borderRadius: "14px",
+                  backgroundColor: design.colors.bg.elevated,
+                  border: `1px solid ${design.colors.border.light}`,
                 }}
               >
-                <Pen className="w-5 h-5" style={{ color: design.colors.accent.gold }} strokeWidth={1.5} />
+                <div
+                  style={{
+                    width: "44px",
+                    height: "44px",
+                    borderRadius: "12px",
+                    backgroundColor: design.colors.accent.goldSubtle,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: "14px",
+                  }}
+                >
+                  <Pen className="w-5 h-5" style={{ color: design.colors.accent.gold }} strokeWidth={1.5} />
+                </div>
+                <p style={{ fontSize: "15px", fontWeight: 600, color: design.colors.text.primary, marginBottom: "6px", fontFamily: design.typography.family.heading }}>
+                  Get started
+                </p>
+                <p style={{ fontSize: "13px", color: design.colors.text.muted, lineHeight: "1.5", maxWidth: "300px", textAlign: "center" }}>
+                  Create your first file or ask AI to build something for you.
+                </p>
               </div>
-              <p style={{ fontSize: "14px", fontWeight: 600, color: design.colors.text.primary, marginBottom: "4px", fontFamily: design.typography.family.heading }}>
-                No files yet
-              </p>
-              <p style={{ fontSize: "13px", color: design.colors.text.muted, lineHeight: "1.5", maxWidth: "280px", textAlign: "center" }}>
-                Create a file above or chat with AI to get started
-              </p>
+
+              {/* Quick start action cards */}
+              <div className="grid grid-cols-3 gap-3">
+                <QuickStartCard
+                  icon={<FileText className="w-5 h-5" />}
+                  label="Document"
+                  desc="Notes, drafts, plans"
+                  color={design.colors.accent.purple}
+                  bg={design.colors.accent.purpleSubtle}
+                  onClick={() => createKnowledgeUnit(project.id, "New Document")}
+                />
+                <QuickStartCard
+                  icon={<Table2 className="w-5 h-5" />}
+                  label="Spreadsheet"
+                  desc="Tables, trackers, data"
+                  color={design.colors.accent.teal}
+                  bg={design.colors.accent.tealSubtle}
+                  onClick={() => createTable(project.id, "New Table")}
+                />
+                <QuickStartCard
+                  icon={<GitBranch className="w-5 h-5" />}
+                  label="Diagram"
+                  desc="Flowcharts, charts"
+                  color={design.colors.accent.gold}
+                  bg={design.colors.accent.goldSubtle}
+                  onClick={() => createDiagram(project.id, "New Diagram")}
+                />
+              </div>
+
+              {/* AI suggestion */}
+              <button
+                onClick={() => window.dispatchEvent(new Event("drafta:focus-chat"))}
+                className="w-full mt-3 flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-150"
+                style={{
+                  backgroundColor: design.colors.bg.elevated,
+                  borderColor: design.colors.border.default,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = design.colors.brand.primary;
+                  e.currentTarget.style.boxShadow = `0 0 0 3px ${design.colors.brand.subtle}`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = design.colors.border.default;
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              >
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: design.colors.brand.subtle }}
+                >
+                  <Pen className="w-4 h-4" style={{ color: design.colors.brand.primary }} strokeWidth={1.8} />
+                </div>
+                <div className="text-left">
+                  <p style={{ fontSize: "13px", fontWeight: 600, color: design.colors.text.primary }}>Ask AI to build something</p>
+                  <p style={{ fontSize: "11px", color: design.colors.text.muted }}>Describe what you need in the chat</p>
+                </div>
+              </button>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
@@ -484,6 +543,46 @@ function FileRow({
         )}
       </div>
     </div>
+  );
+}
+
+function QuickStartCard({
+  icon, label, desc, color, bg, onClick,
+}: {
+  icon: React.ReactNode; label: string; desc: string; color: string; bg: string; onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center gap-2 p-5 rounded-xl border transition-all duration-150"
+      style={{
+        backgroundColor: design.colors.bg.elevated,
+        borderColor: design.colors.border.default,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = color;
+        e.currentTarget.style.boxShadow = `0 0 0 3px ${bg}`;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = design.colors.border.default;
+        e.currentTarget.style.boxShadow = "none";
+      }}
+    >
+      <div
+        className="w-10 h-10 rounded-lg flex items-center justify-center"
+        style={{ backgroundColor: bg, color }}
+      >
+        {icon}
+      </div>
+      <div className="text-center">
+        <p style={{ fontSize: "13px", fontWeight: 600, color: design.colors.text.primary, fontFamily: design.typography.family.heading }}>
+          {label}
+        </p>
+        <p style={{ fontSize: "11px", color: design.colors.text.muted, marginTop: "2px" }}>
+          {desc}
+        </p>
+      </div>
+    </button>
   );
 }
 

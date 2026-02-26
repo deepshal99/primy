@@ -26,6 +26,34 @@ import {
   deleteProjectOnServer,
 } from "@/lib/api";
 
+// ── Debounced save manager ──
+
+let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+const SAVE_DEBOUNCE_MS = 2000;
+
+function scheduleDebouncedSave() {
+  if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
+  saveDebounceTimer = setTimeout(() => {
+    const state = useAppStore.getState();
+    if (state.currentProjectId) {
+      state.saveCurrentEntity();
+    }
+  }, SAVE_DEBOUNCE_MS);
+}
+
+// Flush any pending save on page unload
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", () => {
+    if (saveDebounceTimer) {
+      clearTimeout(saveDebounceTimer);
+      const state = useAppStore.getState();
+      if (state.currentProjectId) {
+        state.saveCurrentEntity();
+      }
+    }
+  });
+}
+
 // ── LocalStorage helpers ──
 
 const STORAGE_KEY = "drafta_conversations";
@@ -497,15 +525,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }
 
-    // Auto-save
-    setTimeout(() => {
-      const s = get();
-      if (s.currentProjectId) {
-        s.saveCurrentEntity();
-      } else {
-        s.saveCurrentConversation();
-      }
-    }, 100);
+    // Auto-save (debounced for batching, immediate for legacy conversations)
+    if (state.currentProjectId) {
+      scheduleDebouncedSave();
+    } else {
+      setTimeout(() => get().saveCurrentConversation(), 100);
+    }
 
     // Auto-generate title
     setTimeout(() => get().autoGenerateTitle(), 200);
@@ -531,9 +556,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       celldata: Array.isArray(s.celldata) ? s.celldata : [],
     }));
     set({ sheets: safe });
+    scheduleDebouncedSave();
   },
 
-  updateDocContent: (content: string) => set({ docContent: content }),
+  updateDocContent: (content: string) => {
+    set({ docContent: content });
+    scheduleDebouncedSave();
+  },
 
   setActiveTab: (tab) => set({ activeTab: tab }),
 
@@ -1619,7 +1648,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       })),
     };
     updateProjectOnServer(project.id, syncPayload)
-      .catch(() => {})
+      .then((result) => {
+        if (!result.ok) {
+          toast.error("Failed to save to server — changes are saved locally");
+        }
+      })
+      .catch(() => {
+        toast.error("Failed to save to server — changes are saved locally");
+      })
       .finally(() => set({ isSaving: false, lastSavedAt: Date.now() }));
   },
 

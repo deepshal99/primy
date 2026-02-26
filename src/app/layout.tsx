@@ -9,28 +9,33 @@ export const metadata: Metadata = {
   description: "Your AI-powered workspace for documents, spreadsheets, and projects.",
 };
 
+// Inline script to set theme before hydration (prevents flash)
+const themeScript = `(function(){try{var t=localStorage.getItem('drafta-theme')||'system';var d=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme:dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light')}catch(e){}})()`;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="antialiased">
         <SessionProvider>
           {children}
         </SessionProvider>
         {process.env.NODE_ENV === "development" && <Agentation />}
         <Toaster
-          theme="light"
           position="bottom-right"
           toastOptions={{
             style: {
-              background: "#FDFCFB",
-              border: "1px solid #E0DDD8",
-              color: "#21201C",
+              background: "var(--color-bg-elevated)",
+              border: "1px solid var(--color-border)",
+              color: "var(--color-text-primary)",
               fontSize: "13px",
-              boxShadow: "0 4px 16px rgba(33, 32, 28, 0.08)",
+              boxShadow: "0 4px 16px rgba(0, 0, 0, 0.12)",
             },
           }}
         />

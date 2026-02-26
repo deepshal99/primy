@@ -5,6 +5,7 @@ import { ChatPanel } from "@/components/chat/ChatPanel";
 import { WorkspacePanel } from "@/components/workspace/WorkspacePanel";
 import { ProjectSidebar } from "@/components/sidebar/ProjectSidebar";
 import { KeyboardShortcuts } from "@/components/shared/KeyboardShortcuts";
+import { SearchDialog } from "@/components/shared/SearchDialog";
 import { useAppStore } from "@/lib/store";
 
 export function AppShell() {
@@ -12,9 +13,13 @@ export function AppShell() {
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
   const createProject = useAppStore((s) => s.createProject);
   const undo = useAppStore((s) => s.undo);
+  const redo = useAppStore((s) => s.redo);
   const canUndo = useAppStore((s) => s.canUndo);
+  const canRedo = useAppStore((s) => s.canRedo);
+  const closeTab = useAppStore((s) => s.closeTab);
   const [chatWidth, setChatWidth] = useState(420);
   const [isDragging, setIsDragging] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Global keyboard shortcuts
@@ -23,17 +28,31 @@ export function AppShell() {
       if (e.metaKey || e.ctrlKey) {
         if (e.key === "k") {
           e.preventDefault();
+          setSearchOpen(true);
+        }
+        if (e.key === "n") {
+          e.preventDefault();
           createProject("New Project");
         }
         if (e.key === "b") {
           e.preventDefault();
           toggleSidebar();
         }
+        if (e.key === "/" && !e.shiftKey) {
+          e.preventDefault();
+          window.dispatchEvent(new Event("drafta:focus-chat"));
+        }
+        if (e.key === "w") {
+          e.preventDefault();
+          const s = useAppStore.getState();
+          if (s.currentEntityId) {
+            closeTab(s.currentEntityId);
+          }
+        }
         if (e.key === "1") {
           e.preventDefault();
           const s = useAppStore.getState();
           if (s.currentProjectId) {
-            // Find the first table and open it
             const project = s.projects.find((p) => p.id === s.currentProjectId);
             if (project && project.tables.length > 0) {
               s.openTable(project.tables[0].id);
@@ -45,7 +64,6 @@ export function AppShell() {
           e.preventDefault();
           const s = useAppStore.getState();
           if (s.currentProjectId) {
-            // Find the first KU and open it
             const project = s.projects.find((p) => p.id === s.currentProjectId);
             if (project && project.knowledgeUnits.length > 0) {
               s.openKnowledgeUnit(project.knowledgeUnits[0].id);
@@ -54,18 +72,24 @@ export function AppShell() {
           }
         }
         if (e.key === "z" && !e.shiftKey && canUndo) {
-          // Only intercept if not focused in an input/editor
           const tag = (e.target as HTMLElement)?.tagName;
           if (tag !== "INPUT" && tag !== "TEXTAREA" && !(e.target as HTMLElement)?.isContentEditable) {
             e.preventDefault();
             undo();
           }
         }
+        if (e.key === "z" && e.shiftKey && canRedo) {
+          const tag = (e.target as HTMLElement)?.tagName;
+          if (tag !== "INPUT" && tag !== "TEXTAREA" && !(e.target as HTMLElement)?.isContentEditable) {
+            e.preventDefault();
+            redo();
+          }
+        }
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [toggleSidebar, createProject, undo, canUndo]);
+  }, [toggleSidebar, createProject, undo, redo, canUndo, canRedo, closeTab]);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -145,6 +169,7 @@ export function AppShell() {
       </div>
 
       <KeyboardShortcuts />
+      <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   );
 }

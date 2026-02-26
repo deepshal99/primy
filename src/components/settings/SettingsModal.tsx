@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { X, Loader2, Check, Eye, EyeOff, LogOut, ChevronDown } from "lucide-react";
+import { X, Loader2, Check, Eye, EyeOff, LogOut, ChevronDown, Sun, Moon, Monitor } from "lucide-react";
 import { design } from "@/lib/design";
+import { useTheme } from "@/lib/useTheme";
+import { ThemeMode } from "@/lib/theme";
 
 interface SettingsModalProps {
   open: boolean;
@@ -330,6 +332,15 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 style={{ backgroundColor: design.colors.border.default }}
               />
 
+              {/* ── Appearance section ── */}
+              <ThemeSection />
+
+              {/* ── Divider ── */}
+              <div
+                className="h-px mb-6"
+                style={{ backgroundColor: design.colors.border.default }}
+              />
+
               {/* ── Security section ── */}
               <div className="mb-6">
                 <SectionLabel>Security</SectionLabel>
@@ -582,5 +593,41 @@ function FieldLabel({
     >
       {children}
     </label>
+  );
+}
+
+const themeOptions: { mode: ThemeMode; icon: typeof Sun; label: string }[] = [
+  { mode: "light", icon: Sun, label: "Light" },
+  { mode: "dark", icon: Moon, label: "Dark" },
+  { mode: "system", icon: Monitor, label: "System" },
+];
+
+function ThemeSection() {
+  const { mode, setMode } = useTheme();
+
+  return (
+    <div className="mb-6">
+      <SectionLabel>Appearance</SectionLabel>
+      <div className="flex gap-2">
+        {themeOptions.map((opt) => {
+          const isActive = mode === opt.mode;
+          return (
+            <button
+              key={opt.mode}
+              onClick={() => setMode(opt.mode)}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[13px] font-medium transition-all border"
+              style={{
+                backgroundColor: isActive ? design.colors.brand.subtle : design.colors.bg.secondary,
+                borderColor: isActive ? design.colors.brand.primary : design.colors.border.default,
+                color: isActive ? design.colors.brand.primary : design.colors.text.secondary,
+              }}
+            >
+              <opt.icon className="w-4 h-4" />
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

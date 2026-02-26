@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { ArrowUp, Plus, Loader2, Upload, Square } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
@@ -29,6 +29,13 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
+
+  // Listen for global focus-chat event (Cmd+/)
+  useEffect(() => {
+    const handler = () => textareaRef.current?.focus();
+    window.addEventListener("drafta:focus-chat", handler);
+    return () => window.removeEventListener("drafta:focus-chat", handler);
+  }, []);
 
   const pendingAttachments = useAppStore((s) => s.pendingAttachments);
   const addPendingAttachment = useAppStore((s) => s.addPendingAttachment);
@@ -112,6 +119,32 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
       e.target.value = "";
     }
   };
+
+  // ── Paste images/media ──
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      const imageFiles: File[] = [];
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) {
+            // Give pasted images a descriptive name
+            const ext = file.type.split("/")[1] || "png";
+            const named = new File([file], `Pasted image ${new Date().toLocaleTimeString()}.${ext}`, { type: file.type });
+            imageFiles.push(named);
+          }
+        }
+      }
+      if (imageFiles.length > 0) {
+        e.preventDefault();
+        handleFiles(imageFiles);
+      }
+    },
+    [handleFiles]
+  );
 
   // ── Drag & Drop ──
 
@@ -233,6 +266,7 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
             value={value}
             onChange={handleInput}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder={
               disabled
                 ? "Waiting for response..."

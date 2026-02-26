@@ -266,9 +266,12 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         const displayText = extractDisplayText(fullText);
 
         // Warn if AI tried to output ops but parsing failed
-        if (sheetOps.length === 0 && docOps.length === 0 && kuOps.length === 0 && tableOps.length === 0 && diagramOps.length === 0) {
-          if (fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops") || fullText.includes("```diagramops")) {
+        const hasAnyOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || diagramOps.length > 0;
+        if (!hasAnyOps) {
+          const hasFences = fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops") || fullText.includes("```diagramops");
+          if (hasFences) {
             console.warn("[Drafta] Operation blocks found but none parsed. Raw tail:", fullText.slice(-600));
+            toast.error("AI response had formatting issues — some changes may not have been applied. Try again.");
           }
         }
 

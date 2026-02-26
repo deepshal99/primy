@@ -5,14 +5,17 @@ import { X } from "lucide-react";
 import { design } from "@/lib/design";
 
 const shortcuts = [
-  { keys: ["⌘", "K"], desc: "New conversation" },
+  { keys: ["⌘", "K"], desc: "Search files & content" },
+  { keys: ["⌘", "N"], desc: "New project" },
   { keys: ["⌘", "B"], desc: "Toggle sidebar" },
+  { keys: ["⌘", "/"], desc: "Focus chat input" },
+  { keys: ["⌘", "W"], desc: "Close current tab" },
   { keys: ["⌘", "Z"], desc: "Undo AI changes" },
-  { keys: ["⌘", "1"], desc: "Switch to Sheet tab" },
-  { keys: ["⌘", "2"], desc: "Switch to Doc tab" },
+  { keys: ["⌘", "⇧", "Z"], desc: "Redo AI changes" },
+  { keys: ["⌘", "1"], desc: "Open first table" },
+  { keys: ["⌘", "2"], desc: "Open first document" },
   { keys: ["Enter"], desc: "Send message" },
   { keys: ["Shift", "Enter"], desc: "New line in message" },
-  { keys: ["⌘", "/"], desc: "Show shortcuts" },
 ];
 
 export function KeyboardShortcuts() {
@@ -23,7 +26,7 @@ export function KeyboardShortcuts() {
     window.addEventListener("drafta:show-shortcuts", handleShow);
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "/") {
+      if ((e.metaKey || e.ctrlKey) && e.key === "?" ) {
         e.preventDefault();
         setOpen((prev) => !prev);
       }

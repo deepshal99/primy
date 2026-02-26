@@ -48,11 +48,11 @@ export function SheetView() {
     const storeSheets = useAppStore.getState().sheets;
     const storeHasData = storeSheets.some((s) => s.celldata && s.celldata.length > 0);
     if (storeHasData && !hasAnyData) return; // Prevent blanking out existing data
-    // Debounce: persist manual edits to store after 300ms of inactivity
+    // Debounce: persist manual edits to store after 800ms of inactivity
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       useAppStore.getState().updateSheetData(sanitized);
-    }, 300);
+    }, 800);
   }, []);
 
   const handleRef = useCallback((ref: any) => {
@@ -83,12 +83,19 @@ export function SheetView() {
     return () => clearTimeout(timer);
   }, [sheetVersion, currentEntityId]);
 
-  const hasData = sheets.some((s) => s.celldata && s.celldata.length > 0);
+  // Check celldata OR Fortune Sheet's internal 2D `data` array
+  const hasData = sheets.some((s) => {
+    if (s.celldata && s.celldata.length > 0) return true;
+    const d = (s as any).data;
+    if (Array.isArray(d)) {
+      return d.some((row: any) => Array.isArray(row) && row.some((cell: any) => cell != null));
+    }
+    return false;
+  });
 
-  // Once data appears, never show the placeholder again for this view
-  // (Fortune Sheet onChange can temporarily report empty celldata during re-renders)
+  // Once data appears, latch — Fortune Sheet onChange can temporarily blank celldata
   if (hasData) hadDataRef.current = true;
-  // Reset when navigating to a different entity
+  // Reset latch when navigating to a different entity
   const entityKey = `${currentEntityId}-${currentEntityType}`;
   const prevEntityRef = useRef(entityKey);
   if (entityKey !== prevEntityRef.current) {
@@ -96,8 +103,8 @@ export function SheetView() {
     hadDataRef.current = hasData;
   }
 
-  // Don't show placeholder if: we're viewing a table entity, or data was ever loaded
-  const showPlaceholder = !hadDataRef.current && !isStreaming && !(currentEntityType === "table");
+  // Never show placeholder for table entities or once data has been seen
+  const showPlaceholder = !hadDataRef.current && !isStreaming && currentEntityType !== "table";
 
   return (
     <div className="w-full h-full relative">
