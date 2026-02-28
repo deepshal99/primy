@@ -96,12 +96,59 @@ function loadProjectsFromStorage(): Project[] {
 function saveProjectsToStorage(projects: Project[]) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+    // Strip embedding vectors before serializing to save localStorage space
+    // (~6KB per entity). Embeddings are regenerated lazily on demand.
+    const stripped = projects.map((p) => ({
+      ...p,
+      knowledgeUnits: p.knowledgeUnits.map(({ embedding, ...rest }) => rest),
+      tables: p.tables.map(({ embedding, ...rest }) => rest),
+      diagrams: (p.diagrams || []).map(({ embedding, ...rest }) => rest),
+      decks: (p.decks || []).map(({ embedding, ...rest }) => rest),
+    }));
+    localStorage.setItem(PROJECTS_KEY, JSON.stringify(stripped));
   } catch (err) {
     if (err instanceof DOMException && err.name === "QuotaExceededError") {
       toast.error("Storage full — some changes may not be saved");
     }
   }
+}
+
+// ── Background embedding generation ──
+
+function generateEntityEmbedding(entityId: string, projectId: string, text: string) {
+  if (typeof window === "undefined" || !text.trim()) return;
+  fetch("/api/embeddings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ texts: [text.slice(0, 2048)] }),
+  })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      const embedding = data?.embeddings?.[0];
+      if (!embedding) return;
+      const state = useAppStore.getState();
+      const updated = state.projects.map((p) => {
+        if (p.id !== projectId) return p;
+        return {
+          ...p,
+          knowledgeUnits: p.knowledgeUnits.map((k) =>
+            k.id === entityId ? { ...k, embedding } : k
+          ),
+          tables: p.tables.map((t) =>
+            t.id === entityId ? { ...t, embedding } : t
+          ),
+          diagrams: (p.diagrams || []).map((d) =>
+            d.id === entityId ? { ...d, embedding } : d
+          ),
+          decks: (p.decks || []).map((d) =>
+            d.id === entityId ? { ...d, embedding } : d
+          ),
+        };
+      });
+      useAppStore.setState({ projects: updated });
+      saveProjectsToStorage(updated);
+    })
+    .catch(() => {});
 }
 
 function generateTitle(messages: { role: string; content: string }[]): string {
@@ -180,7 +227,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   sidebarOpen: true,
 
   // Project system
-  projects: [],
+  projects: loadProjectsFromStorage(),
   currentProjectId: null,
   currentEntityId: null,
   currentEntityType: null,
@@ -892,9 +939,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const snapshot = state.undoStack[state.undoStack.length - 1];
     const newStack = state.undoStack.slice(0, -1);
 
-    // Push current state onto redo stack before restoring
+    // Push current state onto redo stack before restoring (deep-clone to avoid mutation)
     const redoSnapshot: UndoSnapshot = {
-      sheets: state.sheets,
+      sheets: JSON.parse(JSON.stringify(state.sheets)),
       docContent: state.docContent,
       label: snapshot.label,
       timestamp: Date.now(),
@@ -930,9 +977,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const snapshot = state.redoStack[state.redoStack.length - 1];
     const newRedoStack = state.redoStack.slice(0, -1);
 
-    // Push current state back onto undo stack
+    // Push current state back onto undo stack (deep-clone to avoid mutation)
     const undoSnapshot: UndoSnapshot = {
-      sheets: state.sheets,
+      sheets: JSON.parse(JSON.stringify(state.sheets)),
       docContent: state.docContent,
       label: snapshot.label,
       timestamp: Date.now(),
@@ -1226,6 +1273,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       knowledgeUnits: [{ id: ku.id, title: ku.title, content: ku.content }],
     }).catch(() => {});
 
+    // Background embedding generation
+    if (ku.content) {
+      generateEntityEmbedding(ku.id, projectId, `${ku.title}\n${ku.content}`);
+    }
+
     return ku;
   },
 
@@ -1403,6 +1455,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       tables: [{ id: table.id, title: table.title, sheets: table.sheets }],
     }).catch(() => {});
 
+    // Background embedding generation from title + headers
+    const headers = table.sheets[0]?.celldata
+      ?.filter((c) => c.r === 0)
+      .sort((a, b) => a.c - b.c)
+      .map((c) => String(c.v?.v || ""))
+      .join(", ");
+    generateEntityEmbedding(table.id, projectId, `${table.title}\n${headers || ""}`);
+
     return table;
   },
 
@@ -1541,7 +1601,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ── Diagram CRUD ──
   // ══════════════════════════════════
 
-  createDiagram: (projectId: string, title: string, diagramType: "mermaid" | "chart" = "mermaid", source: string = "") => {
+  createDiagram: (projectId: string, title: string, diagramType: "mermaid" | "chart" | "excalidraw" = "mermaid", source: string = "") => {
     const state = get();
     state.saveCurrentEntity();
     const newDiagram: ProjectDiagram = {
@@ -1782,13 +1842,13 @@ export const useAppStore = create<AppState>((set, get) => ({
           get().openDeck(nextTab.id);
         }
       } else {
-        // No more tabs — go to project home
+        // No more tabs — go to project home (keep workspace open if in a project)
         state.saveCurrentEntity();
         set({
           openTabs: newTabs,
           currentEntityId: null,
           currentEntityType: null,
-          workspaceOpen: false,
+          workspaceOpen: !!state.currentProjectId,
         });
       }
     } else {
@@ -1806,7 +1866,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ isSaving: true });
 
     const projIdx = state.projects.findIndex((p) => p.id === state.currentProjectId);
-    if (projIdx < 0) return;
+    if (projIdx < 0) {
+      set({ isSaving: false });
+      return;
+    }
 
     const updated = [...state.projects];
     const project = { ...updated[projIdx] };
@@ -1852,6 +1915,26 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     set({ projects: updated });
     saveProjectsToStorage(updated);
+
+    // Regenerate embedding for updated entity (only if it doesn't have one yet)
+    if (state.currentEntityId && state.currentProjectId) {
+      if (state.currentEntityType === "ku") {
+        const ku = project.knowledgeUnits.find((k) => k.id === state.currentEntityId);
+        if (ku && ku.content && !ku.embedding) {
+          generateEntityEmbedding(ku.id, state.currentProjectId, `${ku.title}\n${ku.content}`);
+        }
+      } else if (state.currentEntityType === "table") {
+        const table = project.tables.find((t) => t.id === state.currentEntityId);
+        if (table && !table.embedding) {
+          const headers = table.sheets[0]?.celldata
+            ?.filter((c) => c.r === 0)
+            .sort((a, b) => a.c - b.c)
+            .map((c) => String(c.v?.v || ""))
+            .join(", ");
+          generateEntityEmbedding(table.id, state.currentProjectId, `${table.title}\n${headers || ""}`);
+        }
+      }
+    }
 
     // Background sync full project state to Neon
     const syncPayload: Record<string, any> = {
@@ -1902,7 +1985,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   loadProjects: async () => {
-    // Try server first (Neon), fall back to localStorage
+    // Immediately hydrate from localStorage so the UI never flashes empty
+    const cached = loadProjectsFromStorage();
+    if (cached.length > 0 && get().projects.length === 0) {
+      set({ projects: cached });
+    }
+
+    // Then fetch latest from server and update
     try {
       const serverProjects = await fetchProjects();
       if (serverProjects.length > 0) {
@@ -1913,8 +2002,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       // Server unavailable or not authenticated — fall back
     }
-    const projects = loadProjectsFromStorage();
-    set({ projects });
+
+    // If server returned nothing and we haven't hydrated yet, use localStorage
+    if (get().projects.length === 0) {
+      set({ projects: cached });
+    }
   },
 
   migrateConversations: () => {

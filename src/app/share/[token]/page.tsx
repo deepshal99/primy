@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { design } from "@/lib/design";
-import { FileText, Table2, GitBranch, FolderOpen, Loader2, AlertCircle, Pen, ExternalLink } from "lucide-react";
+import { FileText, Table2, GitBranch, Presentation, FolderOpen, Loader2, AlertCircle, Pen, ExternalLink } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const DocViewReadOnly = dynamic(
@@ -18,12 +18,17 @@ const DiagramViewReadOnly = dynamic(
   () => import("@/components/diagram/DiagramViewReadOnly").then((m) => m.DiagramViewReadOnly),
   { ssr: false }
 );
+const DeckViewReadOnly = dynamic(
+  () => import("@/components/deck/DeckViewReadOnly").then((m) => m.DeckViewReadOnly),
+  { ssr: false }
+);
 
 type ShareData =
   | { type: "document"; title: string; content: string; projectTitle: string }
   | { type: "table"; title: string; sheets: any[]; projectTitle: string }
-  | { type: "diagram"; title: string; diagramType: "mermaid" | "chart"; source: string; projectTitle: string }
-  | { type: "project"; title: string; description?: string; documents: any[]; tables: any[]; diagrams?: any[] };
+  | { type: "diagram"; title: string; diagramType: "mermaid" | "chart" | "excalidraw"; source: string; projectTitle: string }
+  | { type: "deck"; title: string; slides: any[]; theme: string; projectTitle: string }
+  | { type: "project"; title: string; description?: string; documents: any[]; tables: any[]; diagrams?: any[]; decks?: any[] };
 
 export default function SharePage() {
   const params = useParams();
@@ -34,7 +39,7 @@ export default function SharePage() {
 
   // For project view: which file is selected
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState<"document" | "table" | "diagram" | null>(null);
+  const [selectedType, setSelectedType] = useState<"document" | "table" | "diagram" | "deck" | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -56,6 +61,9 @@ export default function SharePage() {
           } else if (d.diagrams?.length > 0) {
             setSelectedId(d.diagrams[0].id);
             setSelectedType("diagram");
+          } else if (d.decks?.length > 0) {
+            setSelectedId(d.decks[0].id);
+            setSelectedType("deck");
           }
         }
       })
@@ -108,7 +116,7 @@ export default function SharePage() {
   if (data.type === "document") {
     return (
       <div className="h-screen flex flex-col" style={{ backgroundColor: design.colors.bg.primary }}>
-        <ShareHeader title={data.title} subtitle={data.projectTitle} icon={<FileText className="w-4 h-4" style={{ color: design.colors.accent.purple }} />} />
+        <ShareHeader title={data.title} subtitle={data.projectTitle} icon={<FileText className="w-4 h-4" style={{ color: design.colors.entity.doc }} />} />
         <div className="flex-1 overflow-hidden">
           <DocViewReadOnly content={data.content} />
         </div>
@@ -120,7 +128,7 @@ export default function SharePage() {
   if (data.type === "table") {
     return (
       <div className="h-screen flex flex-col" style={{ backgroundColor: design.colors.bg.primary }}>
-        <ShareHeader title={data.title} subtitle={data.projectTitle} icon={<Table2 className="w-4 h-4" style={{ color: design.colors.accent.teal }} />} />
+        <ShareHeader title={data.title} subtitle={data.projectTitle} icon={<Table2 className="w-4 h-4" style={{ color: design.colors.entity.sheet }} />} />
         <div className="flex-1 overflow-hidden">
           <SheetViewReadOnly sheets={data.sheets || []} />
         </div>
@@ -132,9 +140,21 @@ export default function SharePage() {
   if (data.type === "diagram") {
     return (
       <div className="h-screen flex flex-col" style={{ backgroundColor: design.colors.bg.primary }}>
-        <ShareHeader title={data.title} subtitle={data.projectTitle} icon={<GitBranch className="w-4 h-4" style={{ color: design.colors.accent.gold }} />} />
+        <ShareHeader title={data.title} subtitle={data.projectTitle} icon={<GitBranch className="w-4 h-4" style={{ color: design.colors.entity.diagram }} />} />
         <div className="flex-1 overflow-hidden">
           <DiagramViewReadOnly source={data.source} diagramType={data.diagramType} />
+        </div>
+      </div>
+    );
+  }
+
+  // Single deck
+  if (data.type === "deck") {
+    return (
+      <div className="h-screen flex flex-col" style={{ backgroundColor: design.colors.bg.primary }}>
+        <ShareHeader title={data.title} subtitle={data.projectTitle} icon={<Presentation className="w-4 h-4" style={{ color: design.colors.entity.deck }} />} />
+        <div className="flex-1 overflow-hidden">
+          <DeckViewReadOnly slides={data.slides} theme={data.theme} />
         </div>
       </div>
     );
@@ -144,6 +164,7 @@ export default function SharePage() {
   const selectedDoc = data.documents?.find((d: any) => d.id === selectedId);
   const selectedTable = data.tables?.find((t: any) => t.id === selectedId);
   const selectedDiagram = data.diagrams?.find((d: any) => d.id === selectedId);
+  const selectedDeck = data.decks?.find((d: any) => d.id === selectedId);
 
   return (
     <div className="h-screen flex flex-col" style={{ backgroundColor: design.colors.bg.primary }}>
@@ -185,7 +206,7 @@ export default function SharePage() {
                       if (selectedId !== doc.id) e.currentTarget.style.backgroundColor = "transparent";
                     }}
                   >
-                    <FileText className="w-3.5 h-3.5 flex-shrink-0" style={{ color: design.colors.accent.purple }} strokeWidth={1.8} />
+                    <FileText className="w-3.5 h-3.5 flex-shrink-0" style={{ color: design.colors.entity.doc }} strokeWidth={1.8} />
                     <span className="truncate">{doc.title}</span>
                   </button>
                 ))}
@@ -217,7 +238,7 @@ export default function SharePage() {
                       if (selectedId !== table.id) e.currentTarget.style.backgroundColor = "transparent";
                     }}
                   >
-                    <Table2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: design.colors.accent.teal }} strokeWidth={1.8} />
+                    <Table2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: design.colors.entity.sheet }} strokeWidth={1.8} />
                     <span className="truncate">{table.title}</span>
                   </button>
                 ))}
@@ -249,8 +270,40 @@ export default function SharePage() {
                       if (selectedId !== diagram.id) e.currentTarget.style.backgroundColor = "transparent";
                     }}
                   >
-                    <GitBranch className="w-3.5 h-3.5 flex-shrink-0" style={{ color: design.colors.accent.gold }} strokeWidth={1.8} />
+                    <GitBranch className="w-3.5 h-3.5 flex-shrink-0" style={{ color: design.colors.entity.diagram }} strokeWidth={1.8} />
                     <span className="truncate">{diagram.title}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {data.decks && data.decks.length > 0 && (
+              <div>
+                <p
+                  className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 px-2"
+                  style={{ color: design.colors.text.muted, letterSpacing: design.typography.letterSpacing.widest }}
+                >
+                  Decks
+                </p>
+                {data.decks.map((deck: any) => (
+                  <button
+                    key={deck.id}
+                    onClick={() => { setSelectedId(deck.id); setSelectedType("deck"); }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12px] transition-colors text-left"
+                    style={{
+                      backgroundColor: selectedId === deck.id ? design.colors.bg.elevated : "transparent",
+                      color: selectedId === deck.id ? design.colors.text.primary : design.colors.text.secondary,
+                      fontWeight: selectedId === deck.id ? 500 : 400,
+                      boxShadow: selectedId === deck.id ? design.shadows.sm : "none",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (selectedId !== deck.id) e.currentTarget.style.backgroundColor = design.colors.bg.hover;
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedId !== deck.id) e.currentTarget.style.backgroundColor = "transparent";
+                    }}
+                  >
+                    <Presentation className="w-3.5 h-3.5 flex-shrink-0" style={{ color: design.colors.entity.deck }} strokeWidth={1.8} />
+                    <span className="truncate">{deck.title}</span>
                   </button>
                 ))}
               </div>
@@ -268,6 +321,9 @@ export default function SharePage() {
           )}
           {selectedType === "diagram" && selectedDiagram && (
             <DiagramViewReadOnly source={selectedDiagram.source} diagramType={selectedDiagram.diagramType} />
+          )}
+          {selectedType === "deck" && selectedDeck && (
+            <DeckViewReadOnly slides={selectedDeck.slides} theme={selectedDeck.theme} />
           )}
           {!selectedId && (
             <div className="h-full flex items-center justify-center">

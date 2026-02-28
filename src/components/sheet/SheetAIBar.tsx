@@ -19,12 +19,23 @@ function getSelectedCellsInfo(): { rangeLabel: string; cellValues: string } | nu
     const api = getWorkbookApi();
     if (!api) return null;
 
-    const selection = api.getSelection?.();
-    if (!selection || selection.length === 0) return null;
+    // Univer Facade API: get active workbook → active sheet → selection
+    const workbook = api.getActiveWorkbook?.();
+    if (!workbook) return null;
+    const sheet = workbook.getActiveSheet?.();
+    if (!sheet) return null;
+    const selection = sheet.getSelection?.();
+    if (!selection) return null;
+    const activeRange = selection.getActiveRange?.();
+    if (!activeRange) return null;
 
-    const sel = selection[0];
-    const [r1, r2] = sel.row;
-    const [c1, c2] = sel.column;
+    // Get range bounds from the FRange
+    const r1 = activeRange.getRow();
+    const c1 = activeRange.getColumn();
+    const numRows = activeRange.getHeight?.() || 1;
+    const numCols = activeRange.getWidth?.() || 1;
+    const r2 = r1 + numRows - 1;
+    const c2 = c1 + numCols - 1;
 
     // Skip if it's just a single cell (not a meaningful selection)
     if (r1 === r2 && c1 === c2) return null;
@@ -36,11 +47,17 @@ function getSelectedCellsInfo(): { rangeLabel: string; cellValues: string } | nu
     const activeSheet = sheets.find((s: any) => s.status === 1) || sheets[0];
     if (!activeSheet?.celldata) return null;
 
+    // Build a lookup map for O(1) cell access
+    const cellMap = new Map<string, (typeof activeSheet.celldata)[0]>();
+    for (const cd of activeSheet.celldata) {
+      cellMap.set(`${cd.r},${cd.c}`, cd);
+    }
+
     const rows: string[][] = [];
     for (let r = r1; r <= r2; r++) {
       const row: string[] = [];
       for (let c = c1; c <= c2; c++) {
-        const cell = activeSheet.celldata.find((cd) => cd.r === r && cd.c === c);
+        const cell = cellMap.get(`${r},${c}`);
         row.push(cell?.v?.v?.toString() || cell?.v?.f || "");
       }
       rows.push(row);
@@ -204,7 +221,7 @@ export function SheetAIBar() {
         style={{
           backgroundColor: design.colors.accent.gold,
           color: "#ffffff",
-          boxShadow: "0 2px 8px rgba(229, 149, 62, 0.25)",
+          boxShadow: "0 2px 8px rgba(255, 107, 0, 0.25)",
         }}
         title="AI actions on sheet data"
       >

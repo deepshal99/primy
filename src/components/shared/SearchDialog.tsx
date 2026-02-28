@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Search, FileText, Table2, GitBranch, X, MessageSquare } from "lucide-react";
+import { Search, FileText, Table2, GitBranch, Presentation, X, MessageSquare } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
+import { cosineSimilarity } from "@/lib/ai/embeddings";
 
 interface SearchResult {
   id: string;
   title: string;
-  type: "ku" | "table" | "diagram" | "message";
+  type: "ku" | "table" | "diagram" | "deck" | "message";
   projectId: string;
   projectTitle: string;
   snippet?: string;
@@ -18,11 +19,13 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [queryEmbedding, setQueryEmbedding] = useState<number[] | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const projects = useAppStore((s) => s.projects);
   const openKnowledgeUnit = useAppStore((s) => s.openKnowledgeUnit);
   const openTable = useAppStore((s) => s.openTable);
   const openDiagram = useAppStore((s) => s.openDiagram);
+  const openDeck = useAppStore((s) => s.openDeck);
   const switchProject = useAppStore((s) => s.switchProject);
 
   // Focus input when opened
@@ -45,15 +48,42 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
     return () => window.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
+  // Debounced semantic embedding for query
+  useEffect(() => {
+    if (!query.trim() || query.length < 3) {
+      setQueryEmbedding(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/embeddings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ texts: [query] }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.embeddings?.[0]) {
+            setQueryEmbedding(data.embeddings[0]);
+          }
+        }
+      } catch {
+        // Silently fail — fall back to string search
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
   // Search across all projects
   const search = useCallback(
-    (q: string) => {
+    (q: string, queryEmb: number[] | null) => {
       if (!q.trim()) {
         setResults([]);
         return;
       }
       const lower = q.toLowerCase();
       const found: SearchResult[] = [];
+      const foundIds = new Set<string>();
 
       for (const project of projects) {
         // Search KUs
@@ -70,6 +100,7 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
                 ? "..." + ku.content.slice(Math.max(0, snippetIdx - 30), snippetIdx + 60).replace(/<[^>]*>/g, "") + "..."
                 : undefined,
             });
+            foundIds.add(ku.id);
           }
         }
 
@@ -83,6 +114,7 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
               projectId: project.id,
               projectTitle: project.title,
             });
+            foundIds.add(table.id);
           }
         }
 
@@ -96,6 +128,21 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
               projectId: project.id,
               projectTitle: project.title,
             });
+            foundIds.add(diagram.id);
+          }
+        }
+
+        // Search decks
+        for (const deck of (project.decks || [])) {
+          if (deck.title.toLowerCase().includes(lower)) {
+            found.push({
+              id: deck.id,
+              title: deck.title,
+              type: "deck",
+              projectId: project.id,
+              projectTitle: project.title,
+            });
+            foundIds.add(deck.id);
           }
         }
 
@@ -111,7 +158,78 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
               projectTitle: project.title,
               snippet: "..." + msg.content.slice(Math.max(0, snippetIdx - 20), snippetIdx + 50).replace(/<[^>]*>/g, "") + "...",
             });
+            foundIds.add(`msg-${msg.id}`);
             if (found.filter((f) => f.type === "message").length >= 5) break;
+          }
+        }
+      }
+
+      // Semantic search: find entities by embedding similarity
+      if (queryEmb) {
+        for (const project of projects) {
+          for (const ku of project.knowledgeUnits) {
+            if (ku.embedding && !foundIds.has(ku.id)) {
+              const score = cosineSimilarity(queryEmb, ku.embedding);
+              if (score > 0.5) {
+                found.push({
+                  id: ku.id,
+                  title: ku.title,
+                  type: "ku",
+                  projectId: project.id,
+                  projectTitle: project.title,
+                  snippet: "Semantic match",
+                });
+                foundIds.add(ku.id);
+              }
+            }
+          }
+          for (const table of project.tables) {
+            if (table.embedding && !foundIds.has(table.id)) {
+              const score = cosineSimilarity(queryEmb, table.embedding);
+              if (score > 0.5) {
+                found.push({
+                  id: table.id,
+                  title: table.title,
+                  type: "table",
+                  projectId: project.id,
+                  projectTitle: project.title,
+                  snippet: "Semantic match",
+                });
+                foundIds.add(table.id);
+              }
+            }
+          }
+          for (const diagram of (project.diagrams || [])) {
+            if (diagram.embedding && !foundIds.has(diagram.id)) {
+              const score = cosineSimilarity(queryEmb, diagram.embedding);
+              if (score > 0.5) {
+                found.push({
+                  id: diagram.id,
+                  title: diagram.title,
+                  type: "diagram",
+                  projectId: project.id,
+                  projectTitle: project.title,
+                  snippet: "Semantic match",
+                });
+                foundIds.add(diagram.id);
+              }
+            }
+          }
+          for (const deck of (project.decks || [])) {
+            if (deck.embedding && !foundIds.has(deck.id)) {
+              const score = cosineSimilarity(queryEmb, deck.embedding);
+              if (score > 0.5) {
+                found.push({
+                  id: deck.id,
+                  title: deck.title,
+                  type: "deck",
+                  projectId: project.id,
+                  projectTitle: project.title,
+                  snippet: "Semantic match",
+                });
+                foundIds.add(deck.id);
+              }
+            }
           }
         }
       }
@@ -123,9 +241,9 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
   );
 
   useEffect(() => {
-    const timer = setTimeout(() => search(query), 150);
+    const timer = setTimeout(() => search(query, queryEmbedding), 150);
     return () => clearTimeout(timer);
-  }, [query, search]);
+  }, [query, queryEmbedding, search]);
 
   const openResult = (result: SearchResult) => {
     const state = useAppStore.getState();
@@ -135,6 +253,7 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
     if (result.type === "ku") openKnowledgeUnit(result.id);
     else if (result.type === "table") openTable(result.id);
     else if (result.type === "diagram") openDiagram(result.id);
+    else if (result.type === "deck") openDeck(result.id);
     else if (result.type === "message") {
       // For messages, just switch to the project
       switchProject(result.projectId);
@@ -160,9 +279,10 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
 
   const typeIcon = (type: SearchResult["type"]) => {
     switch (type) {
-      case "ku": return <FileText className="w-4 h-4" style={{ color: design.colors.accent.purple }} />;
-      case "table": return <Table2 className="w-4 h-4" style={{ color: design.colors.accent.teal }} />;
-      case "diagram": return <GitBranch className="w-4 h-4" style={{ color: design.colors.accent.gold }} />;
+      case "ku": return <FileText className="w-4 h-4" style={{ color: design.colors.entity.doc }} />;
+      case "table": return <Table2 className="w-4 h-4" style={{ color: design.colors.entity.sheet }} />;
+      case "diagram": return <GitBranch className="w-4 h-4" style={{ color: design.colors.entity.diagram }} />;
+      case "deck": return <Presentation className="w-4 h-4" style={{ color: design.colors.entity.deck }} />;
       case "message": return <MessageSquare className="w-4 h-4" style={{ color: design.colors.text.muted }} />;
     }
   };
@@ -173,7 +293,7 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
     <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[15vh]" onClick={onClose}>
       <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-[520px] rounded-2xl border overflow-hidden animate-scale-in mx-4"
+        className="relative w-full max-w-[520px] rounded-xl border overflow-hidden animate-scale-in mx-4"
         style={{
           backgroundColor: design.colors.bg.elevated,
           borderColor: design.colors.border.default,

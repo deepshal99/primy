@@ -84,7 +84,7 @@ export function ShareModal({
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="w-full max-w-[420px] rounded-2xl border mx-4 animate-scale-in"
+        className="w-full max-w-[420px] rounded-xl border mx-4 animate-scale-in"
         style={{
           backgroundColor: design.colors.bg.elevated,
           borderColor: design.colors.border.default,
@@ -126,7 +126,7 @@ export function ShareModal({
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center"
+                className="w-9 h-9 rounded-lg flex items-center justify-center"
                 style={{
                   backgroundColor: isShared ? design.colors.brand.subtle : design.colors.bg.secondary,
                 }}
@@ -178,7 +178,7 @@ export function ShareModal({
                 Share link
               </p>
               <div
-                className="flex items-center gap-2 p-2 rounded-xl border"
+                className="flex items-center gap-2 p-2 rounded-lg border"
                 style={{
                   backgroundColor: design.colors.bg.primary,
                   borderColor: design.colors.border.default,

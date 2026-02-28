@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { FileText, Table2, GitBranch, Presentation, Pen, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
+import type { KnowledgeUnit, ProjectTable, ProjectDiagram, ProjectDeck } from "@/lib/types";
 
 export function ProjectHome() {
   const currentProjectId = useAppStore((s) => s.currentProjectId);
@@ -44,34 +45,44 @@ export function ProjectHome() {
   }, [menuOpenId]);
 
   const project = projects.find((p) => p.id === currentProjectId);
-  if (!project) return null;
 
-  const entities = [
-    ...project.knowledgeUnits.map((k) => ({
-      id: k.id,
-      title: k.title,
-      type: "ku" as const,
-      updatedAt: k.updatedAt,
-    })),
-    ...project.tables.map((t) => ({
-      id: t.id,
-      title: t.title,
-      type: "table" as const,
-      updatedAt: t.updatedAt,
-    })),
-    ...(project.diagrams || []).map((d) => ({
-      id: d.id,
-      title: d.title,
-      type: "diagram" as const,
-      updatedAt: d.updatedAt,
-    })),
-    ...(project.decks || []).map((d) => ({
-      id: d.id,
-      title: d.title,
-      type: "deck" as const,
-      updatedAt: d.updatedAt,
-    })),
-  ].sort((a, b) => b.updatedAt - a.updatedAt);
+  // Build entity list with full data for previews
+  // Must be above the early return to keep hook order stable
+  const entities = useMemo(() => {
+    if (!project) return [];
+    return [
+      ...project.knowledgeUnits.map((k) => ({
+        id: k.id,
+        title: k.title,
+        type: "ku" as const,
+        updatedAt: k.updatedAt,
+        data: k as KnowledgeUnit,
+      })),
+      ...project.tables.map((t) => ({
+        id: t.id,
+        title: t.title,
+        type: "table" as const,
+        updatedAt: t.updatedAt,
+        data: t as ProjectTable,
+      })),
+      ...(project.diagrams || []).map((d) => ({
+        id: d.id,
+        title: d.title,
+        type: "diagram" as const,
+        updatedAt: d.updatedAt,
+        data: d as ProjectDiagram,
+      })),
+      ...(project.decks || []).map((d) => ({
+        id: d.id,
+        title: d.title,
+        type: "deck" as const,
+        updatedAt: d.updatedAt,
+        data: d as ProjectDeck,
+      })),
+    ].sort((a, b) => b.updatedAt - a.updatedAt);
+  }, [project]);
+
+  if (!project) return null;
 
   const kuCount = project.knowledgeUnits.length;
   const tableCount = project.tables.length;
@@ -84,10 +95,10 @@ export function ProjectHome() {
       className="h-full overflow-y-auto"
       style={{ backgroundColor: design.colors.bg.primary }}
     >
-      <div className="max-w-3xl mx-auto px-8 py-10">
+      <div className="max-w-3xl mx-auto px-8 py-8">
 
         {/* ── Hero section ── */}
-        <div className="mb-10">
+        <div className="mb-8">
           {/* Editable title */}
           <EditableTitle
             value={project.title}
@@ -105,8 +116,8 @@ export function ProjectHome() {
         {/* ── Files ── */}
         <div>
           {/* Header row: label + create buttons */}
-          <div className="flex items-center gap-2 mb-3">
-            <span style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: design.colors.text.muted }}>
+          <div className="flex items-center gap-2 mb-4">
+            <span style={{ fontSize: "12px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: design.colors.text.muted }}>
               Files
             </span>
             {totalFiles > 0 && (
@@ -114,10 +125,10 @@ export function ProjectHome() {
             )}
             <div className="flex-1" />
             <div className="flex gap-1">
-              <CreatePill icon={<FileText className="w-3 h-3" />} label="Doc" color={design.colors.accent.purple} onClick={() => createKnowledgeUnit(project.id, "New Document")} />
-              <CreatePill icon={<Table2 className="w-3 h-3" />} label="Table" color={design.colors.accent.teal} onClick={() => createTable(project.id, "New Table")} />
-              <CreatePill icon={<GitBranch className="w-3 h-3" />} label="Diagram" color={design.colors.accent.gold} onClick={() => createDiagram(project.id, "New Diagram")} />
-              <CreatePill icon={<Presentation className="w-3 h-3" />} label="Deck" color={design.colors.accent.blue} onClick={() => createDeck(project.id, "New Deck")} />
+              <CreatePill icon={<FileText className="w-3 h-3" />} label="Doc" color={design.colors.entity.doc} onClick={() => createKnowledgeUnit(project.id, "New Document")} />
+              <CreatePill icon={<Table2 className="w-3 h-3" />} label="Table" color={design.colors.entity.sheet} onClick={() => createTable(project.id, "New Table")} />
+              <CreatePill icon={<GitBranch className="w-3 h-3" />} label="Diagram" color={design.colors.entity.diagram} onClick={() => createDiagram(project.id, "New Diagram")} />
+              <CreatePill icon={<Presentation className="w-3 h-3" />} label="Deck" color={design.colors.entity.deck} onClick={() => createDeck(project.id, "New Deck")} />
             </div>
           </div>
 
@@ -126,8 +137,8 @@ export function ProjectHome() {
               <div
                 className="flex flex-col items-center justify-center py-10 mb-6"
                 style={{
-                  borderRadius: "14px",
-                  backgroundColor: design.colors.bg.elevated,
+                  borderRadius: "12px",
+                  backgroundColor: design.colors.bg.secondary,
                   border: `1px solid ${design.colors.border.light}`,
                 }}
               >
@@ -159,32 +170,32 @@ export function ProjectHome() {
                   icon={<FileText className="w-5 h-5" />}
                   label="Document"
                   desc="Notes, drafts, plans"
-                  color={design.colors.accent.purple}
-                  bg={design.colors.accent.purpleSubtle}
+                  color={design.colors.entity.doc}
+                  bg={design.colors.entity.docBg}
                   onClick={() => createKnowledgeUnit(project.id, "New Document")}
                 />
                 <QuickStartCard
                   icon={<Table2 className="w-5 h-5" />}
                   label="Spreadsheet"
                   desc="Tables, trackers, data"
-                  color={design.colors.accent.teal}
-                  bg={design.colors.accent.tealSubtle}
+                  color={design.colors.entity.sheet}
+                  bg={design.colors.entity.sheetBg}
                   onClick={() => createTable(project.id, "New Table")}
                 />
                 <QuickStartCard
                   icon={<GitBranch className="w-5 h-5" />}
                   label="Diagram"
                   desc="Flowcharts, charts"
-                  color={design.colors.accent.gold}
-                  bg={design.colors.accent.goldSubtle}
+                  color={design.colors.entity.diagram}
+                  bg={design.colors.entity.diagramBg}
                   onClick={() => createDiagram(project.id, "New Diagram")}
                 />
                 <QuickStartCard
                   icon={<Presentation className="w-5 h-5" />}
                   label="Deck"
                   desc="Slides, presentations"
-                  color={design.colors.accent.blue}
-                  bg={design.colors.accent.blueSubtle}
+                  color={design.colors.entity.deck}
+                  bg={design.colors.entity.deckBg}
                   onClick={() => createDeck(project.id, "New Deck")}
                 />
               </div>
@@ -219,20 +230,20 @@ export function ProjectHome() {
               </button>
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
               {entities.map((entity) => {
                 const isKu = entity.type === "ku";
                 const isDiagram = entity.type === "diagram";
                 const isDeck = entity.type === "deck";
-                const accent = isDeck ? design.colors.accent.blue : isDiagram ? design.colors.accent.gold : isKu ? design.colors.accent.purple : design.colors.accent.teal;
-                const accentSubtle = isDeck ? design.colors.accent.blueSubtle : isDiagram ? design.colors.accent.goldSubtle : isKu ? design.colors.accent.purpleSubtle : design.colors.accent.tealSubtle;
+                const accent = isDeck ? design.colors.entity.deck : isDiagram ? design.colors.entity.diagram : isKu ? design.colors.entity.doc : design.colors.entity.sheet;
+                const accentBg = isDeck ? design.colors.entity.deckBg : isDiagram ? design.colors.entity.diagramBg : isKu ? design.colors.entity.docBg : design.colors.entity.sheetBg;
 
                 return (
-                  <FileRow
+                  <FileCard
                     key={entity.id}
                     entity={entity}
                     accent={accent}
-                    accentSubtle={accentSubtle}
+                    accentBg={accentBg}
                     onOpen={() => {
                       if (isDeck) openDeck(entity.id);
                       else if (isDiagram) openDiagram(entity.id);
@@ -401,12 +412,71 @@ interface FileEntity {
   title: string;
   type: "ku" | "table" | "diagram" | "deck";
   updatedAt: number;
+  data: KnowledgeUnit | ProjectTable | ProjectDiagram | ProjectDeck;
 }
 
-function FileRow({
+/* ── Preview content extractors ── */
+
+function getDocPreview(data: KnowledgeUnit): string {
+  // Strip HTML tags and get plain text
+  const text = data.content
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.slice(0, 200);
+}
+
+function getTablePreview(data: ProjectTable): { headers: string[]; rows: string[][] } {
+  const sheet = data.sheets?.[0];
+  if (!sheet?.celldata) return { headers: [], rows: [] };
+  // Build a simple grid from celldata
+  const cells: Record<string, string> = {};
+  for (const cell of sheet.celldata) {
+    const r = cell.r;
+    const c = cell.c;
+    const val = cell.v?.v ?? cell.v?.m ?? "";
+    cells[`${r}-${c}`] = String(val);
+  }
+  const maxCols = Math.min(4, Math.max(...sheet.celldata.map((c: any) => c.c)) + 1);
+  const maxRows = Math.min(4, Math.max(...sheet.celldata.map((c: any) => c.r)) + 1);
+  const headers: string[] = [];
+  for (let c = 0; c < maxCols; c++) {
+    headers.push(cells[`0-${c}`] || "");
+  }
+  const rows: string[][] = [];
+  for (let r = 1; r < maxRows; r++) {
+    const row: string[] = [];
+    for (let c = 0; c < maxCols; c++) {
+      row.push(cells[`${r}-${c}`] || "");
+    }
+    rows.push(row);
+  }
+  return { headers, rows };
+}
+
+function getDiagramPreview(data: ProjectDiagram): string {
+  return data.source?.slice(0, 160) || "";
+}
+
+function getDeckPreview(data: ProjectDeck): { title: string; subtitle: string } {
+  const first = data.slides?.[0];
+  if (!first) return { title: "", subtitle: "" };
+  return {
+    title: first.title || "",
+    subtitle: first.subtitle || first.content?.slice(0, 80) || "",
+  };
+}
+
+/* ── Card-based file preview ── */
+
+function FileCard({
   entity,
   accent,
-  accentSubtle,
+  accentBg,
   onOpen,
   onRename,
   onDelete,
@@ -421,7 +491,7 @@ function FileRow({
 }: {
   entity: FileEntity;
   accent: string;
-  accentSubtle: string;
+  accentBg: string;
   onOpen: () => void;
   onRename: (name: string) => void;
   onDelete: () => void;
@@ -434,140 +504,257 @@ function FileRow({
   toggleMenu: () => void;
   closeMenu: () => void;
 }) {
+  const Icon = entity.type === "deck" ? Presentation
+    : entity.type === "diagram" ? GitBranch
+    : entity.type === "ku" ? FileText
+    : Table2;
+
+  const typeLabel = entity.type === "ku" ? "Document"
+    : entity.type === "table" ? "Spreadsheet"
+    : entity.type === "diagram" ? "Diagram"
+    : "Deck";
+
   return (
     <div
-      className="group flex items-center gap-3 px-4 py-3 cursor-pointer transition-all duration-150 relative rounded-xl border"
+      className="group relative flex flex-col rounded-xl border cursor-pointer transition-all duration-150 overflow-hidden"
       style={{
-        backgroundColor: design.colors.bg.elevated,
-        borderColor: design.colors.border.default,
+        backgroundColor: accentBg,
+        borderColor: design.colors.border.light,
       }}
       onClick={() => {
         if (!isRenaming && !menuOpen) onOpen();
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = design.colors.border.focus;
-        e.currentTarget.style.boxShadow = design.shadows.sm;
+        e.currentTarget.style.borderColor = design.colors.border.default;
+        e.currentTarget.style.boxShadow = design.shadows.md;
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = design.colors.border.default;
+        e.currentTarget.style.borderColor = design.colors.border.light;
         e.currentTarget.style.boxShadow = "none";
       }}
     >
-      {/* Icon */}
+      {/* Preview area */}
       <div
-        className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-        style={{ backgroundColor: accentSubtle }}
+        className="relative mx-2.5 mt-2.5 rounded-lg overflow-hidden"
+        style={{
+          backgroundColor: design.colors.bg.elevated,
+          height: "120px",
+        }}
       >
-        {entity.type === "deck" ? (
-          <Presentation className="w-4 h-4" style={{ color: accent }} strokeWidth={1.8} />
-        ) : entity.type === "diagram" ? (
-          <GitBranch className="w-4 h-4" style={{ color: accent }} strokeWidth={1.8} />
-        ) : entity.type === "ku" ? (
-          <FileText className="w-4 h-4" style={{ color: accent }} strokeWidth={1.8} />
-        ) : (
-          <Table2 className="w-4 h-4" style={{ color: accent }} strokeWidth={1.8} />
-        )}
+        <div className="p-3 h-full overflow-hidden text-[10px] leading-[1.5] select-none pointer-events-none" style={{ color: design.colors.text.muted }}>
+          {entity.type === "ku" && (
+            <DocPreviewContent data={entity.data as KnowledgeUnit} />
+          )}
+          {entity.type === "table" && (
+            <TablePreviewContent data={entity.data as ProjectTable} accent={accent} />
+          )}
+          {entity.type === "diagram" && (
+            <DiagramPreviewContent data={entity.data as ProjectDiagram} accent={accent} />
+          )}
+          {entity.type === "deck" && (
+            <DeckPreviewContent data={entity.data as ProjectDeck} />
+          )}
+        </div>
+        {/* Fade overlay at bottom */}
+        <div
+          className="absolute bottom-0 left-0 right-0 h-8"
+          style={{
+            background: `linear-gradient(to bottom, transparent, ${design.colors.bg.elevated})`,
+          }}
+        />
       </div>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        {isRenaming ? (
-          <input
-            autoFocus
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            onClick={(e) => e.stopPropagation()}
-            onBlur={() => {
-              if (renameValue.trim() && renameValue.trim() !== entity.title) {
-                onRename(renameValue.trim());
-              }
-              stopRename();
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-              if (e.key === "Escape") stopRename();
-            }}
-            className="block w-full bg-transparent outline-none border-b-2 pb-0.5"
-            style={{
-              fontSize: "13px",
-              fontWeight: 600,
-              color: design.colors.text.primary,
-              fontFamily: design.typography.family.heading,
-              borderColor: accent,
-            }}
-          />
-        ) : (
-          <span
-            className="block truncate"
-            style={{
-              fontSize: "13px",
-              fontWeight: 600,
-              color: design.colors.text.primary,
-              fontFamily: design.typography.family.heading,
-              lineHeight: "1.3",
-            }}
-          >
-            {entity.title}
-          </span>
-        )}
-      </div>
-
-      {/* Timestamp */}
-      <span
-        className="flex-shrink-0 text-right hidden sm:block"
-        style={{ fontSize: "11px", color: design.colors.text.placeholder, minWidth: "60px" }}
-      >
-        {formatTimeAgo(entity.updatedAt)}
-      </span>
-
-      {/* Menu */}
-      <div
-        className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-        data-entity-menu
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          onClick={toggleMenu}
-          className="p-1 rounded-md transition-colors"
-          style={{ backgroundColor: menuOpen ? design.colors.bg.tertiary : "transparent" }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.tertiary; }}
-          onMouseLeave={(e) => { if (!menuOpen) e.currentTarget.style.backgroundColor = "transparent"; }}
+      {/* Footer: icon + name + menu */}
+      <div className="flex items-center gap-2 px-3 py-2.5">
+        <div
+          className="flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center"
+          style={{ backgroundColor: accentBg }}
         >
-          <MoreHorizontal className="w-4 h-4" style={{ color: design.colors.text.muted }} />
-        </button>
+          <Icon className="w-3 h-3" style={{ color: accent }} strokeWidth={2} />
+        </div>
+        <div className="flex-1 min-w-0">
+          {isRenaming ? (
+            <input
+              autoFocus
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              onBlur={() => {
+                if (renameValue.trim() && renameValue.trim() !== entity.title) {
+                  onRename(renameValue.trim());
+                }
+                stopRename();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                if (e.key === "Escape") stopRename();
+              }}
+              className="block w-full bg-transparent outline-none border-b-2 pb-0.5"
+              style={{
+                fontSize: "13px",
+                fontWeight: 600,
+                color: design.colors.text.primary,
+                fontFamily: design.typography.family.heading,
+                borderColor: accent,
+              }}
+            />
+          ) : (
+            <>
+              <span
+                className="block truncate"
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  color: design.colors.text.primary,
+                  fontFamily: design.typography.family.heading,
+                  lineHeight: "1.3",
+                }}
+              >
+                {entity.title}
+              </span>
+              <span style={{ fontSize: "10px", color: design.colors.text.muted }}>
+                {typeLabel}
+              </span>
+            </>
+          )}
+        </div>
 
-        {menuOpen && (
-          <div
-            className="absolute top-full right-4 mt-1 border rounded-xl py-1 min-w-[140px] z-50"
-            style={{
-              backgroundColor: design.colors.bg.elevated,
-              borderColor: design.colors.border.default,
-              boxShadow: design.shadows.dropdown,
-            }}
+        {/* Context menu */}
+        <div
+          className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          data-entity-menu
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={toggleMenu}
+            className="p-1 rounded-md transition-colors"
+            style={{ backgroundColor: menuOpen ? design.colors.bg.tertiary : "transparent" }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.tertiary; }}
+            onMouseLeave={(e) => { if (!menuOpen) e.currentTarget.style.backgroundColor = "transparent"; }}
           >
-            <button
-              onClick={() => { startRename(); closeMenu(); }}
-              className="w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-left transition-colors"
-              style={{ color: design.colors.text.primary }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+            <MoreHorizontal className="w-4 h-4" style={{ color: design.colors.text.muted }} />
+          </button>
+
+          {menuOpen && (
+            <div
+              className="absolute bottom-12 right-2 border rounded-lg py-1 min-w-[140px] z-50"
+              style={{
+                backgroundColor: design.colors.bg.elevated,
+                borderColor: design.colors.border.default,
+                boxShadow: design.shadows.dropdown,
+              }}
             >
-              <Pencil className="w-3.5 h-3.5" />
-              Rename
-            </button>
-            <button
-              onClick={() => { closeMenu(); onDelete(); }}
-              className="w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-left transition-colors"
-              style={{ color: "#e54545" }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(229,69,69,0.06)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Delete
-            </button>
-          </div>
-        )}
+              <button
+                onClick={() => { startRename(); closeMenu(); }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-left transition-colors"
+                style={{ color: design.colors.text.primary }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                Rename
+              </button>
+              <button
+                onClick={() => { closeMenu(); onDelete(); }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-left transition-colors"
+                style={{ color: design.colors.status.error }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.status.errorBg; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+    </div>
+  );
+}
+
+/* ── Preview content components ── */
+
+function DocPreviewContent({ data }: { data: KnowledgeUnit }) {
+  const text = getDocPreview(data);
+  if (!text) return <span className="italic opacity-50">Empty document</span>;
+  return (
+    <div style={{ fontFamily: design.typography.family.sans, fontSize: "10px", lineHeight: "1.6", color: design.colors.text.secondary }}>
+      {text}
+    </div>
+  );
+}
+
+function TablePreviewContent({ data, accent }: { data: ProjectTable; accent: string }) {
+  const { headers, rows } = getTablePreview(data);
+  if (headers.length === 0) return <span className="italic opacity-50">Empty spreadsheet</span>;
+  return (
+    <table className="w-full border-collapse" style={{ fontSize: "9px" }}>
+      <thead>
+        <tr>
+          {headers.map((h, i) => (
+            <th
+              key={i}
+              className="text-left px-1.5 py-1 border-b truncate max-w-[80px]"
+              style={{ borderColor: `${accent}20`, fontWeight: 600, color: design.colors.text.secondary }}
+            >
+              {h || "\u00A0"}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row, ri) => (
+          <tr key={ri}>
+            {row.map((cell, ci) => (
+              <td
+                key={ci}
+                className="px-1.5 py-0.5 border-b truncate max-w-[80px]"
+                style={{ borderColor: `${accent}10`, color: design.colors.text.muted }}
+              >
+                {cell || "\u00A0"}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function DiagramPreviewContent({ data, accent }: { data: ProjectDiagram; accent: string }) {
+  const preview = getDiagramPreview(data);
+  if (!preview) return <span className="italic opacity-50">Empty diagram</span>;
+  return (
+    <pre
+      className="whitespace-pre-wrap"
+      style={{
+        fontFamily: design.typography.family.mono,
+        fontSize: "9px",
+        lineHeight: "1.5",
+        color: accent,
+        opacity: 0.7,
+      }}
+    >
+      {preview}
+    </pre>
+  );
+}
+
+function DeckPreviewContent({ data }: { data: ProjectDeck }) {
+  const { title, subtitle } = getDeckPreview(data);
+  if (!title && !subtitle) return <span className="italic opacity-50">Empty deck</span>;
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-center px-2">
+      {title && (
+        <div style={{ fontSize: "12px", fontWeight: 700, color: design.colors.text.primary, fontFamily: design.typography.family.heading, lineHeight: "1.3", marginBottom: "4px" }}>
+          {title}
+        </div>
+      )}
+      {subtitle && (
+        <div style={{ fontSize: "9px", color: design.colors.text.muted, lineHeight: "1.4" }}>
+          {subtitle}
+        </div>
+      )}
     </div>
   );
 }
@@ -580,7 +767,7 @@ function QuickStartCard({
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-2 p-5 rounded-xl border transition-all duration-150"
+      className="flex flex-col items-center gap-2 p-4 rounded-lg border transition-all duration-150"
       style={{
         backgroundColor: design.colors.bg.elevated,
         borderColor: design.colors.border.default,
@@ -641,16 +828,3 @@ function CreatePill({ icon, label, color, onClick }: { icon: React.ReactNode; la
   );
 }
 
-// ── Helpers ──
-
-function formatTimeAgo(timestamp: number): string {
-  const diff = Date.now() - timestamp;
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return "Just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}

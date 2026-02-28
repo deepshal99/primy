@@ -55,96 +55,65 @@ export function DocExportMenu() {
   const hasContent = docContent.length > 0;
 
   const downloadPDF = useCallback(async () => {
-    const { default: jsPDF } = await import("jspdf");
+    const title = getEntityTitle();
 
-    const doc = new jsPDF({ unit: "mm", format: "a4" });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 20;
-    const maxWidth = pageWidth - margin * 2;
-    let y = margin;
-
+    // Convert markdown to styled HTML for server-side PDF rendering
     const lines = docContent.split("\n");
-
+    const htmlParts: string[] = [];
     for (const line of lines) {
-      // Check if we need a new page
-      if (y > 270) {
-        doc.addPage();
-        y = margin;
-      }
+      // Apply inline formatting
+      const fmt = (t: string) =>
+        t.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+          .replace(/\*(.*?)\*/g, "<em>$1</em>")
+          .replace(/`(.*?)`/g, '<code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;font-family:monospace;font-size:0.9em">$1</code>');
 
       if (line.startsWith("# ")) {
-        doc.setFontSize(22);
-        doc.setFont("helvetica", "bold");
-        const text = line.replace(/^# /, "");
-        const wrapped = doc.splitTextToSize(text, maxWidth);
-        doc.text(wrapped, margin, y);
-        y += wrapped.length * 8 + 4;
+        htmlParts.push(`<h1 style="font-size:24px;font-weight:700;margin:18px 0 8px;font-family:'DM Sans',sans-serif">${fmt(line.slice(2))}</h1>`);
       } else if (line.startsWith("## ")) {
-        doc.setFontSize(17);
-        doc.setFont("helvetica", "bold");
-        const text = line.replace(/^## /, "");
-        const wrapped = doc.splitTextToSize(text, maxWidth);
-        doc.text(wrapped, margin, y);
-        y += wrapped.length * 7 + 3;
+        htmlParts.push(`<h2 style="font-size:19px;font-weight:700;margin:14px 0 6px;font-family:'DM Sans',sans-serif">${fmt(line.slice(3))}</h2>`);
       } else if (line.startsWith("### ")) {
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        const text = line.replace(/^### /, "");
-        const wrapped = doc.splitTextToSize(text, maxWidth);
-        doc.text(wrapped, margin, y);
-        y += wrapped.length * 6 + 2;
+        htmlParts.push(`<h3 style="font-size:15px;font-weight:700;margin:10px 0 4px;font-family:'DM Sans',sans-serif">${fmt(line.slice(4))}</h3>`);
       } else if (line.startsWith("- ") || line.startsWith("* ")) {
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "normal");
-        const text = line.replace(/^[-*] /, "");
-        const wrapped = doc.splitTextToSize(text, maxWidth - 8);
-        doc.text("\u2022", margin, y);
-        doc.text(wrapped, margin + 6, y);
-        y += wrapped.length * 5 + 1;
+        htmlParts.push(`<div style="display:flex;gap:8px;margin:2px 0;font-size:11pt;line-height:1.6"><span style="color:#999">&bull;</span><span>${fmt(line.slice(2))}</span></div>`);
       } else if (/^\d+\. /.test(line)) {
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "normal");
-        const match = line.match(/^(\d+)\. (.*)/);
-        if (match) {
-          const wrapped = doc.splitTextToSize(match[2], maxWidth - 10);
-          doc.text(`${match[1]}.`, margin, y);
-          doc.text(wrapped, margin + 8, y);
-          y += wrapped.length * 5 + 1;
-        }
-      } else if (line.trim() === "") {
-        y += 3;
+        const m = line.match(/^(\d+)\. (.*)/);
+        if (m) htmlParts.push(`<div style="display:flex;gap:8px;margin:2px 0;font-size:11pt;line-height:1.6"><span style="min-width:20px">${m[1]}.</span><span>${fmt(m[2])}</span></div>`);
       } else if (line.startsWith("> ")) {
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "italic");
-        const text = line.replace(/^> /, "");
-        const wrapped = doc.splitTextToSize(text, maxWidth - 10);
-        doc.setDrawColor(200);
-        doc.setLineWidth(0.5);
-        doc.line(margin + 2, y - 3, margin + 2, y + wrapped.length * 5);
-        doc.text(wrapped, margin + 6, y);
-        y += wrapped.length * 5 + 2;
+        htmlParts.push(`<blockquote style="border-left:3px solid #ddd;padding-left:12px;margin:6px 0;color:#666;font-style:italic;font-size:11pt">${fmt(line.slice(2))}</blockquote>`);
       } else if (line === "---") {
-        doc.setDrawColor(200);
-        doc.setLineWidth(0.3);
-        doc.line(margin, y, pageWidth - margin, y);
-        y += 4;
+        htmlParts.push('<hr style="border:none;border-top:1px solid #e0e0e0;margin:10px 0">');
+      } else if (line.trim() === "") {
+        htmlParts.push('<div style="height:8px"></div>');
       } else {
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "normal");
-        // Strip bold/italic markdown for PDF
-        const cleanText = line
-          .replace(/\*\*(.*?)\*\*/g, "$1")
-          .replace(/\*(.*?)\*/g, "$1")
-          .replace(/`(.*?)`/g, "$1");
-        const wrapped = doc.splitTextToSize(cleanText, maxWidth);
-        doc.text(wrapped, margin, y);
-        y += wrapped.length * 5 + 1;
+        htmlParts.push(`<p style="font-size:11pt;line-height:1.6;margin:2px 0">${fmt(line)}</p>`);
       }
     }
 
-    doc.save(`${getEntityTitle()}.pdf`);
+    const html = htmlParts.join("\n");
+    const css = `* { margin: 0; padding: 0; box-sizing: border-box; } body { font-family: 'DM Sans', -apple-system, sans-serif; color: #111; padding: 0.6in; }`;
+
+    try {
+      const res = await fetch("/api/export/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ html, css }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "PDF generation failed" }));
+        throw new Error(err.error || "PDF generation failed");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${title}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Downloaded PDF");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to generate PDF");
+    }
     setOpen(false);
-    toast.success("Downloaded PDF");
   }, [docContent]);
 
   const downloadDocx = useCallback(async () => {

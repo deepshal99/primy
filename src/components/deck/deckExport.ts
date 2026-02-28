@@ -1,194 +1,268 @@
 import { DeckSlide } from "@/lib/types";
-import { getThemeConfig } from "./deckThemes";
+import { ThemeConfig, getThemeConfig } from "./deckThemes";
 
-export async function exportDeckToPDF(slides: DeckSlide[], theme: string) {
-  const { jsPDF } = await import("jspdf");
-  const t = getThemeConfig(theme);
-  const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: [960, 540] });
+/**
+ * Build a Google Fonts <link> tag for the given theme fonts.
+ */
+function fontLinkTag(t: ThemeConfig): string {
+  const fonts = t.googleFonts;
+  if (!fonts.length) return "";
+  const params = fonts
+    .map((f) => `family=${f.replace(/ /g, "+")}:wght@400;500;600;700;800;900`)
+    .join("&");
+  return `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?${params}&display=swap">`;
+}
 
-  for (let i = 0; i < slides.length; i++) {
-    if (i > 0) pdf.addPage([960, 540], "landscape");
+/**
+ * Generate the decorative background HTML for a slide, mirroring DecorLayer from SlideRenderer.
+ */
+function decorHtml(t: ThemeConfig): string {
+  switch (t.decorStyle) {
+    case "geometric":
+      return `
+        <div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;border:2px solid ${t.accentLight};border-radius:16px;transform:rotate(45deg)"></div>
+        <div style="position:absolute;bottom:40px;left:-20px;width:60px;height:60px;background:${t.accentLight};border-radius:8px;transform:rotate(15deg)"></div>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,${t.accent},${t.accentAlt})"></div>`;
+    case "organic":
+      return `
+        <div style="position:absolute;top:-120px;right:-80px;width:400px;height:400px;background:radial-gradient(circle,${t.accentLight} 0%,transparent 70%);border-radius:50%"></div>
+        <div style="position:absolute;bottom:-100px;left:-60px;width:300px;height:300px;background:radial-gradient(circle,${t.accentLight} 0%,transparent 70%);border-radius:50%"></div>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent 0%,${t.accent} 50%,transparent 100%);opacity:0.4"></div>`;
+    case "minimal":
+      return `
+        <div style="position:absolute;top:48px;left:0;width:4px;height:80px;background:${t.accent};border-radius:0 2px 2px 0;opacity:0.8"></div>
+        <div style="position:absolute;bottom:0;left:72px;right:72px;height:1px;background:${t.divider}"></div>`;
+    case "gradient":
+      return `
+        <div style="position:absolute;top:-150px;right:-100px;width:500px;height:500px;background:radial-gradient(circle,${t.accentLight} 0%,transparent 60%);border-radius:50%"></div>
+        <div style="position:absolute;bottom:-120px;left:-80px;width:400px;height:400px;background:radial-gradient(circle,rgba(255,60,172,0.08) 0%,transparent 60%);border-radius:50%"></div>`;
+    case "dots":
+      return `
+        <div style="position:absolute;inset:0;opacity:0.04;background-image:radial-gradient(${t.accent} 1px,transparent 1px);background-size:24px 24px"></div>
+        <div style="position:absolute;top:-80px;right:-80px;width:300px;height:300px;background:radial-gradient(circle,${t.accentLight} 0%,transparent 60%);border-radius:50%"></div>
+        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,${t.accent},${t.accentAlt})"></div>`;
+    case "lines":
+      return `
+        <div style="position:absolute;top:0;right:0;width:200px;height:200px;opacity:0.03;background-image:repeating-linear-gradient(-45deg,${t.accent},${t.accent} 1px,transparent 1px,transparent 16px)"></div>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,${t.accent},${t.accentAlt})"></div>
+        <div style="position:absolute;top:24px;right:24px;width:48px;height:48px;border:1.5px solid ${t.accentLight};border-radius:8px;transform:rotate(45deg)"></div>`;
+    default:
+      return "";
+  }
+}
 
-    const slide = slides[i];
+/** Escape HTML entities */
+function esc(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
 
-    // Background
-    const bgColor = resolveColor(t.bg);
-    pdf.setFillColor(bgColor);
-    pdf.rect(0, 0, 960, 540, "F");
+/**
+ * Render a single slide's inner content as HTML matching SlideRenderer layouts.
+ */
+function slideContentHtml(slide: DeckSlide, t: ThemeConfig): string {
+  const isCentered = slide.layout === "title" || slide.layout === "section" || slide.layout === "quote";
+  const padding = isCentered ? "64px 80px" : "56px 72px";
+  const justify = isCentered ? "center" : "flex-start";
+  const headingCss = `font-weight:${t.headingWeight};font-family:${t.headingFont};letter-spacing:-0.02em;color:${t.text};${t.headingCase === "uppercase" ? "text-transform:uppercase;" : ""}`;
 
-    // Bottom accent bar
-    const accentRgb = hexToRgb(t.accent);
-    pdf.setFillColor(accentRgb.r, accentRgb.g, accentRgb.b);
-    pdf.rect(0, 537, 960, 3, "F");
+  switch (slide.layout) {
+    case "title":
+      return `<div style="text-align:center;max-width:800px;margin:0 auto;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:${justify};padding:${padding};box-sizing:border-box;height:100%">
+        <div style="width:48px;height:4px;border-radius:2px;background:linear-gradient(90deg,${t.accent},${t.accentAlt});margin-bottom:28px"></div>
+        <div style="font-size:52px;line-height:1.12;letter-spacing:-0.03em;text-align:center;${headingCss}">${esc(slide.title || "Untitled")}</div>
+        ${slide.subtitle ? `<div style="font-size:21px;color:${t.textSecondary};line-height:1.55;font-weight:400;letter-spacing:0.01em;text-align:center;margin-top:20px;font-family:${t.bodyFont}">${esc(slide.subtitle)}</div>` : ""}
+      </div>`;
 
-    pdf.setFont("helvetica");
-    const textColor = hexToRgb(resolveColor(t.text));
-    const subtitleColor = hexToRgb(resolveColor(t.textSecondary));
-    const accentColor = hexToRgb(t.accent);
+    case "section":
+      return `<div style="text-align:center;max-width:700px;margin:0 auto;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:${justify};padding:${padding};box-sizing:border-box;height:100%">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:28px">
+          <div style="width:40px;height:1px;background:${t.divider}"></div>
+          <div style="width:10px;height:10px;border-radius:50%;border:2px solid ${t.accent}"></div>
+          <div style="width:40px;height:1px;background:${t.divider}"></div>
+        </div>
+        <div style="font-size:44px;line-height:1.2;text-align:center;${headingCss}">${esc(slide.title || "Section")}</div>
+      </div>`;
 
-    switch (slide.layout) {
-      case "title": {
-        pdf.setFillColor(accentColor.r, accentColor.g, accentColor.b);
-        pdf.roundedRect(456, 200, 48, 4, 2, 2, "F");
-        pdf.setFontSize(44);
-        pdf.setFont("helvetica", "bold");
-        pdf.setTextColor(textColor.r, textColor.g, textColor.b);
-        const titleLines = pdf.splitTextToSize(slide.title || "Untitled", 760);
-        pdf.text(titleLines, 480, 240, { align: "center" });
-        if (slide.subtitle) {
-          pdf.setFontSize(20);
-          pdf.setFont("helvetica", "normal");
-          pdf.setTextColor(subtitleColor.r, subtitleColor.g, subtitleColor.b);
-          pdf.text(slide.subtitle, 480, 240 + titleLines.length * 50 + 16, { align: "center" });
+    case "bullets": {
+      const bullets = slide.bullets || [];
+      const bulletItems = bullets.map((b, i) => {
+        let icon = "";
+        switch (t.bulletStyle) {
+          case "number":
+            icon = `<span style="flex-shrink:0;width:28px;height:28px;border-radius:50%;background:${t.accentLight};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:${t.accent};font-family:${t.bodyFont};margin-top:2px">${i + 1}</span>`;
+            break;
+          case "dash":
+            icon = `<span style="flex-shrink:0;font-size:20px;font-weight:700;color:${t.accent};line-height:1;margin-top:4px">&mdash;</span>`;
+            break;
+          case "arrow":
+            icon = `<span style="flex-shrink:0;font-size:22px;font-weight:700;color:${t.accent};margin-top:1px">&rsaquo;</span>`;
+            break;
+          case "check":
+            icon = `<span style="flex-shrink:0;width:22px;height:22px;border-radius:6px;background:${t.accent};display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;margin-top:3px">&#10003;</span>`;
+            break;
+          case "ring":
+            icon = `<span style="flex-shrink:0;width:12px;height:12px;border-radius:50%;border:2.5px solid ${t.accent};margin-top:8px"></span>`;
+            break;
+          case "bar":
+            icon = `<span style="flex-shrink:0;width:4px;height:20px;border-radius:2px;background:${t.accent};margin-top:5px"></span>`;
+            break;
+          default:
+            icon = `<span style="flex-shrink:0;width:8px;height:8px;border-radius:50%;background:${t.accent};margin-top:10px"></span>`;
         }
-        break;
-      }
-      case "section": {
-        pdf.setDrawColor(accentColor.r, accentColor.g, accentColor.b);
-        pdf.setLineWidth(1);
-        pdf.line(410, 240, 450, 240);
-        pdf.circle(480, 240, 5);
-        pdf.line(510, 240, 550, 240);
-        pdf.setFontSize(36);
-        pdf.setFont("helvetica", "bold");
-        pdf.setTextColor(textColor.r, textColor.g, textColor.b);
-        pdf.text(slide.title || "Section", 480, 280, { align: "center" });
-        break;
-      }
-      case "bullets": {
-        let y = 56;
-        if (slide.title) {
-          pdf.setFontSize(28);
-          pdf.setFont("helvetica", "bold");
-          pdf.setTextColor(textColor.r, textColor.g, textColor.b);
-          pdf.text(slide.title, 72, y + 28);
-          y += 64;
-        }
-        pdf.setFontSize(18);
-        pdf.setFont("helvetica", "normal");
-        for (const bullet of slide.bullets || []) {
-          pdf.setFillColor(accentColor.r, accentColor.g, accentColor.b);
-          pdf.circle(84, y + 16, 4, "F");
-          pdf.setTextColor(textColor.r, textColor.g, textColor.b);
-          const lines = pdf.splitTextToSize(bullet, 780);
-          pdf.text(lines, 100, y + 20);
-          y += lines.length * 24 + 20;
-        }
-        break;
-      }
-      case "stats": {
-        let y = 56;
-        if (slide.title) {
-          pdf.setFontSize(28);
-          pdf.setFont("helvetica", "bold");
-          pdf.setTextColor(textColor.r, textColor.g, textColor.b);
-          pdf.text(slide.title, 72, y + 28);
-          y += 80;
-        }
-        const stats = slide.stats || [];
-        const count = Math.min(stats.length, 4);
-        if (count > 0) {
-          const cardW = (816 - (count - 1) * 20) / count;
-          for (let si = 0; si < count; si++) {
-            const cx = 72 + si * (cardW + 20);
-            // Card background
-            const cardRgb = hexToRgb(resolveColor(t.cardBg));
-            pdf.setFillColor(cardRgb.r, cardRgb.g, cardRgb.b);
-            pdf.roundedRect(cx, y, cardW, 160, 8, 8, "F");
-            // Value
-            pdf.setFontSize(40);
-            pdf.setFont("helvetica", "bold");
-            pdf.setTextColor(accentColor.r, accentColor.g, accentColor.b);
-            pdf.text(stats[si].value, cx + cardW / 2, y + 75, { align: "center" });
-            // Label
-            pdf.setFontSize(11);
-            pdf.setFont("helvetica", "normal");
-            pdf.setTextColor(subtitleColor.r, subtitleColor.g, subtitleColor.b);
-            pdf.text(stats[si].label.toUpperCase(), cx + cardW / 2, y + 110, { align: "center" });
-          }
-        }
-        break;
-      }
-      case "quote": {
-        pdf.setFontSize(80);
-        pdf.setTextColor(accentColor.r, accentColor.g, accentColor.b);
-        pdf.setFont("helvetica", "bold");
-        pdf.text('"', 480, 190, { align: "center" });
-        pdf.setFontSize(22);
-        pdf.setFont("helvetica", "italic");
-        pdf.setTextColor(textColor.r, textColor.g, textColor.b);
-        const quoteLines = pdf.splitTextToSize(slide.content || "", 620);
-        pdf.text(quoteLines, 480, 230, { align: "center" });
-        if (slide.title) {
-          const attrY = 230 + quoteLines.length * 28 + 28;
-          pdf.setFillColor(accentColor.r, accentColor.g, accentColor.b);
-          pdf.rect(456, attrY - 6, 24, 2, "F");
-          pdf.rect(480 + 4, attrY - 6, 24, 2, "F");
-          pdf.setFontSize(14);
-          pdf.setFont("helvetica", "normal");
-          pdf.setTextColor(subtitleColor.r, subtitleColor.g, subtitleColor.b);
-          pdf.text(slide.title, 480, attrY + 10, { align: "center" });
-        }
-        break;
-      }
-      case "twoColumn": {
-        let y = 56;
-        if (slide.title) {
-          pdf.setFontSize(28);
-          pdf.setFont("helvetica", "bold");
-          pdf.setTextColor(textColor.r, textColor.g, textColor.b);
-          pdf.text(slide.title, 72, y + 28);
-          pdf.setFillColor(accentColor.r, accentColor.g, accentColor.b);
-          pdf.roundedRect(72, y + 40, 48, 3, 1, 1, "F");
-          y += 72;
-        }
-        pdf.setFontSize(16);
-        pdf.setFont("helvetica", "normal");
-        pdf.setTextColor(subtitleColor.r, subtitleColor.g, subtitleColor.b);
-        const leftLines = pdf.splitTextToSize(slide.content || "", 380);
-        pdf.text(leftLines, 72, y + 18);
-        const rightLines = pdf.splitTextToSize(slide.subtitle || "", 380);
-        pdf.text(rightLines, 504, y + 18);
-        break;
-      }
-      default: {
-        let y = 56;
-        if (slide.title) {
-          pdf.setFontSize(28);
-          pdf.setFont("helvetica", "bold");
-          pdf.setTextColor(textColor.r, textColor.g, textColor.b);
-          pdf.text(slide.title, 72, y + 28);
-          pdf.setFillColor(accentColor.r, accentColor.g, accentColor.b);
-          pdf.roundedRect(72, y + 40, 48, 3, 1, 1, "F");
-          y += 68;
-        }
-        if (slide.content) {
-          pdf.setFontSize(16);
-          pdf.setFont("helvetica", "normal");
-          pdf.setTextColor(subtitleColor.r, subtitleColor.g, subtitleColor.b);
-          const lines = pdf.splitTextToSize(slide.content, 816);
-          pdf.text(lines, 72, y + 18);
-        }
-        break;
-      }
+        return `<div style="display:flex;align-items:flex-start;gap:14px;padding:10px 16px;background:${t.cardBg};border:1px solid ${t.cardBorder};border-radius:10px">
+          ${icon}
+          <span style="font-size:19px;line-height:1.5;flex:1;font-family:${t.bodyFont}">${esc(b)}</span>
+        </div>`;
+      }).join("\n");
+
+      return `<div style="display:flex;flex-direction:column;justify-content:flex-start;padding:${padding};box-sizing:border-box;height:100%">
+        ${slide.title ? `<div style="font-size:34px;margin-bottom:32px;line-height:1.2;${headingCss}">${esc(slide.title)}</div>` : ""}
+        <div style="display:flex;flex-direction:column;gap:10px;overflow:hidden;flex:1">${bulletItems}</div>
+      </div>`;
     }
+
+    case "stats": {
+      const stats = slide.stats || [];
+      const statCards = stats.map((s) => `
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 20px;border-radius:14px;background:${t.cardBg};border:1px solid ${t.cardBorder};text-align:center;gap:8px">
+          <div style="font-size:48px;font-weight:${t.headingWeight};font-family:${t.headingFont};color:${t.accent};letter-spacing:-0.03em;line-height:1.1">${esc(s.value)}</div>
+          <div style="font-size:14px;font-weight:600;font-family:${t.bodyFont};color:${t.textSecondary};letter-spacing:0.04em;text-transform:uppercase">${esc(s.label)}</div>
+        </div>`).join("\n");
+
+      return `<div style="display:flex;flex-direction:column;justify-content:flex-start;padding:${padding};box-sizing:border-box;height:100%">
+        ${slide.title ? `<div style="font-size:34px;margin-bottom:36px;line-height:1.2;${headingCss}">${esc(slide.title)}</div>` : ""}
+        <div style="display:flex;gap:20px;flex:1;align-items:stretch">${statCards}</div>
+      </div>`;
+    }
+
+    case "quote":
+      return `<div style="text-align:center;max-width:720px;margin:0 auto;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:${padding};box-sizing:border-box;height:100%">
+        <div style="font-size:120px;line-height:0.6;font-family:${t.headingFont};color:${t.accent};opacity:0.25;margin-bottom:12px;font-weight:${t.headingWeight}">&ldquo;</div>
+        <div style="font-size:28px;font-style:italic;line-height:1.55;font-weight:400;letter-spacing:0.005em;color:${t.text};font-family:${t.headingFont};text-align:center">${esc(slide.content || "")}</div>
+        ${slide.title ? `<div style="margin-top:32px;display:flex;align-items:center;justify-content:center;gap:12px">
+          <div style="width:24px;height:2px;background:${t.accent};border-radius:1px"></div>
+          <div style="font-size:16px;color:${t.textSecondary};font-weight:500;letter-spacing:0.03em;font-family:${t.bodyFont}">${esc(slide.title)}</div>
+          <div style="width:24px;height:2px;background:${t.accent};border-radius:1px"></div>
+        </div>` : ""}
+      </div>`;
+
+    case "twoColumn":
+      return `<div style="display:flex;flex-direction:column;justify-content:flex-start;padding:${padding};box-sizing:border-box;height:100%">
+        ${slide.title ? `<div style="font-size:34px;margin-bottom:12px;line-height:1.2;${headingCss}">${esc(slide.title)}</div>
+        <div style="width:48px;height:3px;border-radius:2px;margin-bottom:32px;background:linear-gradient(90deg,${t.accent},${t.accentAlt})"></div>` : ""}
+        <div style="display:flex;gap:28px;flex:1">
+          <div style="flex:1;padding:20px 24px;border-radius:12px;background:${t.cardBg};border:1px solid ${t.cardBorder}">
+            <div style="font-size:17px;line-height:1.65;color:${t.textSecondary};white-space:pre-wrap;font-family:${t.bodyFont}">${esc(slide.content || "")}</div>
+          </div>
+          <div style="flex:1;padding:20px 24px;border-radius:12px;background:${t.cardBg};border:1px solid ${t.cardBorder}">
+            <div style="font-size:17px;line-height:1.65;color:${t.textSecondary};white-space:pre-wrap;font-family:${t.bodyFont}">${esc(slide.subtitle || "")}</div>
+          </div>
+        </div>
+      </div>`;
+
+    case "titleContent":
+    default:
+      return `<div style="display:flex;flex-direction:column;justify-content:flex-start;padding:${padding};box-sizing:border-box;height:100%">
+        ${slide.title ? `<div style="font-size:34px;margin-bottom:12px;line-height:1.2;${headingCss}">${esc(slide.title)}</div>
+        <div style="width:48px;height:3px;border-radius:2px;margin-bottom:28px;background:linear-gradient(90deg,${t.accent},${t.accentAlt})"></div>` : ""}
+        ${slide.content ? `<div style="font-size:19px;line-height:1.7;color:${t.textSecondary};white-space:pre-wrap;max-width:780px;font-family:${t.bodyFont};flex:1">${esc(slide.content)}</div>` : ""}
+      </div>`;
+  }
+}
+
+/**
+ * Render a full slide (background + decor + content) as standalone HTML.
+ */
+function slideToHtml(slide: DeckSlide, t: ThemeConfig): string {
+  // HTML slides already have their own markup
+  if (slide.layout === "html" && slide.html) {
+    return slide.html;
   }
 
-  pdf.save("presentation.pdf");
+  return `<div style="width:960px;height:540px;position:relative;overflow:hidden;background:${t.bg};color:${t.text};font-family:${t.bodyFont};box-sizing:border-box">
+    ${decorHtml(t)}
+    <div style="position:relative;z-index:1;width:100%;height:100%">
+      ${slideContentHtml(slide, t)}
+    </div>
+  </div>`;
 }
+
+/**
+ * Export deck as PDF via server-side Puppeteer rendering.
+ * Each slide becomes a separate landscape page.
+ */
+export async function exportDeckToPDF(slides: DeckSlide[], theme: string) {
+  const t = getThemeConfig(theme);
+
+  // Build a single HTML document with all slides as page-break-separated sections
+  const slidePages = slides.map((slide) => slideToHtml(slide, t)).join("\n");
+
+  const css = `
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    @page { size: 960px 540px; margin: 0; }
+    body { width: 960px; margin: 0; padding: 0; }
+    .slide-page { width: 960px; height: 540px; overflow: hidden; page-break-after: always; position: relative; }
+    .slide-page:last-child { page-break-after: auto; }
+  `;
+
+  // Wrap each slide in a page container
+  const wrappedSlides = slides.map((slide) =>
+    `<div class="slide-page">${slideToHtml(slide, t)}</div>`
+  ).join("\n");
+
+  const html = `${fontLinkTag(t)}${wrappedSlides}`;
+
+  const res = await fetch("/api/export/pdf", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      html,
+      css,
+      options: { format: "960px 540px", landscape: false, margin: { top: "0", right: "0", bottom: "0", left: "0" } },
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "PDF generation failed" }));
+    throw new Error(err.error || "PDF generation failed");
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "presentation.pdf";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* PPTX export — unchanged, uses pptxgenjs                                      */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
 export async function exportDeckToPPTX(slides: DeckSlide[], theme: string) {
   const PptxGenJS = (await import("pptxgenjs")).default;
   const t = getThemeConfig(theme);
   const pptx = new PptxGenJS();
 
-  const textColor = resolveColor(t.text).replace("#", "");
-  const subtitleColorHex = resolveColor(t.textSecondary).replace("#", "");
-  const accentColorHex = t.accent.replace("#", "");
   const bgColor = resolveColor(t.bg).replace("#", "");
+  const textColor = resolveColor(t.text, t.bg).replace("#", "");
+  const subtitleColorHex = resolveColor(t.textSecondary, t.bg).replace("#", "");
+  const accentColorHex = t.accent.replace("#", "");
 
   for (const slide of slides) {
     const pptSlide = pptx.addSlide();
+
+    // HTML slides: just show title as fallback (no html2canvas)
+    if (slide.layout === "html" && slide.html) {
+      pptSlide.background = { color: "888888" };
+      pptSlide.addText(slide.title || "HTML Slide", {
+        x: 0, y: 2, w: 10, h: 1.5,
+        fontSize: 24, color: "FFFFFF", align: "center",
+      });
+      continue;
+    }
+
     pptSlide.background = { color: bgColor };
 
     // Bottom accent bar
@@ -320,22 +394,26 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
     : { r: 0, g: 0, b: 0 };
 }
 
-/** Resolve any color to a hex value for PDF/PPTX */
-function resolveColor(color: string): string {
+/** Resolve any color to a hex value for PPTX.
+ * For rgba colors, blends against an optional background color. */
+function resolveColor(color: string, blendBg?: string): string {
   if (color.startsWith("#")) return color;
-  // Extract first color from linear-gradient
   if (color.startsWith("linear-gradient")) {
     const match = color.match(/#[a-fA-F0-9]{6}/);
     return match ? match[0] : "#1a1a1a";
   }
-  // Parse rgba
   if (color.startsWith("rgba")) {
-    const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+),?\s*([\d.]*)/);
     if (match) {
-      const r = parseInt(match[1]).toString(16).padStart(2, "0");
-      const g = parseInt(match[2]).toString(16).padStart(2, "0");
-      const b = parseInt(match[3]).toString(16).padStart(2, "0");
-      return `#${r}${g}${b}`;
+      const r = parseInt(match[1]);
+      const g = parseInt(match[2]);
+      const b = parseInt(match[3]);
+      const a = match[4] !== "" ? parseFloat(match[4]) : 1;
+      const bg = blendBg ? hexToRgb(resolveColor(blendBg)) : { r: 0, g: 0, b: 0 };
+      const blendR = Math.round(r * a + bg.r * (1 - a));
+      const blendG = Math.round(g * a + bg.g * (1 - a));
+      const blendB = Math.round(b * a + bg.b * (1 - a));
+      return `#${blendR.toString(16).padStart(2, "0")}${blendG.toString(16).padStart(2, "0")}${blendB.toString(16).padStart(2, "0")}`;
     }
     return "#999999";
   }

@@ -14,6 +14,7 @@ const iconMap = {
   text: FileText,
   pdf: FileText,
   docx: FileText,
+  xlsx: FileText,
   image: ImageIcon,
   zip: FolderArchive,
 } as const;

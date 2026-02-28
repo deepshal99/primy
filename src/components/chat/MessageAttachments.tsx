@@ -13,6 +13,7 @@ const iconMap = {
   text: FileText,
   pdf: FileText,
   docx: FileText,
+  xlsx: FileText,
   image: ImageIcon,
   zip: FolderArchive,
 } as const;
@@ -21,6 +22,7 @@ const labelMap: Record<string, string> = {
   text: "TXT",
   pdf: "PDF",
   docx: "DOCX",
+  xlsx: "XLSX",
   image: "IMG",
   zip: "ZIP",
 };

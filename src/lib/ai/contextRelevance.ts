@@ -7,6 +7,7 @@
  */
 
 import type { KnowledgeUnit, ProjectTable } from "@/lib/types";
+import { cosineSimilarity } from "@/lib/ai/embeddings";
 
 // ── Types ──
 
@@ -35,6 +36,7 @@ interface RelevanceOptions {
   maxTables?: number;
   charBudget?: number;
   minScore?: number;
+  queryEmbedding?: number[];
 }
 
 // ── Stop words (common words that don't carry meaning for matching) ──
@@ -64,7 +66,13 @@ export function extractKeywords(message: string): string[] {
     .split(/\s+/)
     .filter((t) => t.length >= 2 && !STOP_WORDS.has(t));
 
-  return [...new Set(tokens)];
+  // Also generate bigrams for multi-word matching (e.g. "budget tracker")
+  const bigrams: string[] = [];
+  for (let i = 0; i < tokens.length - 1; i++) {
+    bigrams.push(`${tokens[i]} ${tokens[i + 1]}`);
+  }
+
+  return [...new Set([...tokens, ...bigrams])];
 }
 
 // ── Scoring ──
@@ -158,10 +166,10 @@ export function scoreTable(
 // ── Table Helpers ──
 
 function buildTableSearchText(table: ProjectTable): string {
-  const sheet = table.sheets[0];
+  const sheet = table.sheets?.[0];
   if (!sheet?.celldata?.length) return "";
 
-  // Only use first 10 rows for scoring (perf)
+  // Include headers (row 0) and first 10 data rows for scoring
   return sheet.celldata
     .filter((c) => c.r <= 10)
     .map((c) => String(c.v?.v ?? ""))
@@ -170,7 +178,7 @@ function buildTableSearchText(table: ProjectTable): string {
 }
 
 export function tableToCsv(table: ProjectTable, maxRows = 200): string {
-  const sheet = table.sheets[0];
+  const sheet = table.sheets?.[0];
   if (!sheet?.celldata?.length) return "";
 
   const celldata = sheet.celldata;
@@ -198,6 +206,23 @@ export function tableToCsv(table: ProjectTable, maxRows = 200): string {
 
 // ── Main Scoring Function ──
 
+// ── Semantic Scoring ──
+
+const SEMANTIC_WEIGHT = 15; // Max bonus from semantic similarity
+const SEMANTIC_THRESHOLD = 0.3; // Minimum similarity to contribute
+
+function semanticBonus(queryEmbedding: number[] | undefined, entityEmbedding: number[] | undefined): number {
+  if (!queryEmbedding || !entityEmbedding) return 0;
+  try {
+    const sim = cosineSimilarity(queryEmbedding, entityEmbedding);
+    return sim > SEMANTIC_THRESHOLD ? sim * SEMANTIC_WEIGHT : 0;
+  } catch {
+    return 0;
+  }
+}
+
+// ── Main Scoring Function ──
+
 export function scoreRelevance(
   userMessage: string,
   knowledgeUnits: KnowledgeUnit[],
@@ -210,34 +235,36 @@ export function scoreRelevance(
     maxTables = 3,
     charBudget = 50000,
     minScore = 1.0,
+    queryEmbedding,
   } = options ?? {};
 
   const keywords = extractKeywords(userMessage);
+  const hasEmbeddings = !!queryEmbedding;
 
-  // If no meaningful keywords extracted, return empty (existing summaries suffice)
-  if (keywords.length === 0) {
+  // If no meaningful keywords and no embeddings, return empty
+  if (keywords.length === 0 && !hasEmbeddings) {
     return { relevantKUs: [], relevantTables: [], contextBudgetUsed: 0 };
   }
 
-  // Score all KUs
+  // Score all KUs (keyword + semantic)
   const scoredKUs: ScoredKU[] = knowledgeUnits
     .map((ku) => ({
       id: ku.id,
       title: ku.title,
       content: ku.content,
-      score: scoreKU(ku, keywords, currentEntityId),
+      score: scoreKU(ku, keywords, currentEntityId) + semanticBonus(queryEmbedding, ku.embedding),
     }))
     .filter((k) => k.score >= minScore)
     .sort((a, b) => b.score - a.score)
     .slice(0, maxKUs);
 
-  // Score all tables
+  // Score all tables (keyword + semantic)
   const scoredTables: ScoredTable[] = tables
     .map((t) => ({
       id: t.id,
       title: t.title,
       csvContent: tableToCsv(t),
-      score: scoreTable(t, keywords, currentEntityId),
+      score: scoreTable(t, keywords, currentEntityId) + semanticBonus(queryEmbedding, t.embedding),
     }))
     .filter((t) => t.score >= minScore)
     .sort((a, b) => b.score - a.score)

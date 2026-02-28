@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { generateText } from "ai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import "@/lib/env";
+
+const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 async function parsePdfBuffer(buffer: Buffer): Promise<string> {
   const { extractText } = await import("unpdf");
@@ -114,6 +119,38 @@ async function extractZipContents(buffer: Buffer): Promise<string> {
   return parts.join("");
 }
 
+const SUMMARY_THRESHOLD = 50000; // Only summarize files > 50K chars
+
+async function summarizeLargeDocument(text: string): Promise<{ summary: string; keyPoints: string[] }> {
+  try {
+    const { text: raw } = await generateText({
+      model: google("gemini-2.5-pro"),
+      maxOutputTokens: 4096,
+      prompt: `Analyze this document and provide:
+1. A comprehensive summary (2-3 paragraphs)
+2. Key points as a bullet list (5-10 items)
+
+Return ONLY valid JSON:
+{
+  "summary": "...",
+  "keyPoints": ["point 1", "point 2", ...]
+}
+
+Document:
+${text.slice(0, 500000)}`,
+    });
+
+    const parsed = JSON.parse(raw.trim().replace(/```json?\s*/g, "").replace(/```/g, "").trim());
+    return {
+      summary: parsed.summary || "",
+      keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints : [],
+    };
+  } catch (error) {
+    console.error("[Extract API] Summarization error:", error);
+    return { summary: "", keyPoints: [] };
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const session = await auth();
@@ -128,39 +165,76 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
+    // Reject files over 100MB
+    if (file.size > 100 * 1024 * 1024) {
+      return NextResponse.json({ error: "File too large. Maximum size is 100MB." }, { status: 413 });
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
     let text = "";
 
     if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
-      text = await parsePdfBuffer(buffer);
+      try {
+        text = await parsePdfBuffer(buffer);
+      } catch (err) {
+        console.error("[Extract API] PDF parse error:", err);
+        return NextResponse.json(
+          { error: "Failed to parse PDF. The file may be corrupt or password-protected." },
+          { status: 422 }
+        );
+      }
     } else if (
       file.type.includes("wordprocessingml") ||
       file.name.endsWith(".docx")
     ) {
-      const mammoth = await import("mammoth");
-      const result = await mammoth.extractRawText({ buffer });
-      text = result.value;
+      try {
+        const mammoth = await import("mammoth");
+        const result = await mammoth.extractRawText({ buffer });
+        text = result.value;
+      } catch (err) {
+        console.error("[Extract API] DOCX parse error:", err);
+        return NextResponse.json(
+          { error: "Failed to parse DOCX. The file may be corrupt." },
+          { status: 422 }
+        );
+      }
     } else if (
       file.type.includes("spreadsheetml") ||
       file.type === "application/vnd.ms-excel" ||
       file.name.endsWith(".xlsx") ||
       file.name.endsWith(".xls")
     ) {
-      const XLSX = await import("xlsx");
-      const workbook = XLSX.read(buffer, { type: "buffer" });
-      const parts: string[] = [];
-      for (const sheetName of workbook.SheetNames) {
-        const sheet = workbook.Sheets[sheetName];
-        const csv = XLSX.utils.sheet_to_csv(sheet);
-        parts.push(`Sheet: ${sheetName}\n${csv}`);
+      try {
+        const XLSX = await import("xlsx");
+        const workbook = XLSX.read(buffer, { type: "buffer" });
+        const parts: string[] = [];
+        for (const sheetName of workbook.SheetNames) {
+          const sheet = workbook.Sheets[sheetName];
+          const csv = XLSX.utils.sheet_to_csv(sheet);
+          parts.push(`Sheet: ${sheetName}\n${csv}`);
+        }
+        text = parts.join("\n\n");
+      } catch (err) {
+        console.error("[Extract API] XLSX parse error:", err);
+        return NextResponse.json(
+          { error: "Failed to parse spreadsheet. The file may be corrupt." },
+          { status: 422 }
+        );
       }
-      text = parts.join("\n\n");
     } else if (
       file.type === "application/zip" ||
       file.type === "application/x-zip-compressed" ||
       file.name.endsWith(".zip")
     ) {
-      text = await extractZipContents(buffer);
+      try {
+        text = await extractZipContents(buffer);
+      } catch (err) {
+        console.error("[Extract API] ZIP parse error:", err);
+        return NextResponse.json(
+          { error: "Failed to extract ZIP. The file may be corrupt." },
+          { status: 422 }
+        );
+      }
     } else {
       return NextResponse.json(
         { error: "Unsupported file type. Use PDF, DOCX, XLSX, or ZIP." },
@@ -170,6 +244,12 @@ export async function POST(req: Request) {
 
     // Truncate to 200k chars
     text = text.slice(0, 200000);
+
+    // AI summarization for large documents
+    if (text.length > SUMMARY_THRESHOLD) {
+      const { summary, keyPoints } = await summarizeLargeDocument(text);
+      return NextResponse.json({ text, summary, keyPoints });
+    }
 
     return NextResponse.json({ text });
   } catch (error) {

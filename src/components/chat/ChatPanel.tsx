@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
-import { FileAttachment, GroundingSource } from "@/lib/types";
+import { nanoid } from "nanoid";
+import { MoreHorizontal, PanelLeft } from "lucide-react";
+import { DeckSlide, FileAttachment, GroundingSource } from "@/lib/types";
 import {
   parseSheetOperations,
   parseDocOperations,
@@ -26,6 +28,8 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ centered }: ChatPanelProps) {
+  const currentProjectId = useAppStore((s) => s.currentProjectId);
+  const projects = useAppStore((s) => s.projects);
   const messages = useAppStore((s) => s.messages);
   const isStreaming = useAppStore((s) => s.isStreaming);
   const addUserMessage = useAppStore((s) => s.addUserMessage);
@@ -87,13 +91,33 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         if (state.currentProjectId) {
           const project = state.projects.find((p) => p.id === state.currentProjectId);
           if (project) {
+            // Generate query embedding for semantic search (fire-and-forget, non-blocking)
+            let queryEmbedding: number[] | undefined;
+            const hasEmbeddings = project.knowledgeUnits.some((k) => k.embedding) ||
+              project.tables.some((t) => t.embedding);
+            if (hasEmbeddings) {
+              try {
+                const embRes = await fetch("/api/embeddings", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ texts: [content] }),
+                });
+                if (embRes.ok) {
+                  const embData = await embRes.json();
+                  queryEmbedding = embData.embeddings?.[0];
+                }
+              } catch {
+                // Silently fail — keyword matching will be used as fallback
+              }
+            }
+
             // Score relevance of KUs and tables to the user's message
             const relevanceResult = scoreRelevance(
               content,
               project.knowledgeUnits,
               project.tables,
               state.currentEntityId,
-              { maxKUs: 4, maxTables: 3, charBudget: 50000, minScore: 1.0 }
+              { maxKUs: 4, maxTables: 3, charBudget: 50000, minScore: 1.0, queryEmbedding }
             );
 
             // Store reading files for the UI indicator
@@ -283,6 +307,14 @@ export function ChatPanel({ centered }: ChatPanelProps) {
 
         finishStreaming(displayText || fullText, sheetOps, docOps, kuOps, tableOps, diagramOps, deckOps, suggestions);
 
+        // After deck creation, auto-enhance with Kimi K2.5 HTML slides
+        if (deckOps.length > 0) {
+          const createOp = deckOps.find((op) => op.type === "CREATE");
+          if (createOp && createOp.type === "CREATE" && createOp.slides?.length > 0) {
+            enhanceDeckWithKimi(createOp.title, createOp.slides);
+          }
+        }
+
         // Attach grounding sources to the assistant message if web search was used
         if (groundingSources.length > 0) {
           const msgs = useAppStore.getState().messages;
@@ -334,6 +366,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
   }, [sendMessage]);
 
   const hasMessages = messages.length > 0;
+  const currentProject = currentProjectId ? projects.find((p) => p.id === currentProjectId) : null;
 
   return (
     <div
@@ -342,6 +375,45 @@ export function ChatPanel({ centered }: ChatPanelProps) {
       }`}
       style={{ backgroundColor: design.colors.bg.chat }}
     >
+      {/* Chat header — clean app bar */}
+      <div
+        className="flex items-center justify-between px-4 flex-shrink-0 border-b"
+        style={{
+          height: design.layout.headerHeight,
+          borderColor: design.colors.border.default,
+          backgroundColor: design.colors.bg.primary,
+        }}
+      >
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => window.dispatchEvent(new Event("drafta:toggle-sidebar"))}
+            className="w-7 h-7 flex items-center justify-center rounded-md transition-colors flex-shrink-0"
+            style={{ color: design.colors.text.muted }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; e.currentTarget.style.color = design.colors.text.primary; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = design.colors.text.muted; }}
+            title="Toggle sidebar (⌘B)"
+          >
+            <PanelLeft className="w-4 h-4" />
+          </button>
+          <span
+            className="text-[15px] font-semibold"
+            style={{ color: design.colors.text.primary, fontFamily: design.typography.family.heading, letterSpacing: "-0.01em" }}
+          >
+            Drafta AI
+          </span>
+        </div>
+        <button
+          onClick={() => window.dispatchEvent(new Event("drafta:toggle-sidebar"))}
+          className="w-7 h-7 flex items-center justify-center rounded-md transition-colors"
+          style={{ color: design.colors.text.muted }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+          title="Options"
+        >
+          <MoreHorizontal className="w-4 h-4" />
+        </button>
+      </div>
+
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
         {hasMessages ? (
@@ -359,4 +431,83 @@ export function ChatPanel({ centered }: ChatPanelProps) {
       </div>
     </div>
   );
+}
+
+/**
+ * After Gemini creates a deck with JSON slides, call Kimi K2.5 to generate
+ * rich HTML versions. The JSON slides display instantly; HTML slides replace
+ * them in the background once Kimi finishes.
+ */
+async function enhanceDeckWithKimi(title: string, originalSlides: DeckSlide[]) {
+  // Build a prompt from the slide content
+  const slideOutline = originalSlides.map((s, i) => {
+    let desc = `Slide ${i + 1} (${s.layout}): ${s.title || ""}`;
+    if (s.subtitle) desc += ` — ${s.subtitle}`;
+    if (s.bullets?.length) desc += `\n  • ${s.bullets.join("\n  • ")}`;
+    if (s.content) desc += `\n  ${s.content.slice(0, 200)}`;
+    if (s.stats?.length) desc += `\n  Stats: ${s.stats.map((st) => `${st.value} ${st.label}`).join(", ")}`;
+    return desc;
+  }).join("\n");
+
+  const prompt = `Create a professional presentation titled "${title}" with the following content:\n\n${slideOutline}`;
+
+  try {
+    toast.info("Enhancing deck with AI visuals...", { duration: 3000 });
+
+    const res = await fetch("/api/deck-ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt,
+        slideCount: originalSlides.length,
+        style: "professional",
+      }),
+    });
+
+    if (!res.ok) return; // Silently fail — user still has the JSON deck
+
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let htmlSlides: string[] = [];
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const data = line.slice(6).trim();
+        if (data === "[DONE]") continue;
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.type === "complete" && parsed.slides) {
+            htmlSlides = parsed.slides;
+          }
+        } catch { /* skip */ }
+      }
+    }
+
+    if (htmlSlides.length === 0) return;
+
+    // Replace deck slides with HTML versions
+    const newSlides: DeckSlide[] = htmlSlides.map((html, i) => ({
+      id: nanoid(),
+      layout: "html" as const,
+      title: originalSlides[i]?.title || `Slide ${i + 1}`,
+      html,
+      htmlPrompt: prompt,
+      generatedBy: "kimi" as const,
+      notes: originalSlides[i]?.notes || "",
+    }));
+
+    useAppStore.getState().updateDeckSlides(newSlides);
+    toast.success(`Deck enhanced with ${newSlides.length} AI-designed slides`);
+  } catch {
+    // Silently fail — user still has the original JSON deck
+  }
 }

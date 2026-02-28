@@ -8,18 +8,27 @@ import {
   PieChart, Pie, Cell, ScatterChart, Scatter,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
+import dynamic from "next/dynamic";
+
+const ExcalidrawReadOnly = dynamic(
+  () => import("./ExcalidrawEditor").then((m) => m.ExcalidrawReadOnly),
+  { ssr: false }
+);
 
 const DEFAULT_COLORS = [
-  "#8B5CF6", "#2DB67D", "#E5953E", "#3B82F6", "#EC4899",
+  "#6366F1", "#10B981", "#FF6B00", "#06B6D4", "#F59E0B",
   "#14B8A6", "#F59E0B", "#6366F1", "#EF4444", "#22D3EE",
 ];
 
 interface DiagramViewReadOnlyProps {
   source: string;
-  diagramType: "mermaid" | "chart";
+  diagramType: "mermaid" | "chart" | "excalidraw";
 }
 
 export function DiagramViewReadOnly({ source, diagramType }: DiagramViewReadOnlyProps) {
+  if (diagramType === "excalidraw") {
+    return <ExcalidrawReadOnly source={source} />;
+  }
   if (diagramType === "chart") {
     return <ChartRendererRO source={source} />;
   }
@@ -125,6 +134,17 @@ function ChartRendererRO({ source }: { source: string }) {
               {data.map((_: any, i: number) => <Cell key={i} fill={colors[i % colors.length]} />)}
             </Pie>
           </PieChart>
+        );
+      case "scatter":
+        return (
+          <ScatterChart>
+            <CartesianGrid strokeDasharray="3 3" stroke={design.colors.border.light} />
+            <XAxis dataKey={xKey} {...commonAxisProps} name={xKey} />
+            <YAxis dataKey={yKeys[0]} {...commonAxisProps} name={yKeys[0]} />
+            <Tooltip cursor={{ strokeDasharray: "3 3" }} />
+            <Legend />
+            <Scatter data={data} fill={colors[0]} />
+          </ScatterChart>
         );
       default:
         return (

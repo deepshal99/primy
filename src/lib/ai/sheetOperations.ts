@@ -18,7 +18,7 @@ function safeMax(arr: number[], fallback: number): number {
  * - Ensures `m` (display/monitor) field is populated
  */
 function normalizeCell(cell: CellData): CellData {
-  if (!cell.v) return cell;
+  if (!cell.v) return { ...cell, v: {} };
   const v = { ...cell.v };
 
   // Detect formula strings mistakenly placed in v.v instead of v.f
@@ -89,7 +89,7 @@ function applyOperation(
 
     switch (op.type) {
       case "SET_SHEET_DATA": {
-        if (op.sheetIndex >= draft.length) break;
+        if (op.sheetIndex < 0 || op.sheetIndex >= draft.length) break;
         const sheet = draft[op.sheetIndex];
         sheet.celldata = normalizeCells(op.data.celldata || []);
         if (op.data.name) sheet.name = op.data.name;
@@ -117,12 +117,12 @@ function applyOperation(
       }
 
       case "UPDATE_CELLS": {
-        if (op.sheetIndex >= draft.length) break;
+        if (op.sheetIndex < 0 || op.sheetIndex >= draft.length) break;
         const sheet = draft[op.sheetIndex];
         if (!op.cells || !Array.isArray(op.cells)) break;
         const normalized = normalizeCells(op.cells);
         for (const cell of normalized) {
-          if (cell.r == null || cell.c == null) continue;
+          if (cell.r == null || cell.c == null || cell.r < 0 || cell.c < 0) continue;
           const idx = sheet.celldata.findIndex(
             (c) => c.r === cell.r && c.c === cell.c
           );
@@ -136,10 +136,15 @@ function applyOperation(
       }
 
       case "FORMAT_CELLS": {
-        if (op.sheetIndex >= draft.length) break;
+        if (op.sheetIndex < 0 || op.sheetIndex >= draft.length) break;
         const sheet = draft[op.sheetIndex];
         if (!op.range) break;
         const { r1, c1, r2, c2 } = op.range;
+        if (r1 < 0 || c1 < 0 || r2 < r1 || c2 < c1) break;
+
+        // Cap range to prevent excessive cell creation (max 500 cells)
+        const cappedR2 = Math.min(r2, r1 + 499);
+        const cappedC2 = Math.min(c2, c1 + Math.floor(500 / (cappedR2 - r1 + 1)) - 1);
 
         // Apply format to existing cells in range (guard against missing cell.v)
         for (const cell of sheet.celldata) {
@@ -155,8 +160,8 @@ function applyOperation(
         }
 
         // Create cells for positions in range that don't exist yet
-        for (let r = r1; r <= r2; r++) {
-          for (let c = c1; c <= c2; c++) {
+        for (let r = r1; r <= cappedR2; r++) {
+          for (let c = c1; c <= cappedC2; c++) {
             const exists = sheet.celldata.some(
               (cell) => cell.r === r && cell.c === c
             );
@@ -173,7 +178,7 @@ function applyOperation(
       }
 
       case "SET_COLUMN_WIDTHS": {
-        if (op.sheetIndex >= draft.length) break;
+        if (op.sheetIndex < 0 || op.sheetIndex >= draft.length) break;
         const sheet = draft[op.sheetIndex];
         if (!sheet.config) sheet.config = {};
         if (!sheet.config.columnlen) sheet.config.columnlen = {};
@@ -184,7 +189,7 @@ function applyOperation(
       }
 
       case "DELETE_ROWS": {
-        if (op.sheetIndex >= draft.length) break;
+        if (op.sheetIndex < 0 || op.sheetIndex >= draft.length) break;
         const sheet = draft[op.sheetIndex];
         if (!op.rows || !Array.isArray(op.rows)) break;
         const rowsToDelete = new Set(op.rows);
@@ -204,7 +209,7 @@ function applyOperation(
       }
 
       case "DELETE_COLUMNS": {
-        if (op.sheetIndex >= draft.length) break;
+        if (op.sheetIndex < 0 || op.sheetIndex >= draft.length) break;
         const sheet = draft[op.sheetIndex];
         if (!op.columns || !Array.isArray(op.columns)) break;
         const colsToDelete = new Set(op.columns);
@@ -223,18 +228,22 @@ function applyOperation(
       }
 
       case "SORT": {
-        if (op.sheetIndex >= draft.length) break;
+        if (op.sheetIndex < 0 || op.sheetIndex >= draft.length) break;
         const sheet = draft[op.sheetIndex];
         sortSheet(sheet, op.column, op.ascending);
         break;
       }
 
       case "SET_DROPDOWN": {
-        if (op.sheetIndex >= draft.length) break;
+        if (op.sheetIndex < 0 || op.sheetIndex >= draft.length) break;
         const sheet = draft[op.sheetIndex];
         if (!sheet.dataVerification) sheet.dataVerification = {};
+        if (!op.options || !Array.isArray(op.options) || op.options.length === 0) break;
+        if (op.rowStart < 0 || op.rowEnd < op.rowStart || op.column < 0) break;
         const optionStr = op.options.join(",");
-        for (let r = op.rowStart; r <= op.rowEnd; r++) {
+        // Cap to prevent excessive loop (max 1000 rows)
+        const cappedEnd = Math.min(op.rowEnd, op.rowStart + 999);
+        for (let r = op.rowStart; r <= cappedEnd; r++) {
           const key = `${r}_${op.column}`;
           sheet.dataVerification[key] = {
             type: "dropdown",

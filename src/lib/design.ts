@@ -1,103 +1,117 @@
 /**
- * Drafta AI Design System
+ * Drafta AI — Design System
  *
- * Conversion.ai brand aesthetic — warm, minimal, professional.
- * Green primary actions, orange AI accents, purple doc/workflow accents.
- * Warm cream backgrounds, dark sidebar, flat cards with subtle borders.
+ * Electric orange (#FF6B00) on pure white.
+ * Typography: Outfit (headings) + DM Sans (body).
+ * Clean, crisp, zero warm tones.
+ *
+ * All colors use CSS var() for automatic dark mode.
  */
 
 export const design = {
-  // ── Colors ──
   colors: {
     brand: {
-      primary: "#2DB67D",       // Green — primary CTAs, active states, main actions
-      light: "#3DC98E",
-      dark: "#1E9B68",
-      subtle: "rgba(45, 182, 125, 0.08)",
-      muted: "rgba(45, 182, 125, 0.14)",
+      primary: "var(--color-brand, #FF6B00)",
+      light: "var(--color-brand-light, #FF8A33)",
+      dark: "var(--color-brand-dark, #E05E00)",
+      subtle: "var(--color-brand-subtle, rgba(255, 107, 0, 0.06))",
+      muted: "var(--color-brand-muted, rgba(255, 107, 0, 0.12))",
       text: "#ffffff",
     },
     accent: {
-      gold: "#E5953E",          // Warm orange — AI/magic features, sparkle actions
-      goldDark: "#C47A2A",
-      goldSubtle: "rgba(229, 149, 62, 0.07)",
-      purple: "#8B5CF6",        // Purple — docs, workflows, triggers
-      purpleDark: "#6D40D9",
-      purpleSubtle: "rgba(139, 92, 246, 0.07)",
-      teal: "#2DB67D",          // Alias to brand green for sheet indicators
-      tealDark: "#1E9B68",
-      tealSubtle: "rgba(45, 182, 125, 0.07)",
-      blue: "#3B82F6",          // Blue — presentations/decks
-      blueDark: "#2563EB",
-      blueSubtle: "rgba(59, 130, 246, 0.07)",
+      gold: "var(--color-accent-gold, #FF6B00)",
+      goldDark: "var(--color-accent-gold-dark, #E05E00)",
+      goldSubtle: "var(--color-accent-gold-subtle, rgba(255, 107, 0, 0.06))",
+      purple: "var(--color-accent-purple, #7B68EE)",
+      purpleDark: "var(--color-accent-purple-dark, #6050D0)",
+      purpleSubtle: "var(--color-accent-purple-subtle, rgba(123, 104, 238, 0.06))",
+      teal: "var(--color-accent-teal, #10B981)",
+      tealDark: "var(--color-accent-teal-dark, #059669)",
+      tealSubtle: "var(--color-accent-teal-subtle, rgba(16, 185, 129, 0.06))",
+      coral: "var(--color-accent-coral, #F97066)",
+      coralDark: "var(--color-accent-coral-dark, #E0544A)",
+      coralSubtle: "var(--color-accent-coral-subtle, rgba(249, 112, 102, 0.06))",
+      lavender: "var(--color-accent-lavender, #A78BFA)",
+      lavenderDark: "var(--color-accent-lavender-dark, #8B5CF6)",
+      lavenderSubtle: "var(--color-accent-lavender-subtle, rgba(167, 139, 250, 0.06))",
+      blue: "var(--color-accent-coral, #F97066)",
+      blueDark: "var(--color-accent-coral-dark, #E0544A)",
+      blueSubtle: "var(--color-accent-coral-subtle, rgba(249, 112, 102, 0.06))",
+    },
+    entity: {
+      doc: "var(--color-entity-doc, #6366F1)",
+      docBg: "var(--color-entity-doc-bg, #F5F3FF)",
+      sheet: "var(--color-entity-sheet, #10B981)",
+      sheetBg: "var(--color-entity-sheet-bg, #ECFDF5)",
+      diagram: "var(--color-entity-diagram, #06B6D4)",
+      diagramBg: "var(--color-entity-diagram-bg, #ECFEFF)",
+      deck: "var(--color-entity-deck, #F59E0B)",
+      deckBg: "var(--color-entity-deck-bg, #FFFBEB)",
     },
     bg: {
-      primary: "#FAFAF8",       // Warm off-white — slightly less yellow than before
-      secondary: "#F3F2EF",     // Light cream for headers, secondary areas
-      tertiary: "#EBEAE6",
-      sidebar: "#1C1B18",       // Slightly darker sidebar
-      sidebarHover: "#282723",
-      sidebarActive: "#33322D",
-      chat: "#FAFAF8",
-      input: "#FFFFFF",
-      hover: "#EFEEE9",
-      elevated: "#FFFFFF",      // Cards, modals — pure white
-      overlay: "rgba(250, 250, 248, 0.85)",
+      primary: "var(--color-bg-primary, #FFFFFF)",
+      secondary: "var(--color-bg-secondary, #FAFAFA)",
+      tertiary: "var(--color-bg-tertiary, #F5F5F5)",
+      workspace: "var(--color-bg-workspace, #FFFFFF)",
+      chat: "var(--color-bg-chat, #FFFFFF)",
+      input: "var(--color-bg-input, #FAFAFA)",
+      hover: "var(--color-bg-hover, #F5F5F5)",
+      elevated: "var(--color-bg-elevated, #FFFFFF)",
+      overlay: "var(--color-bg-overlay, rgba(255, 255, 255, 0.95))",
+      sidebar: "var(--color-bg-sidebar, #FFFFFF)",
+      sidebarHover: "var(--color-bg-sidebar-hover, #F5F5F5)",
+      sidebarActive: "var(--color-bg-sidebar-active, #F0F0F0)",
     },
     text: {
-      primary: "#1A1A18",       // Slightly deeper for contrast
-      secondary: "#6B6963",
-      muted: "#9E9B94",
-      placeholder: "#C2BFB9",
+      primary: "var(--color-text-primary, #111111)",
+      secondary: "var(--color-text-secondary, #555555)",
+      muted: "var(--color-text-muted, #999999)",
+      placeholder: "var(--color-text-placeholder, #CCCCCC)",
       inverse: "#ffffff",
-      sidebar: "#D4D1CC",
-      sidebarMuted: "#8A8680",
-      sidebarDim: "#5C5955",
+      sidebar: "var(--color-text-sidebar, #111111)",
+      sidebarMuted: "var(--color-text-sidebar-muted, #555555)",
+      sidebarDim: "var(--color-text-sidebar-dim, #999999)",
     },
     border: {
-      default: "#E6E4DF",       // Lighter, more transparent feel
-      light: "#EEEDEA",         // Barely visible — row separators, subtle dividers
-      focus: "#C4C1BB",
-      brand: "#2DB67D",
-      sidebar: "#33322D",
+      default: "var(--color-border, #F0F0F0)",
+      light: "var(--color-border-light, #F5F5F5)",
+      focus: "var(--color-border-focus, #E0E0E0)",
+      brand: "var(--color-brand, #FF6B00)",
+      sidebar: "var(--color-border-sidebar, #F0F0F0)",
     },
     status: {
-      success: "#2DB67D",
-      successBg: "rgba(45, 182, 125, 0.08)",
-      error: "#E5484D",
-      errorBg: "rgba(229, 72, 77, 0.08)",
-      info: "#3B82F6",
-      infoBg: "rgba(59, 130, 246, 0.08)",
+      success: "var(--color-success, #10B981)",
+      successBg: "var(--color-success-bg, rgba(16, 185, 129, 0.06))",
+      error: "var(--color-error, #EF4444)",
+      errorBg: "var(--color-error-bg, rgba(239, 68, 68, 0.06))",
+      info: "var(--color-info, #3B82F6)",
+      infoBg: "var(--color-info-bg, rgba(59, 130, 246, 0.06))",
     },
     step: {
-      pending: "#D4D1CC",
-      active: "#E5953E",
-      complete: "#2DB67D",
-      completeBg: "rgba(45, 182, 125, 0.08)",
+      pending: "var(--color-step-pending, #E0E0E0)",
+      active: "var(--color-brand, #FF6B00)",
+      complete: "var(--color-success, #10B981)",
+      completeBg: "var(--color-success-bg, rgba(16, 185, 129, 0.06))",
     },
   },
 
-  // ── Typography ──
   typography: {
     family: {
-      heading: "'DM Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-      sans: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      mono: "'JetBrains Mono', 'SF Mono', 'Fira Code', 'Consolas', monospace",
+      heading: "'Outfit', -apple-system, BlinkMacSystemFont, sans-serif",
+      sans: "'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif",
+      mono: "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace",
     },
     size: {
-      // UI scale — for interface elements
       "2xs": "10px",
       xs: "11px",
       sm: "12px",
       base: "14px",
       md: "14px",
-      // Content scale — for readable content
-      lg: "15px",
-      xl: "17px",
-      // Display scale — for headings
+      lg: "16px",
+      xl: "18px",
       "2xl": "20px",
-      "3xl": "26px",
-      "4xl": "32px",
+      "3xl": "24px",
+      "4xl": "28px",
     },
     weight: {
       light: "300",
@@ -108,38 +122,36 @@ export const design = {
     },
     lineHeight: {
       none: "1",
-      tight: "1.2",
-      snug: "1.35",
+      tight: "1.25",
+      snug: "1.4",
       normal: "1.5",
-      relaxed: "1.65",
+      relaxed: "1.6",
       loose: "1.8",
     },
     letterSpacing: {
-      tighter: "-0.03em",
-      tight: "-0.02em",
+      tighter: "-0.02em",
+      tight: "-0.01em",
       normal: "0",
       wide: "0.02em",
-      wider: "0.05em",
-      widest: "0.08em",
+      wider: "0.04em",
+      widest: "0.06em",
     },
   },
 
-  // ── Spacing ──
   spacing: {
     xs: "4px",
     sm: "8px",
     md: "12px",
     lg: "16px",
-    xl: "20px",
-    "2xl": "24px",
-    "3xl": "32px",
-    "4xl": "40px",
-    "5xl": "48px",
+    xl: "24px",
+    "2xl": "32px",
+    "3xl": "40px",
+    "4xl": "48px",
+    "5xl": "56px",
   },
 
-  // ── Border Radius ──
   radius: {
-    sm: "6px",
+    sm: "4px",
     md: "8px",
     lg: "12px",
     xl: "16px",
@@ -147,24 +159,22 @@ export const design = {
     full: "9999px",
   },
 
-  // ── Shadows — much flatter, Conversion AI uses minimal shadows ──
   shadows: {
     sm: "0 1px 2px rgba(0, 0, 0, 0.03)",
-    md: "0 1px 4px rgba(0, 0, 0, 0.04)",
-    lg: "0 2px 8px rgba(0, 0, 0, 0.06)",
-    xl: "0 4px 16px rgba(0, 0, 0, 0.08)",
-    card: "0 0 0 1px rgba(0, 0, 0, 0.04)",               // Border-only, no shadow
-    brand: "0 2px 8px rgba(45, 182, 125, 0.2)",
-    dropdown: "0 4px 16px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04)",
+    md: "0 2px 8px rgba(0, 0, 0, 0.04)",
+    lg: "0 4px 16px rgba(0, 0, 0, 0.06)",
+    xl: "0 8px 32px rgba(0, 0, 0, 0.08)",
+    card: "0 1px 3px rgba(0, 0, 0, 0.02)",
+    brand: "0 4px 14px rgba(255, 107, 0, 0.25)",
+    dropdown: "0 8px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.02)",
   },
 
-  // ── Animation ──
   animation: {
     duration: {
-      fast: "150ms",
-      normal: "250ms",
-      slow: "400ms",
-      layout: "500ms",
+      fast: "100ms",
+      normal: "200ms",
+      slow: "350ms",
+      layout: "450ms",
     },
     easing: {
       default: "cubic-bezier(0.4, 0, 0.2, 1)",
@@ -173,18 +183,16 @@ export const design = {
     },
   },
 
-  // ── Layout ──
   layout: {
     chatMaxWidth: "720px",
     chatMinWidth: "340px",
     chatDefaultWidth: "400px",
-    chatMaxWidthSplit: "560px",
-    sidebarWidth: "380px",
-    headerHeight: "52px",
+    chatMaxWidthSplit: "480px",
+    sidebarWidth: "280px",
+    headerHeight: "48px",
     inputMaxHeight: "150px",
   },
 
-  // ── Z-Index ──
   zIndex: {
     base: 0,
     dropdown: 50,
@@ -194,15 +202,11 @@ export const design = {
   },
 } as const;
 
-// ── Helpers ──
-
-/** Get a Tailwind-compatible inline style object for brand button */
 export const brandButtonStyle = {
   backgroundColor: design.colors.brand.primary,
   color: design.colors.brand.text,
 } as const;
 
-/** Get step indicator color by status */
 export function getStepColor(status: "pending" | "active" | "complete") {
   return design.colors.step[status];
 }

@@ -1,5 +1,5 @@
 export interface CellValue {
-  v?: string | number;
+  v?: string | number | null;
   m?: string | number;
   f?: string;
   ct?: { fa?: string; t?: string };
@@ -13,7 +13,7 @@ export interface CellValue {
 export interface CellData {
   r: number;
   c: number;
-  v: CellValue;
+  v: CellValue | null;
 }
 
 export interface SheetConfig {
@@ -130,7 +130,7 @@ export type WorkspaceTab = "sheet" | "doc";
 export interface FileAttachment {
   id: string;
   name: string;
-  type: "text" | "image" | "pdf" | "docx" | "zip";
+  type: "text" | "image" | "pdf" | "docx" | "xlsx" | "zip";
   mimeType: string;
   size: number;
   previewUrl?: string;
@@ -188,6 +188,7 @@ export interface KnowledgeUnit {
   shareToken?: string | null;
   createdAt: number;
   updatedAt: number;
+  embedding?: number[];
 }
 
 export interface ProjectTable {
@@ -198,17 +199,19 @@ export interface ProjectTable {
   shareToken?: string | null;
   createdAt: number;
   updatedAt: number;
+  embedding?: number[];
 }
 
 export interface ProjectDiagram {
   id: string;
   projectId: string;
   title: string;
-  diagramType: "mermaid" | "chart";
+  diagramType: "mermaid" | "chart" | "excalidraw";
   source: string;              // mermaid code or recharts JSON
   shareToken?: string | null;
   createdAt: number;
   updatedAt: number;
+  embedding?: number[];
 }
 
 export interface Project {
@@ -231,20 +234,21 @@ export type EntityType = "ku" | "table" | "diagram" | "deck";
 
 // ═══ Deck / Presentation ═══
 
-export type DeckTheme =
-  | "executive" | "startup" | "editorial" | "neon" | "earth" | "arctic"
-  | "sunset" | "monochrome" | "ocean" | "forest" | "coral" | "slate"
-  | "light" | "dark" | "gradient" | "minimal" | "corporate"; // legacy
+// Legacy — kept for backward compat with existing structured slides
+export type DeckTheme = string;
 
 export interface DeckSlide {
   id: string;
-  layout: "title" | "bullets" | "titleContent" | "twoColumn" | "section" | "quote" | "blank" | "stats";
+  layout: "title" | "bullets" | "titleContent" | "twoColumn" | "section" | "quote" | "blank" | "stats" | "html";
   title?: string;
   subtitle?: string;
   content?: string;
   bullets?: string[];
   stats?: { value: string; label: string }[];
   notes?: string;
+  html?: string;
+  htmlPrompt?: string;
+  generatedBy?: "gemini" | "kimi";
 }
 
 export interface ProjectDeck {
@@ -256,6 +260,7 @@ export interface ProjectDeck {
   shareToken?: string | null;
   createdAt: number;
   updatedAt: number;
+  embedding?: number[];
 }
 
 export type DeckOperation =
@@ -328,7 +333,7 @@ export type DiagramOperation =
   | {
       type: "CREATE";
       title: string;
-      diagramType: "mermaid" | "chart";
+      diagramType: "mermaid" | "chart" | "excalidraw";
       source: string;
     }
   | {
@@ -358,7 +363,7 @@ export interface AppState {
   docContent: string;
   docVersion: number;
   diagramSource: string;
-  diagramType: "mermaid" | "chart";
+  diagramType: "mermaid" | "chart" | "excalidraw";
   diagramVersion: number;
   deckSlides: DeckSlide[];
   deckTheme: DeckTheme;
@@ -455,7 +460,7 @@ export interface AppState {
   openTable: (tableId: string) => void;
 
   // Diagram CRUD
-  createDiagram: (projectId: string, title: string, diagramType?: "mermaid" | "chart", source?: string) => ProjectDiagram;
+  createDiagram: (projectId: string, title: string, diagramType?: "mermaid" | "chart" | "excalidraw", source?: string) => ProjectDiagram;
   deleteDiagram: (projectId: string, diagramId: string) => void;
   renameDiagram: (projectId: string, diagramId: string, title: string) => void;
   openDiagram: (diagramId: string) => void;

@@ -10,14 +10,13 @@ import { useAppStore } from "@/lib/store";
 
 export function AppShell() {
   const workspaceOpen = useAppStore((s) => s.workspaceOpen);
-  const toggleSidebar = useAppStore((s) => s.toggleSidebar);
   const createProject = useAppStore((s) => s.createProject);
   const undo = useAppStore((s) => s.undo);
   const redo = useAppStore((s) => s.redo);
   const canUndo = useAppStore((s) => s.canUndo);
   const canRedo = useAppStore((s) => s.canRedo);
   const closeTab = useAppStore((s) => s.closeTab);
-  const [chatWidth, setChatWidth] = useState(420);
+  const [chatWidth, setChatWidth] = useState(380);
   const [isDragging, setIsDragging] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -36,7 +35,7 @@ export function AppShell() {
         }
         if (e.key === "b") {
           e.preventDefault();
-          toggleSidebar();
+          window.dispatchEvent(new Event("drafta:toggle-sidebar"));
         }
         if (e.key === "/" && !e.shiftKey) {
           e.preventDefault();
@@ -89,7 +88,7 @@ export function AppShell() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [toggleSidebar, createProject, undo, redo, canUndo, canRedo, closeTab]);
+  }, [createProject, undo, redo, canUndo, canRedo, closeTab]);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -100,7 +99,7 @@ export function AppShell() {
       const handleMouseMove = (e: MouseEvent) => {
         if (!containerRef.current) return;
         const rect = containerRef.current.getBoundingClientRect();
-        const newWidth = Math.max(340, Math.min(560, e.clientX - rect.left));
+        const newWidth = Math.max(320, Math.min(480, e.clientX - rect.left));
         setChatWidth(newWidth);
       };
 
@@ -122,18 +121,18 @@ export function AppShell() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[var(--color-bg-primary)]">
-      {/* Sidebar — ChatGPT style, always present */}
+      {/* Sidebar — overlay drawer, not in flex flow */}
       <ProjectSidebar />
 
-      {/* Main area: chat + workspace */}
+      {/* Main area: chat + workspace (full width, no sidebar column) */}
       <div ref={containerRef} className="flex flex-1 h-full min-w-0">
         {/* Chat Panel */}
         <div
           className="h-full flex-shrink-0 transition-all ease-[cubic-bezier(0.4,0,0.2,1)]"
           style={{
             width: workspaceOpen ? chatWidth : "100%",
-            maxWidth: workspaceOpen ? 560 : undefined,
-            minWidth: workspaceOpen ? 340 : undefined,
+            maxWidth: workspaceOpen ? 480 : undefined,
+            minWidth: workspaceOpen ? 320 : undefined,
             flex: workspaceOpen ? "none" : "1",
             transitionDuration: "500ms",
           }}

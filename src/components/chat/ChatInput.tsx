@@ -180,14 +180,14 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
     !pendingAttachments.some((a) => a.isExtracting);
 
   return (
-    <div className={`px-4 pb-5 pt-2 ${centered ? "px-6" : ""}`}>
+    <div className={`px-3 pb-4 pt-2 ${centered ? "px-6" : ""}`}>
       <div
-        className={`relative rounded-2xl border transition-all duration-200 ${
+        className={`relative rounded-xl border transition-all duration-150 ${
           isDragOver
-            ? "shadow-[0_0_0_3px_rgba(107,143,163,0.1)]"
+            ? "shadow-[0_0_0_2px_rgba(255,107,0,0.10)]"
             : disabled
             ? "opacity-60"
-            : "focus-within:shadow-sm"
+            : "focus-within:border-[var(--color-border-focus)]"
         }`}
         style={{
           backgroundColor: design.colors.bg.input,
@@ -203,7 +203,7 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
         {/* Drag overlay */}
         {isDragOver && (
           <div
-            className="absolute inset-0 rounded-2xl flex items-center justify-center z-10 border-2 border-dashed pointer-events-none"
+            className="absolute inset-0 rounded-xl flex items-center justify-center z-10 border-2 border-dashed pointer-events-none"
             style={{
               backgroundColor: design.colors.brand.subtle,
               borderColor: design.colors.brand.primary,
@@ -230,14 +230,13 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
         )}
 
         {/* Input row */}
-        <div className="flex items-end gap-2 px-3.5 py-2.5">
+        <div className="flex items-end gap-2 px-3 py-2.5">
           {/* File attach button */}
           <button
             onClick={handleFileClick}
             disabled={disabled}
-            className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full border transition-colors duration-150 disabled:opacity-40"
+            className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-md transition-colors duration-150 disabled:opacity-40"
             style={{
-              borderColor: design.colors.border.default,
               color: design.colors.text.muted,
             }}
             onMouseEnter={(e) => {

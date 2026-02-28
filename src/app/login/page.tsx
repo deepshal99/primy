@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { Pen, Loader2, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
+import { Loader2, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { design } from "@/lib/design";
 
 export default function LoginPage() {
@@ -62,29 +62,30 @@ export default function LoginPage() {
       style={{ backgroundColor: design.colors.bg.primary }}
     >
       <div
-        className="w-full max-w-[420px] rounded-2xl p-8 animate-fade-in"
+        className="w-full max-w-[420px] rounded-xl p-8 animate-fade-in border"
         style={{
-          backgroundColor: design.colors.bg.sidebar,
-          boxShadow: design.shadows.xl,
+          backgroundColor: design.colors.bg.elevated,
+          borderColor: design.colors.border.default,
+          boxShadow: design.shadows.lg,
         }}
       >
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div
-            className="flex items-center justify-center w-12 h-12 rounded-2xl mb-4"
+            className="flex items-center justify-center w-10 h-10 rounded-2xl mb-4"
             style={{ backgroundColor: design.colors.brand.primary }}
           >
-            <Pen className="w-6 h-6 text-white" strokeWidth={2} />
+            <span className="text-white text-[18px] font-bold" style={{ fontFamily: design.typography.family.heading }}>d</span>
           </div>
           <h1
-            className="text-display-sm"
-            style={{ color: design.colors.text.sidebar }}
+            className="text-[20px] font-semibold"
+            style={{ color: design.colors.text.primary, fontFamily: design.typography.family.heading, letterSpacing: "-0.02em" }}
           >
             {mode === "signin" ? "Welcome back" : "Create your account"}
           </h1>
           <p
-            className="text-body mt-1 text-center"
-            style={{ color: design.colors.text.sidebarMuted }}
+            className="text-[14px] mt-1 text-center"
+            style={{ color: design.colors.text.muted, fontFamily: design.typography.family.sans }}
           >
             {mode === "signin"
               ? "Sign in to your Drafta AI workspace"
@@ -99,21 +100,21 @@ export default function LoginPage() {
             <div className="relative animate-fade-in">
               <User
                 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4"
-                style={{ color: design.colors.text.sidebarDim }}
+                style={{ color: design.colors.text.muted }}
               />
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your name"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border text-body outline-none transition-colors"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg border text-body outline-none transition-colors"
                 style={{
-                  backgroundColor: design.colors.bg.sidebarHover,
-                  borderColor: design.colors.border.sidebar,
-                  color: design.colors.text.sidebar,
+                  backgroundColor: design.colors.bg.secondary,
+                  borderColor: design.colors.border.default,
+                  color: design.colors.text.primary,
                 }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = design.colors.text.sidebarDim; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = design.colors.border.sidebar; }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = design.colors.brand.primary; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = design.colors.border.default; }}
               />
             </div>
           )}
@@ -122,7 +123,7 @@ export default function LoginPage() {
           <div className="relative">
             <Mail
               className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4"
-              style={{ color: design.colors.text.sidebarDim }}
+              style={{ color: design.colors.text.muted }}
             />
             <input
               type="email"
@@ -130,14 +131,14 @@ export default function LoginPage() {
               onChange={(e) => { setEmail(e.target.value); setError(""); }}
               placeholder="Email address"
               required
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border text-body outline-none transition-colors"
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border text-[14px] outline-none transition-colors"
               style={{
-                backgroundColor: design.colors.bg.sidebarHover,
-                borderColor: design.colors.border.sidebar,
-                color: design.colors.text.sidebar,
+                backgroundColor: design.colors.bg.secondary,
+                borderColor: design.colors.border.default,
+                color: design.colors.text.primary,
               }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = design.colors.text.sidebarDim; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = design.colors.border.sidebar; }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = design.colors.brand.primary; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = design.colors.border.default; }}
             />
           </div>
 
@@ -145,7 +146,7 @@ export default function LoginPage() {
           <div className="relative">
             <Lock
               className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4"
-              style={{ color: design.colors.text.sidebarDim }}
+              style={{ color: design.colors.text.muted }}
             />
             <input
               type={showPassword ? "text" : "password"}
@@ -153,14 +154,14 @@ export default function LoginPage() {
               onChange={(e) => { setPassword(e.target.value); setError(""); }}
               placeholder={mode === "signup" ? "Create password (min 6 chars)" : "Password"}
               required
-              className="w-full pl-10 pr-10 py-2.5 rounded-xl border text-body outline-none transition-colors"
+              className="w-full pl-10 pr-10 py-2.5 rounded-lg border text-[14px] outline-none transition-colors"
               style={{
-                backgroundColor: design.colors.bg.sidebarHover,
-                borderColor: design.colors.border.sidebar,
-                color: design.colors.text.sidebar,
+                backgroundColor: design.colors.bg.secondary,
+                borderColor: design.colors.border.default,
+                color: design.colors.text.primary,
               }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = design.colors.text.sidebarDim; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = design.colors.border.sidebar; }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = design.colors.brand.primary; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = design.colors.border.default; }}
             />
             <button
               type="button"
@@ -168,9 +169,9 @@ export default function LoginPage() {
               className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center"
             >
               {showPassword ? (
-                <EyeOff className="w-4 h-4" style={{ color: design.colors.text.sidebarMuted }} />
+                <EyeOff className="w-4 h-4" style={{ color: design.colors.text.muted }} />
               ) : (
-                <Eye className="w-4 h-4" style={{ color: design.colors.text.sidebarMuted }} />
+                <Eye className="w-4 h-4" style={{ color: design.colors.text.muted }} />
               )}
             </button>
           </div>
@@ -192,7 +193,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-full text-[13px] font-semibold tracking-wide transition-all duration-200 disabled:opacity-60 hover:opacity-90"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-[14px] font-semibold transition-all duration-150 disabled:opacity-60 hover:opacity-90"
             style={{
               backgroundColor: design.colors.brand.primary,
               color: design.colors.brand.text,
@@ -211,7 +212,7 @@ export default function LoginPage() {
         {/* Toggle mode */}
         <p
           className="text-body-sm text-center mt-6"
-          style={{ color: design.colors.text.sidebarMuted }}
+          style={{ color: design.colors.text.muted }}
         >
           {mode === "signin" ? "Don't have an account?" : "Already have an account?"}{" "}
           <button

@@ -1,6 +1,7 @@
 "use client";
 
-import { Editor } from "@tiptap/react";
+import type { PlateEditor } from "platejs/react";
+import { insertLink, unwrapLink } from "@platejs/link";
 import {
   Bold,
   Italic,
@@ -28,7 +29,7 @@ import { useState, useCallback } from "react";
 import { design } from "@/lib/design";
 
 interface DocToolbarProps {
-  editor: Editor | null;
+  editor: PlateEditor | null;
   onAIEdit?: (selectedText: string) => void;
 }
 
@@ -40,7 +41,13 @@ interface ToolbarButtonProps {
   children: React.ReactNode;
 }
 
-function ToolbarButton({ onClick, isActive, disabled, title, children }: ToolbarButtonProps) {
+function ToolbarButton({
+  onClick,
+  isActive,
+  disabled,
+  title,
+  children,
+}: ToolbarButtonProps) {
   return (
     <button
       onClick={onClick}
@@ -49,13 +56,17 @@ function ToolbarButton({ onClick, isActive, disabled, title, children }: Toolbar
       className="w-7 h-7 flex items-center justify-center rounded-md transition-colors duration-100 disabled:opacity-30"
       style={{
         backgroundColor: isActive ? design.colors.bg.tertiary : "transparent",
-        color: isActive ? design.colors.text.primary : design.colors.text.secondary,
+        color: isActive
+          ? design.colors.text.primary
+          : design.colors.text.secondary,
       }}
       onMouseEnter={(e) => {
-        if (!isActive) e.currentTarget.style.backgroundColor = design.colors.bg.hover;
+        if (!isActive)
+          e.currentTarget.style.backgroundColor = design.colors.bg.hover;
       }}
       onMouseLeave={(e) => {
-        if (!isActive) e.currentTarget.style.backgroundColor = "transparent";
+        if (!isActive)
+          e.currentTarget.style.backgroundColor = "transparent";
       }}
     >
       {children}
@@ -79,9 +90,9 @@ export function DocToolbar({ editor, onAIEdit }: DocToolbarProps) {
   const setLink = useCallback(() => {
     if (!editor) return;
     if (linkUrl) {
-      editor.chain().focus().extendMarkRange("link").setLink({ href: linkUrl }).run();
+      insertLink(editor as any, { url: linkUrl });
     } else {
-      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      unwrapLink(editor as any);
     }
     setShowLinkInput(false);
     setLinkUrl("");
@@ -89,14 +100,48 @@ export function DocToolbar({ editor, onAIEdit }: DocToolbarProps) {
 
   const handleAIEdit = useCallback(() => {
     if (!editor || !onAIEdit) return;
-    const { from, to } = editor.state.selection;
-    const selectedText = editor.state.doc.textBetween(from, to, " ");
-    if (selectedText.trim()) {
-      onAIEdit(selectedText);
+    const sel = editor.selection;
+    if (!sel) return;
+    const text = editor.api.string(sel);
+    if (text?.trim()) {
+      onAIEdit(text);
     }
   }, [editor, onAIEdit]);
 
   if (!editor) return null;
+
+  // Helper to check if a mark is active
+  const isMark = (mark: string) => {
+    try {
+      const marks = (editor as any).getMarks?.() ?? editor.marks;
+      return marks ? !!(marks as any)[mark] : false;
+    } catch {
+      return false;
+    }
+  };
+
+  // Helper to check if a block type is active at selection
+  const isBlock = (type: string) => {
+    try {
+      if (!editor.selection) return false;
+      const nodes = Array.from(
+        editor.api.nodes({
+          at: editor.selection,
+          match: (n: any) => n.type === type,
+        })
+      );
+      return nodes.length > 0;
+    } catch {
+      return false;
+    }
+  };
+
+  // Check if selection is collapsed (empty)
+  const isSelectionEmpty =
+    !editor.selection ||
+    (editor.selection.anchor.path.join(",") ===
+      editor.selection.focus.path.join(",") &&
+      editor.selection.anchor.offset === editor.selection.focus.offset);
 
   return (
     <div
@@ -107,18 +152,10 @@ export function DocToolbar({ editor, onAIEdit }: DocToolbarProps) {
       }}
     >
       {/* Undo/Redo */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().undo().run()}
-        disabled={!editor.can().undo()}
-        title="Undo"
-      >
+      <ToolbarButton onClick={() => editor.undo()} title="Undo">
         <Undo className="w-3.5 h-3.5" strokeWidth={1.5} />
       </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().redo().run()}
-        disabled={!editor.can().redo()}
-        title="Redo"
-      >
+      <ToolbarButton onClick={() => editor.redo()} title="Redo">
         <Redo className="w-3.5 h-3.5" strokeWidth={1.5} />
       </ToolbarButton>
 
@@ -126,22 +163,22 @@ export function DocToolbar({ editor, onAIEdit }: DocToolbarProps) {
 
       {/* Headings */}
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-        isActive={editor.isActive("heading", { level: 1 })}
+        onClick={() => editor.tf.toggleBlock("h1")}
+        isActive={isBlock("h1")}
         title="Heading 1"
       >
         <Heading1 className="w-3.5 h-3.5" strokeWidth={1.5} />
       </ToolbarButton>
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-        isActive={editor.isActive("heading", { level: 2 })}
+        onClick={() => editor.tf.toggleBlock("h2")}
+        isActive={isBlock("h2")}
         title="Heading 2"
       >
         <Heading2 className="w-3.5 h-3.5" strokeWidth={1.5} />
       </ToolbarButton>
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-        isActive={editor.isActive("heading", { level: 3 })}
+        onClick={() => editor.tf.toggleBlock("h3")}
+        isActive={isBlock("h3")}
         title="Heading 3"
       >
         <Heading3 className="w-3.5 h-3.5" strokeWidth={1.5} />
@@ -151,68 +188,73 @@ export function DocToolbar({ editor, onAIEdit }: DocToolbarProps) {
 
       {/* Inline formatting */}
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleBold().run()}
-        isActive={editor.isActive("bold")}
+        onClick={() => editor.tf.toggleMark("bold")}
+        isActive={isMark("bold")}
         title="Bold"
       >
         <Bold className="w-3.5 h-3.5" strokeWidth={2} />
       </ToolbarButton>
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-        isActive={editor.isActive("italic")}
+        onClick={() => editor.tf.toggleMark("italic")}
+        isActive={isMark("italic")}
         title="Italic"
       >
         <Italic className="w-3.5 h-3.5" strokeWidth={2} />
       </ToolbarButton>
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
-        isActive={editor.isActive("underline")}
+        onClick={() => editor.tf.toggleMark("underline")}
+        isActive={isMark("underline")}
         title="Underline"
       >
         <UnderlineIcon className="w-3.5 h-3.5" strokeWidth={2} />
       </ToolbarButton>
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleStrike().run()}
-        isActive={editor.isActive("strike")}
+        onClick={() => editor.tf.toggleMark("strikethrough")}
+        isActive={isMark("strikethrough")}
         title="Strikethrough"
       >
         <Strikethrough className="w-3.5 h-3.5" strokeWidth={1.5} />
       </ToolbarButton>
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleCode().run()}
-        isActive={editor.isActive("code")}
+        onClick={() => editor.tf.toggleMark("code")}
+        isActive={isMark("code")}
         title="Inline code"
       >
         <Code className="w-3.5 h-3.5" strokeWidth={1.5} />
       </ToolbarButton>
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleHighlight().run()}
-        isActive={editor.isActive("highlight")}
+        onClick={() => editor.tf.toggleMark("highlight")}
+        isActive={isMark("highlight")}
         title="Highlight"
       >
-        <span className="w-3.5 h-3.5 flex items-center justify-center text-[10px] font-bold" style={{ color: design.colors.accent.gold }}>H</span>
+        <span
+          className="w-3.5 h-3.5 flex items-center justify-center text-[10px] font-bold"
+          style={{ color: design.colors.accent.gold }}
+        >
+          H
+        </span>
       </ToolbarButton>
 
       <Divider />
 
       {/* Lists */}
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-        isActive={editor.isActive("bulletList")}
+        onClick={() => editor.tf.toggleBlock("ul")}
+        isActive={isBlock("ul")}
         title="Bullet list"
       >
         <List className="w-3.5 h-3.5" strokeWidth={1.5} />
       </ToolbarButton>
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        isActive={editor.isActive("orderedList")}
+        onClick={() => editor.tf.toggleBlock("ol")}
+        isActive={isBlock("ol")}
         title="Numbered list"
       >
         <ListOrdered className="w-3.5 h-3.5" strokeWidth={1.5} />
       </ToolbarButton>
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleTaskList().run()}
-        isActive={editor.isActive("taskList")}
+        onClick={() => editor.tf.toggleBlock("action_item")}
+        isActive={isBlock("action_item")}
         title="Task list"
       >
         <ListChecks className="w-3.5 h-3.5" strokeWidth={1.5} />
@@ -222,14 +264,16 @@ export function DocToolbar({ editor, onAIEdit }: DocToolbarProps) {
 
       {/* Block elements */}
       <ToolbarButton
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        isActive={editor.isActive("blockquote")}
+        onClick={() => editor.tf.toggleBlock("blockquote")}
+        isActive={isBlock("blockquote")}
         title="Quote"
       >
         <Quote className="w-3.5 h-3.5" strokeWidth={1.5} />
       </ToolbarButton>
       <ToolbarButton
-        onClick={() => editor.chain().focus().setHorizontalRule().run()}
+        onClick={() =>
+          editor.tf.insertNodes({ type: "hr", children: [{ text: "" }] } as any)
+        }
         title="Divider"
       >
         <Minus className="w-3.5 h-3.5" strokeWidth={1.5} />
@@ -239,29 +283,41 @@ export function DocToolbar({ editor, onAIEdit }: DocToolbarProps) {
 
       {/* Text Alignment */}
       <ToolbarButton
-        onClick={() => editor.chain().focus().setTextAlign("left").run()}
-        isActive={editor.isActive({ textAlign: "left" })}
+        onClick={() =>
+          editor.tf.setNodes({ textAlign: "left" } as any, {
+            match: (n: any) => editor.api.isBlock(n),
+          })
+        }
         title="Align left"
       >
         <AlignLeft className="w-3.5 h-3.5" strokeWidth={1.5} />
       </ToolbarButton>
       <ToolbarButton
-        onClick={() => editor.chain().focus().setTextAlign("center").run()}
-        isActive={editor.isActive({ textAlign: "center" })}
+        onClick={() =>
+          editor.tf.setNodes({ textAlign: "center" } as any, {
+            match: (n: any) => editor.api.isBlock(n),
+          })
+        }
         title="Align center"
       >
         <AlignCenter className="w-3.5 h-3.5" strokeWidth={1.5} />
       </ToolbarButton>
       <ToolbarButton
-        onClick={() => editor.chain().focus().setTextAlign("right").run()}
-        isActive={editor.isActive({ textAlign: "right" })}
+        onClick={() =>
+          editor.tf.setNodes({ textAlign: "right" } as any, {
+            match: (n: any) => editor.api.isBlock(n),
+          })
+        }
         title="Align right"
       >
         <AlignRight className="w-3.5 h-3.5" strokeWidth={1.5} />
       </ToolbarButton>
       <ToolbarButton
-        onClick={() => editor.chain().focus().setTextAlign("justify").run()}
-        isActive={editor.isActive({ textAlign: "justify" })}
+        onClick={() =>
+          editor.tf.setNodes({ textAlign: "justify" } as any, {
+            match: (n: any) => editor.api.isBlock(n),
+          })
+        }
         title="Justify"
       >
         <AlignJustify className="w-3.5 h-3.5" strokeWidth={1.5} />
@@ -273,13 +329,13 @@ export function DocToolbar({ editor, onAIEdit }: DocToolbarProps) {
       <div className="relative">
         <ToolbarButton
           onClick={() => {
-            if (editor.isActive("link")) {
-              editor.chain().focus().unsetLink().run();
+            if (isBlock("a")) {
+              unwrapLink(editor as any);
             } else {
               setShowLinkInput(!showLinkInput);
             }
           }}
-          isActive={editor.isActive("link")}
+          isActive={isBlock("a")}
           title="Link"
         >
           <Link className="w-3.5 h-3.5" strokeWidth={1.5} />
@@ -307,7 +363,10 @@ export function DocToolbar({ editor, onAIEdit }: DocToolbarProps) {
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter") setLink();
-                if (e.key === "Escape") { setShowLinkInput(false); setLinkUrl(""); }
+                if (e.key === "Escape") {
+                  setShowLinkInput(false);
+                  setLinkUrl("");
+                }
               }}
             />
             <button
@@ -330,10 +389,14 @@ export function DocToolbar({ editor, onAIEdit }: DocToolbarProps) {
           <Divider />
           <ToolbarButton
             onClick={handleAIEdit}
-            disabled={editor.state.selection.empty}
-            title="AI Edit — select text first"
+            disabled={isSelectionEmpty}
+            title="AI Edit -- select text first"
           >
-            <Wand2 className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: design.colors.accent.gold }} />
+            <Wand2
+              className="w-3.5 h-3.5"
+              strokeWidth={1.5}
+              style={{ color: design.colors.accent.gold }}
+            />
           </ToolbarButton>
         </>
       )}

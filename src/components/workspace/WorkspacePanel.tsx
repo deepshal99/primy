@@ -28,11 +28,11 @@ const DeckPanel = dynamic(
 
 function PanelSkeleton() {
   return (
-    <div className="h-full flex items-center justify-center" style={{ backgroundColor: design.colors.bg.primary }}>
+    <div className="h-full flex items-center justify-center" style={{ backgroundColor: design.colors.bg.workspace }}>
       <div className="flex flex-col items-center gap-3">
         <div
           className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin-slow"
-          style={{ borderColor: design.colors.border.default, borderTopColor: "transparent" }}
+          style={{ borderColor: design.colors.brand.primary, borderTopColor: "transparent" }}
         />
         <span className="text-[12px]" style={{ color: design.colors.text.muted }}>Loading editor...</span>
       </div>
@@ -47,7 +47,7 @@ export function WorkspacePanel() {
   // No entity open → show Project Home
   if (!currentEntityId) {
     return (
-      <div className="flex flex-col h-full" style={{ backgroundColor: design.colors.bg.primary }}>
+      <div className="flex flex-col h-full" style={{ backgroundColor: design.colors.bg.workspace }}>
         <TabBar />
         <div className="flex-1 overflow-hidden">
           <ProjectHome />
@@ -75,7 +75,7 @@ export function WorkspacePanel() {
   };
 
   return (
-    <div className="flex flex-col h-full" style={{ backgroundColor: design.colors.bg.primary }}>
+    <div className="flex flex-col h-full" style={{ backgroundColor: design.colors.bg.workspace }}>
       <TabBar actions={renderActions()} />
       <div className="flex-1 overflow-hidden relative">
         {renderPanel()}

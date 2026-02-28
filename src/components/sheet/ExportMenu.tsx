@@ -63,12 +63,18 @@ export function ExportMenu() {
       if (c.r > maxRow) maxRow = c.r;
       if (c.c > maxCol) maxCol = c.c;
     }
-    const data: (string | number | undefined)[][] = [];
 
+    // Build a lookup map for O(1) cell access instead of O(n) per cell
+    const cellMap = new Map<string, typeof celldata[0]>();
+    for (const cd of celldata) {
+      cellMap.set(`${cd.r},${cd.c}`, cd);
+    }
+
+    const data: (string | number | undefined)[][] = [];
     for (let r = 0; r <= maxRow; r++) {
       const row: (string | number | undefined)[] = [];
       for (let c = 0; c <= maxCol; c++) {
-        const cell = celldata.find((cd) => cd.r === r && cd.c === c);
+        const cell = cellMap.get(`${r},${c}`);
         row.push(cell?.v?.v ?? undefined);
       }
       data.push(row);

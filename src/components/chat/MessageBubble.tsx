@@ -61,7 +61,7 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
             <div className="flex justify-end mb-1.5">
               <div
                 className="rounded-xl px-3 py-2"
-                style={{ backgroundColor: design.colors.bg.tertiary }}
+                style={{ backgroundColor: design.colors.brand.muted }}
               >
                 <MessageAttachments attachments={message.attachments} />
               </div>
@@ -69,20 +69,20 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
           )}
           {message.content && (
             <div
-              className="rounded-2xl rounded-tr-md px-4 py-3 ml-auto w-fit"
+              className="rounded-2xl rounded-tr-sm px-4 py-2.5 ml-auto w-fit"
               style={{
-                backgroundColor: design.colors.bg.tertiary,
-                color: design.colors.text.primary,
+                backgroundColor: design.colors.brand.primary,
+                color: "#FFFFFF",
               }}
             >
-              <p className="text-body whitespace-pre-wrap">{message.content}</p>
+              <p className="text-[14px] leading-[1.5] whitespace-pre-wrap">{message.content}</p>
             </div>
           )}
         </div>
       ) : (
         <div className="max-w-full group/msg">
           <div className="text-body markdown-content">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ hr: () => <hr /> }}>
               {message.content}
             </ReactMarkdown>
           </div>
@@ -204,7 +204,7 @@ export function StreamingBubble({ content }: StreamingBubbleProps) {
       {hasVisibleContent ? (
         <div className="space-y-3">
           <div className="text-body markdown-content">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ hr: () => <hr /> }}>
               {displayContent}
             </ReactMarkdown>
           </div>
@@ -260,8 +260,8 @@ function OperationIndicator({ type }: { type: "sheet" | "doc" }) {
   const isSheet = type === "sheet";
   const Icon = isSheet ? Table2 : PenLine;
   const label = isSheet ? "Building spreadsheet" : "Writing document";
-  const accentColor = isSheet ? design.colors.accent.teal : design.colors.accent.purple;
-  const accentBg = isSheet ? design.colors.accent.tealSubtle : design.colors.accent.purpleSubtle;
+  const accentColor = isSheet ? design.colors.entity.sheet : design.colors.entity.doc;
+  const accentBg = isSheet ? design.colors.entity.sheetBg : design.colors.entity.docBg;
 
   return (
     <div

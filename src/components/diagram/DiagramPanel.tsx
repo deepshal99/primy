@@ -10,6 +10,7 @@ export function DiagramPanel() {
   const [showSource, setShowSource] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const diagramSource = useAppStore((s) => s.diagramSource);
+  const diagramType = useAppStore((s) => s.diagramType);
   const updateDiagramSource = useAppStore((s) => s.updateDiagramSource);
 
   const handleSourceChange = useCallback(
@@ -29,12 +30,12 @@ export function DiagramPanel() {
       />
       <div className="flex-1 overflow-hidden flex">
         {/* Diagram render area */}
-        <div className={`flex-1 overflow-auto diagram-render-area ${showSource ? "border-r" : ""}`} style={{ borderColor: design.colors.border.default }}>
+        <div className={`flex-1 overflow-auto diagram-render-area ${showSource && diagramType !== "excalidraw" ? "border-r" : ""}`} style={{ borderColor: design.colors.border.default }}>
           <DiagramView />
         </div>
 
-        {/* Source editor panel */}
-        {showSource && (
+        {/* Source editor panel (not for excalidraw — it has its own UI) */}
+        {showSource && diagramType !== "excalidraw" && (
           <div className="w-[400px] flex-shrink-0 flex flex-col" style={{ backgroundColor: design.colors.bg.elevated }}>
             <div
               className="px-3 py-2 border-b flex items-center"

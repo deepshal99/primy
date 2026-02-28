@@ -179,7 +179,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       }}
     >
       <div
-        className="w-full max-w-[460px] rounded-2xl overflow-hidden animate-scale-in"
+        className="w-full max-w-[460px] rounded-xl overflow-hidden animate-scale-in"
         style={{
           backgroundColor: design.colors.bg.elevated,
           boxShadow: design.shadows.xl,

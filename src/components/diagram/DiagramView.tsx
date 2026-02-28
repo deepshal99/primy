@@ -9,15 +9,25 @@ import {
   PieChart, Pie, Cell, ScatterChart, Scatter,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
+import dynamic from "next/dynamic";
+
+const ExcalidrawEditor = dynamic(
+  () => import("./ExcalidrawEditor").then((m) => m.ExcalidrawEditor),
+  { ssr: false }
+);
 
 const DEFAULT_COLORS = [
-  "#8B5CF6", "#2DB67D", "#E5953E", "#3B82F6", "#EC4899",
+  "#6366F1", "#10B981", "#FF6B00", "#06B6D4", "#F59E0B",
   "#14B8A6", "#F59E0B", "#6366F1", "#EF4444", "#22D3EE",
 ];
 
 export function DiagramView() {
   const diagramSource = useAppStore((s) => s.diagramSource);
   const diagramType = useAppStore((s) => s.diagramType);
+
+  if (diagramType === "excalidraw") {
+    return <ExcalidrawEditor />;
+  }
 
   if (diagramType === "chart") {
     return <ChartRenderer source={diagramSource} />;

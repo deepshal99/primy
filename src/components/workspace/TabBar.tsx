@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { Table2, FileText, GitBranch, Presentation, Undo2, ChevronRight, ChevronLeft, Home, X, Loader2, Check, Share2, MoreVertical, MessageSquareText } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { design } from "@/lib/design";
@@ -120,12 +121,15 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
     });
   };
 
+  const { data: session } = useSession();
+  const userInitials = session?.user?.name ? getTabBarInitials(session.user.name) : "U";
+
   return (
     <div
       className="flex items-center border-b"
       style={{
         height: design.layout.headerHeight,
-        backgroundColor: design.colors.bg.secondary,
+        backgroundColor: design.colors.bg.primary,
         borderColor: design.colors.border.default,
       }}
     >
@@ -185,25 +189,25 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
                 const tabIcon = isDeck ? (
                   <Presentation
                     className="w-3.5 h-3.5 flex-shrink-0"
-                    style={{ color: isActive ? design.colors.accent.blue : design.colors.text.muted }}
+                    style={{ color: isActive ? design.colors.entity.deck : design.colors.text.muted }}
                     strokeWidth={1.8}
                   />
                 ) : isDiagram ? (
                   <GitBranch
                     className="w-3.5 h-3.5 flex-shrink-0"
-                    style={{ color: isActive ? design.colors.accent.gold : design.colors.text.muted }}
+                    style={{ color: isActive ? design.colors.entity.diagram : design.colors.text.muted }}
                     strokeWidth={1.8}
                   />
                 ) : isKu ? (
                   <FileText
                     className="w-3.5 h-3.5 flex-shrink-0"
-                    style={{ color: isActive ? design.colors.accent.purple : design.colors.text.muted }}
+                    style={{ color: isActive ? design.colors.entity.doc : design.colors.text.muted }}
                     strokeWidth={1.8}
                   />
                 ) : (
                   <Table2
                     className="w-3.5 h-3.5 flex-shrink-0"
-                    style={{ color: isActive ? design.colors.accent.teal : design.colors.text.muted }}
+                    style={{ color: isActive ? design.colors.entity.sheet : design.colors.text.muted }}
                     strokeWidth={1.8}
                   />
                 );
@@ -211,10 +215,10 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
                 return (
                   <div
                     key={tab.id}
-                    className="group flex items-center gap-1.5 pl-2.5 pr-1 py-1.5 rounded-lg transition-all duration-150 cursor-pointer max-w-[180px] flex-shrink-0"
+                    className="group flex items-center gap-1.5 pl-2.5 pr-1 py-1.5 rounded-md transition-all duration-150 cursor-pointer max-w-[180px] flex-shrink-0"
                     style={{
-                      backgroundColor: isActive ? design.colors.bg.elevated : "transparent",
-                      boxShadow: isActive ? design.shadows.sm : "none",
+                      backgroundColor: isActive ? design.colors.bg.hover : "transparent",
+                      borderBottom: isActive ? `2px solid ${design.colors.brand.primary}` : "2px solid transparent",
                     }}
                     onClick={() => {
                       if (!isActive) {
@@ -301,22 +305,20 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
             )}
           </div>
         )}
-        {/* Share button for active file */}
+        {/* Share button — solid orange filled */}
         {currentEntityId && activeTab && (
           <button
             onClick={() => setShareOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-ui-sm transition-colors duration-150"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-[12px] font-semibold transition-all duration-150"
             style={{
-              color: shareToken ? design.colors.brand.primary : design.colors.text.secondary,
-              backgroundColor: shareToken ? design.colors.brand.subtle : design.colors.bg.elevated,
+              backgroundColor: design.colors.brand.primary,
+              color: "#FFFFFF",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = design.colors.brand.subtle;
-              e.currentTarget.style.color = design.colors.brand.primary;
+              e.currentTarget.style.backgroundColor = design.colors.brand.dark;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = shareToken ? design.colors.brand.subtle : design.colors.bg.elevated;
-              e.currentTarget.style.color = shareToken ? design.colors.brand.primary : design.colors.text.secondary;
+              e.currentTarget.style.backgroundColor = design.colors.brand.primary;
             }}
             title="Share this file"
           >
@@ -327,17 +329,16 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
         {canUndo && (
           <button
             onClick={undo}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-ui-sm transition-colors duration-150"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium transition-colors duration-150"
             style={{
               color: design.colors.text.secondary,
-              backgroundColor: design.colors.bg.elevated,
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = design.colors.brand.subtle;
-              e.currentTarget.style.color = design.colors.brand.primary;
+              e.currentTarget.style.backgroundColor = design.colors.bg.hover;
+              e.currentTarget.style.color = design.colors.text.primary;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = design.colors.bg.elevated;
+              e.currentTarget.style.backgroundColor = "transparent";
               e.currentTarget.style.color = design.colors.text.secondary;
             }}
             title={`Undo: ${undoStack[undoStack.length - 1]?.label}`}
@@ -348,11 +349,27 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
         )}
         {actions}
 
+        {/* User avatar */}
+        <div
+          className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0"
+          style={{
+            backgroundColor: design.colors.brand.subtle,
+            color: design.colors.brand.primary,
+          }}
+          title={session?.user?.name || "User"}
+        >
+          {session?.user?.image ? (
+            <img src={session.user.image} alt="" className="w-7 h-7 rounded-full object-cover" />
+          ) : (
+            userInitials
+          )}
+        </div>
+
         {/* 3-dot menu */}
         <div ref={dotMenuRef} className="relative">
           <button
             onClick={() => setDotMenuOpen(!dotMenuOpen)}
-            className="flex items-center justify-center w-7 h-7 rounded-lg transition-colors"
+            className="flex items-center justify-center w-7 h-7 rounded-md transition-colors"
             style={{
               backgroundColor: dotMenuOpen ? design.colors.bg.tertiary : "transparent",
               color: design.colors.text.muted,
@@ -369,7 +386,7 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
 
           {dotMenuOpen && (
             <div
-              className="absolute top-full right-0 mt-1 border rounded-xl py-1 min-w-[200px] z-50 animate-scale-in"
+              className="absolute top-full right-0 mt-1 border rounded-lg py-1 min-w-[200px] z-50 animate-scale-in"
               style={{
                 backgroundColor: design.colors.bg.elevated,
                 borderColor: design.colors.border.default,
@@ -414,28 +431,41 @@ export function TabBar({ actions }: { actions?: React.ReactNode }) {
           currentToken={shareToken}
           onTokenChange={(token) => {
             setShareToken(token);
-            // Update the store's project data to reflect the new share token
+            // Update the store's project data immutably
             const state = useAppStore.getState();
-            const project = state.projects.find((p) => p.id === state.currentProjectId);
-            if (project) {
-              if (currentEntityType === "ku") {
-                const ku = project.knowledgeUnits?.find((k) => k.id === currentEntityId);
-                if (ku) ku.shareToken = token;
-              } else if (currentEntityType === "table") {
-                const table = project.tables?.find((t) => t.id === currentEntityId);
-                if (table) table.shareToken = token;
-              } else if (currentEntityType === "diagram") {
-                const diagram = (project.diagrams || []).find((d) => d.id === currentEntityId);
-                if (diagram) diagram.shareToken = token;
-              } else if (currentEntityType === "deck") {
-                const deck = (project.decks || []).find((d) => d.id === currentEntityId);
-                if (deck) deck.shareToken = token;
-              }
-              useAppStore.setState({ projects: [...state.projects] });
-            }
+            useAppStore.setState({
+              projects: state.projects.map((p) => {
+                if (p.id !== state.currentProjectId) return p;
+                const updated = { ...p };
+                if (currentEntityType === "ku") {
+                  updated.knowledgeUnits = p.knowledgeUnits.map((k) =>
+                    k.id === currentEntityId ? { ...k, shareToken: token } : k
+                  );
+                } else if (currentEntityType === "table") {
+                  updated.tables = p.tables.map((t) =>
+                    t.id === currentEntityId ? { ...t, shareToken: token } : t
+                  );
+                } else if (currentEntityType === "diagram") {
+                  updated.diagrams = (p.diagrams || []).map((d) =>
+                    d.id === currentEntityId ? { ...d, shareToken: token } : d
+                  );
+                } else if (currentEntityType === "deck") {
+                  updated.decks = (p.decks || []).map((d) =>
+                    d.id === currentEntityId ? { ...d, shareToken: token } : d
+                  );
+                }
+                return updated;
+              }),
+            });
           }}
         />
       )}
     </div>
   );
+}
+
+function getTabBarInitials(name: string): string {
+  const parts = name.trim().split(" ");
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
 }
