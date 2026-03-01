@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { DeckSlide } from "@/lib/types";
 import { SlideRenderer } from "./SlideRenderer";
-import { HtmlSlideRenderer } from "./HtmlSlideRenderer";
 import { PresentationMode } from "./PresentationMode";
 import { resolveTheme, loadThemeFonts } from "./deckThemes";
 import { design } from "@/lib/design";
@@ -47,7 +46,6 @@ export function DeckViewReadOnly({ slides, theme }: DeckViewReadOnlyProps) {
   }
 
   const activeSlide = slides[activeIdx];
-  const isHtml = activeSlide?.layout === "html" && activeSlide.html;
 
   return (
     <div className="flex h-full" style={{ backgroundColor: design.colors.bg.primary }}>
@@ -65,28 +63,14 @@ export function DeckViewReadOnly({ slides, theme }: DeckViewReadOnlyProps) {
               >
                 <span style={{ fontWeight: 600 }}>{i + 1}</span>
                 <div className="flex-1" />
-                {slide.layout === "html" && (
-                  <span className="text-[8px] px-1 rounded" style={{ backgroundColor: design.colors.accent.goldSubtle, color: design.colors.accent.gold }}>
-                    AI
-                  </span>
-                )}
               </div>
-              {slide.layout === "html" && slide.html ? (
-                <HtmlSlideRenderer
-                  html={slide.html}
-                  scale={186 / 960}
-                  onClick={() => setActiveIdx(i)}
-                  isActive={i === activeIdx}
-                />
-              ) : (
-                <SlideRenderer
-                  slide={slide}
-                  theme={resolvedTheme}
-                  scale={186 / 960}
-                  onClick={() => setActiveIdx(i)}
-                  isActive={i === activeIdx}
-                />
-              )}
+              <SlideRenderer
+                slide={slide}
+                theme={resolvedTheme}
+                scale={186 / 960}
+                onClick={() => setActiveIdx(i)}
+                isActive={i === activeIdx}
+              />
             </div>
           ))}
         </div>
@@ -137,15 +121,11 @@ export function DeckViewReadOnly({ slides, theme }: DeckViewReadOnlyProps) {
         {/* Slide canvas */}
         <div className="flex-1 flex items-center justify-center overflow-auto p-8" style={{ backgroundColor: design.colors.bg.tertiary }}>
           {activeSlide && (
-            isHtml ? (
-              <HtmlSlideRenderer html={activeSlide.html!} scale={0.75} />
-            ) : (
-              <SlideRenderer
-                slide={activeSlide}
-                theme={resolvedTheme}
-                scale={0.75}
-              />
-            )
+            <SlideRenderer
+              slide={activeSlide}
+              theme={resolvedTheme}
+              scale={0.75}
+            />
           )}
         </div>
       </div>

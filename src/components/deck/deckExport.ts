@@ -160,6 +160,13 @@ function slideContentHtml(slide: DeckSlide, t: ThemeConfig): string {
         </div>
       </div>`;
 
+    case "imageFeature":
+      return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:${padding};box-sizing:border-box;height:100%">
+        <div style="font-size:56px;line-height:1.05;letter-spacing:-0.04em;text-align:center;font-weight:${t.headingWeight};font-family:${t.headingFont};color:#ffffff;text-shadow:0 2px 24px rgba(0,0,0,0.4)">${esc(slide.title || "Untitled")}</div>
+        ${slide.subtitle ? `<div style="font-size:22px;color:rgba(255,255,255,0.75);line-height:1.55;font-weight:400;text-align:center;margin-top:20px;font-family:${t.bodyFont}">${esc(slide.subtitle)}</div>` : ""}
+        ${slide.content ? `<div style="font-size:18px;color:rgba(255,255,255,0.65);line-height:1.65;max-width:700px;margin-top:24px;font-family:${t.bodyFont}">${esc(slide.content)}</div>` : ""}
+      </div>`;
+
     case "titleContent":
     default:
       return `<div style="display:flex;flex-direction:column;justify-content:flex-start;padding:${padding};box-sizing:border-box;height:100%">
@@ -174,13 +181,27 @@ function slideContentHtml(slide: DeckSlide, t: ThemeConfig): string {
  * Render a full slide (background + decor + content) as standalone HTML.
  */
 function slideToHtml(slide: DeckSlide, t: ThemeConfig): string {
-  // HTML slides already have their own markup
+  // Legacy HTML slides — render as basic fallback
   if (slide.layout === "html" && slide.html) {
-    return slide.html;
+    return `<div style="width:960px;height:540px;position:relative;overflow:hidden;background:#333;color:#fff;font-family:system-ui;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+      <div style="font-size:32px;font-weight:700">${esc(slide.title || "Slide")}</div>
+      <div style="font-size:14px;opacity:0.6">Legacy HTML slide</div>
+    </div>`;
   }
 
-  return `<div style="width:960px;height:540px;position:relative;overflow:hidden;background:${t.bg};color:${t.text};font-family:${t.bodyFont};box-sizing:border-box">
-    ${decorHtml(t)}
+  const bgStyle = slide.backgroundImage
+    ? `background:url(${slide.backgroundImage}) center/cover no-repeat`
+    : `background:${t.bg}`;
+
+  const overlayHtml = slide.backgroundImage
+    ? `<div style="position:absolute;inset:0;background:${slide.backgroundOverlay || 'linear-gradient(to bottom, rgba(0,0,0,0.35), rgba(0,0,0,0.7))'}"></div>`
+    : "";
+
+  const effectiveText = slide.backgroundImage ? "#ffffff" : t.text;
+
+  return `<div style="width:960px;height:540px;position:relative;overflow:hidden;${bgStyle};color:${effectiveText};font-family:${t.bodyFont};box-sizing:border-box">
+    ${overlayHtml}
+    ${!slide.backgroundImage ? decorHtml(t) : ""}
     <div style="position:relative;z-index:1;width:100%;height:100%">
       ${slideContentHtml(slide, t)}
     </div>
@@ -253,17 +274,34 @@ export async function exportDeckToPPTX(slides: DeckSlide[], theme: string) {
   for (const slide of slides) {
     const pptSlide = pptx.addSlide();
 
-    // HTML slides: just show title as fallback (no html2canvas)
-    if (slide.layout === "html" && slide.html) {
+    // Legacy HTML slides: fallback text
+    if (slide.layout === "html") {
       pptSlide.background = { color: "888888" };
-      pptSlide.addText(slide.title || "HTML Slide", {
+      pptSlide.addText(slide.title || "Legacy Slide", {
         x: 0, y: 2, w: 10, h: 1.5,
         fontSize: 24, color: "FFFFFF", align: "center",
       });
       continue;
     }
 
-    pptSlide.background = { color: bgColor };
+    // Background image support
+    if (slide.backgroundImage) {
+      try {
+        pptSlide.background = { path: slide.backgroundImage };
+      } catch {
+        pptSlide.background = { color: "111111" };
+      }
+      // Add overlay
+      pptSlide.addShape("rect" as any, {
+        x: 0, y: 0, w: 10, h: 5.63,
+        fill: { color: "000000", transparency: 50 },
+      });
+    } else {
+      pptSlide.background = { color: bgColor };
+    }
+
+    const slideTextColor = slide.backgroundImage ? "FFFFFF" : textColor;
+    const slideSubColor = slide.backgroundImage ? "CCCCCC" : subtitleColorHex;
 
     // Bottom accent bar
     pptSlide.addShape("rect" as any, {
@@ -274,12 +312,25 @@ export async function exportDeckToPPTX(slides: DeckSlide[], theme: string) {
       case "title":
         pptSlide.addText(slide.title || "Untitled", {
           x: 0.8, y: 1.8, w: 8.4, h: 1.5,
-          fontSize: 40, bold: true, color: textColor, align: "center", valign: "bottom",
+          fontSize: 40, bold: true, color: slideTextColor, align: "center", valign: "bottom",
         });
         if (slide.subtitle) {
           pptSlide.addText(slide.subtitle, {
             x: 0.8, y: 3.4, w: 8.4, h: 0.8,
-            fontSize: 20, color: subtitleColorHex, align: "center",
+            fontSize: 20, color: slideSubColor, align: "center",
+          });
+        }
+        break;
+
+      case "imageFeature":
+        pptSlide.addText(slide.title || "Untitled", {
+          x: 0.8, y: 1.5, w: 8.4, h: 1.8,
+          fontSize: 48, bold: true, color: "FFFFFF", align: "center", valign: "bottom",
+        });
+        if (slide.subtitle) {
+          pptSlide.addText(slide.subtitle, {
+            x: 0.8, y: 3.4, w: 8.4, h: 0.8,
+            fontSize: 20, color: "CCCCCC", align: "center",
           });
         }
         break;
@@ -287,7 +338,7 @@ export async function exportDeckToPPTX(slides: DeckSlide[], theme: string) {
       case "section":
         pptSlide.addText(slide.title || "Section", {
           x: 0.5, y: 2.2, w: 9, h: 1,
-          fontSize: 36, bold: true, color: textColor, align: "center",
+          fontSize: 36, bold: true, color: slideTextColor, align: "center",
         });
         break;
 
@@ -295,14 +346,14 @@ export async function exportDeckToPPTX(slides: DeckSlide[], theme: string) {
         if (slide.title) {
           pptSlide.addText(slide.title, {
             x: 0.7, y: 0.5, w: 8.5, h: 0.8,
-            fontSize: 26, bold: true, color: textColor,
+            fontSize: 26, bold: true, color: slideTextColor,
           });
         }
         if (slide.bullets?.length) {
           pptSlide.addText(
             slide.bullets.map((b) => ({
               text: b,
-              options: { bullet: { type: "bullet" as const }, color: textColor, fontSize: 18 },
+              options: { bullet: { type: "bullet" as const }, color: slideTextColor, fontSize: 18 },
             })),
             { x: 0.7, y: slide.title ? 1.5 : 0.5, w: 8.5, h: 3.5 }
           );
@@ -313,7 +364,7 @@ export async function exportDeckToPPTX(slides: DeckSlide[], theme: string) {
         if (slide.title) {
           pptSlide.addText(slide.title, {
             x: 0.7, y: 0.5, w: 8.5, h: 0.8,
-            fontSize: 26, bold: true, color: textColor,
+            fontSize: 26, bold: true, color: slideTextColor,
           });
         }
         const stats = slide.stats || [];
@@ -329,7 +380,7 @@ export async function exportDeckToPPTX(slides: DeckSlide[], theme: string) {
             });
             pptSlide.addText(stats[si].label.toUpperCase(), {
               x: cx, y: cy + 1.2, w: cardW, h: 0.5,
-              fontSize: 10, color: subtitleColorHex, align: "center", valign: "top",
+              fontSize: 10, color: slideSubColor, align: "center", valign: "top",
             });
           }
         }
@@ -337,14 +388,14 @@ export async function exportDeckToPPTX(slides: DeckSlide[], theme: string) {
       }
 
       case "quote":
-        pptSlide.addText(`"${slide.content || ""}"`, {
+        pptSlide.addText(`\u201C${slide.content || ""}\u201D`, {
           x: 1.5, y: 1.5, w: 7, h: 2,
-          fontSize: 24, italic: true, color: textColor, align: "center", valign: "middle",
+          fontSize: 24, italic: true, color: slideTextColor, align: "center", valign: "middle",
         });
         if (slide.title) {
           pptSlide.addText(slide.title, {
             x: 1.5, y: 3.5, w: 7, h: 0.6,
-            fontSize: 14, color: subtitleColorHex, align: "center",
+            fontSize: 14, color: slideSubColor, align: "center",
           });
         }
         break;
@@ -353,16 +404,16 @@ export async function exportDeckToPPTX(slides: DeckSlide[], theme: string) {
         if (slide.title) {
           pptSlide.addText(slide.title, {
             x: 0.7, y: 0.5, w: 8.5, h: 0.8,
-            fontSize: 26, bold: true, color: textColor,
+            fontSize: 26, bold: true, color: slideTextColor,
           });
         }
         pptSlide.addText(slide.content || "", {
           x: 0.7, y: slide.title ? 1.6 : 0.5, w: 4, h: 3.2,
-          fontSize: 16, color: subtitleColorHex, valign: "top",
+          fontSize: 16, color: slideSubColor, valign: "top",
         });
         pptSlide.addText(slide.subtitle || "", {
           x: 5.2, y: slide.title ? 1.6 : 0.5, w: 4, h: 3.2,
-          fontSize: 16, color: subtitleColorHex, valign: "top",
+          fontSize: 16, color: slideSubColor, valign: "top",
         });
         break;
 
@@ -370,13 +421,13 @@ export async function exportDeckToPPTX(slides: DeckSlide[], theme: string) {
         if (slide.title) {
           pptSlide.addText(slide.title, {
             x: 0.7, y: 0.5, w: 8.5, h: 0.8,
-            fontSize: 26, bold: true, color: textColor,
+            fontSize: 26, bold: true, color: slideTextColor,
           });
         }
         if (slide.content) {
           pptSlide.addText(slide.content, {
             x: 0.7, y: slide.title ? 1.5 : 0.5, w: 8.5, h: 3.5,
-            fontSize: 16, color: subtitleColorHex,
+            fontSize: 16, color: slideSubColor,
           });
         }
         break;

@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { DeckSlide } from "@/lib/types";
 import { SlideRenderer } from "./SlideRenderer";
-import { HtmlSlideRenderer } from "./HtmlSlideRenderer";
 import { resolveTheme } from "./deckThemes";
 
 interface PresentationModeProps {
@@ -101,8 +100,6 @@ export function PresentationMode({ slides, theme, startIdx = 0, onExit }: Presen
   const slide = slides[currentIdx];
   if (!slide) return null;
 
-  const isHtml = slide.layout === "html" && slide.html;
-
   // Calculate scale to fit 960x540 in viewport with 16:9 maintained
   const content = (
     <div
@@ -131,11 +128,7 @@ export function PresentationMode({ slides, theme, startIdx = 0, onExit }: Presen
           )})`,
         }}
       >
-        {isHtml ? (
-          <HtmlSlideRenderer html={slide.html!} scale={1} />
-        ) : (
-          <SlideRenderer slide={slide} theme={resolvedTheme} scale={1} />
-        )}
+        <SlideRenderer slide={slide} theme={resolvedTheme} scale={1} />
       </div>
 
       {/* Slide counter */}

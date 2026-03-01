@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
-import { nanoid } from "nanoid";
-import { MoreHorizontal, PanelLeft } from "lucide-react";
-import { DeckSlide, FileAttachment, GroundingSource } from "@/lib/types";
+import { EntityType, FileAttachment, GroundingSource } from "@/lib/types";
+import { cn } from "@/lib/cn";
 import {
   parseSheetOperations,
   parseDocOperations,
@@ -17,7 +16,6 @@ import {
   parseSuggestions,
 } from "@/lib/ai/parseAIResponse";
 import { scoreRelevance } from "@/lib/ai/contextRelevance";
-import { design } from "@/lib/design";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 import { ExamplePrompts } from "./ExamplePrompts";
@@ -46,26 +44,34 @@ export function ChatPanel({ centered }: ChatPanelProps) {
   }, []);
 
   const sendMessage = useCallback(
-    async (content: string, attachments?: FileAttachment[]) => {
-      // Prevent concurrent streams — ignore if already streaming
+    async (content: string, attachments?: FileAttachment[], mentionedEntities?: { id: string; type: EntityType; title: string }[]) => {
+      // Prevent concurrent streams
       if (useAppStore.getState().isStreaming) return;
 
-      // Auto-create a project if none exists (everything is project-based)
+      // Auto-create a project if none exists
       if (!useAppStore.getState().currentProjectId) {
         useAppStore.getState().createProject("New Project");
-        // Don't open workspace yet — let finishStreaming open it when AI returns content
         useAppStore.setState({ workspaceOpen: false });
       }
 
       // Snapshot messages BEFORE addUserMessage to avoid sending the new message twice
       const priorMessages = useAppStore.getState().messages;
 
-      addUserMessage(content, attachments);
+      addUserMessage(content, attachments, mentionedEntities);
       clearPendingAttachments();
       startStreaming();
 
       try {
         const state = useAppStore.getState();
+
+        // Prepend mention references to content for AI context
+        let enrichedContent = content;
+        if (mentionedEntities && mentionedEntities.length > 0) {
+          const typeLabels: Record<EntityType, string> = { ku: "document", table: "spreadsheet", diagram: "diagram", deck: "deck" };
+          const refs = mentionedEntities.map((e) => `[User referenced: "${e.title}" (${typeLabels[e.type]})]`).join("\n");
+          enrichedContent = refs + "\n\n" + content;
+        }
+
         const allMessages = [
           ...priorMessages.map((m) => ({
             role: m.role,
@@ -76,7 +82,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           })),
           {
             role: "user" as const,
-            content,
+            content: enrichedContent,
             attachmentTexts: attachments
               ?.filter((a) => a.extractedText)
               .map((a) => ({ name: a.name, text: a.extractedText })),
@@ -91,7 +97,6 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         if (state.currentProjectId) {
           const project = state.projects.find((p) => p.id === state.currentProjectId);
           if (project) {
-            // Generate query embedding for semantic search (fire-and-forget, non-blocking)
             let queryEmbedding: number[] | undefined;
             const hasEmbeddings = project.knowledgeUnits.some((k) => k.embedding) ||
               project.tables.some((t) => t.embedding);
@@ -107,11 +112,10 @@ export function ChatPanel({ centered }: ChatPanelProps) {
                   queryEmbedding = embData.embeddings?.[0];
                 }
               } catch {
-                // Silently fail — keyword matching will be used as fallback
+                // Silently fail -- keyword matching will be used as fallback
               }
             }
 
-            // Score relevance of KUs and tables to the user's message
             const relevanceResult = scoreRelevance(
               content,
               project.knowledgeUnits,
@@ -120,7 +124,53 @@ export function ChatPanel({ centered }: ChatPanelProps) {
               { maxKUs: 4, maxTables: 3, charBudget: 50000, minScore: 1.0, queryEmbedding }
             );
 
-            // Store reading files for the UI indicator
+            // Force-include mentioned entities in relevance results
+            let mentionedDiagramContext = "";
+            let mentionedDeckContext = "";
+            if (mentionedEntities && mentionedEntities.length > 0) {
+              for (const mention of mentionedEntities) {
+                if (mention.type === "ku") {
+                  const ku = project.knowledgeUnits.find((k) => k.id === mention.id);
+                  if (ku && !relevanceResult.relevantKUs.some((r) => r.id === ku.id)) {
+                    relevanceResult.relevantKUs.push({ id: ku.id, title: ku.title, content: ku.content, score: 100 });
+                  }
+                } else if (mention.type === "table") {
+                  const table = project.tables.find((t) => t.id === mention.id);
+                  if (table && !relevanceResult.relevantTables.some((r) => r.id === table.id)) {
+                    // Build CSV content for the table
+                    const sheet = table.sheets[0];
+                    let csv = "";
+                    if (sheet?.celldata?.length) {
+                      let maxR = 0, maxC = 0;
+                      for (const c of sheet.celldata) { if (c.r > maxR) maxR = c.r; if (c.c > maxC) maxC = c.c; }
+                      const rows: string[] = [];
+                      for (let r = 0; r <= Math.min(maxR, 100); r++) {
+                        const cells: string[] = [];
+                        for (let c = 0; c <= maxC; c++) {
+                          const cell = sheet.celldata.find((cd) => cd.r === r && cd.c === c);
+                          cells.push(String(cell?.v?.v ?? ""));
+                        }
+                        rows.push(cells.join(","));
+                      }
+                      csv = rows.join("\n");
+                    }
+                    relevanceResult.relevantTables.push({ id: table.id, title: table.title, csvContent: csv, score: 100 });
+                  }
+                } else if (mention.type === "diagram") {
+                  const diagram = (project.diagrams || []).find((d) => d.id === mention.id);
+                  if (diagram) {
+                    mentionedDiagramContext += `\n<mentioned_diagram id="${diagram.id}" title="${diagram.title}">\n${diagram.source}\n</mentioned_diagram>`;
+                  }
+                } else if (mention.type === "deck") {
+                  const deck = (project.decks || []).find((d) => d.id === mention.id);
+                  if (deck) {
+                    const slideSummary = deck.slides.map((s, i) => `Slide ${i + 1}: ${s.title || ""} (${s.layout})`).join("\n");
+                    mentionedDeckContext += `\n<mentioned_deck id="${deck.id}" title="${deck.title}">\n${slideSummary}\n</mentioned_deck>`;
+                  }
+                }
+              }
+            }
+
             const readingFiles = [
               ...relevanceResult.relevantKUs.map((k) => k.title),
               ...relevanceResult.relevantTables.map((t) => t.title),
@@ -132,13 +182,11 @@ export function ChatPanel({ centered }: ChatPanelProps) {
             projectContext = {
               id: project.id,
               title: project.title,
-              // Summaries for all KUs (reduced to 200 chars since relevant ones get full content)
               knowledgeUnits: project.knowledgeUnits.map((k) => ({
                 id: k.id,
                 title: k.title,
                 summary: k.id === state.currentEntityId ? k.content : k.content.slice(0, 200),
               })),
-              // Headers for all tables
               tables: project.tables.map((t) => ({
                 id: t.id,
                 title: t.title,
@@ -148,7 +196,6 @@ export function ChatPanel({ centered }: ChatPanelProps) {
                   .map((c) => c.v?.v || "")
                   .slice(0, 20),
               })),
-              // Full content for relevant matches
               relevantKUs: relevanceResult.relevantKUs.map((k) => ({
                 id: k.id,
                 title: k.title,
@@ -159,12 +206,13 @@ export function ChatPanel({ centered }: ChatPanelProps) {
                 title: t.title,
                 csvContent: t.csvContent,
               })),
-              // Diagram summaries
               diagrams: (project.diagrams || []).map((d) => ({
                 id: d.id,
                 title: d.title,
                 diagramType: d.diagramType,
               })),
+              mentionedDiagramContext,
+              mentionedDeckContext,
             };
           }
         }
@@ -186,7 +234,6 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         // Retry once on 5xx errors
         if (response.status >= 500 && response.status < 600) {
           await new Promise((r) => setTimeout(r, 1000));
-          // Check if user aborted during the retry delay
           if (abortControllerRef.current?.signal.aborted) {
             abortStreaming();
             return;
@@ -227,12 +274,13 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         let streamError = "";
         let groundingSources: GroundingSource[] = [];
 
-        // Process a single SSE line
+        let chunkCount = 0;
         const processLine = (line: string) => {
           const trimmed = line.trim();
           if (!trimmed.startsWith("data: ")) return;
           const data = trimmed.slice(6);
           if (data === "[DONE]") return;
+          chunkCount++;
           try {
             const parsed = JSON.parse(data);
             if (parsed.text) {
@@ -247,7 +295,8 @@ export function ChatPanel({ centered }: ChatPanelProps) {
               console.error("[Drafta] Stream error:", parsed.error);
             }
           } catch {
-            // Malformed chunk — skip silently
+            // Malformed chunk — log first few for debugging
+            if (chunkCount <= 3) console.warn("[Drafta] Malformed SSE chunk:", data.slice(0, 200));
           }
         };
 
@@ -264,7 +313,6 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           }
         }
 
-        // Process any remaining buffer — split in case it contains multiple lines
         if (buffer.trim()) {
           const remaining = buffer.split("\n");
           for (const line of remaining) {
@@ -272,19 +320,22 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           }
         }
 
-        // If the AI produced an error and no content, show error to user
         if (streamError && !fullText.trim()) {
+          console.error("[Drafta] Stream completed with error, no text. Error:", streamError, "Chunks received:", chunkCount);
           abortStreaming();
-          toast.error("AI couldn't generate a response. Please try again.");
+          toast.error(streamError.includes("Rate limit") ? streamError : "AI couldn't generate a response. Please try again.");
           return;
         }
 
-        // Don't create an empty assistant message
         if (!fullText.trim()) {
+          console.warn("[Drafta] Stream completed with empty text. Chunks received:", chunkCount, "Buffer remainder:", buffer.slice(0, 200));
           abortStreaming();
           toast.error("No response received from AI. Please try again.");
           return;
         }
+
+        // Transition to updating phase while parsing operations
+        useAppStore.getState().setAIPhase('updating');
 
         const sheetOps = parseSheetOperations(fullText);
         const docOps = parseDocOperations(fullText);
@@ -295,27 +346,19 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         const suggestions = parseSuggestions(fullText);
         const displayText = extractDisplayText(fullText);
 
-        // Warn if AI tried to output ops but parsing failed
         const hasAnyOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || diagramOps.length > 0 || deckOps.length > 0;
         if (!hasAnyOps) {
           const hasFences = fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops") || fullText.includes("```diagramops") || fullText.includes("```deckops");
           if (hasFences) {
             console.warn("[Drafta] Operation blocks found but none parsed. Raw tail:", fullText.slice(-600));
-            toast.error("AI response had formatting issues — some changes may not have been applied. Try again.");
+            toast.error("AI response had formatting issues -- some changes may not have been applied. Try again.");
           }
         }
 
         finishStreaming(displayText || fullText, sheetOps, docOps, kuOps, tableOps, diagramOps, deckOps, suggestions);
 
-        // After deck creation, auto-enhance with Kimi K2.5 HTML slides
-        if (deckOps.length > 0) {
-          const createOp = deckOps.find((op) => op.type === "CREATE");
-          if (createOp && createOp.type === "CREATE" && createOp.slides?.length > 0) {
-            enhanceDeckWithKimi(createOp.title, createOp.slides);
-          }
-        }
 
-        // Attach grounding sources to the assistant message if web search was used
+        // Attach grounding sources to the assistant message
         if (groundingSources.length > 0) {
           const msgs = useAppStore.getState().messages;
           if (msgs.length > 0 && msgs[msgs.length - 1].role === "assistant") {
@@ -328,11 +371,9 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
-          // User cancelled — keep any partial content that was streamed
           const partial = useAppStore.getState().streamingContent;
           if (partial.trim()) {
             finishStreaming(extractDisplayText(partial) || partial);
-            // Mark the saved message as interrupted
             const msgs = useAppStore.getState().messages;
             if (msgs.length > 0) {
               const last = msgs[msgs.length - 1];
@@ -370,144 +411,45 @@ export function ChatPanel({ centered }: ChatPanelProps) {
 
   return (
     <div
-      className={`flex flex-col h-full ${
-        centered ? "" : "border-r border-[var(--color-border)]"
-      }`}
-      style={{ backgroundColor: design.colors.bg.chat }}
+      className={cn(
+        "flex flex-col h-full bg-background",
+        !centered && "border-r border-[#e8e7e4]"
+      )}
     >
-      {/* Chat header — clean app bar */}
-      <div
-        className="flex items-center justify-between px-4 flex-shrink-0 border-b"
-        style={{
-          height: design.layout.headerHeight,
-          borderColor: design.colors.border.default,
-          backgroundColor: design.colors.bg.primary,
-        }}
-      >
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => window.dispatchEvent(new Event("drafta:toggle-sidebar"))}
-            className="w-7 h-7 flex items-center justify-center rounded-md transition-colors flex-shrink-0"
-            style={{ color: design.colors.text.muted }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; e.currentTarget.style.color = design.colors.text.primary; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = design.colors.text.muted; }}
-            title="Toggle sidebar (⌘B)"
-          >
-            <PanelLeft className="w-4 h-4" />
-          </button>
-          <span
-            className="text-[15px] font-semibold"
-            style={{ color: design.colors.text.primary, fontFamily: design.typography.family.heading, letterSpacing: "-0.01em" }}
-          >
-            Drafta AI
-          </span>
+      {/* Chat header -- sidebar mode only */}
+      {!centered && (
+        <div className="flex items-center justify-between border-b border-[#e8e7e4] px-4 h-[52px] flex-shrink-0">
+          <h3 className="text-[13px] font-medium text-foreground truncate">
+            {currentProject?.title || "Drafta AI"}
+          </h3>
         </div>
-        <button
-          onClick={() => window.dispatchEvent(new Event("drafta:toggle-sidebar"))}
-          className="w-7 h-7 flex items-center justify-center rounded-md transition-colors"
-          style={{ color: design.colors.text.muted }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-          title="Options"
-        >
-          <MoreHorizontal className="w-4 h-4" />
-        </button>
-      </div>
+      )}
 
-      {/* Content */}
+      {/* Content area */}
       <div className="flex-1 overflow-y-auto">
         {hasMessages ? (
-          <div className={centered ? "max-w-[720px] mx-auto w-full" : ""}>
+          <div className={centered ? "max-w-[680px] mx-auto w-full px-6" : ""}>
             <MessageList />
           </div>
         ) : (
-          <ExamplePrompts onSelect={sendMessage} centered={centered} />
+          <ExamplePrompts
+            onSelect={sendMessage}
+            centered={centered}
+            hasProject={!!currentProjectId}
+          />
         )}
       </div>
 
       {/* Input */}
-      <div className={centered ? "max-w-[720px] mx-auto w-full" : ""}>
-        <ChatInput onSend={sendMessage} disabled={isStreaming} centered={centered} onStop={stopStreaming} />
+      <div className={centered ? "max-w-[680px] mx-auto w-full px-6" : ""}>
+        <ChatInput
+          onSend={sendMessage}
+          disabled={isStreaming}
+          centered={centered}
+          onStop={stopStreaming}
+        />
       </div>
     </div>
   );
 }
 
-/**
- * After Gemini creates a deck with JSON slides, call Kimi K2.5 to generate
- * rich HTML versions. The JSON slides display instantly; HTML slides replace
- * them in the background once Kimi finishes.
- */
-async function enhanceDeckWithKimi(title: string, originalSlides: DeckSlide[]) {
-  // Build a prompt from the slide content
-  const slideOutline = originalSlides.map((s, i) => {
-    let desc = `Slide ${i + 1} (${s.layout}): ${s.title || ""}`;
-    if (s.subtitle) desc += ` — ${s.subtitle}`;
-    if (s.bullets?.length) desc += `\n  • ${s.bullets.join("\n  • ")}`;
-    if (s.content) desc += `\n  ${s.content.slice(0, 200)}`;
-    if (s.stats?.length) desc += `\n  Stats: ${s.stats.map((st) => `${st.value} ${st.label}`).join(", ")}`;
-    return desc;
-  }).join("\n");
-
-  const prompt = `Create a professional presentation titled "${title}" with the following content:\n\n${slideOutline}`;
-
-  try {
-    toast.info("Enhancing deck with AI visuals...", { duration: 3000 });
-
-    const res = await fetch("/api/deck-ai", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        prompt,
-        slideCount: originalSlides.length,
-        style: "professional",
-      }),
-    });
-
-    if (!res.ok) return; // Silently fail — user still has the JSON deck
-
-    const reader = res.body!.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let htmlSlides: string[] = [];
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        const data = line.slice(6).trim();
-        if (data === "[DONE]") continue;
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.type === "complete" && parsed.slides) {
-            htmlSlides = parsed.slides;
-          }
-        } catch { /* skip */ }
-      }
-    }
-
-    if (htmlSlides.length === 0) return;
-
-    // Replace deck slides with HTML versions
-    const newSlides: DeckSlide[] = htmlSlides.map((html, i) => ({
-      id: nanoid(),
-      layout: "html" as const,
-      title: originalSlides[i]?.title || `Slide ${i + 1}`,
-      html,
-      htmlPrompt: prompt,
-      generatedBy: "kimi" as const,
-      notes: originalSlides[i]?.notes || "",
-    }));
-
-    useAppStore.getState().updateDeckSlides(newSlides);
-    toast.success(`Deck enhanced with ${newSlides.length} AI-designed slides`);
-  } catch {
-    // Silently fail — user still has the original JSON deck
-  }
-}
