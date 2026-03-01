@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { db } from "@/db";
 import {
+  users,
   projects,
   knowledgeUnits,
   projectTables,
@@ -10,6 +11,17 @@ import {
 } from "@/db/schema";
 import { eq, desc, sql, inArray } from "drizzle-orm";
 import { ensureUserExists } from "@/lib/db/ensureUser";
+import { nanoid } from "nanoid";
+import {
+  GETTING_STARTED_DOC_TITLE,
+  GETTING_STARTED_DOC_CONTENT,
+  TASK_TRACKER_TITLE,
+  TASK_TRACKER_SHEETS,
+  WORKFLOW_DIAGRAM_TITLE,
+  WORKFLOW_DIAGRAM_SOURCE,
+  WELCOME_DECK_TITLE,
+  WELCOME_DECK_SLIDES,
+} from "@/lib/onboarding";
 
 // GET /api/projects — lightweight project list (metadata + entity counts only)
 export async function GET() {
@@ -28,6 +40,21 @@ export async function GET() {
     }
 
     await ensureUserExists(session as any);
+
+    // ── Onboarding: create example project for first-time users ──
+    const [user] = await db
+      .select({ hasOnboarded: users.hasOnboarded })
+      .from(users)
+      .where(eq(users.id, session.user.id))
+      .limit(1);
+
+    if (user && !user.hasOnboarded) {
+      await createExampleProject(session.user.id);
+      await db
+        .update(users)
+        .set({ hasOnboarded: true })
+        .where(eq(users.id, session.user.id));
+    }
 
     const userProjects = await db
       .select()
@@ -158,4 +185,50 @@ export async function POST(req: Request) {
     console.error("[API] POST /api/projects error:", error);
     return Response.json({ error: "Internal server error" }, { status: 500 });
   }
+}
+
+// ── Onboarding helper: seed a "Welcome to Drafta" project ──
+
+async function createExampleProject(userId: string) {
+  const projectId = nanoid();
+  const kuId = nanoid();
+  const tableId = nanoid();
+  const diagramId = nanoid();
+  const deckId = nanoid();
+
+  await db.insert(projects).values({
+    id: projectId,
+    userId,
+    title: "Welcome to Drafta",
+    description: "Your getting-started project with example documents, a spreadsheet, a diagram, and a slide deck.",
+    projectType: "Other",
+  });
+
+  await Promise.all([
+    db.insert(knowledgeUnits).values({
+      id: kuId,
+      projectId,
+      title: GETTING_STARTED_DOC_TITLE,
+      content: GETTING_STARTED_DOC_CONTENT,
+    }),
+    db.insert(projectTables).values({
+      id: tableId,
+      projectId,
+      title: TASK_TRACKER_TITLE,
+      sheets: TASK_TRACKER_SHEETS,
+    }),
+    db.insert(projectDiagrams).values({
+      id: diagramId,
+      projectId,
+      title: WORKFLOW_DIAGRAM_TITLE,
+      diagramType: "mermaid",
+      source: WORKFLOW_DIAGRAM_SOURCE,
+    }),
+    db.insert(projectDecks).values({
+      id: deckId,
+      projectId,
+      title: WELCOME_DECK_TITLE,
+      slides: WELCOME_DECK_SLIDES,
+    }),
+  ]);
 }

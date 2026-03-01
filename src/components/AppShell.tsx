@@ -6,6 +6,7 @@ import { WorkspacePanel } from "@/components/workspace/WorkspacePanel";
 import { NavRail } from "@/components/sidebar/NavRail";
 import { KeyboardShortcuts } from "@/components/shared/KeyboardShortcuts";
 import { SearchDialog } from "@/components/shared/SearchDialog";
+import { WelcomeModal } from "@/components/onboarding/WelcomeModal";
 import { useAppStore } from "@/lib/store";
 
 type ViewMode = "chat" | "editor" | "project";
@@ -131,6 +132,7 @@ export function AppShell() {
 
       <KeyboardShortcuts />
       <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <WelcomeModal />
     </div>
   );
 }
