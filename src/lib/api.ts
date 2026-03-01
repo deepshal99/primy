@@ -1,13 +1,39 @@
 // API client for Neon persistence
 // Used by the Zustand store to sync with the server
 
-import { Project } from "./types";
+import { Project, ProjectListItem, Message } from "./types";
 
-export async function fetchProjects(): Promise<Project[]> {
+/** Fetch lightweight project list (metadata + entity counts, no content) */
+export async function fetchProjects(): Promise<ProjectListItem[]> {
   const res = await fetch("/api/projects");
   if (!res.ok) {
-    if (res.status === 401) return []; // Not authenticated
+    if (res.status === 401) return [];
     throw new Error("Failed to fetch projects");
+  }
+  return res.json();
+}
+
+/** Fetch full project with all entities and last 50 messages */
+export async function fetchFullProject(id: string): Promise<Project & { hasMoreMessages: boolean }> {
+  const res = await fetch(`/api/projects/${id}`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch project ${id}: ${res.status}`);
+  }
+  return res.json();
+}
+
+/** Fetch older messages before a given timestamp */
+export async function fetchOlderMessages(
+  projectId: string,
+  before: number,
+  limit = 50
+): Promise<{ messages: Message[]; hasMore: boolean }> {
+  const beforeISO = new Date(before).toISOString();
+  const res = await fetch(
+    `/api/projects/${projectId}/messages?before=${encodeURIComponent(beforeISO)}&limit=${limit}`
+  );
+  if (!res.ok) {
+    throw new Error(`Failed to fetch messages: ${res.status}`);
   }
   return res.json();
 }

@@ -15,7 +15,6 @@ import {
   X,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { useProjects } from "@/lib/hooks/useProjects";
 import { cn } from "@/lib/cn";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { ShareModal } from "@/components/settings/ShareModal";
@@ -51,9 +50,7 @@ function timeAgo(ts: number): string {
 
 export function NavRail() {
   const { data: session } = useSession();
-  const { data: serverProjects } = useProjects();
-  const storeProjects = useAppStore((s) => s.projects);
-  const projects = serverProjects && serverProjects.length > 0 ? serverProjects : storeProjects;
+  const projects = useAppStore((s) => s.projects);
   const currentProjectId = useAppStore((s) => s.currentProjectId);
   const loadProjects = useAppStore((s) => s.loadProjects);
   const loadConversations = useAppStore((s) => s.loadConversations);
@@ -75,12 +72,6 @@ export function NavRail() {
 
   const drawerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (serverProjects && serverProjects.length > 0) {
-      useAppStore.setState({ projects: serverProjects });
-    }
-  }, [serverProjects]);
 
   useEffect(() => { loadConversations(); loadProjects(); }, [loadConversations, loadProjects]);
 

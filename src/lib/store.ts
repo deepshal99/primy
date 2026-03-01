@@ -25,6 +25,8 @@ import { applyOperations, normalizeCells } from "@/lib/ai/sheetOperations";
 import { applyDocOps } from "@/lib/ai/docOperations";
 import {
   fetchProjects,
+  fetchFullProject,
+  fetchOlderMessages,
   createProjectOnServer,
   updateProjectOnServer,
   deleteProjectOnServer,
@@ -237,6 +239,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentProjectId: null,
   currentEntityId: null,
   currentEntityType: null,
+  projectsFullyLoaded: {},
+  isLoadingProject: false,
   openTabs: [],
 
   // ── Chat Actions ──
@@ -446,6 +450,17 @@ export const useAppStore = create<AppState>((set, get) => ({
                 }
                 break;
               }
+              case "DELETE": {
+                project.knowledgeUnits = project.knowledgeUnits.filter((k) => k.id !== op.kuId);
+                newOpenTabs = newOpenTabs.filter((t) => t.id !== op.kuId);
+                if (newCurrentEntityId === op.kuId) {
+                  newCurrentEntityId = null;
+                  newCurrentEntityType = null;
+                  newDocContent = "";
+                  newDocVersion = state.docVersion + 1;
+                }
+                break;
+              }
             }
           }
         }
@@ -541,6 +556,19 @@ export const useAppStore = create<AppState>((set, get) => ({
                 }
                 break;
               }
+              case "DELETE": {
+                project.tables = project.tables.filter((t) => t.id !== op.tableId);
+                newOpenTabs = newOpenTabs.filter((t) => t.id !== op.tableId);
+                if (newCurrentEntityId === op.tableId) {
+                  newCurrentEntityId = null;
+                  newCurrentEntityType = null;
+                  newSheets = [{
+                    name: "Sheet1", order: 0, status: 1, celldata: [], row: 50, column: 26,
+                  }];
+                  newSheetVersion = state.sheetVersion + 1;
+                }
+                break;
+              }
             }
           }
         }
@@ -591,6 +619,29 @@ export const useAppStore = create<AppState>((set, get) => ({
                     newOpenTabs = [...newOpenTabs, { id: entity.id, type: "diagram" as const, title: entity.title }];
                   }
                   aiModifiedIds.push(op.diagramId);
+                }
+                break;
+              }
+              case "DELETE": {
+                project.diagrams = (project.diagrams || []).filter((d) => d.id !== op.diagramId);
+                newOpenTabs = newOpenTabs.filter((t) => t.id !== op.diagramId);
+                if (newCurrentEntityId === op.diagramId) {
+                  newCurrentEntityId = null;
+                  newCurrentEntityType = null;
+                  newDiagramSource = "";
+                  newDiagramVersion = state.diagramVersion + 1;
+                }
+                break;
+              }
+              case "RENAME": {
+                const idx = (project.diagrams || []).findIndex((d) => d.id === op.diagramId);
+                if (idx >= 0) {
+                  project.diagrams[idx] = {
+                    ...project.diagrams[idx],
+                    title: op.title,
+                    updatedAt: Date.now(),
+                  };
+                  newOpenTabs = newOpenTabs.map((t) => t.id === op.diagramId ? { ...t, title: op.title } : t);
                 }
                 break;
               }
@@ -681,6 +732,29 @@ export const useAppStore = create<AppState>((set, get) => ({
                 }
                 break;
               }
+              case "DELETE": {
+                project.decks = (project.decks || []).filter((d) => d.id !== op.deckId);
+                newOpenTabs = newOpenTabs.filter((t) => t.id !== op.deckId);
+                if (newCurrentEntityId === op.deckId) {
+                  newCurrentEntityId = null;
+                  newCurrentEntityType = null;
+                  newDeckSlides = [];
+                  newDeckVersion = state.deckVersion + 1;
+                }
+                break;
+              }
+              case "RENAME": {
+                const idx = (project.decks || []).findIndex((d) => d.id === op.deckId);
+                if (idx >= 0) {
+                  project.decks[idx] = {
+                    ...project.decks[idx],
+                    title: op.title,
+                    updatedAt: Date.now(),
+                  };
+                  newOpenTabs = newOpenTabs.map((t) => t.id === op.deckId ? { ...t, title: op.title } : t);
+                }
+                break;
+              }
             }
           }
         }
@@ -724,24 +798,50 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Success toasts for AI operations
     if (hasSheetOps) toast.success("Spreadsheet updated");
     else if (hasDocOps) toast.success("Document updated");
+
+    // Collect deleted entity IDs for server sync
+    const deletedKuIds: string[] = [];
+    const deletedTableIds: string[] = [];
+    const deletedDiagramIds: string[] = [];
+    const deletedDeckIds: string[] = [];
+
     if (hasKuOps) {
       for (const op of kuOperations) {
         if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
+        else if (op.type === "DELETE") deletedKuIds.push(op.kuId);
+        else if (op.type === "RENAME") toast.success("Document renamed");
       }
     }
     if (hasTableOps) {
       for (const op of tableOperations) {
         if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
+        else if (op.type === "DELETE") deletedTableIds.push(op.tableId);
       }
     }
     if (hasDiagramOps) {
       for (const op of diagramOperations) {
         if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
+        else if (op.type === "DELETE") deletedDiagramIds.push(op.diagramId);
+        else if (op.type === "RENAME") toast.success("Diagram renamed");
       }
     }
     if (hasDeckOps) {
       for (const op of deckOperations) {
         if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
+        else if (op.type === "DELETE") deletedDeckIds.push(op.deckId);
+        else if (op.type === "RENAME") toast.success("Deck renamed");
+      }
+    }
+
+    // Immediately sync deletions to server (debounced save won't include deletedXxxIds)
+    if (state.currentProjectId) {
+      const deletePayload: Record<string, string[]> = {};
+      if (deletedKuIds.length > 0) deletePayload.deletedKnowledgeUnitIds = deletedKuIds;
+      if (deletedTableIds.length > 0) deletePayload.deletedTableIds = deletedTableIds;
+      if (deletedDiagramIds.length > 0) deletePayload.deletedDiagramIds = deletedDiagramIds;
+      if (deletedDeckIds.length > 0) deletePayload.deletedDeckIds = deletedDeckIds;
+      if (Object.keys(deletePayload).length > 0) {
+        updateProjectOnServer(state.currentProjectId, deletePayload).catch(() => {});
       }
     }
 
@@ -1199,6 +1299,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       currentConversationId: null,
       currentEntityId: null,
       currentEntityType: null,
+      projectsFullyLoaded: { ...state.projectsFullyLoaded, [project.id]: true },
       messages: [],
       sheets: createEmptySheet(),
       sheetVersion: state.sheetVersion + 1,
@@ -1338,6 +1439,11 @@ export const useAppStore = create<AppState>((set, get) => ({
       canRedo: false,
       openTabs: [],
     });
+
+    // Load full project data if not already loaded
+    if (!state.projectsFullyLoaded[id]) {
+      get().loadFullProject(id);
+    }
 
     // Auto-update project details if missing and project has messages
     const needsDetails =
@@ -1757,6 +1863,55 @@ export const useAppStore = create<AppState>((set, get) => ({
     return newDiagram;
   },
 
+  duplicateDiagram: (projectId: string, diagramId: string) => {
+    const project = get().projects.find((p) => p.id === projectId);
+    if (!project) return null;
+    const original = (project.diagrams || []).find((d) => d.id === diagramId);
+    if (!original) return null;
+
+    const now = Date.now();
+    const diagram: ProjectDiagram = {
+      id: nanoid(),
+      projectId,
+      title: `${original.title} (copy)`,
+      diagramType: original.diagramType,
+      source: original.source,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    // Save current entity first, then re-read state to avoid stale projects
+    if (get().currentEntityId) {
+      get().saveCurrentEntity();
+    }
+    const state = get();
+
+    const updated = state.projects.map((p) =>
+      p.id === projectId
+        ? { ...p, diagrams: [...(p.diagrams || []), diagram], updatedAt: now }
+        : p
+    );
+
+    set({
+      projects: updated,
+      currentEntityId: diagram.id,
+      currentEntityType: "diagram",
+      diagramSource: diagram.source,
+      diagramType: diagram.diagramType,
+      diagramVersion: state.diagramVersion + 1,
+      workspaceOpen: true,
+      openTabs: [...state.openTabs.filter((t) => t.id !== diagram.id), { id: diagram.id, type: "diagram" as const, title: diagram.title }],
+    });
+    saveProjectsToStorage(updated);
+
+    updateProjectOnServer(projectId, {
+      diagrams: [{ id: diagram.id, title: diagram.title, diagramType: diagram.diagramType, source: diagram.source }],
+    }).catch(() => {});
+
+    toast.success(`Duplicated "${original.title}"`);
+    return diagram;
+  },
+
   deleteDiagram: (projectId: string, diagramId: string) => {
     const state = get();
     const newProjects = state.projects.map((p) => {
@@ -1880,6 +2035,55 @@ export const useAppStore = create<AppState>((set, get) => ({
     saveProjectsToStorage(newProjects);
     get().openDeck(newDeck.id);
     return newDeck;
+  },
+
+  duplicateDeck: (projectId: string, deckId: string) => {
+    const project = get().projects.find((p) => p.id === projectId);
+    if (!project) return null;
+    const original = (project.decks || []).find((d) => d.id === deckId);
+    if (!original) return null;
+
+    const now = Date.now();
+    const deck: ProjectDeck = {
+      id: nanoid(),
+      projectId,
+      title: `${original.title} (copy)`,
+      theme: original.theme,
+      slides: JSON.parse(JSON.stringify(original.slides)),
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    // Save current entity first, then re-read state to avoid stale projects
+    if (get().currentEntityId) {
+      get().saveCurrentEntity();
+    }
+    const state = get();
+
+    const updated = state.projects.map((p) =>
+      p.id === projectId
+        ? { ...p, decks: [...(p.decks || []), deck], updatedAt: now }
+        : p
+    );
+
+    set({
+      projects: updated,
+      currentEntityId: deck.id,
+      currentEntityType: "deck",
+      deckSlides: deck.slides,
+      deckTheme: deck.theme,
+      deckVersion: state.deckVersion + 1,
+      workspaceOpen: true,
+      openTabs: [...state.openTabs.filter((t) => t.id !== deck.id), { id: deck.id, type: "deck" as const, title: deck.title }],
+    });
+    saveProjectsToStorage(updated);
+
+    updateProjectOnServer(projectId, {
+      decks: [{ id: deck.id, title: deck.title, theme: deck.theme, slides: deck.slides }],
+    }).catch(() => {});
+
+    toast.success(`Duplicated "${original.title}"`);
+    return deck;
   },
 
   deleteDeck: (projectId, deckId) => {
@@ -2174,12 +2378,48 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ projects: cached });
     }
 
-    // Then fetch latest from server and update
+    // Then fetch lightweight list from server and merge
     try {
-      const serverProjects = await fetchProjects();
-      if (serverProjects.length > 0) {
-        set({ projects: serverProjects });
-        saveProjectsToStorage(serverProjects); // Cache locally
+      const listItems = await fetchProjects();
+      if (listItems.length > 0) {
+        const state = get();
+        // Convert lightweight items to Project shape, preserving any
+        // already-loaded full data from localStorage cache
+        const mergedProjects: Project[] = listItems.map((item) => {
+          const existing = state.projects.find((p) => p.id === item.id);
+          if (existing && state.projectsFullyLoaded[item.id]) {
+            // Keep full data but update metadata from server
+            return {
+              ...existing,
+              title: item.title,
+              description: item.description,
+              projectType: item.projectType,
+              shareToken: item.shareToken,
+              createdAt: item.createdAt,
+              updatedAt: item.updatedAt,
+              counts: item.counts,
+            };
+          }
+          // Create a lightweight shell — entities will be loaded on open
+          return {
+            id: item.id,
+            title: item.title,
+            description: item.description,
+            projectType: item.projectType,
+            shareToken: item.shareToken,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+            counts: item.counts,
+            knowledgeUnits: existing?.knowledgeUnits || [],
+            tables: existing?.tables || [],
+            diagrams: existing?.diagrams || [],
+            decks: existing?.decks || [],
+            messages: existing?.messages || [],
+            memory: existing?.memory || {},
+          };
+        });
+        set({ projects: mergedProjects });
+        saveProjectsToStorage(mergedProjects);
         return;
       }
     } catch {
@@ -2189,6 +2429,87 @@ export const useAppStore = create<AppState>((set, get) => ({
     // If server returned nothing and we haven't hydrated yet, use localStorage
     if (get().projects.length === 0) {
       set({ projects: cached });
+    }
+  },
+
+  loadFullProject: async (id: string) => {
+    const state = get();
+    // Skip if already fully loaded
+    if (state.projectsFullyLoaded[id]) return;
+
+    set({ isLoadingProject: true });
+    try {
+      const fullProject = await fetchFullProject(id);
+      const current = get();
+      const updated = current.projects.map((p) =>
+        p.id === id
+          ? {
+              ...p,
+              ...fullProject,
+              memory: fullProject.memory || p.memory || {},
+              hasMoreMessages: fullProject.hasMoreMessages,
+            }
+          : p
+      );
+
+      set({
+        projects: updated,
+        projectsFullyLoaded: { ...current.projectsFullyLoaded, [id]: true },
+        isLoadingProject: false,
+      });
+      saveProjectsToStorage(updated);
+
+      // If this project is currently open, update the active view state
+      if (current.currentProjectId === id) {
+        const loadedProject = updated.find((pp) => pp.id === id);
+        if (loadedProject) {
+          set({ messages: loadedProject.messages });
+        }
+      }
+    } catch (err) {
+      console.error("[Store] Failed to load full project:", err);
+      set({ isLoadingProject: false });
+    }
+  },
+
+  loadEarlierMessages: async () => {
+    const state = get();
+    if (!state.currentProjectId) return false;
+
+    const project = state.projects.find((p) => p.id === state.currentProjectId);
+    if (!project || !project.hasMoreMessages) return false;
+
+    const oldestMessage = state.messages[0];
+    if (!oldestMessage) return false;
+
+    try {
+      const { messages: olderMessages, hasMore } = await fetchOlderMessages(
+        state.currentProjectId,
+        oldestMessage.timestamp
+      );
+
+      if (olderMessages.length === 0) {
+        // No more messages — update flag
+        const updated = get().projects.map((p) =>
+          p.id === state.currentProjectId ? { ...p, hasMoreMessages: false } : p
+        );
+        set({ projects: updated });
+        return false;
+      }
+
+      // Prepend older messages (they arrive in chronological order)
+      const merged = [...olderMessages, ...state.messages];
+      const updatedProjects = get().projects.map((p) =>
+        p.id === state.currentProjectId
+          ? { ...p, messages: merged, hasMoreMessages: hasMore }
+          : p
+      );
+
+      set({ messages: merged, projects: updatedProjects });
+      return hasMore;
+    } catch (err) {
+      console.error("[Store] Failed to load earlier messages:", err);
+      return false;
     }
   },
 

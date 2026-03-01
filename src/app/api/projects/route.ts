@@ -6,12 +6,11 @@ import {
   projectTables,
   projectDiagrams,
   projectDecks,
-  messages,
 } from "@/db/schema";
-import { eq, desc, inArray } from "drizzle-orm";
+import { eq, desc, sql, inArray } from "drizzle-orm";
 import { ensureUserExists } from "@/lib/db/ensureUser";
 
-// GET /api/projects — list all projects for authenticated user
+// GET /api/projects — lightweight project list (metadata + entity counts only)
 export async function GET() {
   try {
     const session = await auth();
@@ -31,127 +30,52 @@ export async function GET() {
       return Response.json([]);
     }
 
-    // Batch-fetch all related entities in 4 queries (avoids N+1)
+    // Batch-count entities per project using 4 lightweight queries (IDs only)
     const projectIds = userProjects.map((p) => p.id);
 
-    const [allKUs, allTables, allDiagrams, allDecks, allMessages] = await Promise.all([
+    const [kuCounts, tableCounts, diagramCounts, deckCounts] = await Promise.all([
       db
-        .select()
+        .select({ projectId: knowledgeUnits.projectId, count: sql<number>`count(*)::int` })
         .from(knowledgeUnits)
         .where(inArray(knowledgeUnits.projectId, projectIds))
-        .orderBy(desc(knowledgeUnits.updatedAt)),
+        .groupBy(knowledgeUnits.projectId),
       db
-        .select()
+        .select({ projectId: projectTables.projectId, count: sql<number>`count(*)::int` })
         .from(projectTables)
         .where(inArray(projectTables.projectId, projectIds))
-        .orderBy(desc(projectTables.updatedAt)),
+        .groupBy(projectTables.projectId),
       db
-        .select()
+        .select({ projectId: projectDiagrams.projectId, count: sql<number>`count(*)::int` })
         .from(projectDiagrams)
         .where(inArray(projectDiagrams.projectId, projectIds))
-        .orderBy(desc(projectDiagrams.updatedAt)),
+        .groupBy(projectDiagrams.projectId),
       db
-        .select()
+        .select({ projectId: projectDecks.projectId, count: sql<number>`count(*)::int` })
         .from(projectDecks)
         .where(inArray(projectDecks.projectId, projectIds))
-        .orderBy(desc(projectDecks.updatedAt)),
-      db
-        .select()
-        .from(messages)
-        .where(inArray(messages.projectId, projectIds))
-        .orderBy(messages.timestamp),
+        .groupBy(projectDecks.projectId),
     ]);
 
-    // Group by projectId
-    const kusByProject = new Map<string, typeof allKUs>();
-    for (const ku of allKUs) {
-      const arr = kusByProject.get(ku.projectId) || [];
-      arr.push(ku);
-      kusByProject.set(ku.projectId, arr);
-    }
-
-    const tablesByProject = new Map<string, typeof allTables>();
-    for (const t of allTables) {
-      const arr = tablesByProject.get(t.projectId) || [];
-      arr.push(t);
-      tablesByProject.set(t.projectId, arr);
-    }
-
-    const diagramsByProject = new Map<string, typeof allDiagrams>();
-    for (const d of allDiagrams) {
-      const arr = diagramsByProject.get(d.projectId) || [];
-      arr.push(d);
-      diagramsByProject.set(d.projectId, arr);
-    }
-
-    const decksByProject = new Map<string, typeof allDecks>();
-    for (const d of allDecks) {
-      const arr = decksByProject.get(d.projectId) || [];
-      arr.push(d);
-      decksByProject.set(d.projectId, arr);
-    }
-
-    const msgsByProject = new Map<string, typeof allMessages>();
-    for (const m of allMessages) {
-      const arr = msgsByProject.get(m.projectId) || [];
-      arr.push(m);
-      msgsByProject.set(m.projectId, arr);
-    }
+    // Build lookup maps
+    const kuCountMap = new Map(kuCounts.map((r) => [r.projectId, r.count]));
+    const tableCountMap = new Map(tableCounts.map((r) => [r.projectId, r.count]));
+    const diagramCountMap = new Map(diagramCounts.map((r) => [r.projectId, r.count]));
+    const deckCountMap = new Map(deckCounts.map((r) => [r.projectId, r.count]));
 
     const result = userProjects.map((p) => ({
       id: p.id,
       title: p.title,
       description: p.description,
       projectType: p.projectType,
-      memory: p.memory || {},
       shareToken: p.shareToken || null,
       createdAt: p.createdAt.getTime(),
       updatedAt: p.updatedAt.getTime(),
-      knowledgeUnits: (kusByProject.get(p.id) || []).map((k) => ({
-        id: k.id,
-        projectId: k.projectId,
-        title: k.title,
-        content: k.content,
-        shareToken: k.shareToken || null,
-        createdAt: k.createdAt.getTime(),
-        updatedAt: k.updatedAt.getTime(),
-      })),
-      tables: (tablesByProject.get(p.id) || []).map((t) => ({
-        id: t.id,
-        projectId: t.projectId,
-        title: t.title,
-        sheets: t.sheets,
-        shareToken: t.shareToken || null,
-        createdAt: t.createdAt.getTime(),
-        updatedAt: t.updatedAt.getTime(),
-      })),
-      diagrams: (diagramsByProject.get(p.id) || []).map((d) => ({
-        id: d.id,
-        projectId: d.projectId,
-        title: d.title,
-        diagramType: d.diagramType,
-        source: d.source,
-        shareToken: d.shareToken || null,
-        createdAt: d.createdAt.getTime(),
-        updatedAt: d.updatedAt.getTime(),
-      })),
-      decks: (decksByProject.get(p.id) || []).map((d) => ({
-        id: d.id,
-        projectId: d.projectId,
-        title: d.title,
-        theme: d.theme,
-        slides: d.slides,
-        shareToken: d.shareToken || null,
-        createdAt: d.createdAt.getTime(),
-        updatedAt: d.updatedAt.getTime(),
-      })),
-      messages: (msgsByProject.get(p.id) || []).map((m) => ({
-        id: m.id,
-        role: m.role,
-        content: m.content,
-        timestamp: m.timestamp.getTime(),
-        attachments: m.attachments,
-      })),
+      counts: {
+        knowledgeUnits: kuCountMap.get(p.id) || 0,
+        tables: tableCountMap.get(p.id) || 0,
+        diagrams: diagramCountMap.get(p.id) || 0,
+        decks: deckCountMap.get(p.id) || 0,
+      },
     }));
 
     return Response.json(result);

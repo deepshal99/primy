@@ -229,6 +229,28 @@ export interface Project {
   shareToken?: string | null;
   createdAt: number;
   updatedAt: number;
+  hasMoreMessages?: boolean;  // True when older messages exist but weren't loaded
+  counts?: ProjectEntityCounts; // Lightweight counts from list endpoint
+}
+
+/** Lightweight entity counts returned by the project list endpoint */
+export interface ProjectEntityCounts {
+  knowledgeUnits: number;
+  tables: number;
+  diagrams: number;
+  decks: number;
+}
+
+/** Lightweight project metadata returned by GET /api/projects (list) */
+export interface ProjectListItem {
+  id: string;
+  title: string;
+  description?: string;
+  projectType?: string;
+  shareToken?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  counts: ProjectEntityCounts;
 }
 
 export type EntityType = "ku" | "table" | "diagram" | "deck";
@@ -284,7 +306,9 @@ export type DeckOperation =
       deckId: string;
       slides: DeckSlide[];
       theme?: DeckTheme;
-    };
+    }
+  | { type: "DELETE"; deckId: string }
+  | { type: "RENAME"; deckId: string; title: string };
 
 // ═══ KU Operations (AI fence: ```kuops) ═══
 
@@ -308,7 +332,8 @@ export type KuOperation =
       type: "RENAME";
       kuId: string;
       title: string;
-    };
+    }
+  | { type: "DELETE"; kuId: string };
 
 // ═══ Table Operations (AI fence: ```tableops) ═══
 
@@ -334,7 +359,8 @@ export type TableOperation =
         celldata: CellData[];
         config?: SheetConfig;
       };
-    };
+    }
+  | { type: "DELETE"; tableId: string };
 
 // ═══ Diagram Operations (AI fence: ```diagramops) ═══
 
@@ -349,7 +375,9 @@ export type DiagramOperation =
       type: "UPDATE";
       diagramId: string;
       source: string;
-    };
+    }
+  | { type: "DELETE"; diagramId: string }
+  | { type: "RENAME"; diagramId: string; title: string };
 
 // ═══ Undo History ═══
 
@@ -409,6 +437,8 @@ export interface AppState {
   currentProjectId: string | null;
   currentEntityId: string | null;
   currentEntityType: EntityType | null;
+  projectsFullyLoaded: Record<string, boolean>; // Track which projects have been fully fetched
+  isLoadingProject: boolean; // True while fetching full project data
 
   // Open file tabs
   openTabs: { id: string; type: EntityType; title: string }[];
@@ -482,6 +512,7 @@ export interface AppState {
 
   // Diagram CRUD
   createDiagram: (projectId: string, title: string, diagramType?: "mermaid" | "chart" | "excalidraw" | "reactflow", source?: string) => ProjectDiagram;
+  duplicateDiagram: (projectId: string, diagramId: string) => ProjectDiagram | null;
   deleteDiagram: (projectId: string, diagramId: string) => void;
   renameDiagram: (projectId: string, diagramId: string, title: string) => void;
   openDiagram: (diagramId: string) => void;
@@ -489,6 +520,7 @@ export interface AppState {
 
   // Deck CRUD
   createDeck: (projectId: string, title: string, theme?: DeckTheme, slides?: DeckSlide[]) => ProjectDeck;
+  duplicateDeck: (projectId: string, deckId: string) => ProjectDeck | null;
   deleteDeck: (projectId: string, deckId: string) => void;
   renameDeck: (projectId: string, deckId: string, title: string) => void;
   openDeck: (deckId: string) => void;
@@ -501,5 +533,7 @@ export interface AppState {
   // Entity sync
   saveCurrentEntity: () => void;
   loadProjects: () => void | Promise<void>;
+  loadFullProject: (id: string) => Promise<void>;
+  loadEarlierMessages: () => Promise<boolean>; // Returns false if no more messages
   migrateConversations: () => void;
 }
