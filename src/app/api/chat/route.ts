@@ -3,6 +3,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { SYSTEM_PROMPT } from "@/lib/ai/systemPrompt";
 import { getModelForTask, estimateContextSize } from "@/lib/ai/modelRouter";
 import { auth } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rateLimit";
 import "@/lib/env";
 
 // Allow longer processing for file-heavy requests
@@ -32,6 +33,14 @@ export async function POST(req: Request) {
         status: 401,
         headers: { "Content-Type": "application/json" },
       });
+    }
+
+    const rateLimit = checkRateLimit(`${session.user.id}:chat`, 30, 60_000);
+    if (!rateLimit.allowed) {
+      return Response.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) } },
+      );
     }
 
     let body: any;

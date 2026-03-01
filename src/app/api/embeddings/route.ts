@@ -1,11 +1,21 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { generateEmbeddings } from "@/lib/ai/embeddings";
 
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const userId = (session.user as any).id ?? session.user.email ?? "anonymous";
+  const rateLimit = checkRateLimit(`${userId}:embeddings`, 20, 60_000);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) } },
+    );
   }
 
   try {

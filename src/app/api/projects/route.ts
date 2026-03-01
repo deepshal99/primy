@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { db } from "@/db";
 import {
   projects,
@@ -16,6 +17,14 @@ export async function GET() {
     const session = await auth();
     if (!session?.user?.id) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const rateLimit = checkRateLimit(`${session.user.id}:projects:get`, 60, 60_000);
+    if (!rateLimit.allowed) {
+      return Response.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) } },
+      );
     }
 
     await ensureUserExists(session as any);
@@ -91,6 +100,14 @@ export async function POST(req: Request) {
     const session = await auth();
     if (!session?.user?.id) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const rateLimit = checkRateLimit(`${session.user.id}:projects:post`, 60, 60_000);
+    if (!rateLimit.allowed) {
+      return Response.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) } },
+      );
     }
 
     await ensureUserExists(session as any);
