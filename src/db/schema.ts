@@ -112,6 +112,17 @@ export const projectDecks = pgTable(
   (table) => [index("pdk_project_id_idx").on(table.projectId)]
 );
 
+// ── Password Reset Tokens ──
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // ── Messages (Chat history per project) ──
 export const messages = pgTable(
   "messages",

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { Loader2, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/cn";
+import Link from "next/link";
 
 export default function LoginPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signup");
@@ -210,6 +211,18 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+
+            {/* Forgot password — signin only */}
+            {mode === "signin" && (
+              <div className="flex justify-end -mt-1">
+                <Link
+                  href="/forgot-password"
+                  className="text-[12px] text-[#b0ada6] hover:text-[#1a1a2e] transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            )}
 
             {/* Error */}
             {error && (
