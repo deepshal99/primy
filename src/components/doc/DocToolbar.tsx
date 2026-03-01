@@ -1,342 +1,285 @@
 "use client";
 
-import { Editor } from "@tiptap/react";
+import { useRef } from "react";
+import type { PlateEditor } from "platejs/react";
 import {
   Bold,
   Italic,
   Underline as UnderlineIcon,
   Strikethrough,
+  Code,
+  Highlighter,
   Heading1,
   Heading2,
   Heading3,
-  List,
-  ListOrdered,
-  ListChecks,
-  Quote,
-  Code,
-  Minus,
-  Undo,
-  Redo,
-  Link,
-  Wand2,
+  Type,
   AlignLeft,
   AlignCenter,
   AlignRight,
-  AlignJustify,
+  List,
+  ListOrdered,
+  Quote,
+  Minus,
+  SquareCode,
+  Link,
+  ImagePlus,
+  Table,
 } from "lucide-react";
-import { useState, useCallback } from "react";
-import { design } from "@/lib/design";
+import { cn } from "@/lib/cn";
+
+const isMac = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent);
+const modKey = isMac ? "\u2318" : "Ctrl";
+
+const SHORTCUT_MAP: Record<string, string> = {
+  bold: `${modKey}+B`,
+  italic: `${modKey}+I`,
+  underline: `${modKey}+U`,
+  code: `${modKey}+E`,
+  highlight: `${modKey}+Shift+H`,
+};
+
+interface ToolbarItem {
+  icon: React.ElementType;
+  command: string;
+  value?: string;
+  label: string;
+}
+
+const TOOLBAR_GROUPS: { label: string; buttons: ToolbarItem[] }[] = [
+  {
+    label: "Text Style",
+    buttons: [
+      { icon: Bold, command: "bold", label: "Bold" },
+      { icon: Italic, command: "italic", label: "Italic" },
+      { icon: UnderlineIcon, command: "underline", label: "Underline" },
+      { icon: Strikethrough, command: "strikethrough", label: "Strikethrough" },
+      { icon: Code, command: "code", label: "Inline Code" },
+      { icon: Highlighter, command: "highlight", label: "Highlight" },
+    ],
+  },
+  {
+    label: "Headings",
+    buttons: [
+      { icon: Heading1, command: "heading", value: "h1", label: "Heading 1" },
+      { icon: Heading2, command: "heading", value: "h2", label: "Heading 2" },
+      { icon: Heading3, command: "heading", value: "h3", label: "Heading 3" },
+      { icon: Type, command: "heading", value: "p", label: "Paragraph" },
+    ],
+  },
+  {
+    label: "Alignment",
+    buttons: [
+      { icon: AlignLeft, command: "align", value: "left", label: "Align Left" },
+      { icon: AlignCenter, command: "align", value: "center", label: "Align Center" },
+      { icon: AlignRight, command: "align", value: "right", label: "Align Right" },
+    ],
+  },
+  {
+    label: "Lists & Blocks",
+    buttons: [
+      { icon: List, command: "list", value: "ul", label: "Bullet List" },
+      { icon: ListOrdered, command: "list", value: "ol", label: "Numbered List" },
+      { icon: Quote, command: "block", value: "blockquote", label: "Quote" },
+      { icon: SquareCode, command: "codeblock", label: "Code Block" },
+      { icon: Minus, command: "hr", label: "Divider" },
+    ],
+  },
+  {
+    label: "Insert",
+    buttons: [
+      { icon: Link, command: "link", label: "Link" },
+      { icon: ImagePlus, command: "image", label: "Image" },
+      { icon: Table, command: "table", label: "Table" },
+    ],
+  },
+];
 
 interface DocToolbarProps {
-  editor: Editor | null;
-  onAIEdit?: (selectedText: string) => void;
+  editor: PlateEditor | null;
 }
 
-interface ToolbarButtonProps {
-  onClick: () => void;
-  isActive?: boolean;
-  disabled?: boolean;
-  title: string;
-  children: React.ReactNode;
-}
-
-function ToolbarButton({ onClick, isActive, disabled, title, children }: ToolbarButtonProps) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className="w-7 h-7 flex items-center justify-center rounded-md transition-colors duration-100 disabled:opacity-30"
-      style={{
-        backgroundColor: isActive ? design.colors.bg.tertiary : "transparent",
-        color: isActive ? design.colors.text.primary : design.colors.text.secondary,
-      }}
-      onMouseEnter={(e) => {
-        if (!isActive) e.currentTarget.style.backgroundColor = design.colors.bg.hover;
-      }}
-      onMouseLeave={(e) => {
-        if (!isActive) e.currentTarget.style.backgroundColor = "transparent";
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Divider() {
-  return (
-    <div
-      className="w-px h-5 mx-0.5"
-      style={{ backgroundColor: design.colors.border.light }}
-    />
-  );
-}
-
-export function DocToolbar({ editor, onAIEdit }: DocToolbarProps) {
-  const [showLinkInput, setShowLinkInput] = useState(false);
-  const [linkUrl, setLinkUrl] = useState("");
-
-  const setLink = useCallback(() => {
-    if (!editor) return;
-    if (linkUrl) {
-      editor.chain().focus().extendMarkRange("link").setLink({ href: linkUrl }).run();
-    } else {
-      editor.chain().focus().extendMarkRange("link").unsetLink().run();
-    }
-    setShowLinkInput(false);
-    setLinkUrl("");
-  }, [editor, linkUrl]);
-
-  const handleAIEdit = useCallback(() => {
-    if (!editor || !onAIEdit) return;
-    const { from, to } = editor.state.selection;
-    const selectedText = editor.state.doc.textBetween(from, to, " ");
-    if (selectedText.trim()) {
-      onAIEdit(selectedText);
-    }
-  }, [editor, onAIEdit]);
+export function DocToolbar({ editor }: DocToolbarProps) {
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   if (!editor) return null;
 
+  const isMark = (mark: string) => {
+    try {
+      const marks = (editor as any).getMarks?.() ?? editor.marks;
+      return marks ? !!(marks as any)[mark] : false;
+    } catch {
+      return false;
+    }
+  };
+
+  const isBlock = (type: string) => {
+    try {
+      if (!editor.selection) return false;
+      const nodes = Array.from(
+        editor.api.nodes({
+          at: editor.selection,
+          match: (n: any) => n.type === type,
+        })
+      );
+      return nodes.length > 0;
+    } catch {
+      return false;
+    }
+  };
+
+  const execCommand = (btn: ToolbarItem) => {
+    switch (btn.command) {
+      case "bold":
+      case "italic":
+      case "underline":
+      case "strikethrough":
+      case "code":
+      case "highlight":
+        editor.tf.toggleMark(btn.command);
+        break;
+      case "heading":
+        editor.tf.toggleBlock(btn.value!);
+        break;
+      case "align":
+        editor.tf.setNodes({ textAlign: btn.value } as any, {
+          match: (n: any) => editor.api.isBlock(n),
+        });
+        break;
+      case "list":
+        editor.tf.toggleBlock(btn.value!);
+        break;
+      case "block":
+        editor.tf.toggleBlock(btn.value!);
+        break;
+      case "codeblock":
+        editor.tf.toggleBlock("code_block");
+        break;
+      case "hr":
+        editor.tf.insertNodes({ type: "hr", children: [{ text: "" }] } as any);
+        break;
+      case "link": {
+        const url = window.prompt("Enter URL:");
+        if (url) {
+          editor.tf.wrapNodes(
+            { type: "a", url, children: [] } as any,
+            { split: true }
+          );
+        }
+        break;
+      }
+      case "image": {
+        // Open file picker — reads as data URL for local images
+        imageInputRef.current?.click();
+        break;
+      }
+      case "table": {
+        editor.tf.insertNodes({
+          type: "table",
+          children: [
+            {
+              type: "tr",
+              children: [
+                { type: "th", children: [{ type: "p", children: [{ text: "Header 1" }] }] },
+                { type: "th", children: [{ type: "p", children: [{ text: "Header 2" }] }] },
+                { type: "th", children: [{ type: "p", children: [{ text: "Header 3" }] }] },
+              ],
+            },
+            {
+              type: "tr",
+              children: [
+                { type: "td", children: [{ type: "p", children: [{ text: "" }] }] },
+                { type: "td", children: [{ type: "p", children: [{ text: "" }] }] },
+                { type: "td", children: [{ type: "p", children: [{ text: "" }] }] },
+              ],
+            },
+            {
+              type: "tr",
+              children: [
+                { type: "td", children: [{ type: "p", children: [{ text: "" }] }] },
+                { type: "td", children: [{ type: "p", children: [{ text: "" }] }] },
+                { type: "td", children: [{ type: "p", children: [{ text: "" }] }] },
+              ],
+            },
+          ],
+        } as any);
+        break;
+      }
+    }
+  };
+
+  const isActive = (btn: ToolbarItem): boolean => {
+    switch (btn.command) {
+      case "bold":
+      case "italic":
+      case "underline":
+      case "strikethrough":
+      case "code":
+      case "highlight":
+        return isMark(btn.command);
+      case "heading":
+      case "list":
+      case "block":
+        return isBlock(btn.value!);
+      case "codeblock":
+        return isBlock("code_block");
+      default:
+        return false;
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = reader.result as string;
+      editor.tf.insertNodes({
+        type: "img",
+        url,
+        children: [{ text: "" }],
+      } as any);
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
-    <div
-      className="flex items-center gap-0.5 px-2 py-1.5 border-b flex-wrap"
-      style={{
-        backgroundColor: design.colors.bg.secondary,
-        borderColor: design.colors.border.default,
-      }}
-    >
-      {/* Undo/Redo */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().undo().run()}
-        disabled={!editor.can().undo()}
-        title="Undo"
-      >
-        <Undo className="w-3.5 h-3.5" strokeWidth={1.5} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().redo().run()}
-        disabled={!editor.can().redo()}
-        title="Redo"
-      >
-        <Redo className="w-3.5 h-3.5" strokeWidth={1.5} />
-      </ToolbarButton>
+    <div className="flex items-center gap-0.5 px-4 py-2 border-b border-border overflow-x-auto flex-wrap">
+      {TOOLBAR_GROUPS.map((group, gi) => (
+        <div key={gi} className="flex items-center gap-0.5">
+          {gi > 0 && <div className="w-px h-5 bg-border mx-1.5" />}
+          {group.buttons.map((btn, bi) => {
+            const active = isActive(btn);
+            const shortcut = SHORTCUT_MAP[btn.command];
+            const title = shortcut ? `${btn.label} (${shortcut})` : btn.label;
 
-      <Divider />
+            return (
+              <button
+                key={bi}
+                onClick={() => execCommand(btn)}
+                title={title}
+                className={cn(
+                  "w-8 h-8 flex items-center justify-center rounded-md transition-all duration-150 active:scale-[0.92]",
+                  active
+                    ? "bg-muted text-foreground shadow-[0_0_0_1px_rgba(255,74,0,0.15),0_0_6px_rgba(255,74,0,0.08)]"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted hover:shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_0_8px_rgba(0,0,0,0.03)]"
+                )}
+              >
+                <btn.icon className="w-4 h-4" />
+              </button>
+            );
+          })}
+        </div>
+      ))}
 
-      {/* Headings */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-        isActive={editor.isActive("heading", { level: 1 })}
-        title="Heading 1"
-      >
-        <Heading1 className="w-3.5 h-3.5" strokeWidth={1.5} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-        isActive={editor.isActive("heading", { level: 2 })}
-        title="Heading 2"
-      >
-        <Heading2 className="w-3.5 h-3.5" strokeWidth={1.5} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-        isActive={editor.isActive("heading", { level: 3 })}
-        title="Heading 3"
-      >
-        <Heading3 className="w-3.5 h-3.5" strokeWidth={1.5} />
-      </ToolbarButton>
-
-      <Divider />
-
-      {/* Inline formatting */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleBold().run()}
-        isActive={editor.isActive("bold")}
-        title="Bold"
-      >
-        <Bold className="w-3.5 h-3.5" strokeWidth={2} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-        isActive={editor.isActive("italic")}
-        title="Italic"
-      >
-        <Italic className="w-3.5 h-3.5" strokeWidth={2} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
-        isActive={editor.isActive("underline")}
-        title="Underline"
-      >
-        <UnderlineIcon className="w-3.5 h-3.5" strokeWidth={2} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleStrike().run()}
-        isActive={editor.isActive("strike")}
-        title="Strikethrough"
-      >
-        <Strikethrough className="w-3.5 h-3.5" strokeWidth={1.5} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleCode().run()}
-        isActive={editor.isActive("code")}
-        title="Inline code"
-      >
-        <Code className="w-3.5 h-3.5" strokeWidth={1.5} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleHighlight().run()}
-        isActive={editor.isActive("highlight")}
-        title="Highlight"
-      >
-        <span className="w-3.5 h-3.5 flex items-center justify-center text-[10px] font-bold" style={{ color: design.colors.accent.gold }}>H</span>
-      </ToolbarButton>
-
-      <Divider />
-
-      {/* Lists */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-        isActive={editor.isActive("bulletList")}
-        title="Bullet list"
-      >
-        <List className="w-3.5 h-3.5" strokeWidth={1.5} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-        isActive={editor.isActive("orderedList")}
-        title="Numbered list"
-      >
-        <ListOrdered className="w-3.5 h-3.5" strokeWidth={1.5} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleTaskList().run()}
-        isActive={editor.isActive("taskList")}
-        title="Task list"
-      >
-        <ListChecks className="w-3.5 h-3.5" strokeWidth={1.5} />
-      </ToolbarButton>
-
-      <Divider />
-
-      {/* Block elements */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-        isActive={editor.isActive("blockquote")}
-        title="Quote"
-      >
-        <Quote className="w-3.5 h-3.5" strokeWidth={1.5} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().setHorizontalRule().run()}
-        title="Divider"
-      >
-        <Minus className="w-3.5 h-3.5" strokeWidth={1.5} />
-      </ToolbarButton>
-
-      <Divider />
-
-      {/* Text Alignment */}
-      <ToolbarButton
-        onClick={() => editor.chain().focus().setTextAlign("left").run()}
-        isActive={editor.isActive({ textAlign: "left" })}
-        title="Align left"
-      >
-        <AlignLeft className="w-3.5 h-3.5" strokeWidth={1.5} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().setTextAlign("center").run()}
-        isActive={editor.isActive({ textAlign: "center" })}
-        title="Align center"
-      >
-        <AlignCenter className="w-3.5 h-3.5" strokeWidth={1.5} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().setTextAlign("right").run()}
-        isActive={editor.isActive({ textAlign: "right" })}
-        title="Align right"
-      >
-        <AlignRight className="w-3.5 h-3.5" strokeWidth={1.5} />
-      </ToolbarButton>
-      <ToolbarButton
-        onClick={() => editor.chain().focus().setTextAlign("justify").run()}
-        isActive={editor.isActive({ textAlign: "justify" })}
-        title="Justify"
-      >
-        <AlignJustify className="w-3.5 h-3.5" strokeWidth={1.5} />
-      </ToolbarButton>
-
-      <Divider />
-
-      {/* Link */}
-      <div className="relative">
-        <ToolbarButton
-          onClick={() => {
-            if (editor.isActive("link")) {
-              editor.chain().focus().unsetLink().run();
-            } else {
-              setShowLinkInput(!showLinkInput);
-            }
-          }}
-          isActive={editor.isActive("link")}
-          title="Link"
-        >
-          <Link className="w-3.5 h-3.5" strokeWidth={1.5} />
-        </ToolbarButton>
-        {showLinkInput && (
-          <div
-            className="absolute top-full left-0 mt-1 z-50 flex items-center gap-1 p-1.5 rounded-lg border"
-            style={{
-              backgroundColor: design.colors.bg.elevated,
-              borderColor: design.colors.border.default,
-              boxShadow: design.shadows.dropdown,
-            }}
-          >
-            <input
-              type="url"
-              value={linkUrl}
-              onChange={(e) => setLinkUrl(e.target.value)}
-              placeholder="https://..."
-              className="text-[11px] px-2 py-1 rounded border outline-none w-[200px]"
-              style={{
-                backgroundColor: design.colors.bg.primary,
-                borderColor: design.colors.border.default,
-                color: design.colors.text.primary,
-              }}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") setLink();
-                if (e.key === "Escape") { setShowLinkInput(false); setLinkUrl(""); }
-              }}
-            />
-            <button
-              onClick={setLink}
-              className="text-[10px] font-medium px-2 py-1 rounded"
-              style={{
-                backgroundColor: design.colors.brand.primary,
-                color: design.colors.brand.text,
-              }}
-            >
-              Add
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* AI Edit */}
-      {onAIEdit && (
-        <>
-          <Divider />
-          <ToolbarButton
-            onClick={handleAIEdit}
-            disabled={editor.state.selection.empty}
-            title="AI Edit — select text first"
-          >
-            <Wand2 className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: design.colors.accent.gold }} />
-          </ToolbarButton>
-        </>
-      )}
+      {/* Hidden image file input */}
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleImageUpload}
+        className="hidden"
+      />
     </div>
   );
 }

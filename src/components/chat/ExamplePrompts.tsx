@@ -1,150 +1,110 @@
 "use client";
 
-import { Table2, FileText, Pen } from "lucide-react";
-import { design } from "@/lib/design";
+import { PenLine, Lightbulb, FileText, Wand2 } from "lucide-react";
+import { cn } from "@/lib/cn";
 
-const examples = [
+const SUGGESTIONS = [
   {
-    icon: Table2,
-    label: "Content calendar",
-    desc: "Plan a month of posts with topics & dates",
-    accentColor: design.colors.accent.teal,
-    accentBg: design.colors.accent.tealSubtle,
+    icon: PenLine,
+    title: "Write a document",
     prompt:
-      "Create a content calendar spreadsheet for the next 4 weeks. Columns: Week, Date, Platform (Blog/Twitter/LinkedIn/Instagram), Topic, Status (Draft/Review/Scheduled/Published), Notes. Add 12 example entries across different platforms with realistic content topics.",
+      "Write a compelling introduction that hooks readers and sets the stage for the rest of the document",
+  },
+  {
+    icon: Lightbulb,
+    title: "Brainstorm ideas",
+    prompt:
+      "Brainstorm a list of key topics, themes, and fresh angles I should explore in my writing",
   },
   {
     icon: FileText,
-    label: "Blog post draft",
-    desc: "Write a structured post you can expand on",
-    accentColor: design.colors.accent.purple,
-    accentBg: design.colors.accent.purpleSubtle,
+    title: "Analyze data",
     prompt:
-      "Write a blog post outline and first draft about the impact of AI tools on everyday productivity. Include an engaging introduction, 4 main sections with 2-3 paragraphs each, practical examples, and a conclusion with a call to action. Make it conversational and informative.",
+      "Create a detailed, structured outline with sections, sub-points, and logical flow",
   },
   {
-    icon: Table2,
-    label: "Product comparison",
-    desc: "Compare options side-by-side in a table",
-    accentColor: design.colors.accent.gold,
-    accentBg: design.colors.accent.goldSubtle,
+    icon: Wand2,
+    title: "Create something",
     prompt:
-      "Create a product comparison spreadsheet. Columns: Product Name, Category, Price, Key Features, Pros, Cons, Rating (1-5), Recommendation. Add 5 example products comparing popular project management tools (Notion, Asana, Trello, Monday, ClickUp).",
+      "Help me improve my writing — tighten the tone, sharpen clarity, and polish the language",
   },
-  {
-    icon: FileText,
-    label: "Meeting notes",
-    desc: "Organize notes with action items & owners",
-    accentColor: design.colors.brand.primary,
-    accentBg: design.colors.brand.subtle,
-    prompt:
-      "Create a meeting notes template document with: Meeting title, Date, Attendees, Agenda items (3-4 items), Discussion summary for each item, Key decisions made, Action items table (Task, Owner, Due Date, Status), and Next steps. Fill in example content for a product roadmap planning meeting.",
-  },
+];
+
+const PROJECT_SUGGESTIONS = [
+  "Summarize this document into an exec overview",
+  "Find key insights and action items",
+  "Write speaker notes for the presentation",
+  "Simplify the content for non-technical readers",
 ];
 
 interface ExamplePromptsProps {
   onSelect: (prompt: string) => void;
   centered?: boolean;
+  hasProject?: boolean;
 }
 
-export function ExamplePrompts({ onSelect, centered }: ExamplePromptsProps) {
-  return (
-    <div className={`flex flex-col items-center justify-center h-full px-6 pb-8 ${centered ? "max-w-[720px] mx-auto w-full" : ""}`}>
-      {/* Hero */}
-      <div className="text-center mb-8 animate-fade-in">
-        <div className="flex items-center justify-center gap-2 mb-3">
-          <Pen className="w-5 h-5" style={{ color: design.colors.accent.gold }} strokeWidth={1.5} />
+export function ExamplePrompts({ onSelect, centered, hasProject }: ExamplePromptsProps) {
+  // Sidebar mode with project context: show compact suggestion pills
+  if (hasProject && !centered) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full px-4 pb-4">
+        <div className="text-center mb-6">
+          <p className="text-[13px] text-muted-foreground">
+            Ask anything about your project
+          </p>
         </div>
-        <h2
-          style={{
-            color: design.colors.text.primary,
-            fontFamily: design.typography.family.heading,
-            fontSize: "20px",
-            fontWeight: 600,
-            letterSpacing: "-0.02em",
-            marginBottom: "8px",
-          }}
-        >
-          What are you working on?
+        <div className="flex flex-wrap gap-1.5 w-full">
+          {PROJECT_SUGGESTIONS.map((s) => (
+            <button
+              key={s}
+              onClick={() => onSelect(s)}
+              className="px-3 py-[7px] rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] transition-all text-left group active:scale-[0.98]"
+            >
+              <span className="text-[12px] leading-snug text-muted-foreground group-hover:text-foreground transition-colors">
+                {s}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Fullscreen / centered mode: show hero + card grid
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center h-full px-5 pb-8",
+        centered && "max-w-[720px] mx-auto w-full"
+      )}
+    >
+      {/* Hero */}
+      <div className="text-center mb-10 animate-fade-in">
+        <h2 className="text-display-lg text-foreground mb-2">
+          What would you like to write?
         </h2>
-        <p
-          style={{
-            color: design.colors.text.secondary,
-            fontSize: "14px",
-            fontWeight: 400,
-            lineHeight: 1.5,
-          }}
-        >
-          Describe your content and AI will build it in a sheet or doc.
+        <p className="text-[14px] text-muted-foreground leading-relaxed">
+          Start a conversation and I&apos;ll help you draft, edit, or brainstorm.
         </p>
       </div>
 
-      {/* Example Cards — Conversion.ai row card style */}
-      <div className="flex flex-col gap-2.5 w-full max-w-[480px] stagger-children">
-        {examples.map((example) => (
+      {/* Suggestion cards */}
+      <div className="space-y-2 w-full max-w-[520px]">
+        {SUGGESTIONS.map((s) => (
           <button
-            key={example.label}
-            onClick={() => onSelect(example.prompt)}
-            className="flex items-center gap-4 transition-all duration-200 text-left group animate-fade-in"
-            style={{
-              backgroundColor: design.colors.bg.elevated,
-              border: `1.5px solid ${design.colors.border.default}`,
-              borderRadius: "14px",
-              padding: "14px 18px",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = design.colors.border.focus;
-              e.currentTarget.style.boxShadow = design.shadows.md;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = design.colors.border.default;
-              e.currentTarget.style.boxShadow = "none";
-            }}
+            key={s.prompt}
+            onClick={() => onSelect(s.prompt)}
+            className="w-full flex items-start gap-3.5 px-4 py-3.5 rounded-xl border border-border hover:border-[#ff4a00]/30 hover:bg-accent transition-all text-left group active:scale-[0.99]"
           >
-            {/* Icon badge — square with rounded corners */}
-            <div
-              style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "10px",
-                backgroundColor: example.accentBg,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                transition: "transform 200ms ease",
-              }}
-              className="group-hover:scale-105"
-            >
-              <example.icon
-                style={{ width: "20px", height: "20px", color: example.accentColor }}
+            <div className="w-8 h-8 rounded-lg bg-[#fafaf8] border border-[#f0eee9] flex items-center justify-center flex-shrink-0 group-hover:bg-[#fff4ef] group-hover:border-[#ff4a00]/20 transition-colors">
+              <s.icon
+                className="w-4 h-4 text-muted-foreground group-hover:text-[#ff4a00] transition-colors"
                 strokeWidth={1.8}
               />
             </div>
-
-            {/* Text */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: "15px",
-                  fontWeight: 500,
-                  color: design.colors.text.primary,
-                  fontFamily: design.typography.family.heading,
-                  marginBottom: "2px",
-                }}
-              >
-                {example.label}
-              </div>
-              <div
-                style={{
-                  fontSize: "13px",
-                  fontWeight: 400,
-                  color: design.colors.text.muted,
-                }}
-              >
-                {example.desc}
-              </div>
-            </div>
+            <span className="flex-1 min-w-0 text-[13px] text-muted-foreground leading-relaxed pt-1 group-hover:text-foreground transition-colors">
+              {s.prompt}
+            </span>
           </button>
         ))}
       </div>

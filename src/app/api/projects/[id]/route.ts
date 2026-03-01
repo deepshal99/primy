@@ -47,7 +47,17 @@ export async function PUT(
     await ensureUserExists(session as any);
 
     const { id } = await params;
-    const body = await req.json();
+
+    if (!id || typeof id !== "string") {
+      return Response.json({ error: "Invalid project id" }, { status: 400 });
+    }
+
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
 
     // Ensure project exists (handles race with background POST)
     await ensureProjectExists(id, session.user.id, body);

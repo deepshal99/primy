@@ -1,10 +1,17 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { Download, FileSpreadsheet, Copy, ChevronDown, Check, Sheet } from "lucide-react";
+import { useCallback } from "react";
+import { Download, FileSpreadsheet, Copy, Sheet } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { sheetToCSV, sheetToTSV } from "@/lib/sheet/exportCSV";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 function getEntityTitle(): string {
   const state = useAppStore.getState();
@@ -19,21 +26,7 @@ function getEntityTitle(): string {
 }
 
 export function ExportMenu() {
-  const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
   const sheets = useAppStore((s) => s.sheets);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
   const activeSheet = sheets.find((s) => s.status === 1) || sheets[0];
   const hasData = (activeSheet?.celldata?.length ?? 0) > 0;
 
@@ -47,7 +40,6 @@ export function ExportMenu() {
     a.download = `${getEntityTitle()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    setOpen(false);
     toast.success("Downloaded CSV");
   }, [activeSheet]);
 
@@ -55,7 +47,6 @@ export function ExportMenu() {
     if (!activeSheet) return;
     const XLSX = (await import("xlsx")).default;
 
-    // Convert celldata to 2D array (use loop to avoid stack overflow on large sheets)
     const celldata = activeSheet.celldata || [];
     let maxRow = 0;
     let maxCol = 0;
@@ -63,12 +54,17 @@ export function ExportMenu() {
       if (c.r > maxRow) maxRow = c.r;
       if (c.c > maxCol) maxCol = c.c;
     }
-    const data: (string | number | undefined)[][] = [];
 
+    const cellMap = new Map<string, typeof celldata[0]>();
+    for (const cd of celldata) {
+      cellMap.set(`${cd.r},${cd.c}`, cd);
+    }
+
+    const data: (string | number | undefined)[][] = [];
     for (let r = 0; r <= maxRow; r++) {
       const row: (string | number | undefined)[] = [];
       for (let c = 0; c <= maxCol; c++) {
-        const cell = celldata.find((cd) => cd.r === r && cd.c === c);
+        const cell = cellMap.get(`${r},${c}`);
         row.push(cell?.v?.v ?? undefined);
       }
       data.push(row);
@@ -77,7 +73,6 @@ export function ExportMenu() {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(data);
 
-    // Apply column widths if available
     if (activeSheet.config?.columnlen) {
       ws["!cols"] = [];
       for (const [col, width] of Object.entries(activeSheet.config.columnlen)) {
@@ -89,7 +84,6 @@ export function ExportMenu() {
 
     XLSX.utils.book_append_sheet(wb, ws, activeSheet.name || "Sheet1");
     XLSX.writeFile(wb, `${getEntityTitle()}.xlsx`);
-    setOpen(false);
     toast.success("Downloaded Excel file");
   }, [activeSheet]);
 
@@ -97,59 +91,35 @@ export function ExportMenu() {
     if (!activeSheet) return;
     const tsv = sheetToTSV(activeSheet);
     await navigator.clipboard.writeText(tsv);
-    setCopied(true);
-    setOpen(false);
     toast.success("Copied to clipboard");
-    setTimeout(() => setCopied(false), 2000);
   }, [activeSheet]);
 
   return (
-    <div ref={menuRef} className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        disabled={!hasData}
-        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all duration-200 ${
-          hasData
-            ? "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)]"
-            : "text-[var(--color-text-muted)] opacity-40 cursor-not-allowed"
-        }`}
-      >
-        {copied ? (
-          <Check className="w-3.5 h-3.5 text-emerald-400" />
-        ) : (
-          <Download className="w-3.5 h-3.5" />
-        )}
-        {copied ? "Copied!" : "Export"}
-        {!copied && <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />}
-      </button>
-
-      {open && (
-        <div className="absolute right-0 top-full mt-1.5 w-48 bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl shadow-lg z-50 overflow-hidden animate-fade-in">
-          <button
-            onClick={downloadXLSX}
-            className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] transition-colors"
-          >
-            <Sheet className="w-4 h-4 text-emerald-600" />
-            Download Excel
-          </button>
-          <div className="mx-3 border-t border-[var(--color-border)]" />
-          <button
-            onClick={downloadCSV}
-            className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] transition-colors"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-[var(--color-text-muted)]" />
-            Download CSV
-          </button>
-          <div className="mx-3 border-t border-[var(--color-border)]" />
-          <button
-            onClick={copyToClipboard}
-            className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-[var(--color-text-primary)] hover:bg-[var(--color-bg-hover)] transition-colors"
-          >
-            <Copy className="w-4 h-4 text-[var(--color-text-muted)]" />
-            Copy to clipboard
-          </button>
-        </div>
-      )}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          disabled={!hasData}
+          className="w-[36px] h-[36px] flex items-center justify-center rounded-lg transition-colors text-[#95928E] hover:text-[#2d2e2e] hover:bg-[#efeee9] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          title="Export spreadsheet"
+        >
+          <Download className="w-4 h-4" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem onClick={downloadXLSX} className="transition-transform duration-150 hover:translate-x-0.5">
+          <Sheet className="w-4 h-4 text-emerald-600" />
+          <span className="text-[13px]">Download Excel</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={downloadCSV} className="transition-transform duration-150 hover:translate-x-0.5">
+          <FileSpreadsheet className="w-4 h-4 text-muted-foreground" />
+          <span className="text-[13px]">Download CSV</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={copyToClipboard} className="transition-transform duration-150 hover:translate-x-0.5">
+          <Copy className="w-4 h-4 text-muted-foreground" />
+          <span className="text-[13px]">Copy to clipboard</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

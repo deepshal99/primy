@@ -1,26 +1,33 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { WorkspacePanel } from "@/components/workspace/WorkspacePanel";
-import { ProjectSidebar } from "@/components/sidebar/ProjectSidebar";
+import { NavRail } from "@/components/sidebar/NavRail";
 import { KeyboardShortcuts } from "@/components/shared/KeyboardShortcuts";
 import { SearchDialog } from "@/components/shared/SearchDialog";
 import { useAppStore } from "@/lib/store";
 
+type ViewMode = "chat" | "editor" | "project";
+
 export function AppShell() {
   const workspaceOpen = useAppStore((s) => s.workspaceOpen);
-  const toggleSidebar = useAppStore((s) => s.toggleSidebar);
+  const currentEntityId = useAppStore((s) => s.currentEntityId);
+  const currentProjectId = useAppStore((s) => s.currentProjectId);
   const createProject = useAppStore((s) => s.createProject);
   const undo = useAppStore((s) => s.undo);
   const redo = useAppStore((s) => s.redo);
   const canUndo = useAppStore((s) => s.canUndo);
   const canRedo = useAppStore((s) => s.canRedo);
   const closeTab = useAppStore((s) => s.closeTab);
-  const [chatWidth, setChatWidth] = useState(420);
-  const [isDragging, setIsDragging] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Derive view mode
+  const viewMode: ViewMode = useMemo(() => {
+    if (currentEntityId && workspaceOpen) return "editor";
+    if (currentProjectId && workspaceOpen) return "project";
+    return "chat";
+  }, [currentEntityId, currentProjectId, workspaceOpen]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -36,7 +43,7 @@ export function AppShell() {
         }
         if (e.key === "b") {
           e.preventDefault();
-          toggleSidebar();
+          window.dispatchEvent(new Event("drafta:toggle-sidebar"));
         }
         if (e.key === "/" && !e.shiftKey) {
           e.preventDefault();
@@ -89,84 +96,38 @@ export function AppShell() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [toggleSidebar, createProject, undo, redo, canUndo, canRedo, closeTab]);
+  }, [createProject, undo, redo, canUndo, canRedo, closeTab]);
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      if (!workspaceOpen) return;
-      e.preventDefault();
-      setIsDragging(true);
-
-      const handleMouseMove = (e: MouseEvent) => {
-        if (!containerRef.current) return;
-        const rect = containerRef.current.getBoundingClientRect();
-        const newWidth = Math.max(340, Math.min(560, e.clientX - rect.left));
-        setChatWidth(newWidth);
-      };
-
-      const handleMouseUp = () => {
-        setIsDragging(false);
-        document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
-      };
-
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-    },
-    [workspaceOpen]
-  );
+  // Listen for search open event from NavRail
+  useEffect(() => {
+    const handler = () => setSearchOpen(true);
+    window.addEventListener("drafta:open-search", handler);
+    return () => window.removeEventListener("drafta:open-search", handler);
+  }, []);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[var(--color-bg-primary)]">
-      {/* Sidebar — ChatGPT style, always present */}
-      <ProjectSidebar />
+    <div className="h-screen w-screen flex bg-[#f9f9fb] overflow-hidden">
+      {/* Navigation Rail — fixed 60px */}
+      <NavRail />
 
-      {/* Main area: chat + workspace */}
-      <div ref={containerRef} className="flex flex-1 h-full min-w-0">
-        {/* Chat Panel */}
-        <div
-          className="h-full flex-shrink-0 transition-all ease-[cubic-bezier(0.4,0,0.2,1)]"
-          style={{
-            width: workspaceOpen ? chatWidth : "100%",
-            maxWidth: workspaceOpen ? 560 : undefined,
-            minWidth: workspaceOpen ? 340 : undefined,
-            flex: workspaceOpen ? "none" : "1",
-            transitionDuration: "500ms",
-          }}
-        >
-          <ChatPanel centered={!workspaceOpen} />
-        </div>
-
-        {/* Divider */}
-        {workspaceOpen && (
-          <div
-            onMouseDown={handleMouseDown}
-            className={`w-px flex-shrink-0 cursor-col-resize relative group animate-fade-in-soft ${
-              isDragging ? "bg-[var(--color-brand)]" : "bg-[var(--color-border)]"
-            }`}
-          >
-            <div className="absolute inset-y-0 -left-2 -right-2 z-10" />
-            <div
-              className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-8 rounded-full transition-all duration-200 ${
-                isDragging
-                  ? "bg-[var(--color-brand)] opacity-100"
-                  : "bg-[var(--color-border)] opacity-0 group-hover:opacity-100"
-              }`}
-            />
-          </div>
-        )}
-
-        {/* Workspace Panel */}
-        {workspaceOpen && (
-          <div className="flex-1 h-full min-w-0 animate-slide-in-right">
-            <WorkspacePanel />
-          </div>
-        )}
+      {/* Chat Panel */}
+      <div
+        data-chat-panel
+        className={`flex-shrink-0 bg-white overflow-hidden transition-all duration-300 ease-in-out ${
+          viewMode === "chat"
+            ? "flex-1"
+            : "w-[25vw] min-w-[300px] max-w-[420px] border-r border-[#e8e7e4]"
+        }`}
+      >
+        <ChatPanel centered={viewMode === "chat"} />
       </div>
+
+      {/* Workspace Panel */}
+      {workspaceOpen && (
+        <div data-workspace-panel className="flex-1 overflow-hidden animate-fade-in">
+          <WorkspacePanel />
+        </div>
+      )}
 
       <KeyboardShortcuts />
       <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />

@@ -1,5 +1,5 @@
 import Papa from "papaparse";
-import { SheetData } from "@/lib/types";
+import { SheetData, CellData } from "@/lib/types";
 
 /** Safe max that doesn't blow the stack on large arrays */
 function safeMax(arr: number[], fallback: number): number {
@@ -35,11 +35,17 @@ export function sheetToTSV(sheet: SheetData): string {
   const maxRow = safeMax(sheet.celldata.map((c) => c.r), 0);
   const maxCol = safeMax(sheet.celldata.map((c) => c.c), 0);
 
+  // Build a lookup map for O(1) cell access instead of O(n) per cell
+  const cellMap = new Map<string, CellData>();
+  for (const cd of sheet.celldata) {
+    cellMap.set(`${cd.r},${cd.c}`, cd);
+  }
+
   const lines: string[] = [];
   for (let r = 0; r <= maxRow; r++) {
     const row: string[] = [];
     for (let c = 0; c <= maxCol; c++) {
-      const cell = sheet.celldata.find((cd) => cd.r === r && cd.c === c);
+      const cell = cellMap.get(`${r},${c}`);
       row.push(String(cell?.v?.v ?? ""));
     }
     lines.push(row.join("\t"));

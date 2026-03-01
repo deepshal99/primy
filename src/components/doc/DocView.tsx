@@ -1,296 +1,498 @@
 "use client";
 
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
-import Underline from "@tiptap/extension-underline";
-import TaskList from "@tiptap/extension-task-list";
-import TaskItem from "@tiptap/extension-task-item";
-import LinkExt from "@tiptap/extension-link";
-import Highlight from "@tiptap/extension-highlight";
-import TextAlign from "@tiptap/extension-text-align";
-import { Markdown } from "tiptap-markdown";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { Plate, PlateContent, usePlateEditor, createPlatePlugin, useEditorRef } from "platejs/react";
+import {
+  BasicBlocksPlugin,
+  BasicMarksPlugin,
+  HighlightPlugin,
+} from "@platejs/basic-nodes/react";
+import { CodeBlockPlugin } from "@platejs/code-block/react";
+import { ListPlugin } from "@platejs/list-classic/react";
+import { LinkPlugin } from "@platejs/link/react";
+import { TextAlignPlugin } from "@platejs/basic-styles/react";
+import { MarkdownPlugin, serializeMd } from "@platejs/markdown";
+import { TablePlugin } from "@platejs/table/react";
+import { ImagePlugin } from "@platejs/media/react";
 import { useAppStore } from "@/lib/store";
-import { FileText, Loader2, Wand2, Shrink, Expand, MessageSquare, Pen } from "lucide-react";
-import { design } from "@/lib/design";
+import {
+  FileText,
+  Loader2,
+  Wand2,
+  Trash2,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Maximize2,
+  Minimize2,
+} from "lucide-react";
 import { DocToolbar } from "./DocToolbar";
+import { SelectionBubble } from "./SelectionBubble";
+
+// HR void element plugin
+function HrElement({ attributes, children }: any) {
+  return (
+    <div {...attributes} contentEditable={false}>
+      <hr className="my-4 border-t border-border" />
+      {children}
+    </div>
+  );
+}
+
+const HrPlugin = createPlatePlugin({
+  key: "hr",
+  node: {
+    isElement: true,
+    isVoid: true,
+    component: HrElement,
+  },
+});
+
+// Image element component with controls
+function ImageElement({ attributes, children, element }: any) {
+  const editor = useEditorRef();
+  const [selected, setSelected] = useState(false);
+  const [width, setWidth] = useState<number | undefined>(element.width);
+  const [align, setAlign] = useState<"left" | "center" | "right">(element.align || "center");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const resizingRef = useRef(false);
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(0);
+
+  const updateNode = useCallback(
+    (props: Record<string, any>) => {
+      const path = editor.api.findPath(element);
+      if (path) {
+        editor.tf.setNodes(props, { at: path });
+      }
+    },
+    [editor, element]
+  );
+
+  const handleDelete = useCallback(() => {
+    const path = editor.api.findPath(element);
+    if (path) {
+      editor.tf.removeNodes({ at: path });
+    }
+  }, [editor, element]);
+
+  const handleAlign = useCallback(
+    (newAlign: "left" | "center" | "right") => {
+      setAlign(newAlign);
+      updateNode({ align: newAlign });
+    },
+    [updateNode]
+  );
+
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      resizingRef.current = true;
+      startXRef.current = e.clientX;
+      const img = containerRef.current?.querySelector("img");
+      startWidthRef.current = img?.offsetWidth || 400;
+
+      const handleMove = (ev: MouseEvent) => {
+        if (!resizingRef.current) return;
+        const delta = ev.clientX - startXRef.current;
+        const newWidth = Math.max(100, Math.min(800, startWidthRef.current + delta));
+        setWidth(newWidth);
+      };
+      const handleUp = () => {
+        resizingRef.current = false;
+        document.removeEventListener("mousemove", handleMove);
+        document.removeEventListener("mouseup", handleUp);
+        // Persist width to node
+        const img = containerRef.current?.querySelector("img");
+        if (img) updateNode({ width: img.offsetWidth });
+      };
+      document.addEventListener("mousemove", handleMove);
+      document.addEventListener("mouseup", handleUp);
+    },
+    [updateNode]
+  );
+
+  const toggleSize = useCallback(() => {
+    if (width && width < 700) {
+      setWidth(undefined); // full width
+      updateNode({ width: undefined });
+    } else {
+      setWidth(400);
+      updateNode({ width: 400 });
+    }
+  }, [width, updateNode]);
+
+  const justifyClass =
+    align === "left" ? "justify-start" : align === "right" ? "justify-end" : "justify-center";
+
+  return (
+    <div
+      {...attributes}
+      contentEditable={false}
+      ref={containerRef}
+      className={`my-4 flex ${justifyClass} group/img relative`}
+      onClick={() => setSelected(true)}
+      onBlur={() => setSelected(false)}
+      tabIndex={-1}
+    >
+      <div className="relative inline-block">
+        <img
+          src={element.url}
+          alt={element.caption || ""}
+          className={`rounded-lg border transition-shadow ${selected ? "border-[#ff4a00]/40 shadow-[0_0_0_2px_rgba(255,74,0,0.1)]" : "border-border"}`}
+          style={{ maxHeight: 500, width: width ? `${width}px` : undefined, maxWidth: "100%" }}
+          draggable={false}
+        />
+
+        {/* Toolbar — visible on hover or when selected */}
+        <div
+          className={`absolute -top-9 left-1/2 -translate-x-1/2 flex items-center gap-0.5 px-1 py-0.5 rounded-lg bg-card border border-border shadow-md transition-opacity ${
+            selected ? "opacity-100" : "opacity-0 group-hover/img:opacity-100"
+          }`}
+        >
+          {([
+            { icon: AlignLeft, value: "left" as const, label: "Left" },
+            { icon: AlignCenter, value: "center" as const, label: "Center" },
+            { icon: AlignRight, value: "right" as const, label: "Right" },
+          ] as const).map((opt) => (
+            <button
+              key={opt.value}
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleAlign(opt.value); }}
+              className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
+                align === opt.value ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted"
+              }`}
+              title={opt.label}
+            >
+              <opt.icon className="w-3.5 h-3.5" />
+            </button>
+          ))}
+
+          <div className="w-px h-4 bg-border mx-0.5" />
+
+          <button
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); toggleSize(); }}
+            className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted transition-colors"
+            title={width && width < 700 ? "Full width" : "Smaller"}
+          >
+            {width && width < 700 ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
+          </button>
+
+          <div className="w-px h-4 bg-border mx-0.5" />
+
+          <button
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(); }}
+            className="w-7 h-7 flex items-center justify-center rounded-md text-red-500/70 hover:text-red-500 hover:bg-red-50 transition-colors"
+            title="Delete image"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Right resize handle */}
+        <div
+          onMouseDown={handleResizeStart}
+          className={`absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-3 h-10 rounded-full cursor-ew-resize transition-opacity ${
+            selected ? "opacity-100 bg-[#ff4a00]/60" : "opacity-0 group-hover/img:opacity-60 bg-muted-foreground/40"
+          }`}
+        />
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// Table element components with add row/column controls
+function TableElement({ attributes, children, element }: any) {
+  const editor = useEditorRef();
+
+  const addRow = () => {
+    // Count columns from first row
+    const firstRow = element.children?.[0];
+    const colCount = firstRow?.children?.length || 3;
+    const cells = Array.from({ length: colCount }, () => ({
+      type: "td",
+      children: [{ type: "p", children: [{ text: "" }] }],
+    }));
+    const newRow = { type: "tr", children: cells };
+    const path = editor.api.findPath(element);
+    if (path) {
+      editor.tf.insertNodes(newRow as any, {
+        at: [...path, element.children.length],
+      });
+    }
+  };
+
+  const addColumn = () => {
+    const path = editor.api.findPath(element);
+    if (!path) return;
+    for (let i = 0; i < element.children.length; i++) {
+      const row = element.children[i];
+      const isHeader = row.children?.[0]?.type === "th";
+      const newCell = {
+        type: isHeader ? "th" : "td",
+        children: [{ type: "p", children: [{ text: "" }] }],
+      };
+      editor.tf.insertNodes(newCell as any, {
+        at: [...path, i, row.children.length],
+      });
+    }
+  };
+
+  return (
+    <div {...attributes} className="my-4 group/table relative">
+      <table className="doc-editor w-full border-collapse">
+        <tbody>{children}</tbody>
+      </table>
+      {/* Add row button */}
+      <button
+        contentEditable={false}
+        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); addRow(); }}
+        className="w-full h-6 flex items-center justify-center rounded-b-lg border border-t-0 border-border text-[11px] text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/50 transition-colors opacity-0 group-hover/table:opacity-100 cursor-pointer"
+      >
+        + Row
+      </button>
+      {/* Add column button */}
+      <button
+        contentEditable={false}
+        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); addColumn(); }}
+        className="absolute -right-7 top-0 w-6 h-full flex items-center justify-center rounded-r-lg border border-l-0 border-border text-[11px] text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/50 transition-colors opacity-0 group-hover/table:opacity-100 cursor-pointer"
+        style={{ writingMode: "vertical-rl" }}
+      >
+        + Col
+      </button>
+    </div>
+  );
+}
+
+function TableRowElement({ attributes, children }: any) {
+  return <tr {...attributes}>{children}</tr>;
+}
+
+function TableCellElement({ attributes, children }: any) {
+  return (
+    <td {...attributes} className="border border-border p-2 min-w-[60px]">
+      {children}
+    </td>
+  );
+}
+
+function TableHeaderCellElement({ attributes, children }: any) {
+  return (
+    <th {...attributes} className="border border-border p-2 min-w-[60px] bg-muted font-semibold">
+      {children}
+    </th>
+  );
+}
+
+function mdToValue(editor: any, md: string) {
+  try {
+    return editor.getApi(MarkdownPlugin).markdown.deserialize(md);
+  } catch {
+    return [{ type: "p", children: [{ text: md || "" }] }];
+  }
+}
 
 export function DocView() {
   const docContent = useAppStore((s) => s.docContent);
   const docVersion = useAppStore((s) => s.docVersion);
   const updateDocContent = useAppStore((s) => s.updateDocContent);
   const isStreaming = useAppStore((s) => s.isStreaming);
+  const aiPhase = useAppStore((s) => s.aiPhase);
   const lastVersionRef = useRef(docVersion);
   const isAIUpdatingRef = useRef(false);
 
-  // Inline AI edit state
   const [aiEditPrompt, setAiEditPrompt] = useState("");
   const [aiEditLoading, setAiEditLoading] = useState(false);
   const [showAiPrompt, setShowAiPrompt] = useState(false);
   const [selectedText, setSelectedText] = useState("");
 
-  const editor = useEditor({
-    immediatelyRender: false,
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3, 4] },
-        codeBlock: {
-          HTMLAttributes: { class: "doc-code-block" },
-        },
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+
+  const plugins = useMemo(
+    () => [
+      BasicBlocksPlugin,
+      BasicMarksPlugin,
+      HighlightPlugin,
+      CodeBlockPlugin,
+      ListPlugin,
+      LinkPlugin,
+      TextAlignPlugin,
+      MarkdownPlugin,
+      HrPlugin,
+      TablePlugin.configure({
+        render: { node: TableElement },
       }),
-      Placeholder.configure({
-        placeholder: "Start writing, or ask the AI to draft something...",
+      createPlatePlugin({
+        key: "tr",
+        node: { isElement: true, component: TableRowElement },
       }),
-      Underline,
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      LinkExt.configure({
-        openOnClick: false,
-        HTMLAttributes: { class: "doc-link" },
+      createPlatePlugin({
+        key: "td",
+        node: { isElement: true, component: TableCellElement },
       }),
-      Highlight.configure({
-        multicolor: false,
+      createPlatePlugin({
+        key: "th",
+        node: { isElement: true, component: TableHeaderCellElement },
       }),
-      TextAlign.configure({
-        types: ["heading", "paragraph"],
+      ImagePlugin.configure({
+        render: { node: ImageElement },
       }),
-      Markdown,
     ],
-    content: docContent || "",
-    editorProps: {
-      attributes: {
-        class: "doc-editor focus:outline-none px-8 py-6 min-h-full",
-      },
-    },
-    onUpdate: ({ editor }) => {
-      if (isAIUpdatingRef.current) return;
-      // Guard: don't write doc content when a table is the active entity
-      if (useAppStore.getState().currentEntityType !== "ku" && useAppStore.getState().currentEntityType !== null) return;
-      const md = (editor.storage as any).markdown?.getMarkdown?.() || editor.getHTML();
-      updateDocContent(md);
+    []
+  );
+
+  const editor = usePlateEditor({
+    plugins,
+    value: (editor) => {
+      if (!docContent) return [{ type: "p", children: [{ text: "" }] }];
+      return mdToValue(editor, docContent);
     },
   });
 
+  // Sync from store when AI updates content (docVersion changes)
   useEffect(() => {
     if (docVersion !== lastVersionRef.current && editor) {
       lastVersionRef.current = docVersion;
       isAIUpdatingRef.current = true;
-      editor.commands.setContent(docContent || "");
+      try {
+        const val = mdToValue(editor, docContent || "");
+        editor.tf.setValue(val);
+      } catch {
+        // fallback
+      }
       setTimeout(() => {
         isAIUpdatingRef.current = false;
       }, 100);
     }
   }, [docVersion, docContent, editor]);
 
-  // Handle inline AI edit from toolbar sparkle button
-  const handleAIEditFromToolbar = useCallback((text: string) => {
-    setSelectedText(text);
-    setShowAiPrompt(true);
-    setAiEditPrompt("");
-  }, []);
+  // Sync editor changes back to store as markdown
+  const handleChange = useCallback(
+    ({ value }: { value: any }) => {
+      if (isAIUpdatingRef.current) return;
+      if (
+        useAppStore.getState().currentEntityType !== "ku" &&
+        useAppStore.getState().currentEntityType !== null
+      )
+        return;
+      try {
+        const md = serializeMd(editor);
+        updateDocContent(md);
+      } catch {
+        // ignore serialization errors
+      }
+    },
+    [editor, updateDocContent]
+  );
 
-  // Core AI edit function — accepts a prompt string directly
-  const runAIEdit = useCallback(async (prompt: string, text: string) => {
-    if (!editor || !prompt.trim() || !text) return;
-    setAiEditLoading(true);
-    // Snapshot doc size before the async call to detect stale selections
-    const docSizeBefore = editor.state.doc.content.size;
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: "user",
-              content: `Edit this text according to the instruction. Return ONLY the edited text, nothing else. Do not wrap in markdown fences.\n\nText: "${text}"\n\nInstruction: ${prompt}`,
-            },
-          ],
-          sheetData: useAppStore.getState().sheets,
-          docContent: useAppStore.getState().docContent,
-        }),
-      });
+  // Core AI edit function
+  const runAIEdit = useCallback(
+    async (prompt: string, text: string) => {
+      if (!editor || !prompt.trim() || !text) return;
+      setAiEditLoading(true);
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: [
+              {
+                role: "user",
+                content: `Edit this text according to the instruction. Return ONLY the edited text, nothing else. Do not wrap in markdown fences.\n\nText: "${text}"\n\nInstruction: ${prompt}`,
+              },
+            ],
+            sheetData: useAppStore.getState().sheets,
+            docContent: useAppStore.getState().docContent,
+          }),
+        });
 
-      if (!res.ok || !res.body) throw new Error("AI edit failed");
+        if (!res.ok || !res.body) throw new Error("AI edit failed");
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let result = "";
-      let buffer = "";
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let result = "";
+        let buffer = "";
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith("data: ")) continue;
-          const data = trimmed.slice(6);
-          if (data === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.text) result += parsed.text;
-          } catch {
-            // Skip malformed chunks
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || !trimmed.startsWith("data: ")) continue;
+            const data = trimmed.slice(6);
+            if (data === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.text) result += parsed.text;
+            } catch {
+              // skip
+            }
           }
         }
+
+        let cleaned = result.trim();
+        if (cleaned.startsWith("```")) {
+          cleaned = cleaned.replace(/^```\w*\n?/, "").replace(/\n?```$/, "").trim();
+        }
+
+        const currentMd = serializeMd(editor);
+        if (currentMd.includes(text)) {
+          const newMd = currentMd.replace(text, cleaned);
+          updateDocContent(newMd);
+          useAppStore.setState((s) => ({
+            docVersion: s.docVersion + 1,
+          }));
+        }
+      } catch (err) {
+        if (process.env.NODE_ENV !== "production")
+          console.error("AI edit error:", err);
+      } finally {
+        setAiEditLoading(false);
+        setShowAiPrompt(false);
+        setAiEditPrompt("");
+        setSelectedText("");
       }
+    },
+    [editor, updateDocContent]
+  );
 
-      // Clean up AI response
-      let cleaned = result.trim();
-      if (cleaned.startsWith("```")) {
-        cleaned = cleaned.replace(/^```\w*\n?/, "").replace(/\n?```$/, "").trim();
-      }
-
-      // Guard: if the doc changed while we were fetching, bail to avoid corrupting content
-      if (editor.state.doc.content.size !== docSizeBefore) {
-        const { toast: t } = await import("sonner");
-        t.error("Document changed during AI edit. Please try again.");
-        return;
-      }
-
-      // Replace the selected text with AI result and highlight the change
-      const { from, to } = editor.state.selection;
-      if (from !== to) {
-        editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, cleaned).run();
-
-        // Highlight the newly inserted text temporarily
-        const newTo = from + cleaned.length;
-        editor.chain()
-          .setTextSelection({ from, to: newTo })
-          .setHighlight()
-          .run();
-
-        // Remove highlight after 3 seconds
-        setTimeout(() => {
-          if (!editor.isDestroyed) {
-            editor.chain()
-              .setTextSelection({ from, to: newTo })
-              .unsetHighlight()
-              .setTextSelection(newTo)
-              .run();
-          }
-        }, 3000);
-      }
-    } catch (err) {
-      if (process.env.NODE_ENV !== "production") console.error("AI edit error:", err);
-    } finally {
-      setAiEditLoading(false);
-      setShowAiPrompt(false);
-      setAiEditPrompt("");
-      setSelectedText("");
-    }
-  }, [editor]);
-
-  // Legacy wrapper for the modal flow
   const executeAIEdit = useCallback(async () => {
     if (!aiEditPrompt.trim() || !selectedText) return;
     await runAIEdit(aiEditPrompt.trim(), selectedText);
   }, [runAIEdit, aiEditPrompt, selectedText]);
 
-  // Bubble menu quick actions
-  const handleBubbleAction = useCallback((action: string) => {
-    if (!editor) return;
-    const { from, to } = editor.state.selection;
-    if (from === to) return;
-    const text = editor.state.doc.textBetween(from, to, " ");
-    if (!text.trim()) return;
-
-    const prompts: Record<string, string> = {
-      improve: "Improve this text for clarity, grammar, and readability. Keep the same meaning and approximate length.",
-      shorten: "Make this text more concise. Remove unnecessary words while preserving the core meaning.",
-      expand: "Expand on this text with more detail, examples, or elaboration. Keep the same tone.",
-      formal: "Rewrite this text in a formal, professional tone.",
-      casual: "Rewrite this text in a casual, friendly conversational tone.",
-    };
-
-    if (action === "custom") {
-      setSelectedText(text);
-      setShowAiPrompt(true);
-      setAiEditPrompt("");
-      return;
-    }
-
-    const prompt = prompts[action];
-    if (prompt) {
-      setSelectedText(text);
-      runAIEdit(prompt, text);
-    }
-  }, [editor, runAIEdit]);
-
-  // Custom floating bubble menu — tracks selection position
-  const [bubblePos, setBubblePos] = useState<{ top: number; left: number } | null>(null);
-  const [showBubble, setShowBubble] = useState(false);
-  const bubbleRef = useRef<HTMLDivElement>(null);
-  const editorContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!editor) return;
-
-    const updateBubble = () => {
-      const { from, to } = editor.state.selection;
-      if (from === to || aiEditLoading) {
-        setShowBubble(false);
-        return;
-      }
-      const text = editor.state.doc.textBetween(from, to, " ");
-      if (text.trim().length <= 2) {
-        setShowBubble(false);
-        return;
-      }
-      // Get selection coordinates from ProseMirror view
-      const coords = editor.view.coordsAtPos(from);
-      const container = editorContainerRef.current;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
-      setBubblePos({
-        top: coords.top - rect.top - 44,
-        left: coords.left - rect.left,
-      });
-      setShowBubble(true);
-    };
-
-    const blurHandler = () => {
-      // Delay to allow button clicks inside the bubble
-      setTimeout(() => {
-        if (!bubbleRef.current?.contains(document.activeElement)) {
-          setShowBubble(false);
-        }
-      }, 200);
-    };
-
-    editor.on("selectionUpdate", updateBubble);
-    editor.on("blur", blurHandler);
-
-    return () => {
-      editor.off("selectionUpdate", updateBubble);
-      editor.off("blur", blurHandler);
-    };
-  }, [editor, aiEditLoading]);
-
   const isEmpty = !docContent || docContent.trim().length === 0;
 
+  // Get current entity name for AI banner
+  const currentEntityId = useAppStore((s) => s.currentEntityId);
+  const currentProjectId = useAppStore((s) => s.currentProjectId);
+  const projects = useAppStore((s) => s.projects);
+  let entityName = "document";
+  if (currentEntityId && currentProjectId) {
+    const project = projects.find((p) => p.id === currentProjectId);
+    if (project) {
+      const ku = project.knowledgeUnits?.find((k) => k.id === currentEntityId);
+      if (ku) entityName = ku.title;
+    }
+  }
+
+  const isAiUpdating = aiPhase === "streaming" || aiPhase === "updating";
+
   return (
-    <div className="h-full flex flex-col relative" style={{ backgroundColor: design.colors.bg.primary }}>
+    <div className="h-full flex flex-col relative bg-background">
       {/* Toolbar */}
-      <DocToolbar editor={editor} onAIEdit={handleAIEditFromToolbar} />
+      <DocToolbar editor={editor} />
 
       {/* AI Edit Loading Overlay */}
       {aiEditLoading && !showAiPrompt && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/5 backdrop-blur-[1px]">
-          <div
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border"
-            style={{
-              backgroundColor: design.colors.bg.elevated,
-              borderColor: design.colors.border.default,
-              boxShadow: design.shadows.lg,
-            }}
-          >
-            <Loader2 className="w-4 h-4 animate-spin" style={{ color: design.colors.brand.primary }} />
-            <span className="text-[12px] font-medium" style={{ color: design.colors.text.primary }}>
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-card shadow-lg">
+            <Loader2 className="w-4 h-4 animate-spin text-[#ff4a00]" />
+            <span className="text-xs font-medium text-foreground">
               Editing with AI...
             </span>
           </div>
@@ -300,24 +502,12 @@ export function DocView() {
       {/* AI Edit Prompt Modal */}
       {showAiPrompt && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-sm">
-          <div
-            className="w-full max-w-[400px] rounded-xl border p-4 mx-4 animate-scale-in"
-            style={{
-              backgroundColor: design.colors.bg.elevated,
-              borderColor: design.colors.border.default,
-              boxShadow: design.shadows.xl,
-            }}
-          >
+          <div className="w-full max-w-[400px] rounded-xl border border-border bg-card p-4 mx-4 shadow-xl animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center gap-2 mb-3">
-              <Wand2 className="w-4 h-4" style={{ color: design.colors.accent.gold }} strokeWidth={2} />
-              <span className="text-heading-sm" style={{ color: design.colors.text.primary }}>
-                AI Edit
-              </span>
+              <Wand2 className="w-4 h-4 text-amber-500" strokeWidth={2} />
+              <span className="text-sm font-semibold text-foreground">AI Edit</span>
             </div>
-            <p className="text-[11px] mb-3 px-2 py-1.5 rounded-lg" style={{
-              color: design.colors.text.secondary,
-              backgroundColor: design.colors.bg.secondary,
-            }}>
+            <p className="text-xs mb-3 px-2 py-1.5 rounded-lg bg-muted text-muted-foreground">
               &ldquo;{selectedText.length > 100 ? selectedText.slice(0, 100) + "..." : selectedText}&rdquo;
             </p>
             <input
@@ -325,39 +515,35 @@ export function DocView() {
               value={aiEditPrompt}
               onChange={(e) => setAiEditPrompt(e.target.value)}
               placeholder="Make it more concise, fix grammar, change tone..."
-              className="w-full text-[12px] px-3 py-2 rounded-lg border outline-none mb-3"
-              style={{
-                backgroundColor: design.colors.bg.primary,
-                borderColor: design.colors.border.default,
-                color: design.colors.text.primary,
-              }}
+              className="w-full text-xs px-3 py-2 rounded-lg border border-border bg-background text-foreground outline-none focus:ring-2 focus:ring-[#ff4a00]/20 focus:border-[#ff4a00] mb-3 transition-all"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) executeAIEdit();
-                if (e.key === "Escape") { setShowAiPrompt(false); setAiEditPrompt(""); }
+                if (e.key === "Escape") {
+                  setShowAiPrompt(false);
+                  setAiEditPrompt("");
+                }
               }}
             />
             <div className="flex items-center justify-end gap-2">
               <button
-                onClick={() => { setShowAiPrompt(false); setAiEditPrompt(""); }}
-                className="text-[11px] font-medium px-3 py-1.5 rounded-lg transition-colors"
-                style={{ color: design.colors.text.secondary }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.secondary; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                onClick={() => {
+                  setShowAiPrompt(false);
+                  setAiEditPrompt("");
+                }}
+                className="text-xs font-medium px-3 py-1.5 rounded-lg text-muted-foreground hover:bg-accent transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={executeAIEdit}
                 disabled={!aiEditPrompt.trim() || aiEditLoading}
-                className="text-[11px] font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
-                style={{
-                  backgroundColor: design.colors.brand.primary,
-                  color: design.colors.brand.text,
-                }}
+                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-[#ff4a00] text-white hover:opacity-90 transition-colors disabled:opacity-50 flex items-center gap-1.5"
               >
                 {aiEditLoading ? (
-                  <><Loader2 className="w-3 h-3 animate-spin" /> Editing...</>
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin" /> Editing...
+                  </>
                 ) : (
                   "Apply"
                 )}
@@ -367,120 +553,115 @@ export function DocView() {
         </div>
       )}
 
-      {/* Editor area */}
-      <div ref={editorContainerRef} className="flex-1 overflow-y-auto relative">
-        {/* Floating AI Bubble Menu */}
-        {showBubble && bubblePos && (
-          <div
-            ref={bubbleRef}
-            className="absolute z-40 animate-fade-in"
-            style={{ top: bubblePos.top, left: Math.max(8, bubblePos.left - 100) }}
-          >
-            <div
-              className="flex items-center gap-0.5 rounded-lg border px-1 py-0.5"
-              style={{
-                backgroundColor: design.colors.bg.elevated,
-                borderColor: design.colors.border.default,
-                boxShadow: design.shadows.lg,
-              }}
-            >
-              <BubbleButton
-                icon={<Wand2 className="w-3.5 h-3.5" />}
-                label="Improve"
-                onClick={() => { setShowBubble(false); handleBubbleAction("improve"); }}
-                color={design.colors.brand.primary}
-              />
-              <BubbleButton
-                icon={<Shrink className="w-3.5 h-3.5" />}
-                label="Shorten"
-                onClick={() => { setShowBubble(false); handleBubbleAction("shorten"); }}
-                color={design.colors.accent.purple}
-              />
-              <BubbleButton
-                icon={<Expand className="w-3.5 h-3.5" />}
-                label="Expand"
-                onClick={() => { setShowBubble(false); handleBubbleAction("expand"); }}
-                color={design.colors.accent.gold}
-              />
-              <div className="w-px h-5 mx-0.5" style={{ backgroundColor: design.colors.border.default }} />
-              <BubbleButton
-                icon={<MessageSquare className="w-3.5 h-3.5" />}
-                label="Formal"
-                onClick={() => { setShowBubble(false); handleBubbleAction("formal"); }}
-                color={design.colors.text.secondary}
-              />
-              <BubbleButton
-                icon={<Pen className="w-3.5 h-3.5" />}
-                label="Custom"
-                onClick={() => { setShowBubble(false); handleBubbleAction("custom"); }}
-                color={design.colors.text.secondary}
-              />
-            </div>
+      {/* AI Updating Banner */}
+      {isAiUpdating && (
+        <div className="flex items-center gap-2.5 px-5 py-2 bg-[#fff8f5] border-b border-[#ff4a00]/10">
+          <div className="w-3.5 h-3.5 flex flex-col items-start justify-center gap-[2px] flex-shrink-0">
+            <div className="h-[1.5px] rounded-full bg-[#ff4a00]/60 content-loader-line" style={{ width: "100%" }} />
+            <div className="h-[1.5px] rounded-full bg-[#ff4a00]/40 content-loader-line" style={{ width: "70%" }} />
+            <div className="h-[1.5px] rounded-full bg-[#ff4a00]/25 content-loader-line" style={{ width: "85%" }} />
           </div>
-        )}
+          <span className="text-[12px] text-[#ff4a00] font-medium">
+            AI is updating {entityName}...
+          </span>
+        </div>
+      )}
+
+      {/* Editor Area */}
+      <div ref={editorContainerRef} className="flex-1 overflow-y-auto relative">
+        <style>{`
+          .doc-editor ::selection {
+            background: rgba(255, 74, 0, 0.13);
+            color: inherit;
+          }
+          .doc-editor *::selection {
+            background: rgba(255, 74, 0, 0.13);
+            color: inherit;
+          }
+          @keyframes highlightFade {
+            0% { background-color: rgba(255, 74, 0, 0.08); }
+            100% { background-color: transparent; }
+          }
+          .ai-inserted-highlight {
+            animation: highlightFade 4s ease-out forwards;
+          }
+        `}</style>
+
         {isEmpty && !isStreaming && (
           <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
             <div className="flex flex-col items-center gap-3 text-center px-8">
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center"
-                style={{ backgroundColor: design.colors.accent.purpleSubtle }}
-              >
-                <FileText
-                  className="w-6 h-6"
-                  style={{ color: design.colors.accent.purple }}
-                  strokeWidth={1.5}
-                />
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[#f0f4fd]">
+                <FileText className="w-6 h-6 text-[#4a7aed]" strokeWidth={1.5} />
               </div>
               <div>
-                <p className="text-heading-sm mb-1" style={{ color: design.colors.text.secondary }}>
+                <p className="text-sm font-medium mb-1 text-muted-foreground">
                   Your document will appear here
                 </p>
-                <p className="text-ui-sm max-w-[280px]" style={{ color: design.colors.text.muted, fontWeight: 400 }}>
+                <p className="text-xs max-w-[280px] text-muted-foreground/70">
                   Ask the AI to draft, outline, brainstorm, or write any content
                 </p>
               </div>
             </div>
           </div>
         )}
-        <EditorContent editor={editor} />
+        <Plate editor={editor} onChange={handleChange}>
+          <PlateContent
+            className="doc-editor focus:outline-none px-12 py-10 min-h-full max-w-[800px] mx-auto"
+            style={{ lineHeight: "1.8" }}
+            placeholder="Start writing, or ask the AI to draft something..."
+          />
+          {/* Selection Bubble - must be inside <Plate> for editor.selection access */}
+          <SelectionBubble editor={editor} containerRef={editorContainerRef} />
+        </Plate>
         {isStreaming && <StreamingBar />}
       </div>
+
+      {/* Status bar */}
+      <DocStatusBar />
     </div>
   );
 }
 
-function BubbleButton({
-  icon,
-  label,
-  onClick,
-  color,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  color: string;
-}) {
+function DocStatusBar() {
+  const docContent = useAppStore((s) => s.docContent);
+  const isSaving = useAppStore((s) => s.isSaving);
+  const lastSavedAt = useAppStore((s) => s.lastSavedAt);
+
+  const wordCount = useMemo(() => {
+    if (!docContent) return 0;
+    return docContent.trim().split(/\s+/).filter(Boolean).length;
+  }, [docContent]);
+
+  const charCount = useMemo(() => {
+    if (!docContent) return 0;
+    return docContent.length;
+  }, [docContent]);
+
   return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-1 px-2 py-1.5 rounded-md text-[11px] font-medium transition-colors hover:bg-black/5"
-      style={{ color }}
-      title={label}
-    >
-      {icon}
-      <span>{label}</span>
-    </button>
+    <div className="flex items-center justify-between px-4 h-8 border-t border-border bg-background text-[11px] text-muted-foreground flex-shrink-0">
+      <div className="flex items-center gap-4">
+        <span>{wordCount} words</span>
+        <span>{charCount} characters</span>
+      </div>
+      <div className="flex items-center gap-2">
+        {isSaving ? (
+          <span>Saving...</span>
+        ) : lastSavedAt > 0 ? (
+          <>
+            <span>Auto-saved</span>
+            <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+          </>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
 function StreamingBar() {
   return (
     <div className="absolute top-0 left-0 right-0 z-50">
-      <div className="h-[2px] w-full overflow-hidden" style={{ backgroundColor: design.colors.accent.purpleSubtle }}>
-        <div
-          className="h-full animate-progress-bar"
-          style={{ backgroundColor: design.colors.accent.purple }}
-        />
+      <div className="h-[2px] w-full overflow-hidden bg-[#ff4a00]/10">
+        <div className="h-full animate-progress-bar bg-[#ff4a00]" />
       </div>
     </div>
   );

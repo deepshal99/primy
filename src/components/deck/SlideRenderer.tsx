@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { DeckSlide } from "@/lib/types";
 import { ThemeConfig, getThemeConfig, loadThemeFonts } from "./deckThemes";
 
@@ -28,7 +28,21 @@ export function SlideRenderer({ slide, theme, scale = 1, onClick, isActive, edit
     loadThemeFonts(theme);
   }, [theme]);
 
-  const isCentered = slide.layout === "title" || slide.layout === "section" || slide.layout === "quote";
+  const hasBackgroundImage = !!slide.backgroundImage;
+
+  // Override text colors to white when background image is present
+  const effectiveTheme = useMemo(() => {
+    if (!hasBackgroundImage) return t;
+    return {
+      ...t,
+      text: "#ffffff",
+      textSecondary: "rgba(255,255,255,0.75)",
+      cardBg: "rgba(255,255,255,0.1)",
+      cardBorder: "rgba(255,255,255,0.15)",
+    };
+  }, [t, hasBackgroundImage]);
+
+  const isCentered = slide.layout === "title" || slide.layout === "section" || slide.layout === "quote" || slide.layout === "imageFeature";
 
   return (
     <div
@@ -37,12 +51,14 @@ export function SlideRenderer({ slide, theme, scale = 1, onClick, isActive, edit
       style={{
         width: 960 * scale,
         height: 540 * scale,
-        background: t.bg,
-        color: t.text,
+        background: hasBackgroundImage
+          ? `url(${slide.backgroundImage}) center/cover no-repeat`
+          : t.bg,
+        color: effectiveTheme.text,
         fontFamily: t.bodyFont,
         borderRadius: 8 * scale,
         boxShadow: isActive
-          ? `0 0 0 ${2 / scale}px #3B82F6`
+          ? `0 0 0 2px #3B82F6`
           : `0 ${1 * scale}px ${4 * scale}px rgba(0,0,0,0.08), 0 ${2 * scale}px ${8 * scale}px rgba(0,0,0,0.04)`,
         transition: "box-shadow 0.15s",
       }}
@@ -56,7 +72,20 @@ export function SlideRenderer({ slide, theme, scale = 1, onClick, isActive, edit
           position: "relative",
         }}
       >
-        <DecorLayer t={t} />
+        {/* Overlay when background image present */}
+        {hasBackgroundImage && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 0,
+              background: slide.backgroundOverlay || "linear-gradient(to bottom, rgba(0,0,0,0.35), rgba(0,0,0,0.7))",
+            }}
+          />
+        )}
+
+        {/* Decorative layer — hidden when background image is present */}
+        {!hasBackgroundImage && <DecorLayer t={t} />}
 
         <div
           style={{
@@ -71,7 +100,7 @@ export function SlideRenderer({ slide, theme, scale = 1, onClick, isActive, edit
             boxSizing: "border-box",
           }}
         >
-          {renderLayout(slide, t, edit)}
+          {renderLayout(slide, effectiveTheme, edit)}
         </div>
       </div>
     </div>
@@ -392,6 +421,8 @@ function renderLayout(slide: DeckSlide, t: ThemeConfig, edit?: SlideEditHandlers
       return <QuoteLayout slide={slide} t={t} edit={edit} />;
     case "stats":
       return <StatsLayout slide={slide} t={t} edit={edit} />;
+    case "imageFeature":
+      return <ImageFeatureLayout slide={slide} t={t} edit={edit} />;
     case "blank":
     default:
       return <BlankLayout slide={slide} t={t} edit={edit} />;
@@ -400,15 +431,17 @@ function renderLayout(slide: DeckSlide, t: ThemeConfig, edit?: SlideEditHandlers
 
 /* ━━ Title Slide ━━ */
 function TitleLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; edit?: SlideEditHandlers }) {
+  const hasImage = !!slide.backgroundImage;
   const headingStyle: React.CSSProperties = {
-    fontSize: 52,
+    fontSize: 56,
     fontWeight: t.headingWeight,
-    lineHeight: 1.12,
+    lineHeight: 1.05,
     fontFamily: t.headingFont,
-    letterSpacing: "-0.03em",
+    letterSpacing: "-0.04em",
     color: t.text,
     textAlign: "center",
     textTransform: t.headingCase === "uppercase" ? "uppercase" : undefined,
+    textShadow: hasImage ? "0 2px 12px rgba(0,0,0,0.4)" : undefined,
   };
   const subtitleStyle: React.CSSProperties = {
     fontSize: 21,
@@ -419,19 +452,22 @@ function TitleLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; edi
     textAlign: "center",
     marginTop: 20,
     fontFamily: t.bodyFont,
+    textShadow: hasImage ? "0 1px 8px rgba(0,0,0,0.3)" : undefined,
   };
 
   return (
     <div style={{ textAlign: "center", maxWidth: 800, margin: "0 auto", width: "100%" }}>
-      <div
-        style={{
-          width: 48,
-          height: 4,
-          borderRadius: 2,
-          background: `linear-gradient(90deg, ${t.accent}, ${t.accentAlt})`,
-          margin: "0 auto 28px",
-        }}
-      />
+      {!hasImage && (
+        <div
+          style={{
+            width: 48,
+            height: 4,
+            borderRadius: 2,
+            background: `linear-gradient(90deg, ${t.accent}, ${t.accentAlt})`,
+            margin: "0 auto 28px",
+          }}
+        />
+      )}
       <EditableHeading value={slide.title || ""} placeholder="Untitled" onChange={edit?.onTitleChange} style={headingStyle} />
       {(slide.subtitle || edit) && (
         <EditableHeading
@@ -441,6 +477,77 @@ function TitleLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; edi
           style={subtitleStyle}
         />
       )}
+    </div>
+  );
+}
+
+/* ━━ Image Feature (Hero) ━━ */
+function ImageFeatureLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; edit?: SlideEditHandlers }) {
+  const headingStyle: React.CSSProperties = {
+    fontSize: 64,
+    fontWeight: t.headingWeight,
+    lineHeight: 1.05,
+    fontFamily: t.headingFont,
+    letterSpacing: "-0.04em",
+    color: "#ffffff",
+    textAlign: "center",
+    textShadow: "0 3px 16px rgba(0,0,0,0.5)",
+  };
+  const subtitleStyle: React.CSSProperties = {
+    fontSize: 22,
+    color: "rgba(255,255,255,0.75)",
+    lineHeight: 1.5,
+    fontWeight: 400,
+    textAlign: "center",
+    marginTop: 20,
+    fontFamily: t.bodyFont,
+    textShadow: "0 1px 8px rgba(0,0,0,0.3)",
+  };
+  const contentStyle: React.CSSProperties = {
+    fontSize: 18,
+    color: "rgba(255,255,255,0.65)",
+    lineHeight: 1.6,
+    textAlign: "center",
+    fontFamily: t.bodyFont,
+    position: "absolute",
+    bottom: 56,
+    left: 80,
+    right: 80,
+  };
+
+  return (
+    <div style={{ textAlign: "center", maxWidth: 820, margin: "0 auto", width: "100%" }}>
+      <EditableHeading value={slide.title || ""} placeholder="Hero Title" onChange={edit?.onTitleChange} style={headingStyle} />
+      {(slide.subtitle || edit) && (
+        <EditableHeading
+          value={slide.subtitle || ""}
+          placeholder={edit ? "Add subtitle..." : ""}
+          onChange={edit?.onSubtitleChange}
+          style={subtitleStyle}
+        />
+      )}
+      {slide.content && !edit && (
+        <div style={contentStyle}>{slide.content}</div>
+      )}
+      {edit && (
+        <EditableText
+          value={slide.content || ""}
+          placeholder="Add bottom text..."
+          onChange={edit.onContentChange}
+          style={{ ...contentStyle, position: "relative", bottom: "auto", left: "auto", right: "auto", marginTop: 24 }}
+        />
+      )}
+      {/* Decorative bottom gradient bar */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 4,
+          background: `linear-gradient(90deg, ${t.accent}, ${t.accentAlt})`,
+        }}
+      />
     </div>
   );
 }
@@ -568,12 +675,12 @@ function BulletsLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; e
   const bullets = slide.bullets || [];
 
   const headingStyle: React.CSSProperties = {
-    fontSize: 34,
+    fontSize: 38,
     fontWeight: t.headingWeight,
     marginBottom: 32,
-    lineHeight: 1.2,
+    lineHeight: 1.15,
     fontFamily: t.headingFont,
-    letterSpacing: "-0.02em",
+    letterSpacing: "-0.03em",
     color: t.text,
     textTransform: t.headingCase === "uppercase" ? "uppercase" : undefined,
   };
@@ -588,7 +695,7 @@ function BulletsLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; e
           style={headingStyle}
         />
       )}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, overflow: "hidden", flex: 1 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, overflow: "hidden", flex: 1 }}>
         {bullets.map((b, i) => (
           <div
             key={i}
@@ -597,9 +704,8 @@ function BulletsLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; e
               alignItems: "flex-start",
               gap: 14,
               padding: "10px 16px",
-              backgroundColor: t.cardBg,
-              border: `1px solid ${t.cardBorder}`,
-              borderRadius: 10,
+              borderLeft: `3px solid ${t.accent}`,
+              borderRadius: 2,
             }}
           >
             <BulletIcon index={i} t={t} />
@@ -625,8 +731,8 @@ function BulletsLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; e
                 }}
                 placeholder="Add point..."
                 style={{
-                  fontSize: 19,
-                  lineHeight: 1.5,
+                  fontSize: 18,
+                  lineHeight: 1.65,
                   flex: 1,
                   color: t.text,
                   background: "transparent",
@@ -638,7 +744,7 @@ function BulletsLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; e
                 }}
               />
             ) : (
-              <span style={{ fontSize: 19, lineHeight: 1.5, flex: 1, fontFamily: t.bodyFont }}>{b}</span>
+              <span style={{ fontSize: 18, lineHeight: 1.65, flex: 1, fontFamily: t.bodyFont }}>{b}</span>
             )}
           </div>
         ))}
@@ -650,18 +756,18 @@ function BulletsLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; e
 /* ━━ Title + Content ━━ */
 function TitleContentLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; edit?: SlideEditHandlers }) {
   const headingStyle: React.CSSProperties = {
-    fontSize: 34,
+    fontSize: 38,
     fontWeight: t.headingWeight,
     marginBottom: 12,
-    lineHeight: 1.2,
+    lineHeight: 1.15,
     fontFamily: t.headingFont,
-    letterSpacing: "-0.02em",
+    letterSpacing: "-0.03em",
     color: t.text,
     textTransform: t.headingCase === "uppercase" ? "uppercase" : undefined,
   };
   const contentStyle: React.CSSProperties = {
-    fontSize: 19,
-    lineHeight: 1.7,
+    fontSize: 18,
+    lineHeight: 1.65,
     color: t.textSecondary,
     whiteSpace: "pre-wrap",
     maxWidth: 780,
@@ -703,12 +809,12 @@ function TitleContentLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConf
 /* ━━ Two Column ━━ */
 function TwoColumnLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; edit?: SlideEditHandlers }) {
   const headingStyle: React.CSSProperties = {
-    fontSize: 34,
+    fontSize: 38,
     fontWeight: t.headingWeight,
     marginBottom: 12,
-    lineHeight: 1.2,
+    lineHeight: 1.15,
     fontFamily: t.headingFont,
-    letterSpacing: "-0.02em",
+    letterSpacing: "-0.03em",
     color: t.text,
     textTransform: t.headingCase === "uppercase" ? "uppercase" : undefined,
   };
@@ -783,9 +889,9 @@ function TwoColumnLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig;
 /* ━━ Quote ━━ */
 function QuoteLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; edit?: SlideEditHandlers }) {
   const quoteStyle: React.CSSProperties = {
-    fontSize: 28,
+    fontSize: 30,
     fontStyle: "italic",
-    lineHeight: 1.55,
+    lineHeight: 1.5,
     fontWeight: 400,
     letterSpacing: "0.005em",
     color: t.text,
@@ -803,7 +909,7 @@ function QuoteLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; edi
   };
 
   return (
-    <div style={{ textAlign: "center", maxWidth: 720, margin: "0 auto", width: "100%" }}>
+    <div style={{ textAlign: "center", maxWidth: 720, margin: "0 auto", width: "100%", padding: "0 16px" }}>
       <div
         style={{
           fontSize: 120,
@@ -844,12 +950,12 @@ function StatsLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; edi
   const stats = slide.stats || [];
 
   const headingStyle: React.CSSProperties = {
-    fontSize: 34,
+    fontSize: 38,
     fontWeight: t.headingWeight,
     marginBottom: 36,
-    lineHeight: 1.2,
+    lineHeight: 1.15,
     fontFamily: t.headingFont,
-    letterSpacing: "-0.02em",
+    letterSpacing: "-0.03em",
     color: t.text,
     textTransform: t.headingCase === "uppercase" ? "uppercase" : undefined,
   };
@@ -887,8 +993,12 @@ function StatsLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; edi
               border: `1px solid ${t.cardBorder}`,
               textAlign: "center",
               gap: 8,
+              position: "relative",
+              overflow: "hidden",
             }}
           >
+            {/* Top accent line */}
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${t.accent}, ${t.accentAlt})` }} />
             {edit?.onStatsChange ? (
               <>
                 <input
@@ -900,7 +1010,7 @@ function StatsLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; edi
                   }}
                   placeholder="0"
                   style={{
-                    fontSize: 48,
+                    fontSize: 52,
                     fontWeight: t.headingWeight,
                     fontFamily: t.headingFont,
                     color: t.accent,
@@ -954,7 +1064,7 @@ function StatsLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; edi
               <>
                 <div
                   style={{
-                    fontSize: 48,
+                    fontSize: 52,
                     fontWeight: t.headingWeight,
                     fontFamily: t.headingFont,
                     color: t.accent,
@@ -980,10 +1090,29 @@ function StatsLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; edi
             )}
           </div>
         ))}
-        {stats.length === 0 && !edit && (
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: t.textSecondary, fontSize: 16 }}>
-            No metrics defined
-          </div>
+        {stats.length === 0 && (
+          edit?.onStatsChange ? (
+            <div
+              onClick={() => edit.onStatsChange!([{ value: "0", label: "Metric" }])}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: t.textSecondary,
+                fontSize: 16,
+                cursor: "pointer",
+                border: `1px dashed ${t.cardBorder}`,
+                borderRadius: 14,
+              }}
+            >
+              Click to add a metric
+            </div>
+          ) : (
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: t.textSecondary, fontSize: 16 }}>
+              No metrics defined
+            </div>
+          )
         )}
       </div>
     </>
@@ -993,17 +1122,17 @@ function StatsLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; edi
 /* ━━ Blank / Default ━━ */
 function BlankLayout({ slide, t, edit }: { slide: DeckSlide; t: ThemeConfig; edit?: SlideEditHandlers }) {
   const headingStyle: React.CSSProperties = {
-    fontSize: 34,
+    fontSize: 38,
     fontWeight: t.headingWeight,
     marginBottom: 24,
-    lineHeight: 1.2,
+    lineHeight: 1.15,
     fontFamily: t.headingFont,
-    letterSpacing: "-0.02em",
+    letterSpacing: "-0.03em",
     color: t.text,
     textTransform: t.headingCase === "uppercase" ? "uppercase" : undefined,
   };
   const contentStyle: React.CSSProperties = {
-    fontSize: 19,
+    fontSize: 18,
     lineHeight: 1.65,
     color: t.textSecondary,
     whiteSpace: "pre-wrap",

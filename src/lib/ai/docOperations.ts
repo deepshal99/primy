@@ -18,12 +18,17 @@ export function applyDocOps(
 function applyDocOp(content: string, op: DocOperation): string {
   switch (op.type) {
     case "SET_CONTENT":
-      return op.markdown;
+      return typeof op.markdown === "string" ? op.markdown : content;
 
-    case "APPEND_CONTENT":
+    case "APPEND_CONTENT": {
+      if (typeof op.markdown !== "string" || !op.markdown) return content;
       return content ? content + "\n\n" + op.markdown : op.markdown;
+    }
 
     case "REPLACE_SECTION": {
+      if (typeof op.markdown !== "string" || typeof op.headingText !== "string" || !op.headingText) {
+        return content;
+      }
       const lines = content.split("\n");
       const headingRegex = /^(#{1,6})\s+(.+)$/;
       let startIdx = -1;

@@ -1,12 +1,14 @@
-import { GoogleGenAI } from "@google/genai";
+import { streamText, convertToModelMessages, type UIMessage } from "ai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { SYSTEM_PROMPT } from "@/lib/ai/systemPrompt";
+import { getModelForTask, estimateContextSize } from "@/lib/ai/modelRouter";
 import { auth } from "@/lib/auth";
 import "@/lib/env";
 
 // Allow longer processing for file-heavy requests
 export const maxDuration = 60;
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 /** Strip context-injection tags from user input to prevent prompt injection. */
 function sanitizeUserContent(text: string): string {
@@ -17,7 +19,9 @@ function sanitizeUserContent(text: string): string {
     .replace(/<\/?current_sheet_data[^>]*>/g, "")
     .replace(/<\/?current_doc_content[^>]*>/g, "")
     .replace(/<\/?project_memory[^>]*>/g, "")
-    .replace(/<\/?uploaded_file[^>]*>/g, "");
+    .replace(/<\/?uploaded_file[^>]*>/g, "")
+    .replace(/<\/?mentioned_diagram[^>]*>/g, "")
+    .replace(/<\/?mentioned_deck[^>]*>/g, "");
 }
 
 export async function POST(req: Request) {
@@ -30,32 +34,38 @@ export async function POST(req: Request) {
       });
     }
 
-    const { messages, sheetData, docContent, projectMemory, projectContext } = await req.json();
-
-    const modelId = "gemini-3-flash-preview";
-
-    // Build full contents array for Gemini (history + current message)
-    const contents: any[] = [];
-
-    for (let i = 0; i < messages.length - 1; i++) {
-      const m = messages[i];
-      contents.push({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }],
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
       });
     }
 
-    // Build the last user message with context + multimodal parts
-    const lastMessage = messages[messages.length - 1];
-    const parts: any[] = [];
+    const { messages, sheetData, docContent, projectMemory, projectContext } = body;
 
-    // Build text content with context — convert sheet data to CSV for token efficiency
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return new Response(JSON.stringify({ error: "messages array is required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const contextSize = estimateContextSize({ sheetData, docContent, projectContext, messages });
+    const { model: modelId, maxOutputTokens } = getModelForTask("chat", contextSize);
+    const isProModel = modelId.includes("pro");
+
+    // Build the last user message with context injection
+    const lastMessage = messages[messages.length - 1];
+
+    // Build sheet context as CSV for token efficiency
     let sheetContext = "";
     const sheetsWithData = (sheetData || []).filter((s: any) => s.celldata?.length > 0);
     if (sheetsWithData.length > 0) {
       sheetContext = sheetsWithData
         .map((s: any) => {
-          // Build a simple CSV from celldata — use reduce instead of Math.max(...) to avoid stack overflow
           let maxRow = 0;
           let maxCol = 0;
           for (const c of s.celldata) {
@@ -63,11 +73,11 @@ export async function POST(req: Request) {
             if (c.c > maxCol) maxCol = c.c;
           }
           const rows: string[] = [];
-          for (let r = 0; r <= Math.min(maxRow, 100); r++) {
+          const sheetRowLimit = isProModel ? 500 : 100;
+          for (let r = 0; r <= Math.min(maxRow, sheetRowLimit); r++) {
             const cells: string[] = [];
             for (let c = 0; c <= maxCol; c++) {
               const cell = s.celldata.find((cd: any) => cd.r === r && cd.c === c);
-              // Show formula if present (e.g. "=SUM(A1:A10)"), otherwise display value
               const val = cell?.v?.f ? cell.v.f : (cell?.v?.v ?? "");
               cells.push(String(val).includes(",") ? `"${val}"` : String(val));
             }
@@ -78,9 +88,20 @@ export async function POST(req: Request) {
         .join("\n\n");
     }
 
-    const docContext = docContent ? docContent.slice(0, 4000) : "";
+    const docCharLimit = isProModel ? 100000 : 4000;
+    const docContext = docContent ? docContent.slice(0, docCharLimit) : "";
 
     let textContent = sanitizeUserContent(lastMessage.content);
+
+    // Detect search-intent queries
+    const userTextLower = textContent.toLowerCase();
+    const hasSearchIntent =
+      /\b(search|look up|find out|research|google|check online|latest|current|recent news)\b/i.test(textContent) ||
+      /\b(how many followers|engagement rate|follower count|trending|stock price|weather)\b/i.test(textContent) ||
+      /\b(instagram|twitter|youtube|tiktok|linkedin|reddit)\b/i.test(userTextLower);
+    if (hasSearchIntent) {
+      textContent = `[Use Google Search to find real-time information for this query.]\n\n${textContent}`;
+    }
 
     // Append extracted file text as context
     if (lastMessage.attachmentTexts?.length) {
@@ -94,21 +115,25 @@ export async function POST(req: Request) {
 
     // Inject project context if available
     if (projectContext) {
-      // 1. Inject full content for relevant KUs (scored by keyword match)
       if (projectContext.relevantKUs?.length > 0) {
         for (const ku of projectContext.relevantKUs) {
           textContent += `\n\n<relevant_document title="${ku.title}" id="${ku.id}">\n${ku.content}\n</relevant_document>`;
         }
       }
-
-      // 2. Inject full CSV for relevant Tables
       if (projectContext.relevantTables?.length > 0) {
         for (const t of projectContext.relevantTables) {
           textContent += `\n\n<relevant_table title="${t.title}" id="${t.id}">\n${t.csvContent}\n</relevant_table>`;
         }
       }
 
-      // 3. Project-level overview (all KUs + tables as summaries)
+      // Inject mentioned diagram/deck context
+      if (projectContext.mentionedDiagramContext) {
+        textContent += projectContext.mentionedDiagramContext;
+      }
+      if (projectContext.mentionedDeckContext) {
+        textContent += projectContext.mentionedDeckContext;
+      }
+
       let projCtx = `\n\n<project_context>\nProject: "${projectContext.title}" (id: ${projectContext.id})`;
       if (projectContext.knowledgeUnits?.length > 0) {
         projCtx += `\n\nKnowledge Units:`;
@@ -128,7 +153,7 @@ export async function POST(req: Request) {
       textContent += projCtx;
     }
 
-    // Include project memory if set
+    // Include project memory
     if (projectMemory && Object.keys(projectMemory).length > 0) {
       let memoryContext = "\n\n<project_memory>";
       if (projectMemory.tone) memoryContext += `\nTone: ${projectMemory.tone}`;
@@ -139,98 +164,154 @@ export async function POST(req: Request) {
       textContent += memoryContext;
     }
 
-    parts.push({ text: textContent });
-
-    // Add image parts for Gemini vision
-    if (lastMessage.imageAttachments?.length) {
-      for (const img of lastMessage.imageAttachments) {
-        parts.push({
-          inlineData: {
-            mimeType: img.mimeType,
-            data: img.base64,
-          },
-        });
-      }
+    // Build AI SDK messages: history + enriched last message
+    const aiMessages: UIMessage[] = [];
+    for (let i = 0; i < messages.length - 1; i++) {
+      const m = messages[i];
+      aiMessages.push({
+        id: `msg-${i}`,
+        role: m.role === "assistant" ? "assistant" : "user",
+        parts: [{ type: "text", text: m.content }],
+      });
     }
 
-    contents.push({ role: "user", parts });
+    // Build last user message with text + optional images
+    const lastParts: UIMessage["parts"] = [{ type: "text", text: textContent }];
+    if (lastMessage.imageAttachments?.length) {
+      for (const img of lastMessage.imageAttachments) {
+        lastParts.push({
+          type: "file",
+          mediaType: img.mimeType,
+          data: img.base64,
+        } as any);
+      }
+    }
+    aiMessages.push({
+      id: `msg-${messages.length - 1}`,
+      role: "user",
+      parts: lastParts,
+    });
 
-    const response = await ai.models.generateContentStream({
-      model: modelId,
-      config: {
-        systemInstruction: SYSTEM_PROMPT,
-        maxOutputTokens: 8192,
-        tools: [{ googleSearch: {} }],
-      },
-      contents,
+    // Convert UIMessages to model messages for streamText
+    const modelMessages = await convertToModelMessages(aiMessages);
+
+    let result;
+    try {
+      result = streamText({
+        model: google(modelId),
+        system: SYSTEM_PROMPT,
+        messages: modelMessages,
+        maxOutputTokens,
+        tools: {
+          googleSearch: google.tools.googleSearch({}),
+        },
+        abortSignal: req.signal,
+      });
+    } catch (error: any) {
+      const msg = error?.message ?? "Gemini API error";
+      const isRateLimit = msg.includes("quota") || msg.includes("rate");
+      return new Response(
+        JSON.stringify({
+          error: isRateLimit
+            ? "Rate limit reached. Please wait a moment and try again."
+            : `AI service error: ${msg}`,
+        }),
+        {
+          status: isRateLimit ? 429 : 502,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Stream response as custom SSE format (compatible with existing client)
+    let clientDisconnected = false;
+    req.signal.addEventListener("abort", () => {
+      clientDisconnected = true;
     });
 
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
       async start(controller) {
+        let closed = false;
+        const safeEnqueue = (data: Uint8Array) => {
+          if (closed || clientDisconnected) return;
+          try {
+            controller.enqueue(data);
+          } catch {
+            closed = true;
+          }
+        };
+        const safeClose = () => {
+          if (closed) return;
+          closed = true;
+          try { controller.close(); } catch { /* already closed */ }
+        };
+
         // Timeout: abort if no chunks arrive within 30s
         let lastChunkTime = Date.now();
         const timeoutCheck = setInterval(() => {
+          if (clientDisconnected) {
+            clearInterval(timeoutCheck);
+            safeClose();
+            return;
+          }
           if (Date.now() - lastChunkTime > 30000) {
             clearInterval(timeoutCheck);
-            try {
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ error: "Response timed out. Please try again." })}\n\n`)
-              );
-              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-              controller.close();
-            } catch {
-              // Controller may already be closed
-            }
+            safeEnqueue(
+              encoder.encode(`data: ${JSON.stringify({ error: "Response timed out. Please try again." })}\n\n`)
+            );
+            safeEnqueue(encoder.encode("data: [DONE]\n\n"));
+            safeClose();
           }
         }, 5000);
 
         try {
-          let groundingSources: { title: string; uri: string }[] = [];
-          let searchQueries: string[] = [];
+          const groundingSources: { title: string; uri: string }[] = [];
 
-          for await (const chunk of response) {
+          // Use fullStream to get both text deltas and source events
+          for await (const part of (await result).fullStream) {
+            if (clientDisconnected) break;
             lastChunkTime = Date.now();
-            const text = chunk.text;
-            if (text) {
-              const data = JSON.stringify({ text });
-              controller.enqueue(encoder.encode(`data: ${data}\n\n`));
-            }
 
-            // Capture grounding metadata (typically in last chunk)
-            const gm = chunk.candidates?.[0]?.groundingMetadata;
-            if (gm) {
-              if (gm.groundingChunks?.length) {
-                groundingSources = gm.groundingChunks
-                  .filter((c: any) => c.web?.uri)
-                  .map((c: any) => ({ title: c.web.title || c.web.domain || c.web.uri, uri: c.web.uri }));
-              }
-              if (gm.webSearchQueries?.length) {
-                searchQueries = gm.webSearchQueries;
+            if (part.type === "text-delta") {
+              const data = JSON.stringify({ text: part.text });
+              safeEnqueue(encoder.encode(`data: ${data}\n\n`));
+            } else if (part.type === "source") {
+              // AI SDK v6 emits source events from Google Search grounding
+              if (part.sourceType === "url" && part.url) {
+                groundingSources.push({
+                  title: part.title || new URL(part.url).hostname,
+                  uri: part.url,
+                });
               }
             }
+            // Ignore tool-call, tool-result, etc. — they're internal to Google Search
           }
 
           // Send grounding sources if web search was used
-          if (groundingSources.length > 0) {
-            const groundingData = JSON.stringify({ grounding: { sources: groundingSources, queries: searchQueries } });
-            controller.enqueue(encoder.encode(`data: ${groundingData}\n\n`));
+          if (!clientDisconnected && groundingSources.length > 0) {
+            const groundingData = JSON.stringify({ grounding: { sources: groundingSources, queries: [] } });
+            safeEnqueue(encoder.encode(`data: ${groundingData}\n\n`));
           }
 
           clearInterval(timeoutCheck);
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
+          safeEnqueue(encoder.encode("data: [DONE]\n\n"));
+          safeClose();
         } catch (error) {
           clearInterval(timeoutCheck);
-          const errMsg =
-            error instanceof Error ? error.message : "Stream error";
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ error: errMsg })}\n\n`
-            )
-          );
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
+          const errMsg = error instanceof Error ? error.message : "Stream error";
+          console.error("[Drafta Chat] Stream error:", errMsg);
+          if (!clientDisconnected) {
+            // Handle Gemini rate limits
+            const isRateLimit = errMsg.includes("quota") || errMsg.includes("rate") || errMsg.includes("429");
+            safeEnqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ error: isRateLimit ? "Rate limit reached. Please wait a moment and try again." : errMsg })}\n\n`
+              )
+            );
+            safeEnqueue(encoder.encode("data: [DONE]\n\n"));
+          }
+          safeClose();
         }
       },
     });
@@ -243,8 +324,7 @@ export async function POST(req: Request) {
       },
     });
   } catch (error) {
-    const errMsg =
-      error instanceof Error ? error.message : "Internal server error";
+    const errMsg = error instanceof Error ? error.message : "Internal server error";
     return new Response(JSON.stringify({ error: errMsg }), {
       status: 500,
       headers: { "Content-Type": "application/json" },

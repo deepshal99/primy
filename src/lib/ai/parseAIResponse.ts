@@ -74,18 +74,91 @@ function robustJsonParse(jsonStr: string): any {
     try {
       return JSON.parse(cleaned);
     } catch {
+      // Try to fix unescaped newlines inside JSON string values.
+      // AI models often output literal newlines inside "content" fields.
+      const fixedNewlines = fixUnescapedNewlinesInJson(cleaned);
+      if (fixedNewlines !== cleaned) {
+        try {
+          return JSON.parse(fixedNewlines);
+        } catch {
+          // fall through
+        }
+      }
+
       // Last resort: try to extract the JSON object/array from surrounding text
       const jsonMatch = cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
       if (jsonMatch) {
         try {
           return JSON.parse(jsonMatch[1]);
         } catch {
-          return null;
+          const fixedExtracted = fixUnescapedNewlinesInJson(jsonMatch[1]);
+          try {
+            return JSON.parse(fixedExtracted);
+          } catch {
+            return null;
+          }
         }
       }
       return null;
     }
   }
+}
+
+/**
+ * Fix unescaped newlines/tabs inside JSON string values.
+ * Walks the string character by character, and when inside a JSON string
+ * (between unescaped quotes), escapes any literal newlines or tabs.
+ */
+function fixUnescapedNewlinesInJson(jsonStr: string): string {
+  const result: string[] = [];
+  let inString = false;
+  let i = 0;
+  while (i < jsonStr.length) {
+    const ch = jsonStr[i];
+    if (inString) {
+      if (ch === '\\') {
+        // Escaped character — pass through both chars
+        result.push(ch);
+        if (i + 1 < jsonStr.length) {
+          result.push(jsonStr[i + 1]);
+          i += 2;
+        } else {
+          i++;
+        }
+        continue;
+      }
+      if (ch === '"') {
+        inString = false;
+        result.push(ch);
+        i++;
+        continue;
+      }
+      if (ch === '\n') {
+        result.push('\\n');
+        i++;
+        continue;
+      }
+      if (ch === '\r') {
+        result.push('\\r');
+        i++;
+        continue;
+      }
+      if (ch === '\t') {
+        result.push('\\t');
+        i++;
+        continue;
+      }
+      result.push(ch);
+      i++;
+    } else {
+      if (ch === '"') {
+        inString = true;
+      }
+      result.push(ch);
+      i++;
+    }
+  }
+  return result.join('');
 }
 
 function parseOpsFromBlock<T>(block: string): T[] {
@@ -155,6 +228,28 @@ export function parseKuOperations(fullText: string): KuOperation[] {
         type: "CREATE",
         title: createMatch[1],
         content: createMatch[2].trim(),
+      });
+      continue;
+    }
+
+    // Parse UPDATE kuId\n---\ncontent format (plaintext fallback)
+    const updateMatch = block.match(/^UPDATE\s+(\S+)\s*\n---\n([\s\S]*)$/);
+    if (updateMatch) {
+      operations.push({
+        type: "UPDATE",
+        kuId: updateMatch[1],
+        content: updateMatch[2].trim(),
+      });
+      continue;
+    }
+
+    // Parse APPEND kuId\n---\ncontent format (plaintext fallback)
+    const appendMatch = block.match(/^APPEND\s+(\S+)\s*\n---\n([\s\S]*)$/);
+    if (appendMatch) {
+      operations.push({
+        type: "APPEND",
+        kuId: appendMatch[1],
+        content: appendMatch[2].trim(),
       });
       continue;
     }
@@ -252,18 +347,33 @@ export function extractDisplayText(fullText: string): string {
     while ((openMatch = openPattern.exec(result)) !== null) {
       const start = openMatch.index;
       const contentStart = start + openMatch[0].length;
-      // Find closing fence — same logic as extractFencedBlocks
+      // Find closing fence — same nesting logic as extractFencedBlocks
       let closeIdx = -1;
       let searchFrom = contentStart;
+      let nestingDepth = 0;
       while (searchFrom < result.length) {
         const candidate = result.indexOf("```", searchFrom);
         if (candidate === -1) break;
         const prevChar = candidate > 0 ? result[candidate - 1] : "\n";
         const nextChar = candidate + 3 < result.length ? result[candidate + 3] : "\n";
-        if ((prevChar === "\n" || prevChar === "\r") && !/[a-zA-Z]/.test(nextChar)) {
+        const isAtLineStart = prevChar === "\n" || prevChar === "\r";
+
+        if (isAtLineStart && /[a-zA-Z]/.test(nextChar)) {
+          nestingDepth++;
+          searchFrom = candidate + 3;
+          continue;
+        }
+
+        if (isAtLineStart && !/[a-zA-Z]/.test(nextChar)) {
+          if (nestingDepth > 0) {
+            nestingDepth--;
+            searchFrom = candidate + 3;
+            continue;
+          }
           closeIdx = candidate;
           break;
         }
+
         searchFrom = candidate + 3;
       }
 

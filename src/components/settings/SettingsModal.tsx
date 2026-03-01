@@ -1,11 +1,20 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { X, Loader2, Check, Eye, EyeOff, LogOut, ChevronDown, Sun, Moon, Monitor } from "lucide-react";
-import { design } from "@/lib/design";
+import { Loader2, Check, Eye, EyeOff, LogOut, ChevronDown, Sun, Moon, Monitor } from "lucide-react";
+import { cn } from "@/lib/cn";
 import { useTheme } from "@/lib/useTheme";
 import { ThemeMode } from "@/lib/theme";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface SettingsModalProps {
   open: boolean;
@@ -14,7 +23,6 @@ interface SettingsModalProps {
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const { data: session, update: updateSession } = useSession();
-  const overlayRef = useRef<HTMLDivElement>(null);
 
   // Profile state
   const [name, setName] = useState("");
@@ -69,18 +77,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       .finally(() => setLoading(false));
   }, [open]);
 
-  // Close on escape
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
   const initials = name
     ? name
         .trim()
@@ -114,7 +110,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         setNameError(data.error || "Failed to update name");
         return;
       }
-      // Refresh session so sidebar shows new name
       await updateSession();
       setNameSuccess(true);
       setTimeout(() => setNameSuccess(false), 2000);
@@ -170,97 +165,37 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   };
 
   return (
-    <div
-      ref={overlayRef}
-      className="fixed inset-0 z-[100] flex items-center justify-center"
-      style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
-      onClick={(e) => {
-        if (e.target === overlayRef.current) onClose();
-      }}
-    >
-      <div
-        className="w-full max-w-[460px] rounded-2xl overflow-hidden animate-scale-in"
-        style={{
-          backgroundColor: design.colors.bg.elevated,
-          boxShadow: design.shadows.xl,
-        }}
-      >
-        {/* Header */}
-        <div
-          className="flex items-center justify-between px-6 py-4 border-b"
-          style={{ borderColor: design.colors.border.default }}
-        >
-          <h2
-            style={{
-              fontFamily: design.typography.family.heading,
-              fontSize: "18px",
-              fontWeight: 600,
-              color: design.colors.text.primary,
-            }}
-          >
-            Settings
-          </h2>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = design.colors.bg.hover;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
-            }}
-          >
-            <X className="w-4 h-4" style={{ color: design.colors.text.muted }} />
-          </button>
-        </div>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="sm:max-w-[460px] p-0 gap-0">
+        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border">
+          <DialogTitle>Settings</DialogTitle>
+          <DialogDescription className="sr-only">Manage your account settings</DialogDescription>
+        </DialogHeader>
 
-        {/* Body */}
         <div className="px-6 py-5 max-h-[70vh] overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2
-                className="w-5 h-5 animate-spin"
-                style={{ color: design.colors.text.muted }}
-              />
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
           ) : (
             <>
-              {/* ── Profile section ── */}
+              {/* Profile section */}
               <div className="mb-6">
                 <SectionLabel>Profile</SectionLabel>
 
-                {/* Avatar + name display */}
                 <div className="flex items-center gap-3 mb-5">
-                  <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center text-[16px] font-semibold flex-shrink-0"
-                    style={{
-                      backgroundColor: design.colors.brand.subtle,
-                      color: design.colors.brand.primary,
-                    }}
-                  >
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-semibold flex-shrink-0 bg-[var(--color-brand-subtle)] text-[var(--color-brand)]">
                     {initials}
                   </div>
                   <div>
-                    <p
-                      style={{
-                        fontSize: "15px",
-                        fontWeight: 600,
-                        color: design.colors.text.primary,
-                        fontFamily: design.typography.family.heading,
-                      }}
-                    >
-                      {name}
-                    </p>
-                    <p style={{ fontSize: "13px", color: design.colors.text.muted }}>
-                      {email}
-                    </p>
+                    <p className="text-[15px] font-semibold text-foreground">{name}</p>
+                    <p className="text-[13px] text-muted-foreground">{email}</p>
                   </div>
                 </div>
 
-                {/* Name field */}
                 <FieldLabel>Name</FieldLabel>
                 <div className="flex gap-2 mb-1">
-                  <input
+                  <Input
                     type="text"
                     value={name}
                     onChange={(e) => {
@@ -268,27 +203,12 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       setNameError("");
                       setNameSuccess(false);
                     }}
-                    className="flex-1 px-3 py-2 rounded-lg text-[13px] outline-none transition-colors"
-                    style={{
-                      backgroundColor: design.colors.bg.secondary,
-                      border: `1px solid ${design.colors.border.default}`,
-                      color: design.colors.text.primary,
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = design.colors.brand.primary;
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = design.colors.border.default;
-                    }}
+                    className="flex-1 text-[13px]"
                   />
-                  <button
+                  <Button
                     onClick={handleSaveName}
                     disabled={nameSaving || name.trim() === session?.user?.name}
-                    className="px-3 py-2 rounded-lg text-[13px] font-medium transition-all disabled:opacity-40"
-                    style={{
-                      backgroundColor: design.colors.brand.primary,
-                      color: "#fff",
-                    }}
+                    size="sm"
                   >
                     {nameSaving ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -297,51 +217,32 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     ) : (
                       "Save"
                     )}
-                  </button>
+                  </Button>
                 </div>
                 {nameError && (
-                  <p className="text-[12px] mt-1" style={{ color: "#E05555" }}>
-                    {nameError}
-                  </p>
+                  <p className="text-xs mt-1 text-destructive">{nameError}</p>
                 )}
 
-                {/* Email (read-only) */}
                 <FieldLabel className="mt-4">Email</FieldLabel>
-                <div
-                  className="px-3 py-2 rounded-lg text-[13px]"
-                  style={{
-                    backgroundColor: design.colors.bg.tertiary,
-                    color: design.colors.text.muted,
-                    border: `1px solid ${design.colors.border.light}`,
-                  }}
-                >
+                <div className="px-3 py-2 rounded-lg text-[13px] bg-muted text-muted-foreground border border-border">
                   {email}
                 </div>
 
-                {/* Member since */}
                 {createdAt && (
-                  <p className="mt-3 text-[12px]" style={{ color: design.colors.text.placeholder }}>
+                  <p className="mt-3 text-xs text-muted-foreground/60">
                     Member since {createdAt}
                   </p>
                 )}
               </div>
 
-              {/* ── Divider ── */}
-              <div
-                className="h-px mb-6"
-                style={{ backgroundColor: design.colors.border.default }}
-              />
+              <div className="h-px mb-6 bg-border" />
 
-              {/* ── Appearance section ── */}
+              {/* Appearance section */}
               <ThemeSection />
 
-              {/* ── Divider ── */}
-              <div
-                className="h-px mb-6"
-                style={{ backgroundColor: design.colors.border.default }}
-              />
+              <div className="h-px mb-6 bg-border" />
 
-              {/* ── Security section ── */}
+              {/* Security section */}
               <div className="mb-6">
                 <SectionLabel>Security</SectionLabel>
 
@@ -351,56 +252,30 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     setPwError("");
                     setPwSuccess(false);
                   }}
-                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors text-[13px]"
-                  style={{
-                    backgroundColor: design.colors.bg.secondary,
-                    color: design.colors.text.primary,
-                    fontWeight: 500,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = design.colors.bg.tertiary;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = design.colors.bg.secondary;
-                  }}
+                  className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors text-[13px] font-medium text-foreground bg-muted hover:bg-accent"
                 >
                   Change password
                   <ChevronDown
-                    className="w-4 h-4 transition-transform"
-                    style={{
-                      color: design.colors.text.muted,
-                      transform: passwordOpen ? "rotate(180deg)" : "rotate(0)",
-                    }}
+                    className={cn(
+                      "w-4 h-4 text-muted-foreground transition-transform",
+                      passwordOpen && "rotate-180"
+                    )}
                   />
                 </button>
 
                 {passwordOpen && (
-                  <div className="mt-3 space-y-3 animate-fade-in">
-                    {/* Current password */}
+                  <div className="mt-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
                     <div>
                       <FieldLabel>Current password</FieldLabel>
                       <div className="relative">
-                        <input
+                        <Input
                           type={showCurrentPw ? "text" : "password"}
                           value={currentPassword}
                           onChange={(e) => {
                             setCurrentPassword(e.target.value);
                             setPwError("");
                           }}
-                          className="w-full px-3 py-2 pr-9 rounded-lg text-[13px] outline-none transition-colors"
-                          style={{
-                            backgroundColor: design.colors.bg.secondary,
-                            border: `1px solid ${design.colors.border.default}`,
-                            color: design.colors.text.primary,
-                          }}
-                          onFocus={(e) => {
-                            e.currentTarget.style.borderColor =
-                              design.colors.brand.primary;
-                          }}
-                          onBlur={(e) => {
-                            e.currentTarget.style.borderColor =
-                              design.colors.border.default;
-                          }}
+                          className="pr-9 text-[13px]"
                         />
                         <button
                           type="button"
@@ -408,25 +283,18 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                           className="absolute right-2.5 top-1/2 -translate-y-1/2"
                         >
                           {showCurrentPw ? (
-                            <EyeOff
-                              className="w-3.5 h-3.5"
-                              style={{ color: design.colors.text.muted }}
-                            />
+                            <EyeOff className="w-3.5 h-3.5 text-muted-foreground" />
                           ) : (
-                            <Eye
-                              className="w-3.5 h-3.5"
-                              style={{ color: design.colors.text.muted }}
-                            />
+                            <Eye className="w-3.5 h-3.5 text-muted-foreground" />
                           )}
                         </button>
                       </div>
                     </div>
 
-                    {/* New password */}
                     <div>
                       <FieldLabel>New password</FieldLabel>
                       <div className="relative">
-                        <input
+                        <Input
                           type={showNewPw ? "text" : "password"}
                           value={newPassword}
                           onChange={(e) => {
@@ -434,20 +302,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                             setPwError("");
                           }}
                           placeholder="Min 6 characters"
-                          className="w-full px-3 py-2 pr-9 rounded-lg text-[13px] outline-none transition-colors"
-                          style={{
-                            backgroundColor: design.colors.bg.secondary,
-                            border: `1px solid ${design.colors.border.default}`,
-                            color: design.colors.text.primary,
-                          }}
-                          onFocus={(e) => {
-                            e.currentTarget.style.borderColor =
-                              design.colors.brand.primary;
-                          }}
-                          onBlur={(e) => {
-                            e.currentTarget.style.borderColor =
-                              design.colors.border.default;
-                          }}
+                          className="pr-9 text-[13px]"
                         />
                         <button
                           type="button"
@@ -455,95 +310,58 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                           className="absolute right-2.5 top-1/2 -translate-y-1/2"
                         >
                           {showNewPw ? (
-                            <EyeOff
-                              className="w-3.5 h-3.5"
-                              style={{ color: design.colors.text.muted }}
-                            />
+                            <EyeOff className="w-3.5 h-3.5 text-muted-foreground" />
                           ) : (
-                            <Eye
-                              className="w-3.5 h-3.5"
-                              style={{ color: design.colors.text.muted }}
-                            />
+                            <Eye className="w-3.5 h-3.5 text-muted-foreground" />
                           )}
                         </button>
                       </div>
                     </div>
 
-                    {/* Confirm */}
                     <div>
                       <FieldLabel>Confirm new password</FieldLabel>
-                      <input
+                      <Input
                         type="password"
                         value={confirmPassword}
                         onChange={(e) => {
                           setConfirmPassword(e.target.value);
                           setPwError("");
                         }}
-                        className="w-full px-3 py-2 rounded-lg text-[13px] outline-none transition-colors"
-                        style={{
-                          backgroundColor: design.colors.bg.secondary,
-                          border: `1px solid ${design.colors.border.default}`,
-                          color: design.colors.text.primary,
-                        }}
-                        onFocus={(e) => {
-                          e.currentTarget.style.borderColor =
-                            design.colors.brand.primary;
-                        }}
-                        onBlur={(e) => {
-                          e.currentTarget.style.borderColor =
-                            design.colors.border.default;
-                        }}
+                        className="text-[13px]"
                       />
                     </div>
 
                     {pwError && (
-                      <p className="text-[12px]" style={{ color: "#E05555" }}>
-                        {pwError}
-                      </p>
+                      <p className="text-xs text-destructive">{pwError}</p>
                     )}
 
                     {pwSuccess && (
-                      <p className="text-[12px]" style={{ color: design.colors.brand.primary }}>
+                      <p className="text-xs text-emerald-500">
                         Password changed successfully
                       </p>
                     )}
 
-                    <button
+                    <Button
                       onClick={handleChangePassword}
                       disabled={pwSaving}
-                      className="px-4 py-2 rounded-lg text-[13px] font-medium transition-all disabled:opacity-50"
-                      style={{
-                        backgroundColor: design.colors.brand.primary,
-                        color: "#fff",
-                      }}
+                      size="sm"
                     >
                       {pwSaving ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       ) : (
                         "Update password"
                       )}
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>
 
-              {/* ── Divider ── */}
-              <div
-                className="h-px mb-4"
-                style={{ backgroundColor: design.colors.border.default }}
-              />
+              <div className="h-px mb-4 bg-border" />
 
               {/* Sign out */}
               <button
                 onClick={() => signOut({ callbackUrl: "/login" })}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-[13px] font-medium transition-colors"
-                style={{ color: "#E05555" }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "rgba(224,85,85,0.08)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "transparent";
-                }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-[13px] font-medium text-destructive transition-colors hover:bg-destructive/10"
               >
                 <LogOut className="w-4 h-4" />
                 Sign out
@@ -551,25 +369,14 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             </>
           )}
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
-// ── Small helpers ──
-
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p
-      className="mb-3"
-      style={{
-        fontSize: "11px",
-        fontWeight: 600,
-        textTransform: "uppercase",
-        letterSpacing: "0.08em",
-        color: design.colors.text.muted,
-      }}
-    >
+    <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
       {children}
     </p>
   );
@@ -583,14 +390,7 @@ function FieldLabel({
   className?: string;
 }) {
   return (
-    <label
-      className={`block mb-1.5 ${className}`}
-      style={{
-        fontSize: "12px",
-        fontWeight: 500,
-        color: design.colors.text.secondary,
-      }}
-    >
+    <label className={cn("block mb-1.5 text-xs font-medium text-muted-foreground", className)}>
       {children}
     </label>
   );
@@ -615,12 +415,12 @@ function ThemeSection() {
             <button
               key={opt.mode}
               onClick={() => setMode(opt.mode)}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[13px] font-medium transition-all border"
-              style={{
-                backgroundColor: isActive ? design.colors.brand.subtle : design.colors.bg.secondary,
-                borderColor: isActive ? design.colors.brand.primary : design.colors.border.default,
-                color: isActive ? design.colors.brand.primary : design.colors.text.secondary,
-              }}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[13px] font-medium transition-all border",
+                isActive
+                  ? "bg-[var(--color-brand-subtle)] border-[var(--color-brand)] text-[var(--color-brand)]"
+                  : "bg-muted border-border text-muted-foreground hover:bg-accent"
+              )}
             >
               <opt.icon className="w-4 h-4" />
               {opt.label}

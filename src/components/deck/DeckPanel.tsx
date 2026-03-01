@@ -1,45 +1,64 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { nanoid } from "nanoid";
-import { Plus, Trash2, ChevronUp, ChevronDown, Download, Palette } from "lucide-react";
+import {
+  Plus, Trash2, ChevronUp, ChevronDown, Copy, StickyNote,
+  LayoutTemplate, Palette, GripVertical, Play,
+} from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { design } from "@/lib/design";
+import { cn } from "@/lib/cn";
 import { DeckSlide } from "@/lib/types";
 import { SlideRenderer, SlideEditHandlers } from "./SlideRenderer";
-import { deckThemes, activeThemeKeys, resolveTheme, getThemeConfig, loadThemeFonts } from "./deckThemes";
+import { resolveTheme, loadThemeFonts, deckThemes, activeThemeKeys, getThemeConfig } from "./deckThemes";
+import { PresentationMode } from "./PresentationMode";
+import { DeckAIGenerateDialog } from "./DeckAIGenerateDialog";
+import { ImagePicker } from "./ImagePicker";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
+const LAYOUT_OPTIONS: { value: DeckSlide["layout"]; label: string; icon: string }[] = [
+  { value: "title", label: "Title", icon: "T" },
+  { value: "bullets", label: "Bullets", icon: "•" },
+  { value: "titleContent", label: "Content", icon: "¶" },
+  { value: "twoColumn", label: "Two Column", icon: "‖" },
+  { value: "section", label: "Section", icon: "§" },
+  { value: "quote", label: "Quote", icon: "\"" },
+  { value: "stats", label: "Stats", icon: "#" },
+  { value: "imageFeature", label: "Image Hero", icon: "◻" },
+  { value: "blank", label: "Blank", icon: "□" },
+];
 
 export function DeckPanel() {
   const slides = useAppStore((s) => s.deckSlides);
   const theme = useAppStore((s) => s.deckTheme);
   const updateSlides = useAppStore((s) => s.updateDeckSlides);
-  const updateTheme = useAppStore((s) => s.updateDeckTheme);
 
   const [activeIdx, setActiveIdx] = useState(0);
-  const [showThemePicker, setShowThemePicker] = useState(false);
-  const [showExport, setShowExport] = useState(false);
-  const themeRef = useRef<HTMLDivElement>(null);
-  const exportRef = useRef<HTMLDivElement>(null);
+  const [showPresentation, setShowPresentation] = useState(false);
+  const [showAIDialog, setShowAIDialog] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
   const resolvedTheme = resolveTheme(theme);
-  const themeConfig = getThemeConfig(theme);
   const activeSlide = slides[activeIdx] || null;
 
-  // Load Google Fonts for current theme
-  useEffect(() => {
-    loadThemeFonts(theme);
-  }, [theme]);
+  useEffect(() => { loadThemeFonts(theme); }, [theme]);
 
-  // Close dropdowns on outside click
+  // Listen for custom events from DeckActions in TabBar
   useEffect(() => {
-    if (!showThemePicker && !showExport) return;
-    const handler = (e: MouseEvent) => {
-      if (showThemePicker && themeRef.current && !themeRef.current.contains(e.target as Node)) setShowThemePicker(false);
-      if (showExport && exportRef.current && !exportRef.current.contains(e.target as Node)) setShowExport(false);
+    const handlePresent = () => setShowPresentation(true);
+    const handleAI = () => setShowAIDialog(true);
+    window.addEventListener("drafta:deck-present", handlePresent);
+    window.addEventListener("drafta:deck-ai", handleAI);
+    return () => {
+      window.removeEventListener("drafta:deck-present", handlePresent);
+      window.removeEventListener("drafta:deck-ai", handleAI);
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showThemePicker, showExport]);
+  }, []);
 
   const addSlide = useCallback((afterIdx: number) => {
     const newSlide: DeckSlide = { id: nanoid(), layout: "bullets", title: "New Slide", bullets: ["Point 1", "Point 2", "Point 3"] };
@@ -47,6 +66,16 @@ export function DeckPanel() {
     updated.splice(afterIdx + 1, 0, newSlide);
     updateSlides(updated);
     setActiveIdx(afterIdx + 1);
+  }, [slides, updateSlides]);
+
+  const duplicateSlide = useCallback((idx: number) => {
+    const original = slides[idx];
+    if (!original) return;
+    const dup: DeckSlide = { ...JSON.parse(JSON.stringify(original)), id: nanoid() };
+    const updated = [...slides];
+    updated.splice(idx + 1, 0, dup);
+    updateSlides(updated);
+    setActiveIdx(idx + 1);
   }, [slides, updateSlides]);
 
   const deleteSlide = useCallback((idx: number) => {
@@ -70,26 +99,48 @@ export function DeckPanel() {
     updateSlides(updated);
   }, [slides, updateSlides]);
 
-  const handleExport = async (format: "pdf" | "pptx") => {
-    setShowExport(false);
-    const { exportDeckToPDF, exportDeckToPPTX } = await import("./deckExport");
-    if (format === "pdf") {
-      exportDeckToPDF(slides, theme);
-    } else {
-      exportDeckToPPTX(slides, theme);
+  const handleAIApply = useCallback((newSlides: DeckSlide[]) => {
+    updateSlides(newSlides);
+    setActiveIdx(0);
+  }, [updateSlides]);
+
+  // Drag-to-reorder handlers
+  const handleDragStart = useCallback((idx: number) => {
+    setDragIdx(idx);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    setDragOverIdx(idx);
+  }, []);
+
+  const handleDrop = useCallback((targetIdx: number) => {
+    if (dragIdx === null || dragIdx === targetIdx) {
+      setDragIdx(null);
+      setDragOverIdx(null);
+      return;
     }
-  };
+    const updated = [...slides];
+    const [moved] = updated.splice(dragIdx, 1);
+    updated.splice(targetIdx, 0, moved);
+    updateSlides(updated);
+    setActiveIdx(targetIdx);
+    setDragIdx(null);
+    setDragOverIdx(null);
+  }, [dragIdx, slides, updateSlides]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragIdx(null);
+    setDragOverIdx(null);
+  }, []);
 
   // Clamp activeIdx
   useEffect(() => {
-    if (activeIdx >= slides.length && slides.length > 0) {
-      setActiveIdx(slides.length - 1);
-    }
+    if (activeIdx >= slides.length && slides.length > 0) setActiveIdx(slides.length - 1);
   }, [slides.length, activeIdx]);
 
-  // Edit handlers for the active slide
   const editHandlers: SlideEditHandlers | undefined = useMemo(() => {
-    if (!activeSlide) return undefined;
+    if (!activeSlide || activeSlide.layout === "html") return undefined;
     return {
       onTitleChange: (value: string) => updateSlide(activeIdx, { title: value }),
       onSubtitleChange: (value: string) => updateSlide(activeIdx, { subtitle: value }),
@@ -100,207 +151,348 @@ export function DeckPanel() {
   }, [activeIdx, activeSlide, updateSlide]);
 
   return (
-    <div className="flex h-full" style={{ backgroundColor: design.colors.bg.primary }}>
+    <div className="flex h-full bg-background">
       {/* Left: Slide thumbnails */}
-      <div
-        className="flex flex-col w-[210px] border-r overflow-y-auto flex-shrink-0"
-        style={{ borderColor: design.colors.border.default, backgroundColor: design.colors.bg.secondary }}
-      >
-        <div className="p-3 flex flex-col gap-2.5">
-          {slides.map((slide, i) => (
-            <div key={slide.id} className="relative group">
+      <div className="flex flex-col w-[220px] border-r border-[#e8e7e4] flex-shrink-0 bg-[#fafaf9] overflow-hidden min-h-0">
+        {/* Sidebar header */}
+        <div className="flex items-center justify-between px-4 h-12 border-b border-[#e8e7e4] flex-shrink-0">
+          <span className="text-[12px] font-semibold text-[#1a1a2e]">Slides</span>
+          <span className="text-[11px] tabular-nums text-[#95928E] font-medium">{slides.length}</span>
+        </div>
+
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="p-3 flex flex-col gap-3">
+            {slides.map((slide, i) => (
               <div
-                className="flex items-center gap-1 px-1"
-                style={{ fontSize: 10, color: design.colors.text.muted, marginBottom: 3 }}
+                key={slide.id}
+                className={cn(
+                  "relative group rounded-xl transition-all duration-200",
+                  dragOverIdx === i && dragIdx !== i && "ring-2 ring-[#d4582a]/40",
+                )}
+                draggable
+                onDragStart={() => handleDragStart(i)}
+                onDragOver={(e) => handleDragOver(e, i)}
+                onDrop={() => handleDrop(i)}
+                onDragEnd={handleDragEnd}
               >
-                <span style={{ fontWeight: 600 }}>{i + 1}</span>
-                <div className="flex-1" />
-                <button
-                  onClick={(e) => { e.stopPropagation(); moveSlide(i, -1); }}
-                  className="opacity-0 group-hover:opacity-100 p-0.5 rounded transition-opacity"
-                  style={{ color: design.colors.text.muted }}
+                {/* Slide number badge + hover controls */}
+                <div className="flex items-center gap-1 px-1 mb-1.5">
+                  <div className="flex items-center gap-1">
+                    <GripVertical className="w-3 h-3 text-[#b0ada6] opacity-0 group-hover:opacity-100 cursor-grab transition-opacity duration-150" />
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[9px] px-1.5 py-0 h-4 font-semibold border transition-colors duration-150",
+                        i === activeIdx
+                          ? "border-[#d4582a]/40 text-[#d4582a] bg-[#d4582a]/5"
+                          : "border-[#e8e8ed] text-[#95928E]"
+                      )}
+                    >
+                      {i + 1}
+                    </Badge>
+                  </div>
+                  <div className="flex-1" />
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); duplicateSlide(i); }}
+                            className="p-0.5 rounded text-[#95928E] hover:text-[#1a1a2e] transition-colors duration-150"
+                          >
+                            <Copy className="w-3 h-3" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-[11px]">Duplicate</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); moveSlide(i, -1); }}
+                            className="p-0.5 rounded text-[#95928E] hover:text-[#1a1a2e] transition-colors duration-150"
+                          >
+                            <ChevronUp className="w-3 h-3" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-[11px]">Move up</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); moveSlide(i, 1); }}
+                            className="p-0.5 rounded text-[#95928E] hover:text-[#1a1a2e] transition-colors duration-150"
+                          >
+                            <ChevronDown className="w-3 h-3" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-[11px]">Move down</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </div>
+                {/* Slide thumbnail */}
+                <div
+                  className={cn(
+                    "rounded-lg overflow-hidden ring-1 transition-all duration-200 cursor-pointer",
+                    i === activeIdx
+                      ? "ring-2 ring-[#d4582a] shadow-md scale-[1.02]"
+                      : "ring-[#e8e8ed] hover:ring-[#d4582a]/30 hover:shadow-sm hover:-translate-y-0.5"
+                  )}
                 >
-                  <ChevronUp className="w-3 h-3" />
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); moveSlide(i, 1); }}
-                  className="opacity-0 group-hover:opacity-100 p-0.5 rounded transition-opacity"
-                  style={{ color: design.colors.text.muted }}
-                >
-                  <ChevronDown className="w-3 h-3" />
-                </button>
+                  <SlideRenderer
+                    slide={slide}
+                    theme={resolvedTheme}
+                    scale={200 / 960}
+                    onClick={() => setActiveIdx(i)}
+                    isActive={false}
+                  />
+                </div>
               </div>
-              <SlideRenderer
-                slide={slide}
-                theme={resolvedTheme}
-                scale={186 / 960}
-                onClick={() => setActiveIdx(i)}
-                isActive={i === activeIdx}
-              />
-            </div>
-          ))}
-          <button
-            onClick={() => addSlide(slides.length - 1)}
-            className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-dashed transition-colors"
-            style={{ borderColor: design.colors.border.default, color: design.colors.text.muted, fontSize: 12 }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = design.colors.accent.blue; e.currentTarget.style.color = design.colors.accent.blue; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = design.colors.border.default; e.currentTarget.style.color = design.colors.text.muted; }}
-          >
-            <Plus className="w-3 h-3" />
-            Add slide
-          </button>
+            ))}
+
+            {/* Add slide button */}
+            <button
+              onClick={() => addSlide(slides.length - 1)}
+              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#d4582a]/5 text-[#d4582a] text-[11px] font-semibold transition-all duration-200 hover:bg-[#d4582a]/10 hover:shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add slide
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Center: Active slide + editor */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Toolbar */}
-        <div
-          className="flex items-center gap-2 px-4 border-b flex-shrink-0"
-          style={{ height: 44, borderColor: design.colors.border.default, backgroundColor: design.colors.bg.secondary }}
-        >
-          <select
-            value={activeSlide?.layout || "bullets"}
-            onChange={(e) => activeSlide && updateSlide(activeIdx, { layout: e.target.value as DeckSlide["layout"] })}
-            className="text-[12px] px-2 py-1 rounded-md border bg-transparent outline-none"
-            style={{ borderColor: design.colors.border.default, color: design.colors.text.primary }}
-          >
-            <option value="title">Title Slide</option>
-            <option value="bullets">Bullet Points</option>
-            <option value="titleContent">Title + Content</option>
-            <option value="twoColumn">Two Columns</option>
-            <option value="section">Section Break</option>
-            <option value="quote">Quote</option>
-            <option value="stats">Stats / Metrics</option>
-            <option value="blank">Blank</option>
-          </select>
+        <div className="flex items-center gap-1.5 px-4 border-b border-[#e8e7e4] flex-shrink-0 h-12 bg-[#fafaf9]">
+          {activeSlide && activeSlide.layout !== "html" && (
+            <>
+              {/* Layout + Theme group */}
+              <div className="flex items-center gap-1">
+                <DropdownMenu>
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <button className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[12px] font-medium transition-colors duration-150 text-[#6b6b80] hover:text-[#1a1a2e] hover:bg-[#efeee9]">
+                            <LayoutTemplate className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">{LAYOUT_OPTIONS.find(l => l.value === activeSlide.layout)?.label || "Layout"}</span>
+                          </button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>Slide layout</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <DropdownMenuContent align="start" className="w-[180px]">
+                    {LAYOUT_OPTIONS.filter(l => l.value !== "html").map((opt) => (
+                      <DropdownMenuItem
+                        key={opt.value}
+                        onClick={() => updateSlide(activeIdx, { layout: opt.value })}
+                        className={cn(
+                          "flex items-center gap-2 text-[12px]",
+                          activeSlide.layout === opt.value && "bg-accent"
+                        )}
+                      >
+                        <span className="w-5 text-center font-mono text-[14px] text-muted-foreground">{opt.icon}</span>
+                        {opt.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
-          <span className="text-[11px]" style={{ color: design.colors.text.placeholder }}>
-            {activeIdx + 1} / {slides.length}
-          </span>
+                <ThemePicker currentTheme={resolvedTheme} />
+              </div>
+
+              <div className="w-px h-5 bg-[#e8e8ed] mx-1.5" />
+
+              {/* Image + Notes group */}
+              <div className="flex items-center gap-1">
+                <ImagePicker
+                  onSelect={(url) => updateSlide(activeIdx, { backgroundImage: url })}
+                  onRemove={() => updateSlide(activeIdx, { backgroundImage: undefined, backgroundOverlay: undefined })}
+                  hasImage={!!activeSlide.backgroundImage}
+                />
+
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setShowNotes(!showNotes)}
+                        className={cn(
+                          "flex items-center justify-center w-8 h-8 rounded-lg transition-colors duration-150",
+                          showNotes ? "text-[#d4582a] bg-[#d4582a]/10" : "text-[#6b6b80] hover:text-[#1a1a2e] hover:bg-[#efeee9]"
+                        )}
+                      >
+                        <StickyNote className="w-4 h-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Speaker notes</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </>
+          )}
 
           <div className="flex-1" />
 
-          {/* Theme picker */}
-          <div className="relative" ref={themeRef}>
-            <button
-              onClick={() => { setShowThemePicker(!showThemePicker); setShowExport(false); }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] transition-colors border"
-              style={{ borderColor: design.colors.border.default, color: design.colors.text.secondary }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-            >
-              <Palette className="w-3.5 h-3.5" />
-              {themeConfig.label}
-            </button>
-            {showThemePicker && (
-              <div
-                className="absolute right-0 top-full mt-1 border rounded-xl py-1.5 z-50 grid grid-cols-2 gap-0"
-                style={{
-                  backgroundColor: design.colors.bg.elevated,
-                  borderColor: design.colors.border.default,
-                  boxShadow: design.shadows.dropdown,
-                  width: 280,
-                }}
-              >
-                {activeThemeKeys.map((key) => {
-                  const cfg = deckThemes[key];
-                  const isSelected = resolvedTheme === key;
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => { updateTheme(key as any); setShowThemePicker(false); }}
-                      className="flex items-center gap-2.5 px-3 py-2 text-[12px] text-left transition-colors"
-                      style={{
-                        color: isSelected ? design.colors.brand.primary : design.colors.text.primary,
-                        fontWeight: isSelected ? 600 : 400,
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-                    >
-                      <div
-                        className="w-5 h-3.5 rounded flex-shrink-0"
-                        style={{
-                          background: cfg.bg,
-                          border: `1px solid ${design.colors.border.default}`,
-                          boxShadow: isSelected ? `0 0 0 1.5px ${design.colors.brand.primary}` : "none",
-                        }}
-                      />
-                      {cfg.label}
-                    </button>
-                  );
-                })}
-              </div>
+          {/* Present + Slide counter + delete */}
+          <div className="flex items-center gap-1.5">
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setShowPresentation(true)}
+                    className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium transition-colors duration-150 bg-[#d4582a] text-white hover:bg-[#c04d25]"
+                  >
+                    <Play className="w-3.5 h-3.5" fill="currentColor" />
+                    <span className="hidden sm:inline">Present</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Start presentation</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            <div className="w-px h-4 bg-[#e8e8ed] mx-0.5" />
+
+            <span className="text-[11px] tabular-nums text-[#95928E] font-medium">
+              {activeIdx + 1} / {slides.length}
+            </span>
+
+            {slides.length > 1 && (
+              <>
+                <div className="w-px h-4 bg-[#e8e8ed] mx-0.5" />
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => deleteSlide(activeIdx)}
+                        className="flex items-center justify-center w-8 h-8 rounded-lg text-[#95928E] transition-colors duration-150 hover:bg-red-50 hover:text-red-500"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Delete slide</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </>
             )}
           </div>
-
-          {/* Export */}
-          <div className="relative" ref={exportRef}>
-            <button
-              onClick={() => { setShowExport(!showExport); setShowThemePicker(false); }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] transition-colors border"
-              style={{ borderColor: design.colors.border.default, color: design.colors.text.secondary }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-            >
-              <Download className="w-3.5 h-3.5" />
-              Export
-            </button>
-            {showExport && (
-              <div
-                className="absolute right-0 top-full mt-1 border rounded-xl py-1 z-50 min-w-[150px]"
-                style={{ backgroundColor: design.colors.bg.elevated, borderColor: design.colors.border.default, boxShadow: design.shadows.dropdown }}
-              >
-                <button
-                  onClick={() => handleExport("pdf")}
-                  className="w-full px-3 py-1.5 text-[13px] text-left transition-colors"
-                  style={{ color: design.colors.text.primary }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-                >
-                  Download PDF
-                </button>
-                <button
-                  onClick={() => handleExport("pptx")}
-                  className="w-full px-3 py-1.5 text-[13px] text-left transition-colors"
-                  style={{ color: design.colors.text.primary }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-                >
-                  Download PPTX
-                </button>
-              </div>
-            )}
-          </div>
-
-          {slides.length > 1 && (
-            <button
-              onClick={() => deleteSlide(activeIdx)}
-              className="flex items-center justify-center w-7 h-7 rounded-md transition-colors"
-              style={{ color: design.colors.text.muted }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(229,69,69,0.06)"; e.currentTarget.style.color = "#e54545"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = design.colors.text.muted; }}
-              title="Delete slide"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
 
         {/* Slide canvas */}
-        <div className="flex-1 flex items-center justify-center overflow-auto p-8" style={{ backgroundColor: design.colors.bg.tertiary }}>
+        <div
+          className="flex-1 flex items-center justify-center overflow-auto p-6"
+          style={{
+            backgroundColor: "#f4f3f0",
+            backgroundImage: "radial-gradient(circle, #dddce0 0.75px, transparent 0.75px)",
+            backgroundSize: "20px 20px",
+          }}
+        >
           {activeSlide ? (
-            <SlideRenderer
-              slide={activeSlide}
-              theme={resolvedTheme}
-              scale={0.75}
-              edit={editHandlers}
-            />
+            <div className="rounded-lg shadow-lg ring-1 ring-black/[0.04]">
+              <SlideRenderer
+                slide={activeSlide}
+                theme={resolvedTheme}
+                scale={0.55}
+                edit={editHandlers}
+              />
+            </div>
           ) : (
-            <p style={{ color: design.colors.text.muted }}>No slides yet</p>
+            <p className="text-xs text-[#95928E]">No slides yet</p>
           )}
         </div>
+
+        {/* Notes panel */}
+        {showNotes && activeSlide && (
+          <div className="border-t border-[#e8e7e4] bg-[#fafaf9] px-4 py-3 flex-shrink-0">
+            <span className="block text-[10px] font-semibold text-[#95928E] uppercase tracking-wider mb-1.5">Speaker Notes</span>
+            <textarea
+              value={activeSlide.notes || ""}
+              onChange={(e) => updateSlide(activeIdx, { notes: e.target.value })}
+              placeholder="Add speaker notes..."
+              className="w-full h-24 text-[13px] bg-white border border-[#e8e8ed] rounded-lg px-3 py-2 outline-none resize-none focus:border-[#d4582a]/40 focus:ring-1 focus:ring-[#d4582a]/20 transition-all duration-150 text-[#1a1a2e] placeholder:text-[#b0ada6]"
+            />
+          </div>
+        )}
       </div>
+
+      {/* Presentation mode */}
+      {showPresentation && (
+        <PresentationMode
+          slides={slides}
+          theme={theme}
+          startIdx={activeIdx}
+          onExit={() => setShowPresentation(false)}
+        />
+      )}
+
+      {/* AI Generate dialog */}
+      {showAIDialog && (
+        <DeckAIGenerateDialog
+          onClose={() => setShowAIDialog(false)}
+          onApply={handleAIApply}
+        />
+      )}
     </div>
+  );
+}
+
+/* ━━ Theme Picker Popover ━━ */
+function ThemePicker({ currentTheme }: { currentTheme: string }) {
+  const setTheme = useAppStore((s) => s.updateDeckTheme);
+
+  return (
+    <Popover>
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <button className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[12px] font-medium transition-colors duration-150 text-[#6b6b80] hover:text-[#1a1a2e] hover:bg-[#efeee9]">
+                <Palette className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{deckThemes[currentTheme]?.label || "Theme"}</span>
+              </button>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent>Slide theme</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      <PopoverContent className="w-[260px] p-3" align="start" sideOffset={8}>
+        <p className="text-[11px] font-medium text-[#6b6b80] mb-2">Choose theme</p>
+        <div className="grid grid-cols-4 gap-2">
+          {activeThemeKeys.map((key) => {
+            const t = deckThemes[key];
+            const isActive = key === currentTheme;
+            return (
+              <button
+                key={key}
+                onClick={() => setTheme(key)}
+                className={cn(
+                  "flex flex-col items-center gap-1.5 p-2 rounded-lg transition-all duration-150 border",
+                  isActive
+                    ? "border-[#d4582a] bg-[#d4582a]/5"
+                    : "border-transparent hover:bg-muted"
+                )}
+              >
+                <div className="flex gap-1">
+                  <div
+                    className="w-4 h-4 rounded-full border border-border/50"
+                    style={{ background: t.accent }}
+                  />
+                  <div
+                    className="w-4 h-4 rounded-full border border-border/50"
+                    style={{ background: t.bg.startsWith("linear") ? t.bg : t.bg }}
+                  />
+                </div>
+                <span className="text-[9px] font-medium text-muted-foreground truncate w-full text-center">
+                  {t.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

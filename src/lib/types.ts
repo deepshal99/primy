@@ -1,5 +1,5 @@
 export interface CellValue {
-  v?: string | number;
+  v?: string | number | null;
   m?: string | number;
   f?: string;
   ct?: { fa?: string; t?: string };
@@ -13,7 +13,7 @@ export interface CellValue {
 export interface CellData {
   r: number;
   c: number;
-  v: CellValue;
+  v: CellValue | null;
 }
 
 export interface SheetConfig {
@@ -130,7 +130,7 @@ export type WorkspaceTab = "sheet" | "doc";
 export interface FileAttachment {
   id: string;
   name: string;
-  type: "text" | "image" | "pdf" | "docx" | "zip";
+  type: "text" | "image" | "pdf" | "docx" | "xlsx" | "zip";
   mimeType: string;
   size: number;
   previewUrl?: string;
@@ -154,6 +154,7 @@ export interface Message {
   attachments?: FileAttachment[];
   interrupted?: boolean;
   groundingSources?: GroundingSource[];
+  mentionedEntities?: { id: string; type: EntityType; title: string }[];
 }
 
 // ═══ Conversation History (legacy — kept for migration) ═══
@@ -188,6 +189,7 @@ export interface KnowledgeUnit {
   shareToken?: string | null;
   createdAt: number;
   updatedAt: number;
+  embedding?: number[];
 }
 
 export interface ProjectTable {
@@ -198,17 +200,19 @@ export interface ProjectTable {
   shareToken?: string | null;
   createdAt: number;
   updatedAt: number;
+  embedding?: number[];
 }
 
 export interface ProjectDiagram {
   id: string;
   projectId: string;
   title: string;
-  diagramType: "mermaid" | "chart";
-  source: string;              // mermaid code or recharts JSON
+  diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow";
+  source: string;              // mermaid code, recharts JSON, or React Flow JSON
   shareToken?: string | null;
   createdAt: number;
   updatedAt: number;
+  embedding?: number[];
 }
 
 export interface Project {
@@ -229,22 +233,31 @@ export interface Project {
 
 export type EntityType = "ku" | "table" | "diagram" | "deck";
 
+export type AIPhase = 'idle' | 'thinking' | 'streaming' | 'updating' | 'done';
+
 // ═══ Deck / Presentation ═══
 
-export type DeckTheme =
-  | "executive" | "startup" | "editorial" | "neon" | "earth" | "arctic"
-  | "sunset" | "monochrome" | "ocean" | "forest" | "coral" | "slate"
-  | "light" | "dark" | "gradient" | "minimal" | "corporate"; // legacy
+// Legacy — kept for backward compat with existing structured slides
+export type DeckTheme = string;
 
 export interface DeckSlide {
   id: string;
-  layout: "title" | "bullets" | "titleContent" | "twoColumn" | "section" | "quote" | "blank" | "stats";
+  layout: "title" | "bullets" | "titleContent" | "twoColumn" | "section" | "quote" | "blank" | "stats" | "imageFeature" | "html";
   title?: string;
   subtitle?: string;
   content?: string;
   bullets?: string[];
   stats?: { value: string; label: string }[];
   notes?: string;
+  // Image support
+  backgroundImage?: string;       // Unsplash URL for slide background
+  backgroundOverlay?: string;     // CSS gradient overlay (default: dark gradient)
+  contentImage?: string;          // Image URL for inline content
+  imageQuery?: string;            // AI-suggested Unsplash search term
+  // Legacy HTML (deprecated — kept for backward compat)
+  html?: string;
+  htmlPrompt?: string;
+  generatedBy?: "gemini" | "kimi";
 }
 
 export interface ProjectDeck {
@@ -256,6 +269,7 @@ export interface ProjectDeck {
   shareToken?: string | null;
   createdAt: number;
   updatedAt: number;
+  embedding?: number[];
 }
 
 export type DeckOperation =
@@ -328,7 +342,7 @@ export type DiagramOperation =
   | {
       type: "CREATE";
       title: string;
-      diagramType: "mermaid" | "chart";
+      diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow";
       source: string;
     }
   | {
@@ -340,8 +354,13 @@ export type DiagramOperation =
 // ═══ Undo History ═══
 
 export interface UndoSnapshot {
+  entityType: "ku" | "table" | "diagram" | "deck" | "mixed";
   sheets: SheetData[];
   docContent: string;
+  diagramSource: string;
+  diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow";
+  deckSlides: DeckSlide[];
+  deckTheme: DeckTheme;
   label: string;
   timestamp: number;
 }
@@ -358,7 +377,7 @@ export interface AppState {
   docContent: string;
   docVersion: number;
   diagramSource: string;
-  diagramType: "mermaid" | "chart";
+  diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow";
   diagramVersion: number;
   deckSlides: DeckSlide[];
   deckTheme: DeckTheme;
@@ -369,6 +388,7 @@ export interface AppState {
   suggestions: string[];
   projectMemory: ProjectMemory;
   readingFiles: string[];
+  aiPhase: AIPhase;
 
   // Undo/Redo history
   undoStack: UndoSnapshot[];
@@ -392,8 +412,12 @@ export interface AppState {
   // Open file tabs
   openTabs: { id: string; type: EntityType; title: string }[];
 
+  // AI-modified entity highlights
+  aiModifiedEntityIds: string[];
+  clearAiModifiedEntity: (id: string) => void;
+
   // Chat/streaming actions
-  addUserMessage: (content: string, attachments?: FileAttachment[]) => void;
+  addUserMessage: (content: string, attachments?: FileAttachment[], mentionedEntities?: { id: string; type: EntityType; title: string }[]) => void;
   startStreaming: () => void;
   appendStreamChunk: (chunk: string) => void;
   finishStreaming: (
@@ -409,6 +433,7 @@ export interface AppState {
   abortStreaming: () => void;
   clearSuggestions: () => void;
   setReadingFiles: (files: string[]) => void;
+  setAIPhase: (phase: AIPhase) => void;
   applySheetOperations: (operations: SheetOperation[]) => void;
   applyDocOperations: (operations: DocOperation[]) => void;
   updateSheetData: (data: SheetData[]) => void;
@@ -455,7 +480,7 @@ export interface AppState {
   openTable: (tableId: string) => void;
 
   // Diagram CRUD
-  createDiagram: (projectId: string, title: string, diagramType?: "mermaid" | "chart", source?: string) => ProjectDiagram;
+  createDiagram: (projectId: string, title: string, diagramType?: "mermaid" | "chart" | "excalidraw" | "reactflow", source?: string) => ProjectDiagram;
   deleteDiagram: (projectId: string, diagramId: string) => void;
   renameDiagram: (projectId: string, diagramId: string, title: string) => void;
   openDiagram: (diagramId: string) => void;

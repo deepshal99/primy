@@ -31,7 +31,7 @@ export function getFileCategory(file: File): FileAttachment["type"] {
   if (file.type.startsWith("image/")) return "image";
   if (file.type === "application/pdf") return "pdf";
   if (file.type.includes("wordprocessingml") || file.name.endsWith(".docx")) return "docx";
-  if (file.type.includes("spreadsheetml") || file.type === "application/vnd.ms-excel" || file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) return "pdf";
+  if (file.type.includes("spreadsheetml") || file.type === "application/vnd.ms-excel" || file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) return "xlsx";
   if (file.type === "application/zip" || file.type === "application/x-zip-compressed" || file.name.endsWith(".zip")) return "zip";
   return "text";
 }
@@ -173,6 +173,7 @@ export async function processFile(
     }
     case "pdf":
     case "docx":
+    case "xlsx":
     case "zip": {
       const text = await extractViaServer(file);
       return { extractedText: text, isExtracting: false };

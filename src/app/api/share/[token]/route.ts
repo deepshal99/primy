@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { projects, knowledgeUnits, projectTables, projectDiagrams } from "@/db/schema";
+import { projects, knowledgeUnits, projectTables, projectDiagrams, projectDecks } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 /**
@@ -26,7 +26,7 @@ export async function GET(
       .limit(1);
 
     if (project) {
-      const [kus, tables, diagrams] = await Promise.all([
+      const [kus, tables, diagrams, decks] = await Promise.all([
         db
           .select({
             id: knowledgeUnits.id,
@@ -58,6 +58,17 @@ export async function GET(
           })
           .from(projectDiagrams)
           .where(eq(projectDiagrams.projectId, project.id)),
+        db
+          .select({
+            id: projectDecks.id,
+            title: projectDecks.title,
+            theme: projectDecks.theme,
+            slides: projectDecks.slides,
+            createdAt: projectDecks.createdAt,
+            updatedAt: projectDecks.updatedAt,
+          })
+          .from(projectDecks)
+          .where(eq(projectDecks.projectId, project.id)),
       ]);
 
       return Response.json({
@@ -67,6 +78,7 @@ export async function GET(
         documents: kus,
         tables,
         diagrams,
+        decks,
       });
     }
 
@@ -155,6 +167,37 @@ export async function GET(
         title: diagram.title,
         diagramType: diagram.diagramType,
         source: diagram.source,
+        projectTitle: proj?.title || "",
+      });
+    }
+
+    // 5. Check decks
+    const [deck] = await db
+      .select({
+        id: projectDecks.id,
+        title: projectDecks.title,
+        theme: projectDecks.theme,
+        slides: projectDecks.slides,
+        projectId: projectDecks.projectId,
+        createdAt: projectDecks.createdAt,
+        updatedAt: projectDecks.updatedAt,
+      })
+      .from(projectDecks)
+      .where(eq(projectDecks.shareToken, token))
+      .limit(1);
+
+    if (deck) {
+      const [proj] = await db
+        .select({ title: projects.title })
+        .from(projects)
+        .where(eq(projects.id, deck.projectId))
+        .limit(1);
+
+      return Response.json({
+        type: "deck",
+        title: deck.title,
+        slides: deck.slides,
+        theme: deck.theme,
         projectTitle: proj?.title || "",
       });
     }

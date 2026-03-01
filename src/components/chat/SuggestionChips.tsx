@@ -2,7 +2,6 @@
 
 import { Zap } from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { design } from "@/lib/design";
 
 interface SuggestionChipsProps {
   suggestions: string[];
@@ -21,35 +20,19 @@ export function SuggestionChips({ suggestions }: SuggestionChipsProps) {
   };
 
   return (
-    <div className="flex items-start gap-2 pl-[34px] animate-fade-in">
-      <div className="flex flex-col gap-2 max-w-[400px]">
-        {suggestions.map((suggestion, i) => (
-          <button
-            key={i}
-            onClick={() => handleClick(suggestion)}
-            className="group flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-[12px] font-medium transition-all duration-200 hover:shadow-sm icon-btn-hover text-left"
-            style={{
-              borderColor: design.colors.border.default,
-              color: design.colors.text.secondary,
-              backgroundColor: design.colors.bg.elevated,
-              animationDelay: `${i * 80}ms`,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = design.colors.brand.primary;
-              e.currentTarget.style.color = design.colors.brand.primary;
-              e.currentTarget.style.backgroundColor = design.colors.brand.subtle;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = design.colors.border.default;
-              e.currentTarget.style.color = design.colors.text.secondary;
-              e.currentTarget.style.backgroundColor = design.colors.bg.elevated;
-            }}
-          >
-            <Zap className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity icon-zap-wiggle" strokeWidth={2} />
-            {suggestion}
-          </button>
-        ))}
-      </div>
+    <div className="flex flex-col gap-1.5" role="list" aria-label="Suggested follow-ups">
+      {suggestions.map((suggestion, i) => (
+        <button
+          key={i}
+          onClick={() => handleClick(suggestion)}
+          className="group flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-[12px] text-muted-foreground font-medium transition-all duration-150 hover:border-[#ff4a00]/30 hover:text-[#ff4a00] hover:bg-[#fff8f5] text-left w-fit animate-fade-in"
+          style={{ animationDelay: `${i * 80}ms`, animationFillMode: "both" }}
+          role="listitem"
+        >
+          <Zap className="w-3 h-3 opacity-40 group-hover:opacity-80 transition-opacity flex-shrink-0" strokeWidth={2} />
+          {suggestion}
+        </button>
+      ))}
     </div>
   );
 }

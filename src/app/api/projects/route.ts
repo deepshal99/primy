@@ -171,11 +171,21 @@ export async function POST(req: Request) {
 
     await ensureUserExists(session as any);
 
-    const body = await req.json();
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
     const { id, title, description, projectType } = body;
 
-    if (!id) {
-      return Response.json({ error: "Client must provide an id" }, { status: 400 });
+    if (!id || typeof id !== "string") {
+      return Response.json({ error: "Client must provide a valid string id" }, { status: 400 });
+    }
+
+    if (title && typeof title !== "string") {
+      return Response.json({ error: "title must be a string" }, { status: 400 });
     }
 
     const [newProject] = await db
