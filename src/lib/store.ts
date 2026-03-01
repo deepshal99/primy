@@ -222,6 +222,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   canRedo: false,
   isSaving: false,
   lastSavedAt: 0,
+  saveError: null,
 
   // AI-modified entity highlights
   aiModifiedEntityIds: [],
@@ -2044,7 +2045,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   saveCurrentEntity: () => {
     const state = get();
     if (!state.currentProjectId) return;
-    set({ isSaving: true });
+    set({ isSaving: true, saveError: null });
 
     const projIdx = state.projects.findIndex((p) => p.id === state.currentProjectId);
     if (projIdx < 0) {
@@ -2161,6 +2162,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       })
       .catch(() => {
         toast.error("Failed to save to server — changes are saved locally");
+        set({ saveError: "Failed to save" });
       })
       .finally(() => set({ isSaving: false, lastSavedAt: Date.now() }));
   },

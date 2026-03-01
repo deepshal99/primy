@@ -397,6 +397,7 @@ export interface AppState {
   canRedo: boolean;
   isSaving: boolean;
   lastSavedAt: number;
+  saveError: string | null;
 
   // Legacy conversation history (kept for migration)
   conversations: Conversation[];

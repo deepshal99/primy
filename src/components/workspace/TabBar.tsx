@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Table2, FileText, GitBranch, Presentation, Share2, Download, Loader2, Undo2, Redo2 } from "lucide-react";
+import { Table2, FileText, GitBranch, Presentation, Share2, Download, Loader2, Undo2, Redo2, Cloud, CloudOff } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/cn";
 import { ShareModal } from "@/components/settings/ShareModal";
@@ -39,6 +39,9 @@ export function TabBar({ exportAction }: { exportAction?: React.ReactNode }) {
   const canRedo = useAppStore((s) => s.canRedo);
   const undo = useAppStore((s) => s.undo);
   const redo = useAppStore((s) => s.redo);
+  const isSaving = useAppStore((s) => s.isSaving);
+  const lastSavedAt = useAppStore((s) => s.lastSavedAt);
+  const saveError = useAppStore((s) => s.saveError);
 
   const tabsContainerRef = useRef<HTMLDivElement>(null);
 
@@ -214,6 +217,24 @@ export function TabBar({ exportAction }: { exportAction?: React.ReactNode }) {
             </Tooltip>
 
             <div className="w-px h-5 bg-[#e8e7e4] mx-1" />
+
+            {/* Save status indicator */}
+            {saveError ? (
+              <div className="flex items-center gap-1 px-2">
+                <CloudOff className="w-3 h-3 text-red-500" />
+                <span className="text-[11px] text-red-500">Error</span>
+              </div>
+            ) : isSaving ? (
+              <div className="flex items-center gap-1 px-2">
+                <Loader2 className="w-3 h-3 animate-spin text-[#95928E]" />
+                <span className="text-[11px] text-[#95928E]">Saving...</span>
+              </div>
+            ) : lastSavedAt > 0 ? (
+              <div className="flex items-center gap-1 px-2">
+                <Cloud className="w-3 h-3 text-[#95928E]" />
+                <span className="text-[11px] text-[#95928E]">Saved</span>
+              </div>
+            ) : null}
 
             {exportAction}
 
