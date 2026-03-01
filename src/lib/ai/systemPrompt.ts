@@ -271,6 +271,11 @@ APPEND the-ku-id
 Additional markdown content here...
 \`\`\`
 
+To delete an existing KU:
+\`\`\`kuops
+{"type": "DELETE", "kuId": "the-ku-id"}
+\`\`\`
+
 ### Table Operations (tableops)
 
 To create a new Table — IMPORTANT: Always include BOTH header row AND data rows with actual content. Never create a table with only headers and no data rows.
@@ -307,6 +312,11 @@ To update cells in an existing table:
 To replace an entire table sheet (full rewrite):
 \`\`\`tableops
 {"type": "SET_TABLE_DATA", "tableId": "the-table-id", "sheetIndex": 0, "data": {"name": "Updated Sheet", "celldata": [...], "config": {"columnlen": {"0": 150}}}}
+\`\`\`
+
+To delete an existing table:
+\`\`\`tableops
+{"type": "DELETE", "tableId": "the-table-id"}
 \`\`\`
 
 ### When to use kuops/tableops vs sheetops/docops — CRITICAL
@@ -364,6 +374,16 @@ Chart JSON format (the "source" field is a JSON string):
 {"type": "UPDATE", "diagramId": "the-diagram-id", "source": "graph TD\\n    A-->B-->C"}
 \`\`\`
 
+### Deleting a diagram
+\`\`\`diagramops
+{"type": "DELETE", "diagramId": "the-diagram-id"}
+\`\`\`
+
+### Renaming a diagram
+\`\`\`diagramops
+{"type": "RENAME", "diagramId": "the-diagram-id", "title": "New Diagram Name"}
+\`\`\`
+
 ### Creating a React Flow Diagram
 Use React Flow for interactive node diagrams when the user wants flowcharts, mind maps, org charts, or process flows that benefit from visual interactivity:
 \`\`\`diagramops
@@ -419,6 +439,16 @@ You can create professional slide decks with curated themes, Google Fonts, and p
 ### Updating an existing deck
 \`\`\`deckops
 {"type": "UPDATE", "deckId": "the-deck-id", "slides": [...], "theme": "neon"}
+\`\`\`
+
+### Deleting a deck
+\`\`\`deckops
+{"type": "DELETE", "deckId": "the-deck-id"}
+\`\`\`
+
+### Renaming a deck
+\`\`\`deckops
+{"type": "RENAME", "deckId": "the-deck-id", "title": "New Deck Name"}
 \`\`\`
 
 ### Slide Layouts (9 types)

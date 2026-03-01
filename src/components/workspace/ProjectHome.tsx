@@ -127,6 +127,8 @@ export function ProjectHome() {
   const deleteDeck = useAppStore((s) => s.deleteDeck);
   const duplicateKnowledgeUnit = useAppStore((s) => s.duplicateKnowledgeUnit);
   const duplicateTable = useAppStore((s) => s.duplicateTable);
+  const duplicateDiagram = useAppStore((s) => s.duplicateDiagram);
+  const duplicateDeck = useAppStore((s) => s.duplicateDeck);
 
   const [filter, setFilter] = useState<"all" | EntityType>("all");
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -206,6 +208,8 @@ export function ProjectHome() {
   const handleDuplicate = (entity: FileEntity) => {
     if (entity.type === "ku") duplicateKnowledgeUnit(project.id, entity.id);
     else if (entity.type === "table") duplicateTable(project.id, entity.id);
+    else if (entity.type === "diagram") duplicateDiagram(project.id, entity.id);
+    else if (entity.type === "deck") duplicateDeck(project.id, entity.id);
   };
 
   const handleDelete = (entity: FileEntity) => {
@@ -369,7 +373,7 @@ export function ProjectHome() {
                 const config = FILE_TYPE_CONFIG[entity.type];
                 const Icon = config.icon;
                 const isRenaming = renamingId === entity.id;
-                const canDuplicate = entity.type === "ku" || entity.type === "table";
+                const canDuplicate = true;
 
                 return (
                   <div
