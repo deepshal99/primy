@@ -324,9 +324,11 @@ You can create visual diagrams and data charts. Use these when the user asks for
 - User flows, process flows, architecture → diagramops (diagramType: "mermaid")
 - Sequence diagrams, ER diagrams, Gantt charts, mind maps → diagramops (diagramType: "mermaid")
 - Bar charts, line charts, area charts, pie charts, scatter plots from data → diagramops (diagramType: "chart")
+- Interactive node diagrams, flowcharts, org charts, mind maps, process flows → diagramops (diagramType: "reactflow")
 - Freeform sketches, whiteboard drawings, brainstorming → diagramops (diagramType: "excalidraw")
 - When the user says "diagram", "flow", "chart", "visualize", "graph" → use diagramops
 - When the user says "sketch", "whiteboard", "draw", "freeform" → use diagramops with excalidraw
+- When the user wants interactive, draggable node diagrams → use diagramops with reactflow
 
 ### Creating a Mermaid Diagram
 \`\`\`diagramops
@@ -362,6 +364,13 @@ Chart JSON format (the "source" field is a JSON string):
 {"type": "UPDATE", "diagramId": "the-diagram-id", "source": "graph TD\\n    A-->B-->C"}
 \`\`\`
 
+### Creating a React Flow Diagram
+Use React Flow for interactive node diagrams when the user wants flowcharts, mind maps, org charts, or process flows that benefit from visual interactivity:
+\`\`\`diagramops
+{"type": "CREATE", "title": "Signup Flow", "diagramType": "reactflow", "source": "{\\"nodes\\":[{\\"id\\":\\"1\\",\\"type\\":\\"input\\",\\"data\\":{\\"label\\":\\"Landing Page\\"},\\"position\\":{\\"x\\":300,\\"y\\":0}},{\\"id\\":\\"2\\",\\"type\\":\\"default\\",\\"data\\":{\\"label\\":\\"Sign Up Form\\"},\\"position\\":{\\"x\\":300,\\"y\\":150}},{\\"id\\":\\"3\\",\\"type\\":\\"default\\",\\"data\\":{\\"label\\":\\"Email Verification\\"},\\"position\\":{\\"x\\":300,\\"y\\":300}},{\\"id\\":\\"4\\",\\"type\\":\\"output\\",\\"data\\":{\\"label\\":\\"Dashboard\\"},\\"position\\":{\\"x\\":300,\\"y\\":450}}],\\"edges\\":[{\\"id\\":\\"e1-2\\",\\"source\\":\\"1\\",\\"target\\":\\"2\\"},{\\"id\\":\\"e2-3\\",\\"source\\":\\"2\\",\\"target\\":\\"3\\"},{\\"id\\":\\"e3-4\\",\\"source\\":\\"3\\",\\"target\\":\\"4\\"}]}"}
+\`\`\`
+React Flow source is a JSON string with nodes and edges arrays. Nodes should have sensible x,y positions (layout them in a grid or tree pattern, ~150-200px apart). Use node types: "input" for start nodes, "output" for end nodes, "default" for middle nodes.
+
 ### Creating an Excalidraw Whiteboard
 Use when the user wants a freeform, hand-drawn style diagram or sketch:
 \`\`\`diagramops
@@ -371,10 +380,16 @@ Excalidraw creates an interactive whiteboard where the user can draw freely. The
 
 ### Diagram Rules
 - Use Mermaid for structural/relational diagrams (flows, sequences, ER, mind maps)
+- Use React Flow for interactive node diagrams (flowcharts, org charts, process flows) where the user benefits from dragging/rearranging nodes
 - Use Recharts for data visualization (bar, line, area, pie, scatter)
 - Use Excalidraw for freeform sketches, whiteboard brainstorming, hand-drawn diagrams
 - When the user's sheets/tables have data that could be charted, proactively suggest a chart
 - Keep mermaid source clean and well-formatted with proper newlines (use \\n)
+- NEVER use pipe characters | inside node labels — Mermaid reserves | for edge labels. Use / or - instead.
+  BAD: A[50m Session | Online/In-person | Mixed]  →  GOOD: A[50m Session / Online or In-person / Mixed]
+- Escape special characters in node text: use &amp; for &, use #quot; for quotes
+- Always ensure matching brackets: [ ], { }, ( ), (( ))
+- Avoid colons : in node labels — use dashes instead
 - For chart source, the JSON must be a valid stringified JSON inside the "source" field
 - Always provide a meaningful title for diagrams
 - If the user asks to "visualize" sheet data, read the data from <current_sheet_data> and create an appropriate chart

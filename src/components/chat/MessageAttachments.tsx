@@ -3,7 +3,6 @@
 import { FileText, Image as ImageIcon, File, FolderArchive } from "lucide-react";
 import { FileAttachment } from "@/lib/types";
 import { formatFileSize } from "@/lib/fileUtils";
-import { design } from "@/lib/design";
 
 interface MessageAttachmentsProps {
   attachments: FileAttachment[];
@@ -49,10 +48,10 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
             ) : (
               <Icon className="w-3 h-3 opacity-70" strokeWidth={1.5} />
             )}
-            <span className="text-label truncate max-w-[100px] opacity-90">
+            <span className="text-[11px] font-medium truncate max-w-[100px] opacity-90">
               {att.name}
             </span>
-            <span className="text-label-xs px-1 py-0.5 rounded bg-white/10 font-medium uppercase opacity-60">
+            <span className="text-[10px] px-1 py-0.5 rounded bg-white/10 font-medium uppercase opacity-60">
               {labelMap[att.type] || att.type}
             </span>
           </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { design } from "@/lib/design";
 
 export default function Error({
   error,
@@ -15,36 +14,20 @@ export default function Error({
   }, [error]);
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4"
-      style={{ backgroundColor: design.colors.bg.primary }}
-    >
+    <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <div className="text-center max-w-md">
-        <div
-          className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-          style={{ backgroundColor: "rgba(224, 85, 85, 0.1)" }}
-        >
+        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-[rgba(212,24,61,0.08)]">
           <span className="text-2xl">⚠️</span>
         </div>
-        <h2
-          className="text-lg font-semibold mb-2"
-          style={{ color: design.colors.text.primary }}
-        >
+        <h2 className="text-lg font-semibold mb-2 text-foreground">
           Something went wrong
         </h2>
-        <p
-          className="text-sm mb-6"
-          style={{ color: design.colors.text.muted }}
-        >
+        <p className="text-sm mb-6 text-muted-foreground">
           An unexpected error occurred. Please try again.
         </p>
         <button
           onClick={reset}
-          className="px-5 py-2.5 rounded-full text-sm font-medium transition-opacity hover:opacity-90"
-          style={{
-            backgroundColor: design.colors.brand.primary,
-            color: "#fff",
-          }}
+          className="px-5 py-2.5 rounded-full text-sm font-medium transition-opacity hover:opacity-90 bg-primary text-primary-foreground"
         >
           Try again
         </button>

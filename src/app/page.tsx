@@ -4,8 +4,6 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
-import { design } from "@/lib/design";
-import { Pen } from "lucide-react";
 
 export default function Home() {
   const { status } = useSession();
@@ -19,15 +17,17 @@ export default function Home() {
 
   if (status === "loading") {
     return (
-      <div className="h-screen w-screen flex items-center justify-center" style={{ backgroundColor: design.colors.bg.primary }}>
-        <div className="flex flex-col items-center gap-3 animate-fade-in">
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center"
-            style={{ backgroundColor: design.colors.brand.primary }}
-          >
-            <Pen className="w-5 h-5 text-white animate-spin-slow" strokeWidth={2} />
+      <div className="h-screen w-screen flex items-center justify-center bg-white">
+        <div className="flex flex-col items-center gap-5 animate-fade-in">
+          {/* Animated doc lines — content being created */}
+          <div className="w-[52px] h-[52px] rounded-2xl bg-[#fafaf8] border border-[#e8e7e4] flex flex-col items-start justify-center gap-[5px] px-3">
+            <div className="content-loader-line bg-[#ff4a00]/60" style={{ width: "80%" }} />
+            <div className="content-loader-line bg-[#ff4a00]/40" style={{ width: "65%" }} />
+            <div className="content-loader-line bg-[#ff4a00]/30" style={{ width: "90%" }} />
+            <div className="content-loader-line bg-[#ff4a00]/20" style={{ width: "50%" }} />
+            <div className="content-loader-line bg-[#ff4a00]/15" style={{ width: "72%" }} />
           </div>
-          <p className="text-[13px]" style={{ color: design.colors.text.muted }}>
+          <p className="text-[13px] text-[#95928E]">
             Loading Drafta AI...
           </p>
         </div>

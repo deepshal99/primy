@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useAppStore } from "@/lib/store";
-import { design } from "@/lib/design";
 
 interface ExcalidrawEditorProps {
   readOnly?: boolean;
@@ -56,7 +55,7 @@ export function ExcalidrawEditor({ readOnly = false, initialData }: ExcalidrawEd
   if (!Comp) {
     return (
       <div className="h-full flex items-center justify-center">
-        <p className="text-[13px]" style={{ color: design.colors.text.muted }}>
+        <p className="text-[13px] text-[#95928E]">
           Loading whiteboard...
         </p>
       </div>
@@ -108,7 +107,7 @@ export function ExcalidrawReadOnly({ source }: { source: string }) {
   if (!Comp) {
     return (
       <div className="h-full flex items-center justify-center">
-        <p className="text-[13px]" style={{ color: design.colors.text.muted }}>
+        <p className="text-[13px] text-[#95928E]">
           Loading whiteboard...
         </p>
       </div>

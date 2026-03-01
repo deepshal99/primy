@@ -1,10 +1,109 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { FileText, Table2, GitBranch, Presentation, Pen, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import {
+  FileText,
+  Table2,
+  GitBranch,
+  Presentation,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Copy,
+  Clock,
+  Share2,
+  Plus,
+} from "lucide-react";
 import { useAppStore } from "@/lib/store";
-import { design } from "@/lib/design";
-import type { KnowledgeUnit, ProjectTable, ProjectDiagram, ProjectDeck } from "@/lib/types";
+import { cn } from "@/lib/cn";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type {
+  KnowledgeUnit,
+  ProjectTable,
+  ProjectDiagram,
+  ProjectDeck,
+} from "@/lib/types";
+import { ShareModal } from "@/components/settings/ShareModal";
+
+// ====================================
+// -- Entity type config --
+// ====================================
+
+const FILE_TYPE_CONFIG = {
+  ku: {
+    label: "Document",
+    icon: FileText,
+    cardBg: "#f0f4fd",
+    previewBg: "#ffffff",
+    iconColor: "#4a7aed",
+    accentColor: "#c7d6f7",
+    badgeBg: "#e0eafc",
+    badgeText: "#3b6ad8",
+    desc: "Write and format text",
+  },
+  table: {
+    label: "Spreadsheet",
+    icon: Table2,
+    cardBg: "#e8f7ea",
+    previewBg: "#ffffff",
+    iconColor: "#2e9e47",
+    accentColor: "#b8e6c0",
+    badgeBg: "#d4f0d8",
+    badgeText: "#288c3e",
+    desc: "Tables and data",
+  },
+  deck: {
+    label: "Presentation",
+    icon: Presentation,
+    cardBg: "#fde8dc",
+    previewBg: "#ffffff",
+    iconColor: "#d4582a",
+    accentColor: "#f5c9b5",
+    badgeBg: "#fdd8c7",
+    badgeText: "#c04f24",
+    desc: "Slides and visuals",
+  },
+  diagram: {
+    label: "Diagram",
+    icon: GitBranch,
+    cardBg: "#ece4f8",
+    previewBg: "#ffffff",
+    iconColor: "#7c5cb8",
+    accentColor: "#d3c5ec",
+    badgeBg: "#e0d5f3",
+    badgeText: "#6b4ea5",
+    desc: "Flowcharts and maps",
+  },
+} as const;
+
+type EntityType = keyof typeof FILE_TYPE_CONFIG;
+
+// ====================================
+// -- Helpers --
+// ====================================
+
+function timeAgo(timestamp: number): string {
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} day${days !== 1 ? "s" : ""} ago`;
+  const weeks = Math.floor(days / 7);
+  return `${weeks} week${weeks !== 1 ? "s" : ""} ago`;
+}
+
+// ====================================
+// -- Main component --
+// ====================================
 
 export function ProjectHome() {
   const currentProjectId = useAppStore((s) => s.currentProjectId);
@@ -26,28 +125,16 @@ export function ProjectHome() {
   const deleteTable = useAppStore((s) => s.deleteTable);
   const deleteDiagram = useAppStore((s) => s.deleteDiagram);
   const deleteDeck = useAppStore((s) => s.deleteDeck);
-  // Entity rename state
+  const duplicateKnowledgeUnit = useAppStore((s) => s.duplicateKnowledgeUnit);
+  const duplicateTable = useAppStore((s) => s.duplicateTable);
+
+  const [filter, setFilter] = useState<"all" | EntityType>("all");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
-
-  // Close context menu on outside click
-  useEffect(() => {
-    if (!menuOpenId) return;
-    const handler = (e: MouseEvent) => {
-      // Check if click is inside a menu dropdown
-      const target = e.target as HTMLElement;
-      if (target.closest("[data-entity-menu]")) return;
-      setMenuOpenId(null);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [menuOpenId]);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const project = projects.find((p) => p.id === currentProjectId);
 
-  // Build entity list with full data for previews
-  // Must be above the early return to keep hook order stable
   const entities = useMemo(() => {
     if (!project) return [];
     return [
@@ -82,6 +169,11 @@ export function ProjectHome() {
     ].sort((a, b) => b.updatedAt - a.updatedAt);
   }, [project]);
 
+  const filteredEntities = useMemo(() => {
+    if (filter === "all") return entities;
+    return entities.filter((e) => e.type === filter);
+  }, [entities, filter]);
+
   if (!project) return null;
 
   const kuCount = project.knowledgeUnits.length;
@@ -90,201 +182,335 @@ export function ProjectHome() {
   const deckCount = (project.decks || []).length;
   const totalFiles = kuCount + tableCount + diagramCount + deckCount;
 
+  const handleOpen = (entity: FileEntity) => {
+    if (entity.type === "deck") openDeck(entity.id);
+    else if (entity.type === "diagram") openDiagram(entity.id);
+    else if (entity.type === "ku") openKnowledgeUnit(entity.id);
+    else openTable(entity.id);
+  };
+
+  const handleCreate = (type: EntityType) => {
+    if (type === "ku") createKnowledgeUnit(project.id, "New Document");
+    else if (type === "table") createTable(project.id, "New Table");
+    else if (type === "diagram") createDiagram(project.id, "New Diagram");
+    else createDeck(project.id, "New Deck");
+  };
+
+  const handleRename = (entity: FileEntity, name: string) => {
+    if (entity.type === "deck") renameDeck(project.id, entity.id, name);
+    else if (entity.type === "diagram") renameDiagram(project.id, entity.id, name);
+    else if (entity.type === "ku") renameKnowledgeUnit(project.id, entity.id, name);
+    else renameTable(project.id, entity.id, name);
+  };
+
+  const handleDuplicate = (entity: FileEntity) => {
+    if (entity.type === "ku") duplicateKnowledgeUnit(project.id, entity.id);
+    else if (entity.type === "table") duplicateTable(project.id, entity.id);
+  };
+
+  const handleDelete = (entity: FileEntity) => {
+    if (!window.confirm(`Delete "${entity.title}"? This cannot be undone.`)) return;
+    if (entity.type === "deck") deleteDeck(project.id, entity.id);
+    else if (entity.type === "diagram") deleteDiagram(project.id, entity.id);
+    else if (entity.type === "ku") deleteKnowledgeUnit(project.id, entity.id);
+    else deleteTable(project.id, entity.id);
+  };
+
   return (
-    <div
-      className="h-full overflow-y-auto"
-      style={{ backgroundColor: design.colors.bg.primary }}
-    >
-      <div className="max-w-3xl mx-auto px-8 py-8">
-
-        {/* ── Hero section ── */}
+    <div className="h-full overflow-y-auto bg-white">
+      <div className="max-w-[1100px] mx-auto px-20 py-10">
+        {/* -- Project header -- */}
         <div className="mb-8">
-          {/* Editable title */}
-          <EditableTitle
-            value={project.title}
-            onSave={(title) => updateProject(project.id, { title })}
-          />
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <EditableTitle
+                value={project.title}
+                onSave={(title) => updateProject(project.id, { title })}
+              />
+              <EditableDescription
+                value={project.description || ""}
+                onSave={(description) => updateProject(project.id, { description })}
+              />
+              <div className="flex items-center gap-5 mt-5">
+                <div className="flex items-center gap-1.5 text-[12px] text-[#8a877f]">
+                  <Clock className="w-3.5 h-3.5" />
+                  Updated {timeAgo(project.updatedAt || Date.now())}
+                </div>
+                <div className="w-px h-3 bg-[#e0deda]" />
+                <div className="text-[12px] text-[#8a877f]">{totalFiles} files</div>
+              </div>
+            </div>
 
-          {/* Editable description */}
-          <EditableDescription
-            value={project.description || ""}
-            onSave={(description) => updateProject(project.id, { description })}
-          />
-
-        </div>
-
-        {/* ── Files ── */}
-        <div>
-          {/* Header row: label + create buttons */}
-          <div className="flex items-center gap-2 mb-4">
-            <span style={{ fontSize: "12px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: design.colors.text.muted }}>
-              Files
-            </span>
-            {totalFiles > 0 && (
-              <span style={{ fontSize: "11px", color: design.colors.text.placeholder }}>{totalFiles}</span>
-            )}
-            <div className="flex-1" />
-            <div className="flex gap-1">
-              <CreatePill icon={<FileText className="w-3 h-3" />} label="Doc" color={design.colors.entity.doc} onClick={() => createKnowledgeUnit(project.id, "New Document")} />
-              <CreatePill icon={<Table2 className="w-3 h-3" />} label="Table" color={design.colors.entity.sheet} onClick={() => createTable(project.id, "New Table")} />
-              <CreatePill icon={<GitBranch className="w-3 h-3" />} label="Diagram" color={design.colors.entity.diagram} onClick={() => createDiagram(project.id, "New Diagram")} />
-              <CreatePill icon={<Presentation className="w-3 h-3" />} label="Deck" color={design.colors.entity.deck} onClick={() => createDeck(project.id, "New Deck")} />
+            {/* Action buttons */}
+            <div className="flex items-center gap-2 mt-1">
+              <button
+                onClick={() => setShareOpen(true)}
+                className="w-[36px] h-[36px] flex items-center justify-center rounded-lg border border-[#e8e7e4] text-[#95928E] hover:text-[#2d2e2e] hover:bg-[#f7f6f3] transition-colors"
+              >
+                <Share2 className="w-4 h-4" strokeWidth={2} />
+              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#ff4a00] text-white text-[13px] font-medium hover:bg-[#e54400] transition-colors shadow-[0_1px_3px_rgba(255,74,0,0.2)]">
+                    <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+                    New file
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[232px] p-1.5 rounded-xl">
+                  {(["ku", "table", "diagram", "deck"] as const).map((type) => {
+                    const config = FILE_TYPE_CONFIG[type];
+                    const IconComp = config.icon;
+                    return (
+                      <DropdownMenuItem
+                        key={type}
+                        onClick={() => handleCreate(type)}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer"
+                      >
+                        <IconComp
+                          className="w-[17px] h-[17px] flex-shrink-0"
+                          style={{ color: config.iconColor }}
+                          strokeWidth={1.75}
+                        />
+                        <div className="min-w-0">
+                          <div className="text-[12.5px] text-[#2d2e2e] font-medium">{config.label}</div>
+                          <div className="text-[10.5px] text-[#a09d96]">{config.desc}</div>
+                        </div>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
+        </div>
 
-          {entities.length === 0 ? (
-            <div className="py-6">
-              <div
-                className="flex flex-col items-center justify-center py-10 mb-6"
-                style={{
-                  borderRadius: "12px",
-                  backgroundColor: design.colors.bg.secondary,
-                  border: `1px solid ${design.colors.border.light}`,
-                }}
-              >
-                <div
-                  style={{
-                    width: "44px",
-                    height: "44px",
-                    borderRadius: "12px",
-                    backgroundColor: design.colors.accent.goldSubtle,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: "14px",
-                  }}
-                >
-                  <Pen className="w-5 h-5" style={{ color: design.colors.accent.gold }} strokeWidth={1.5} />
-                </div>
-                <p style={{ fontSize: "15px", fontWeight: 600, color: design.colors.text.primary, marginBottom: "6px", fontFamily: design.typography.family.heading }}>
-                  Get started
-                </p>
-                <p style={{ fontSize: "13px", color: design.colors.text.muted, lineHeight: "1.5", maxWidth: "300px", textAlign: "center" }}>
-                  Create your first file or ask AI to build something for you.
+        {/* -- Files section -- */}
+        <div>
+          {/* Filter tabs */}
+          {totalFiles > 0 && (
+            <div className="flex items-center gap-1.5 mb-6 flex-wrap">
+              {([
+                { key: "all" as const, label: "All files", count: totalFiles },
+                { key: "ku" as const, label: "Documents", count: kuCount },
+                { key: "table" as const, label: "Spreadsheets", count: tableCount },
+                { key: "deck" as const, label: "Presentations", count: deckCount },
+                { key: "diagram" as const, label: "Diagrams", count: diagramCount },
+              ]).map((tab) => {
+                const isActive = filter === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setFilter(tab.key)}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3.5 py-[6px] rounded-full text-[12px] transition-all duration-200 cursor-pointer",
+                      isActive
+                        ? "bg-[#1a1a2e] text-white"
+                        : "bg-white border border-[#e8e7e4] text-[#5a5852] hover:border-[#d0cfc9] hover:bg-[#f7f6f3]"
+                    )}
+                    style={{ fontWeight: isActive ? 550 : 420 }}
+                  >
+                    {tab.label}
+                    <span className={cn("text-[10px]", isActive ? "text-white/60" : "text-[#b0ada6]")}>
+                      {tab.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Content: empty states or card grid */}
+          {filteredEntities.length === 0 && filter !== "all" ? (
+            <div className="py-10 text-center text-[#a09d96] text-[13px]">
+              No {filter === "ku" ? "documents" : filter === "table" ? "spreadsheets" : filter === "deck" ? "presentations" : "diagrams"} yet
+            </div>
+          ) : entities.length === 0 ? (
+            /* Empty state */
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="text-center mb-8">
+                <h3 className="text-[20px] font-semibold text-[#1a1a2e] tracking-[-0.3px] mb-2" style={{ fontFamily: "'Degular', 'Inter', sans-serif" }}>
+                  Start creating
+                </h3>
+                <p className="text-[14px] text-[#8a877f] leading-relaxed">
+                  Create your first file to get started
                 </p>
               </div>
 
-              {/* Quick start action cards */}
-              <div className="grid grid-cols-4 gap-3">
-                <QuickStartCard
-                  icon={<FileText className="w-5 h-5" />}
-                  label="Document"
-                  desc="Notes, drafts, plans"
-                  color={design.colors.entity.doc}
-                  bg={design.colors.entity.docBg}
-                  onClick={() => createKnowledgeUnit(project.id, "New Document")}
-                />
-                <QuickStartCard
-                  icon={<Table2 className="w-5 h-5" />}
-                  label="Spreadsheet"
-                  desc="Tables, trackers, data"
-                  color={design.colors.entity.sheet}
-                  bg={design.colors.entity.sheetBg}
-                  onClick={() => createTable(project.id, "New Table")}
-                />
-                <QuickStartCard
-                  icon={<GitBranch className="w-5 h-5" />}
-                  label="Diagram"
-                  desc="Flowcharts, charts"
-                  color={design.colors.entity.diagram}
-                  bg={design.colors.entity.diagramBg}
-                  onClick={() => createDiagram(project.id, "New Diagram")}
-                />
-                <QuickStartCard
-                  icon={<Presentation className="w-5 h-5" />}
-                  label="Deck"
-                  desc="Slides, presentations"
-                  color={design.colors.entity.deck}
-                  bg={design.colors.entity.deckBg}
-                  onClick={() => createDeck(project.id, "New Deck")}
-                />
-              </div>
+              <div className="grid grid-cols-2 gap-3 w-full max-w-[400px] stagger-children">
+                {/* Document */}
+                <button onClick={() => handleCreate('ku')} className="group flex items-center gap-3 px-5 py-4 rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all duration-200 active:scale-[0.98] animate-fade-in">
+                  <FileText className="w-5 h-5 text-[#4a7aed] transition-transform duration-150 group-hover:scale-110" strokeWidth={1.75} />
+                  <span className="text-[13px] font-medium text-[#2d2e2e]">Document</span>
+                </button>
 
-              {/* AI suggestion */}
-              <button
-                onClick={() => window.dispatchEvent(new Event("drafta:focus-chat"))}
-                className="w-full mt-3 flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-150"
-                style={{
-                  backgroundColor: design.colors.bg.elevated,
-                  borderColor: design.colors.border.default,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = design.colors.brand.primary;
-                  e.currentTarget.style.boxShadow = `0 0 0 3px ${design.colors.brand.subtle}`;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = design.colors.border.default;
-                  e.currentTarget.style.boxShadow = "none";
-                }}
-              >
-                <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: design.colors.brand.subtle }}
-                >
-                  <Pen className="w-4 h-4" style={{ color: design.colors.brand.primary }} strokeWidth={1.8} />
-                </div>
-                <div className="text-left">
-                  <p style={{ fontSize: "13px", fontWeight: 600, color: design.colors.text.primary }}>Ask AI to build something</p>
-                  <p style={{ fontSize: "11px", color: design.colors.text.muted }}>Describe what you need in the chat</p>
-                </div>
-              </button>
+                {/* Spreadsheet */}
+                <button onClick={() => handleCreate('table')} className="group flex items-center gap-3 px-5 py-4 rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all duration-200 active:scale-[0.98] animate-fade-in">
+                  <Table2 className="w-5 h-5 text-[#2e9e47] transition-transform duration-150 group-hover:scale-110" strokeWidth={1.75} />
+                  <span className="text-[13px] font-medium text-[#2d2e2e]">Spreadsheet</span>
+                </button>
+
+                {/* Diagram */}
+                <button onClick={() => handleCreate('diagram')} className="group flex items-center gap-3 px-5 py-4 rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all duration-200 active:scale-[0.98] animate-fade-in">
+                  <GitBranch className="w-5 h-5 text-[#7c5cb8] transition-transform duration-150 group-hover:scale-110" strokeWidth={1.75} />
+                  <span className="text-[13px] font-medium text-[#2d2e2e]">Diagram</span>
+                </button>
+
+                {/* Presentation */}
+                <button onClick={() => handleCreate('deck')} className="group flex items-center gap-3 px-5 py-4 rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all duration-200 active:scale-[0.98] animate-fade-in">
+                  <Presentation className="w-5 h-5 text-[#d4582a] transition-transform duration-150 group-hover:scale-110" strokeWidth={1.75} />
+                  <span className="text-[13px] font-medium text-[#2d2e2e]">Presentation</span>
+                </button>
+              </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-              {entities.map((entity) => {
-                const isKu = entity.type === "ku";
-                const isDiagram = entity.type === "diagram";
-                const isDeck = entity.type === "deck";
-                const accent = isDeck ? design.colors.entity.deck : isDiagram ? design.colors.entity.diagram : isKu ? design.colors.entity.doc : design.colors.entity.sheet;
-                const accentBg = isDeck ? design.colors.entity.deckBg : isDiagram ? design.colors.entity.diagramBg : isKu ? design.colors.entity.docBg : design.colors.entity.sheetBg;
+            /* File cards grid */
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">
+              {filteredEntities.map((entity, idx) => {
+                const config = FILE_TYPE_CONFIG[entity.type];
+                const Icon = config.icon;
+                const isRenaming = renamingId === entity.id;
+                const canDuplicate = entity.type === "ku" || entity.type === "table";
 
                 return (
-                  <FileCard
+                  <div
                     key={entity.id}
-                    entity={entity}
-                    accent={accent}
-                    accentBg={accentBg}
-                    onOpen={() => {
-                      if (isDeck) openDeck(entity.id);
-                      else if (isDiagram) openDiagram(entity.id);
-                      else if (isKu) openKnowledgeUnit(entity.id);
-                      else openTable(entity.id);
+                    className="group relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 active:scale-[0.99] hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)] animate-scale-in"
+                    style={{ background: config.cardBg, animationDelay: `${idx * 60}ms` }}
+                    onClick={() => {
+                      if (!isRenaming) handleOpen(entity);
                     }}
-                    onRename={(name) => {
-                      if (isDeck) renameDeck(project.id, entity.id, name);
-                      else if (isDiagram) renameDiagram(project.id, entity.id, name);
-                      else if (isKu) renameKnowledgeUnit(project.id, entity.id, name);
-                      else renameTable(project.id, entity.id, name);
-                    }}
-                    onDelete={() => {
-                      if (!window.confirm(`Delete "${entity.title}"? This cannot be undone.`)) return;
-                      if (isDeck) deleteDeck(project.id, entity.id);
-                      else if (isDiagram) deleteDiagram(project.id, entity.id);
-                      else if (isKu) deleteKnowledgeUnit(project.id, entity.id);
-                      else deleteTable(project.id, entity.id);
-                    }}
-                    isRenaming={renamingId === entity.id}
-                    startRename={() => { setRenamingId(entity.id); setRenameValue(entity.title); }}
-                    stopRename={() => setRenamingId(null)}
-                    renameValue={renameValue}
-                    setRenameValue={setRenameValue}
-                    menuOpen={menuOpenId === entity.id}
-                    toggleMenu={() => setMenuOpenId(menuOpenId === entity.id ? null : entity.id)}
-                    closeMenu={() => setMenuOpenId(null)}
-                  />
+                  >
+                    {/* Three-dot menu */}
+                    <div
+                      className="absolute top-2.5 right-2.5 z-10"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className="w-7 h-7 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all text-[#999] hover:bg-white/70 hover:text-[#5a5852] data-[state=open]:opacity-100 data-[state=open]:bg-white/70 data-[state=open]:text-[#5a5852]"
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-[148px] rounded-xl p-1.5"
+                          style={{ boxShadow: "0 8px 30px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)" }}
+                        >
+                          {canDuplicate && (
+                            <DropdownMenuItem
+                              onClick={() => handleDuplicate(entity)}
+                              className="flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[12px] text-[#3d3d3d] cursor-pointer"
+                            >
+                              <Copy className="w-3 h-3 text-[#9a968f]" />
+                              Duplicate
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setRenamingId(entity.id);
+                              setRenameValue(entity.title);
+                            }}
+                            className="flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[12px] text-[#3d3d3d] cursor-pointer"
+                          >
+                            <Pencil className="w-3 h-3 text-[#9a968f]" />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator className="my-1 mx-1" />
+                          <DropdownMenuItem
+                            onClick={() => handleDelete(entity)}
+                            variant="destructive"
+                            className="flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[12px] cursor-pointer"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    {/* Preview area */}
+                    <div className="mx-3 mt-3 rounded-xl overflow-hidden" style={{ background: config.previewBg }}>
+                      <div className="h-[130px] overflow-hidden select-none pointer-events-none">
+                        {entity.type === "ku" && <DocPreviewContent accent={config.accentColor} />}
+                        {entity.type === "table" && <TablePreviewContent accent={config.accentColor} />}
+                        {entity.type === "diagram" && <DiagramPreviewContent accent={config.accentColor} />}
+                        {entity.type === "deck" && <DeckPreviewContent accent={config.accentColor} />}
+                      </div>
+                    </div>
+
+                    {/* File info */}
+                    <div className="px-3.5 pt-3 pb-3.5">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Icon
+                          className="w-[16px] h-[16px] flex-shrink-0"
+                          style={{ color: config.iconColor }}
+                          strokeWidth={1.75}
+                        />
+                        {isRenaming ? (
+                          <input
+                            autoFocus
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onBlur={() => {
+                              if (renameValue.trim() && renameValue.trim() !== entity.title) {
+                                handleRename(entity, renameValue.trim());
+                              }
+                              setRenamingId(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                              if (e.key === "Escape") setRenamingId(null);
+                            }}
+                            className="flex-1 min-w-0 bg-transparent outline-none border-b-2 pb-0.5 text-[13px] font-medium text-[#2d2e2e]"
+                            style={{ borderColor: config.iconColor }}
+                          />
+                        ) : (
+                          <span className="text-[13px] text-[#2d2e2e] truncate" style={{ fontWeight: 500 }}>
+                            {entity.title}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 pl-[24px]">
+                        <span className="text-[11px] text-[#a09d96]">{config.label}</span>
+                        <span className="text-[11px] text-[#c5c2bb]">&middot;</span>
+                        <span className="text-[11px] text-[#a09d96]">{timeAgo(entity.updatedAt)}</span>
+                      </div>
+                    </div>
+                  </div>
                 );
               })}
             </div>
           )}
         </div>
       </div>
+
+      {/* Project share modal */}
+      <ShareModal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        mode="project"
+        entityId={project.id}
+        entityTitle={project.title}
+        currentToken={project.shareToken || null}
+        onTokenChange={(token) => {
+          const state = useAppStore.getState();
+          useAppStore.setState({
+            projects: state.projects.map((p) =>
+              p.id === project.id ? { ...p, shareToken: token } : p
+            ),
+          });
+        }}
+      />
     </div>
   );
 }
 
-// ══════════════════════════════════
-// ── Inline-editable components ──
-// ══════════════════════════════════
+// ====================================
+// -- Inline-editable components --
+// ====================================
 
 function EditableTitle({ value, onSave }: { value: string; onSave: (v: string) => void }) {
   const [editing, setEditing] = useState(false);
@@ -307,16 +533,11 @@ function EditableTitle({ value, onSave }: { value: string; onSave: (v: string) =
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={save}
-        onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") { setDraft(value); setEditing(false); } }}
-        className="w-full bg-transparent outline-none border-b-2 pb-1"
-        style={{
-          fontFamily: design.typography.family.heading,
-          fontSize: "32px",
-          fontWeight: 700,
-          letterSpacing: "-0.03em",
-          color: design.colors.text.primary,
-          borderColor: design.colors.brand.primary,
+        onKeyDown={(e) => {
+          if (e.key === "Enter") save();
+          if (e.key === "Escape") { setDraft(value); setEditing(false); }
         }}
+        className="w-full bg-transparent outline-none border-b-2 border-[#ff4a00] pb-1 text-[26px] text-[#1a1a2e] tracking-[-0.4px] font-semibold"
       />
     );
   }
@@ -324,15 +545,7 @@ function EditableTitle({ value, onSave }: { value: string; onSave: (v: string) =
   return (
     <h1
       onClick={() => setEditing(true)}
-      className="cursor-text rounded-lg transition-colors hover:bg-black/[0.03] -mx-2 px-2 py-1"
-      style={{
-        fontFamily: design.typography.family.heading,
-        fontSize: "32px",
-        fontWeight: 700,
-        letterSpacing: "-0.03em",
-        lineHeight: 1.2,
-        color: design.colors.text.primary,
-      }}
+      className="cursor-text rounded-lg transition-colors hover:bg-black/[0.03] -mx-2 px-2 py-1 text-[26px] text-[#1a1a2e] tracking-[-0.4px] font-semibold leading-[1.2]"
       title="Click to rename"
     >
       {value}
@@ -376,14 +589,8 @@ function EditableDescription({ value, onSave }: { value: string; onSave: (v: str
           if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); save(); }
           if (e.key === "Escape") { setDraft(value); setEditing(false); }
         }}
-        className="w-full bg-transparent outline-none border-b-2 pb-1 resize-none"
-        style={{
-          fontSize: "14px",
-          lineHeight: "1.6",
-          color: design.colors.text.secondary,
-          borderColor: design.colors.brand.primary,
-          minHeight: "24px",
-        }}
+        className="w-full bg-transparent outline-none border-b-2 border-[#ff4a00] pb-1 resize-none text-[14px] text-[#8a877f] leading-relaxed max-w-[520px]"
+        style={{ minHeight: "24px" }}
         placeholder="Add a project description..."
       />
     );
@@ -392,12 +599,10 @@ function EditableDescription({ value, onSave }: { value: string; onSave: (v: str
   return (
     <p
       onClick={() => setEditing(true)}
-      className="cursor-text rounded-lg transition-colors hover:bg-black/[0.03] -mx-2 px-2 py-1 mt-1"
-      style={{
-        fontSize: "14px",
-        lineHeight: "1.6",
-        color: value ? design.colors.text.secondary : design.colors.text.placeholder,
-      }}
+      className={cn(
+        "cursor-text rounded-lg transition-colors hover:bg-black/[0.03] -mx-2 px-2 py-1 mt-1 text-[14px] leading-relaxed max-w-[520px]",
+        value ? "text-[#8a877f]" : "text-[#c5c2bb]"
+      )}
       title="Click to edit description"
     >
       {value || "Add a project description..."}
@@ -405,426 +610,101 @@ function EditableDescription({ value, onSave }: { value: string; onSave: (v: str
   );
 }
 
-// ── File components ──
+// ====================================
+// -- Mini preview renderers --
+// ====================================
+
+function DocPreviewContent({ accent }: { accent: string }) {
+  return (
+    <div className="flex flex-col gap-[6px] p-4">
+      <div className="h-[8px] w-[65%] rounded-sm" style={{ background: accent }} />
+      <div className="h-[5px] w-[90%] rounded-sm bg-[#e5e5e5]" />
+      <div className="h-[5px] w-[80%] rounded-sm bg-[#e5e5e5]" />
+      <div className="h-[5px] w-[85%] rounded-sm bg-[#ececec]" />
+      <div className="h-3" />
+      <div className="h-[5px] w-[92%] rounded-sm bg-[#e5e5e5]" />
+      <div className="h-[5px] w-[70%] rounded-sm bg-[#ececec]" />
+      <div className="h-[5px] w-[88%] rounded-sm bg-[#e5e5e5]" />
+      <div className="h-[5px] w-[50%] rounded-sm bg-[#ececec]" />
+    </div>
+  );
+}
+
+function TablePreviewContent({ accent }: { accent: string }) {
+  return (
+    <div className="p-3">
+      <div className="border border-[#e0e0e0] rounded-[4px] overflow-hidden">
+        <div className="flex">
+          {[...Array(4)].map((_, i) => (
+            <div
+              key={i}
+              className="flex-1 h-[16px] border-r last:border-r-0"
+              style={{ background: accent, borderColor: `${accent}88` }}
+            />
+          ))}
+        </div>
+        {[...Array(4)].map((_, r) => (
+          <div key={r} className="flex border-t border-[#eaeaea]">
+            {[...Array(4)].map((_, c) => (
+              <div
+                key={c}
+                className="flex-1 h-[14px] border-r last:border-r-0 border-[#f0f0f0]"
+                style={{ background: c === 0 ? `${accent}22` : "transparent" }}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DeckPreviewContent({ accent }: { accent: string }) {
+  return (
+    <div className="flex items-center justify-center p-3 h-full">
+      <div
+        className="w-full rounded-[4px] p-3 flex flex-col items-center justify-center"
+        style={{ background: `${accent}18`, border: `1px solid ${accent}30` }}
+      >
+        <div className="h-[7px] w-[60%] rounded-sm mb-[6px]" style={{ background: accent }} />
+        <div className="h-[4px] w-[75%] rounded-sm bg-[#e0e0e0] mb-[3px]" />
+        <div className="h-[4px] w-[55%] rounded-sm bg-[#e8e8e8]" />
+        <div className="mt-3 flex gap-2">
+          <div className="w-[18px] h-[12px] rounded-[2px]" style={{ background: `${accent}40` }} />
+          <div className="w-[18px] h-[12px] rounded-[2px]" style={{ background: `${accent}25` }} />
+          <div className="w-[18px] h-[12px] rounded-[2px]" style={{ background: `${accent}40` }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DiagramPreviewContent({ accent }: { accent: string }) {
+  return (
+    <div className="flex items-center justify-center p-3 h-full">
+      <svg width="100%" height="80" viewBox="0 0 120 80">
+        <line x1="60" y1="18" x2="30" y2="48" stroke="#d0d0d0" strokeWidth="1.5" />
+        <line x1="60" y1="18" x2="90" y2="48" stroke="#d0d0d0" strokeWidth="1.5" />
+        <line x1="30" y1="48" x2="30" y2="70" stroke="#d0d0d0" strokeWidth="1.5" />
+        <line x1="90" y1="48" x2="90" y2="70" stroke="#d0d0d0" strokeWidth="1.5" />
+        <rect x="45" y="6" width="30" height="18" rx="4" fill={accent} opacity="0.7" />
+        <rect x="15" y="40" width="30" height="16" rx="4" fill={accent} opacity="0.45" />
+        <rect x="75" y="40" width="30" height="16" rx="4" fill={accent} opacity="0.45" />
+        <rect x="17" y="64" width="26" height="12" rx="3" fill={accent} opacity="0.25" />
+        <rect x="77" y="64" width="26" height="12" rx="3" fill={accent} opacity="0.25" />
+      </svg>
+    </div>
+  );
+}
+
+// ====================================
+// -- Types --
+// ====================================
 
 interface FileEntity {
   id: string;
   title: string;
-  type: "ku" | "table" | "diagram" | "deck";
+  type: EntityType;
   updatedAt: number;
   data: KnowledgeUnit | ProjectTable | ProjectDiagram | ProjectDeck;
 }
-
-/* ── Preview content extractors ── */
-
-function getDocPreview(data: KnowledgeUnit): string {
-  // Strip HTML tags and get plain text
-  const text = data.content
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/\s+/g, " ")
-    .trim();
-  return text.slice(0, 200);
-}
-
-function getTablePreview(data: ProjectTable): { headers: string[]; rows: string[][] } {
-  const sheet = data.sheets?.[0];
-  if (!sheet?.celldata) return { headers: [], rows: [] };
-  // Build a simple grid from celldata
-  const cells: Record<string, string> = {};
-  for (const cell of sheet.celldata) {
-    const r = cell.r;
-    const c = cell.c;
-    const val = cell.v?.v ?? cell.v?.m ?? "";
-    cells[`${r}-${c}`] = String(val);
-  }
-  const maxCols = Math.min(4, Math.max(...sheet.celldata.map((c: any) => c.c)) + 1);
-  const maxRows = Math.min(4, Math.max(...sheet.celldata.map((c: any) => c.r)) + 1);
-  const headers: string[] = [];
-  for (let c = 0; c < maxCols; c++) {
-    headers.push(cells[`0-${c}`] || "");
-  }
-  const rows: string[][] = [];
-  for (let r = 1; r < maxRows; r++) {
-    const row: string[] = [];
-    for (let c = 0; c < maxCols; c++) {
-      row.push(cells[`${r}-${c}`] || "");
-    }
-    rows.push(row);
-  }
-  return { headers, rows };
-}
-
-function getDiagramPreview(data: ProjectDiagram): string {
-  return data.source?.slice(0, 160) || "";
-}
-
-function getDeckPreview(data: ProjectDeck): { title: string; subtitle: string } {
-  const first = data.slides?.[0];
-  if (!first) return { title: "", subtitle: "" };
-  return {
-    title: first.title || "",
-    subtitle: first.subtitle || first.content?.slice(0, 80) || "",
-  };
-}
-
-/* ── Card-based file preview ── */
-
-function FileCard({
-  entity,
-  accent,
-  accentBg,
-  onOpen,
-  onRename,
-  onDelete,
-  isRenaming,
-  startRename,
-  stopRename,
-  renameValue,
-  setRenameValue,
-  menuOpen,
-  toggleMenu,
-  closeMenu,
-}: {
-  entity: FileEntity;
-  accent: string;
-  accentBg: string;
-  onOpen: () => void;
-  onRename: (name: string) => void;
-  onDelete: () => void;
-  isRenaming: boolean;
-  startRename: () => void;
-  stopRename: () => void;
-  renameValue: string;
-  setRenameValue: (v: string) => void;
-  menuOpen: boolean;
-  toggleMenu: () => void;
-  closeMenu: () => void;
-}) {
-  const Icon = entity.type === "deck" ? Presentation
-    : entity.type === "diagram" ? GitBranch
-    : entity.type === "ku" ? FileText
-    : Table2;
-
-  const typeLabel = entity.type === "ku" ? "Document"
-    : entity.type === "table" ? "Spreadsheet"
-    : entity.type === "diagram" ? "Diagram"
-    : "Deck";
-
-  return (
-    <div
-      className="group relative flex flex-col rounded-xl border cursor-pointer transition-all duration-150 overflow-hidden"
-      style={{
-        backgroundColor: accentBg,
-        borderColor: design.colors.border.light,
-      }}
-      onClick={() => {
-        if (!isRenaming && !menuOpen) onOpen();
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = design.colors.border.default;
-        e.currentTarget.style.boxShadow = design.shadows.md;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = design.colors.border.light;
-        e.currentTarget.style.boxShadow = "none";
-      }}
-    >
-      {/* Preview area */}
-      <div
-        className="relative mx-2.5 mt-2.5 rounded-lg overflow-hidden"
-        style={{
-          backgroundColor: design.colors.bg.elevated,
-          height: "120px",
-        }}
-      >
-        <div className="p-3 h-full overflow-hidden text-[10px] leading-[1.5] select-none pointer-events-none" style={{ color: design.colors.text.muted }}>
-          {entity.type === "ku" && (
-            <DocPreviewContent data={entity.data as KnowledgeUnit} />
-          )}
-          {entity.type === "table" && (
-            <TablePreviewContent data={entity.data as ProjectTable} accent={accent} />
-          )}
-          {entity.type === "diagram" && (
-            <DiagramPreviewContent data={entity.data as ProjectDiagram} accent={accent} />
-          )}
-          {entity.type === "deck" && (
-            <DeckPreviewContent data={entity.data as ProjectDeck} />
-          )}
-        </div>
-        {/* Fade overlay at bottom */}
-        <div
-          className="absolute bottom-0 left-0 right-0 h-8"
-          style={{
-            background: `linear-gradient(to bottom, transparent, ${design.colors.bg.elevated})`,
-          }}
-        />
-      </div>
-
-      {/* Footer: icon + name + menu */}
-      <div className="flex items-center gap-2 px-3 py-2.5">
-        <div
-          className="flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center"
-          style={{ backgroundColor: accentBg }}
-        >
-          <Icon className="w-3 h-3" style={{ color: accent }} strokeWidth={2} />
-        </div>
-        <div className="flex-1 min-w-0">
-          {isRenaming ? (
-            <input
-              autoFocus
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-              onBlur={() => {
-                if (renameValue.trim() && renameValue.trim() !== entity.title) {
-                  onRename(renameValue.trim());
-                }
-                stopRename();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                if (e.key === "Escape") stopRename();
-              }}
-              className="block w-full bg-transparent outline-none border-b-2 pb-0.5"
-              style={{
-                fontSize: "13px",
-                fontWeight: 600,
-                color: design.colors.text.primary,
-                fontFamily: design.typography.family.heading,
-                borderColor: accent,
-              }}
-            />
-          ) : (
-            <>
-              <span
-                className="block truncate"
-                style={{
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  color: design.colors.text.primary,
-                  fontFamily: design.typography.family.heading,
-                  lineHeight: "1.3",
-                }}
-              >
-                {entity.title}
-              </span>
-              <span style={{ fontSize: "10px", color: design.colors.text.muted }}>
-                {typeLabel}
-              </span>
-            </>
-          )}
-        </div>
-
-        {/* Context menu */}
-        <div
-          className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-          data-entity-menu
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={toggleMenu}
-            className="p-1 rounded-md transition-colors"
-            style={{ backgroundColor: menuOpen ? design.colors.bg.tertiary : "transparent" }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.tertiary; }}
-            onMouseLeave={(e) => { if (!menuOpen) e.currentTarget.style.backgroundColor = "transparent"; }}
-          >
-            <MoreHorizontal className="w-4 h-4" style={{ color: design.colors.text.muted }} />
-          </button>
-
-          {menuOpen && (
-            <div
-              className="absolute bottom-12 right-2 border rounded-lg py-1 min-w-[140px] z-50"
-              style={{
-                backgroundColor: design.colors.bg.elevated,
-                borderColor: design.colors.border.default,
-                boxShadow: design.shadows.dropdown,
-              }}
-            >
-              <button
-                onClick={() => { startRename(); closeMenu(); }}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-left transition-colors"
-                style={{ color: design.colors.text.primary }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-              >
-                <Pencil className="w-3.5 h-3.5" />
-                Rename
-              </button>
-              <button
-                onClick={() => { closeMenu(); onDelete(); }}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-[13px] text-left transition-colors"
-                style={{ color: design.colors.status.error }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.status.errorBg; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Delete
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Preview content components ── */
-
-function DocPreviewContent({ data }: { data: KnowledgeUnit }) {
-  const text = getDocPreview(data);
-  if (!text) return <span className="italic opacity-50">Empty document</span>;
-  return (
-    <div style={{ fontFamily: design.typography.family.sans, fontSize: "10px", lineHeight: "1.6", color: design.colors.text.secondary }}>
-      {text}
-    </div>
-  );
-}
-
-function TablePreviewContent({ data, accent }: { data: ProjectTable; accent: string }) {
-  const { headers, rows } = getTablePreview(data);
-  if (headers.length === 0) return <span className="italic opacity-50">Empty spreadsheet</span>;
-  return (
-    <table className="w-full border-collapse" style={{ fontSize: "9px" }}>
-      <thead>
-        <tr>
-          {headers.map((h, i) => (
-            <th
-              key={i}
-              className="text-left px-1.5 py-1 border-b truncate max-w-[80px]"
-              style={{ borderColor: `${accent}20`, fontWeight: 600, color: design.colors.text.secondary }}
-            >
-              {h || "\u00A0"}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row, ri) => (
-          <tr key={ri}>
-            {row.map((cell, ci) => (
-              <td
-                key={ci}
-                className="px-1.5 py-0.5 border-b truncate max-w-[80px]"
-                style={{ borderColor: `${accent}10`, color: design.colors.text.muted }}
-              >
-                {cell || "\u00A0"}
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function DiagramPreviewContent({ data, accent }: { data: ProjectDiagram; accent: string }) {
-  const preview = getDiagramPreview(data);
-  if (!preview) return <span className="italic opacity-50">Empty diagram</span>;
-  return (
-    <pre
-      className="whitespace-pre-wrap"
-      style={{
-        fontFamily: design.typography.family.mono,
-        fontSize: "9px",
-        lineHeight: "1.5",
-        color: accent,
-        opacity: 0.7,
-      }}
-    >
-      {preview}
-    </pre>
-  );
-}
-
-function DeckPreviewContent({ data }: { data: ProjectDeck }) {
-  const { title, subtitle } = getDeckPreview(data);
-  if (!title && !subtitle) return <span className="italic opacity-50">Empty deck</span>;
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-center px-2">
-      {title && (
-        <div style={{ fontSize: "12px", fontWeight: 700, color: design.colors.text.primary, fontFamily: design.typography.family.heading, lineHeight: "1.3", marginBottom: "4px" }}>
-          {title}
-        </div>
-      )}
-      {subtitle && (
-        <div style={{ fontSize: "9px", color: design.colors.text.muted, lineHeight: "1.4" }}>
-          {subtitle}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function QuickStartCard({
-  icon, label, desc, color, bg, onClick,
-}: {
-  icon: React.ReactNode; label: string; desc: string; color: string; bg: string; onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex flex-col items-center gap-2 p-4 rounded-lg border transition-all duration-150"
-      style={{
-        backgroundColor: design.colors.bg.elevated,
-        borderColor: design.colors.border.default,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = color;
-        e.currentTarget.style.boxShadow = `0 0 0 3px ${bg}`;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = design.colors.border.default;
-        e.currentTarget.style.boxShadow = "none";
-      }}
-    >
-      <div
-        className="w-10 h-10 rounded-lg flex items-center justify-center"
-        style={{ backgroundColor: bg, color }}
-      >
-        {icon}
-      </div>
-      <div className="text-center">
-        <p style={{ fontSize: "13px", fontWeight: 600, color: design.colors.text.primary, fontFamily: design.typography.family.heading }}>
-          {label}
-        </p>
-        <p style={{ fontSize: "11px", color: design.colors.text.muted, marginTop: "2px" }}>
-          {desc}
-        </p>
-      </div>
-    </button>
-  );
-}
-
-function CreatePill({ icon, label, color, onClick }: { icon: React.ReactNode; label: string; color: string; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all duration-150 border"
-      style={{
-        fontSize: "12px",
-        fontWeight: 500,
-        color: design.colors.text.secondary,
-        borderColor: design.colors.border.default,
-        backgroundColor: design.colors.bg.elevated,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = color;
-        e.currentTarget.style.color = color;
-        e.currentTarget.style.boxShadow = `0 0 0 3px ${color}12`;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = design.colors.border.default;
-        e.currentTarget.style.color = design.colors.text.secondary;
-        e.currentTarget.style.boxShadow = "none";
-      }}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
-

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import { design } from "@/lib/design";
+import { useEffect, useState, useCallback } from "react";
 import { ZoomPanWrapper } from "./ZoomPanWrapper";
 import {
   BarChart, Bar, LineChart, Line, AreaChart, Area,
@@ -20,14 +19,22 @@ const DEFAULT_COLORS = [
   "#14B8A6", "#F59E0B", "#6366F1", "#EF4444", "#22D3EE",
 ];
 
+const ReactFlowRendererLazy = dynamic(
+  () => import("./ReactFlowRenderer").then((m) => m.ReactFlowRenderer),
+  { ssr: false }
+);
+
 interface DiagramViewReadOnlyProps {
   source: string;
-  diagramType: "mermaid" | "chart" | "excalidraw";
+  diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow";
 }
 
 export function DiagramViewReadOnly({ source, diagramType }: DiagramViewReadOnlyProps) {
   if (diagramType === "excalidraw") {
     return <ExcalidrawReadOnly source={source} />;
+  }
+  if (diagramType === "reactflow") {
+    return <ReactFlowRendererLazy source={source} />;
   }
   if (diagramType === "chart") {
     return <ChartRendererRO source={source} />;
@@ -38,6 +45,7 @@ export function DiagramViewReadOnly({ source, diagramType }: DiagramViewReadOnly
 function MermaidRendererRO({ source }: { source: string }) {
   const [svgHtml, setSvgHtml] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [rendered, setRendered] = useState(false);
 
   const render = useCallback(async () => {
     if (!source.trim()) return;
@@ -48,6 +56,7 @@ function MermaidRendererRO({ source }: { source: string }) {
       const { svg } = await mermaid.render(id, source.trim());
       setSvgHtml(svg);
       setError(null);
+      requestAnimationFrame(() => setRendered(true));
     } catch (err: any) {
       setError(err?.message || "Render error");
     }
@@ -58,26 +67,35 @@ function MermaidRendererRO({ source }: { source: string }) {
   if (error) {
     return (
       <div className="h-full flex items-center justify-center p-8">
-        <p className="text-[13px]" style={{ color: design.colors.status.error }}>{error}</p>
+        <p className="text-[13px] text-[#ef4444]">{error}</p>
       </div>
     );
   }
 
   return (
     <ZoomPanWrapper>
-      <div className="p-8" dangerouslySetInnerHTML={{ __html: svgHtml }} />
+      <div
+        className={`p-8 transition-opacity duration-300 ${rendered ? "opacity-100" : "opacity-0"}`}
+        dangerouslySetInnerHTML={{ __html: svgHtml }}
+      />
     </ZoomPanWrapper>
   );
 }
 
 function ChartRendererRO({ source }: { source: string }) {
+  const [rendered, setRendered] = useState(false);
+
+  useEffect(() => {
+    requestAnimationFrame(() => setRendered(true));
+  }, []);
+
   let config: any = null;
   try { config = JSON.parse(source); } catch { /* ignore */ }
 
   if (!config) {
     return (
       <div className="h-full flex items-center justify-center">
-        <p className="text-[13px]" style={{ color: design.colors.text.muted }}>Invalid chart data</p>
+        <p className="text-[13px] text-[#95928E]">Invalid chart data</p>
       </div>
     );
   }
@@ -85,9 +103,9 @@ function ChartRendererRO({ source }: { source: string }) {
   const { chartType = "bar", data = [], xKey = "name", yKeys = ["value"], colors = DEFAULT_COLORS, title } = config;
 
   const commonAxisProps = {
-    tick: { fontSize: 12, fill: design.colors.text.secondary },
-    axisLine: { stroke: design.colors.border.default },
-    tickLine: { stroke: design.colors.border.default },
+    tick: { fontSize: 12, fill: "#6b6b80" },
+    axisLine: { stroke: "#e8e7e4" },
+    tickLine: { stroke: "#e8e7e4" },
   };
 
   const renderChart = () => {
@@ -95,7 +113,7 @@ function ChartRendererRO({ source }: { source: string }) {
       case "bar":
         return (
           <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke={design.colors.border.light} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e8e8ed" />
             <XAxis dataKey={xKey} {...commonAxisProps} />
             <YAxis {...commonAxisProps} />
             <Tooltip /><Legend />
@@ -107,7 +125,7 @@ function ChartRendererRO({ source }: { source: string }) {
       case "line":
         return (
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke={design.colors.border.light} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e8e8ed" />
             <XAxis dataKey={xKey} {...commonAxisProps} /><YAxis {...commonAxisProps} />
             <Tooltip /><Legend />
             {yKeys.map((key: string, i: number) => (
@@ -118,7 +136,7 @@ function ChartRendererRO({ source }: { source: string }) {
       case "area":
         return (
           <AreaChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke={design.colors.border.light} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e8e8ed" />
             <XAxis dataKey={xKey} {...commonAxisProps} /><YAxis {...commonAxisProps} />
             <Tooltip /><Legend />
             {yKeys.map((key: string, i: number) => (
@@ -138,7 +156,7 @@ function ChartRendererRO({ source }: { source: string }) {
       case "scatter":
         return (
           <ScatterChart>
-            <CartesianGrid strokeDasharray="3 3" stroke={design.colors.border.light} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e8e8ed" />
             <XAxis dataKey={xKey} {...commonAxisProps} name={xKey} />
             <YAxis dataKey={yKeys[0]} {...commonAxisProps} name={yKeys[0]} />
             <Tooltip cursor={{ strokeDasharray: "3 3" }} />
@@ -149,7 +167,7 @@ function ChartRendererRO({ source }: { source: string }) {
       default:
         return (
           <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke={design.colors.border.light} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e8e8ed" />
             <XAxis dataKey={xKey} {...commonAxisProps} /><YAxis {...commonAxisProps} />
             <Tooltip /><Legend />
             {yKeys.map((key: string, i: number) => (
@@ -162,9 +180,9 @@ function ChartRendererRO({ source }: { source: string }) {
 
   return (
     <ZoomPanWrapper>
-      <div className="p-8 flex flex-col items-center">
+      <div className={`p-8 flex flex-col items-center transition-opacity duration-300 ${rendered ? "opacity-100" : "opacity-0"}`}>
         {title && (
-          <h3 className="mb-4 text-[16px] font-semibold" style={{ color: design.colors.text.primary }}>
+          <h3 className="mb-4 text-[16px] font-semibold text-[#1a1a2e]">
             {title}
           </h3>
         )}

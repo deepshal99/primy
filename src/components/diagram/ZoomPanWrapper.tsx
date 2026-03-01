@@ -2,11 +2,10 @@
 
 import { useRef, useState, useCallback, useEffect } from "react";
 import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
-import { design } from "@/lib/design";
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 5;
-const ZOOM_FACTOR = 1.2;
+const ZOOM_FACTOR = 1.15;
 
 interface ZoomPanWrapperProps {
   children: React.ReactNode;
@@ -28,24 +27,28 @@ export function ZoomPanWrapper({ children }: ZoomPanWrapperProps) {
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
 
-      // Cursor position relative to container
-      const cx = e.clientX - rect.left;
-      const cy = e.clientY - rect.top;
+      if (e.ctrlKey) {
+        // Pinch-to-zoom (trackpad) or Ctrl+scroll (mouse) → zoom around cursor
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+        const factor = Math.pow(1.005, -e.deltaY);
 
-      const direction = e.deltaY < 0 ? 1 : -1;
-      const factor = direction > 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR;
-
-      setScale((prev) => {
-        const newScale = clampScale(prev * factor);
-        const ratio = newScale / prev;
-
+        setScale((prev) => {
+          const newScale = clampScale(prev * factor);
+          const ratio = newScale / prev;
+          setTranslate((t) => ({
+            x: cx - (cx - t.x) * ratio,
+            y: cy - (cy - t.y) * ratio,
+          }));
+          return newScale;
+        });
+      } else {
+        // Two-finger scroll (trackpad) or mouse scroll without Ctrl → pan
         setTranslate((t) => ({
-          x: cx - (cx - t.x) * ratio,
-          y: cy - (cy - t.y) * ratio,
+          x: t.x - e.deltaX * 0.8,
+          y: t.y - e.deltaY * 0.8,
         }));
-
-        return newScale;
-      });
+      }
     },
     []
   );
@@ -159,23 +162,14 @@ export function ZoomPanWrapper({ children }: ZoomPanWrapperProps) {
 
       {/* Floating zoom controls */}
       <div
-        className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-0.5 rounded-full px-1 py-0.5"
-        style={{
-          backgroundColor: design.colors.bg.elevated,
-          border: `1px solid ${design.colors.border.default}`,
-          boxShadow: design.shadows.md,
-          height: "32px",
-          zIndex: 10,
-        }}
+        className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-0.5 rounded-full px-1 py-0.5 bg-white border border-[#e8e7e4] shadow-md"
+        style={{ height: "32px", zIndex: 10 }}
       >
         <ControlButton onClick={zoomOut} title="Zoom out">
           <ZoomOut className="w-3.5 h-3.5" />
         </ControlButton>
 
-        <span
-          className="text-[11px] font-medium tabular-nums min-w-[40px] text-center select-none"
-          style={{ color: design.colors.text.secondary }}
-        >
+        <span className="text-[11px] font-medium tabular-nums min-w-[40px] text-center select-none text-[#95928E]">
           {pct}%
         </span>
 
@@ -183,10 +177,7 @@ export function ZoomPanWrapper({ children }: ZoomPanWrapperProps) {
           <ZoomIn className="w-3.5 h-3.5" />
         </ControlButton>
 
-        <div
-          className="w-px h-4 mx-0.5"
-          style={{ backgroundColor: design.colors.border.default }}
-        />
+        <div className="w-px h-4 mx-0.5 bg-[#e8e7e4]" />
 
         <ControlButton onClick={resetView} title="Reset view">
           <Maximize2 className="w-3.5 h-3.5" />
@@ -213,16 +204,7 @@ function ControlButton({
       }}
       onMouseDown={(e) => e.stopPropagation()}
       title={title}
-      className="flex items-center justify-center w-7 h-7 rounded-full transition-colors"
-      style={{ color: design.colors.text.secondary }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = design.colors.bg.hover;
-        e.currentTarget.style.color = design.colors.text.primary;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = "transparent";
-        e.currentTarget.style.color = design.colors.text.secondary;
-      }}
+      className="flex items-center justify-center w-7 h-7 rounded-full transition-all duration-150 text-[#95928E] hover:text-[#2d2e2e] hover:bg-[#efeee9] active:scale-95"
     >
       {children}
     </button>

@@ -207,8 +207,8 @@ export interface ProjectDiagram {
   id: string;
   projectId: string;
   title: string;
-  diagramType: "mermaid" | "chart" | "excalidraw";
-  source: string;              // mermaid code or recharts JSON
+  diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow";
+  source: string;              // mermaid code, recharts JSON, or React Flow JSON
   shareToken?: string | null;
   createdAt: number;
   updatedAt: number;
@@ -342,7 +342,7 @@ export type DiagramOperation =
   | {
       type: "CREATE";
       title: string;
-      diagramType: "mermaid" | "chart" | "excalidraw";
+      diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow";
       source: string;
     }
   | {
@@ -358,7 +358,7 @@ export interface UndoSnapshot {
   sheets: SheetData[];
   docContent: string;
   diagramSource: string;
-  diagramType: "mermaid" | "chart" | "excalidraw";
+  diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow";
   deckSlides: DeckSlide[];
   deckTheme: DeckTheme;
   label: string;
@@ -377,7 +377,7 @@ export interface AppState {
   docContent: string;
   docVersion: number;
   diagramSource: string;
-  diagramType: "mermaid" | "chart" | "excalidraw";
+  diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow";
   diagramVersion: number;
   deckSlides: DeckSlide[];
   deckTheme: DeckTheme;
@@ -480,7 +480,7 @@ export interface AppState {
   openTable: (tableId: string) => void;
 
   // Diagram CRUD
-  createDiagram: (projectId: string, title: string, diagramType?: "mermaid" | "chart" | "excalidraw", source?: string) => ProjectDiagram;
+  createDiagram: (projectId: string, title: string, diagramType?: "mermaid" | "chart" | "excalidraw" | "reactflow", source?: string) => ProjectDiagram;
   deleteDiagram: (projectId: string, diagramId: string) => void;
   renameDiagram: (projectId: string, diagramId: string, title: string) => void;
   openDiagram: (diagramId: string) => void;

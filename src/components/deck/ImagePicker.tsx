@@ -109,11 +109,12 @@ export function ImagePicker({ onSelect, onRemove, hasImage }: ImagePickerProps) 
           ) : (
             <>
               <div className="grid grid-cols-3 gap-1.5">
-                {results.map((img) => (
+                {results.map((img, idx) => (
                   <button
                     key={img.id}
                     onClick={() => { onSelect(img.urls.regular); setOpen(false); }}
-                    className="relative group rounded-lg overflow-hidden aspect-[4/3] bg-muted"
+                    className="relative group rounded-lg overflow-hidden aspect-[4/3] bg-muted animate-in fade-in duration-300"
+                    style={{ animationDelay: `${idx * 30}ms`, animationFillMode: "backwards" }}
                   >
                     <img
                       src={img.urls.thumb}

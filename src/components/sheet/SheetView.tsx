@@ -3,7 +3,6 @@
 import { useRef, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import { Table2 } from "lucide-react";
-import { design } from "@/lib/design";
 import { SheetAIBar } from "./SheetAIBar";
 import type { CellData, CellValue, SheetData } from "@/lib/types";
 import type { FUniver } from "@univerjs/core/lib/facade";
@@ -300,25 +299,21 @@ export function SheetView() {
   const showPlaceholder = !hadDataRef.current && !isStreaming && currentEntityType !== "table";
 
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full relative bg-background">
       {showPlaceholder && (
         <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
           <div className="flex flex-col items-center gap-3 text-center px-8">
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ backgroundColor: design.colors.accent.goldSubtle }}
-            >
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-emerald-50 dark:bg-emerald-950/30">
               <Table2
-                className="w-6 h-6"
-                style={{ color: design.colors.accent.gold }}
+                className="w-6 h-6 text-emerald-500"
                 strokeWidth={1.5}
               />
             </div>
             <div>
-              <p className="text-heading-sm mb-1" style={{ color: design.colors.text.secondary }}>
+              <p className="text-sm font-medium mb-1 text-muted-foreground">
                 Your spreadsheet will appear here
               </p>
-              <p className="text-ui-sm max-w-[280px]" style={{ color: design.colors.text.muted, fontWeight: 400 }}>
+              <p className="text-xs max-w-[280px] text-muted-foreground/70">
                 Ask the AI to create a tracker, budget, comparison table, or any structured data
               </p>
             </div>
@@ -341,11 +336,8 @@ export function SheetView() {
 function StreamingBar() {
   return (
     <div className="absolute top-0 left-0 right-0 z-50">
-      <div className="h-[2px] w-full overflow-hidden" style={{ backgroundColor: design.colors.accent.goldSubtle }}>
-        <div
-          className="h-full animate-progress-bar"
-          style={{ backgroundColor: design.colors.accent.gold }}
-        />
+      <div className="h-[2px] w-full overflow-hidden bg-emerald-100 dark:bg-emerald-950/30">
+        <div className="h-full animate-progress-bar bg-emerald-500" />
       </div>
     </div>
   );

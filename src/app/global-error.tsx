@@ -9,14 +9,14 @@ export default function GlobalError({
 }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, fontFamily: "system-ui, sans-serif" }}>
+      <body style={{ margin: 0, fontFamily: "'Inter', system-ui, sans-serif" }}>
         <div
           style={{
             minHeight: "100vh",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: "#FDFCFB",
+            backgroundColor: "#ffffff",
             padding: "1rem",
           }}
         >
@@ -25,7 +25,7 @@ export default function GlobalError({
               style={{
                 fontSize: 18,
                 fontWeight: 600,
-                color: "#21201C",
+                color: "#1a1a2e",
                 marginBottom: 8,
               }}
             >
@@ -34,7 +34,7 @@ export default function GlobalError({
             <p
               style={{
                 fontSize: 14,
-                color: "#9E9A91",
+                color: "#6b6b80",
                 marginBottom: 24,
               }}
             >
@@ -44,9 +44,9 @@ export default function GlobalError({
               onClick={reset}
               style={{
                 padding: "10px 20px",
-                borderRadius: 999,
+                borderRadius: 9999,
                 border: "none",
-                backgroundColor: "#FF6B00",
+                backgroundColor: "#ff4a00",
                 color: "#fff",
                 fontSize: 14,
                 fontWeight: 500,

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, Link2, Copy, Check, Globe, Lock, Loader2 } from "lucide-react";
-import { design } from "@/lib/design";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Link2, Check, Copy, Loader2, X } from "lucide-react";
+import { cn } from "@/lib/cn";
 import { toast } from "sonner";
 
 interface ShareModalProps {
@@ -26,11 +26,16 @@ export function ShareModal({
 }: ShareModalProps) {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const backdropRef = useRef<HTMLDivElement>(null);
 
   const isShared = !!currentToken;
   const shareUrl = currentToken
     ? `${typeof window !== "undefined" ? window.location.origin : ""}/share/${currentToken}`
     : "";
+
+  useEffect(() => {
+    if (open) setCopied(false);
+  }, [open]);
 
   useEffect(() => {
     if (copied) {
@@ -39,7 +44,15 @@ export function ShareModal({
     }
   }, [copied]);
 
-  if (!open) return null;
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open, onClose]);
 
   const toggleShare = async () => {
     setLoading(true);
@@ -50,118 +63,87 @@ export function ShareModal({
           : `/api/files/${entityId}/share`;
 
       if (isShared) {
-        // Unshare
         const res = await fetch(endpoint, { method: "DELETE" });
         if (!res.ok) throw new Error("Failed to unshare");
         onTokenChange(null);
         toast.success("Sharing disabled");
       } else {
-        // Share
         const res = await fetch(endpoint, { method: "POST" });
         if (!res.ok) throw new Error("Failed to share");
         const data = await res.json();
         onTokenChange(data.shareToken);
         toast.success("Share link created");
       }
-    } catch (err) {
+    } catch {
       toast.error("Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
-  const copyLink = () => {
-    if (shareUrl) {
-      navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      toast.success("Link copied to clipboard");
-    }
-  };
+  const handleCopy = useCallback(() => {
+    if (!shareUrl) return;
+    navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+  }, [shareUrl]);
+
+  if (!open) return null;
+
+  const title =
+    mode === "project"
+      ? "Share project"
+      : `Share "${entityTitle}"`;
 
   return (
-    <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/20 backdrop-blur-sm"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      {/* Backdrop */}
       <div
-        className="w-full max-w-[420px] rounded-xl border mx-4 animate-scale-in"
-        style={{
-          backgroundColor: design.colors.bg.elevated,
-          borderColor: design.colors.border.default,
-          boxShadow: design.shadows.xl,
-        }}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: design.colors.border.light }}>
-          <div className="flex items-center gap-2.5">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: design.colors.brand.subtle }}
-            >
-              <Link2 className="w-4 h-4" style={{ color: design.colors.brand.primary }} />
-            </div>
-            <div>
-              <p className="text-[14px] font-semibold" style={{ color: design.colors.text.primary }}>
-                Share {mode === "project" ? "Project" : "File"}
-              </p>
-              <p className="text-[11px]" style={{ color: design.colors.text.muted }}>
-                {entityTitle}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors"
-            style={{ color: design.colors.text.muted }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+        ref={backdropRef}
+        className="absolute inset-0 bg-black/50 animate-fade-in"
+        onClick={onClose}
+      />
 
-        {/* Body */}
-        <div className="px-5 py-5">
-          {/* Toggle */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div
-                className="w-9 h-9 rounded-lg flex items-center justify-center"
-                style={{
-                  backgroundColor: isShared ? design.colors.brand.subtle : design.colors.bg.secondary,
-                }}
-              >
-                {isShared ? (
-                  <Globe className="w-4.5 h-4.5" style={{ color: design.colors.brand.primary }} />
-                ) : (
-                  <Lock className="w-4.5 h-4.5" style={{ color: design.colors.text.muted }} />
-                )}
-              </div>
-              <div>
-                <p className="text-[13px] font-medium" style={{ color: design.colors.text.primary }}>
-                  {isShared ? "Anyone with the link can view" : "Only you can access"}
-                </p>
-                <p className="text-[11px]" style={{ color: design.colors.text.muted }}>
-                  {isShared ? "Read-only access, no editing" : "Enable sharing to create a public link"}
-                </p>
-              </div>
+      {/* Modal */}
+      <div
+        className="relative z-10 w-[calc(100%-2rem)] bg-background border border-border rounded-2xl shadow-xl animate-scale-in"
+        style={{ maxWidth: 440 }}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-1 rounded-md text-muted-foreground/60 hover:text-foreground transition-colors cursor-pointer"
+          aria-label="Close"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <div className="p-6">
+          {/* Header */}
+          <h2 className="text-lg font-semibold text-foreground pr-8 truncate mb-6">
+            {title}
+          </h2>
+
+          {/* Toggle row */}
+          <div className="flex items-center justify-between gap-4 mb-1">
+            <div>
+              <div className="text-[14px] text-foreground font-medium">Enable link sharing</div>
+              <div className="text-[12px] text-muted-foreground mt-0.5">Anyone with the link can view</div>
             </div>
             <button
               onClick={toggleShare}
               disabled={loading}
-              className="relative w-[44px] h-[24px] rounded-full transition-colors duration-200 flex-shrink-0"
-              style={{
-                backgroundColor: isShared ? design.colors.brand.primary : design.colors.border.focus,
-              }}
+              className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors duration-200 cursor-pointer"
+              style={{ background: isShared ? "#ff4a00" : "#e8e8ed" }}
+              aria-label={isShared ? "Disable sharing" : "Enable sharing"}
             >
               {loading ? (
-                <Loader2
-                  className="w-3.5 h-3.5 animate-spin absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-                  style={{ color: "white" }}
-                />
+                <Loader2 className="w-3.5 h-3.5 animate-spin absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white" />
               ) : (
                 <div
-                  className="absolute top-[2px] w-[20px] h-[20px] rounded-full bg-white transition-all duration-200"
+                  className="absolute top-[2px] w-5 h-5 rounded-full bg-white transition-all duration-200"
                   style={{
                     left: isShared ? "22px" : "2px",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
@@ -171,41 +153,36 @@ export function ShareModal({
             </button>
           </div>
 
-          {/* Share URL */}
+          {/* Link row */}
           {isShared && (
-            <div className="animate-fade-in">
-              <p className="text-[11px] font-medium mb-1.5" style={{ color: design.colors.text.secondary }}>
-                Share link
-              </p>
-              <div
-                className="flex items-center gap-2 p-2 rounded-lg border"
-                style={{
-                  backgroundColor: design.colors.bg.primary,
-                  borderColor: design.colors.border.default,
-                }}
-              >
-                <input
-                  readOnly
-                  value={shareUrl}
-                  className="flex-1 text-[12px] bg-transparent outline-none truncate px-1"
-                  style={{ color: design.colors.text.primary }}
-                  onClick={(e) => (e.target as HTMLInputElement).select()}
-                />
-                <button
-                  onClick={copyLink}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors flex-shrink-0"
-                  style={{
-                    backgroundColor: copied ? design.colors.status.successBg : design.colors.brand.primary,
-                    color: copied ? design.colors.status.success : design.colors.brand.text,
-                  }}
-                >
-                  {copied ? (
-                    <><Check className="w-3.5 h-3.5" /> Copied</>
-                  ) : (
-                    <><Copy className="w-3.5 h-3.5" /> Copy</>
-                  )}
-                </button>
+            <div className="flex gap-2 mt-5">
+              <div className="flex-1 h-10 bg-muted rounded-lg px-3 flex items-center gap-2 overflow-hidden">
+                <Link2 className="w-3.5 h-3.5 text-muted-foreground/50 flex-shrink-0" />
+                <span className="text-[13px] text-muted-foreground truncate select-all">
+                  {shareUrl}
+                </span>
               </div>
+              <button
+                onClick={handleCopy}
+                className={cn(
+                  "h-10 px-3.5 rounded-lg text-[13px] font-medium transition-all duration-150 flex items-center gap-1.5 flex-shrink-0 cursor-pointer",
+                  copied
+                    ? "bg-[#2e9e47] text-white"
+                    : "bg-[#ff4a00] text-white hover:bg-[#e54400]"
+                )}
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" strokeWidth={2} />
+                    Copy
+                  </>
+                )}
+              </button>
             </div>
           )}
         </div>

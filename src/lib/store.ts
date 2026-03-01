@@ -1725,7 +1725,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // ── Diagram CRUD ──
   // ══════════════════════════════════
 
-  createDiagram: (projectId: string, title: string, diagramType: "mermaid" | "chart" | "excalidraw" = "mermaid", source: string = "") => {
+  createDiagram: (projectId: string, title: string, diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow" = "mermaid", source: string = "") => {
     // Save current entity first, then re-read state to avoid stale projects
     if (get().currentEntityId) {
       get().saveCurrentEntity();

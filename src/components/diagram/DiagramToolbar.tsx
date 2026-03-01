@@ -4,7 +4,6 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { Code2, Eye, Download, Maximize2, Minimize2, ChevronDown, Image, FileCode2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
-import { design } from "@/lib/design";
 
 interface DiagramToolbarProps {
   showSource: boolean;
@@ -107,20 +106,10 @@ export function DiagramToolbar({
   }, [exporting]);
 
   return (
-    <div
-      className="flex items-center justify-between px-4 border-b flex-shrink-0"
-      style={{
-        height: "40px",
-        borderColor: design.colors.border.default,
-        backgroundColor: design.colors.bg.elevated,
-      }}
-    >
+    <div className="flex items-center justify-between px-4 border-b border-[#e8e7e4] flex-shrink-0 h-10 bg-white">
       {/* Left: type label */}
       <div className="flex items-center gap-2">
-        <span
-          className="text-[11px] font-semibold uppercase tracking-wider"
-          style={{ color: design.colors.text.muted }}
-        >
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#95928E]">
           {diagramType === "mermaid" ? "Diagram" : "Chart"}
         </span>
       </div>
@@ -138,13 +127,7 @@ export function DiagramToolbar({
         <div ref={exportMenuRef} className="relative">
           <button
             onClick={() => setExportMenuOpen(!exportMenuOpen)}
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors"
-            style={{
-              color: design.colors.text.secondary,
-              backgroundColor: exportMenuOpen ? design.colors.bg.hover : "transparent",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
-            onMouseLeave={(e) => { if (!exportMenuOpen) e.currentTarget.style.backgroundColor = "transparent"; }}
+            className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors duration-150 text-[#6b6b80] hover:bg-[#efeee9] ${exportMenuOpen ? "bg-[#efeee9]" : ""}`}
           >
             <Download className="w-3.5 h-3.5" />
             Export
@@ -152,32 +135,19 @@ export function DiagramToolbar({
           </button>
 
           {exportMenuOpen && (
-            <div
-              className="absolute top-full right-0 mt-1 border rounded-xl py-1 min-w-[150px] z-50"
-              style={{
-                backgroundColor: design.colors.bg.elevated,
-                borderColor: design.colors.border.default,
-                boxShadow: design.shadows.dropdown,
-              }}
-            >
+            <div className="absolute top-full right-0 mt-1 border border-[#e8e8ed] rounded-xl py-1 min-w-[150px] z-50 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.02)] animate-in fade-in zoom-in-95 duration-150">
               <button
                 onClick={() => exportAs("svg")}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-left transition-colors"
-                style={{ color: design.colors.text.primary }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-left transition-colors duration-150 text-[#1a1a2e] hover:bg-[#efeee9]"
               >
-                <FileCode2 className="w-3.5 h-3.5" style={{ color: design.colors.text.muted }} />
+                <FileCode2 className="w-3.5 h-3.5 text-[#95928E]" />
                 Export SVG
               </button>
               <button
                 onClick={() => exportAs("png")}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-left transition-colors"
-                style={{ color: design.colors.text.primary }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = design.colors.bg.hover; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-left transition-colors duration-150 text-[#1a1a2e] hover:bg-[#efeee9]"
               >
-                <Image className="w-3.5 h-3.5" style={{ color: design.colors.text.muted }} />
+                <Image className="w-3.5 h-3.5 text-[#95928E]" />
                 Export PNG
               </button>
             </div>
@@ -208,17 +178,11 @@ function ToolbarButton({
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium transition-colors"
-      style={{
-        color: active ? design.colors.brand.primary : design.colors.text.secondary,
-        backgroundColor: active ? design.colors.brand.subtle : "transparent",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = design.colors.bg.hover;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = active ? design.colors.brand.subtle : "transparent";
-      }}
+      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium transition-colors duration-150 active:scale-95 ${
+        active
+          ? "text-[#ff4a00] bg-[rgba(255,74,0,0.06)]"
+          : "text-[#6b6b80] hover:bg-[#efeee9]"
+      }`}
     >
       {icon}
       {label}

@@ -89,14 +89,16 @@ This is the largest file (~78KB). All client-side state lives in a single Zustan
 
 ## Design System
 
-Import tokens from `src/lib/design.ts`. CSS variables are defined in `globals.css` for dark mode support.
+CSS variables are defined in `globals.css`. Design tokens in `src/lib/design.ts`.
 
-- **Brand**: Electric orange `#FF6B00` on pure white
-- **Fonts**: Outfit (headings), DM Sans (body), JetBrains Mono (code)
-- **Entity colors**: doc `#6366F1`, sheet `#10B981`, diagram `#06B6D4`, deck `#F59E0B`
-- **Borders**: `#F0F0F0`, text hierarchy: `#111` / `#555` / `#999`
+- **Brand**: Electric orange `#ff4a00` — always use white (`#fff`) text on orange backgrounds. **NEVER use black or dark text on the primary orange.**
+- **Fonts**: Degular (headings), Inter (body), JetBrains Mono (code)
+- **Entity colors**: doc `#4a7aed`, sheet `#2e9e47`, diagram `#7c5cb8`, deck `#d4582a`
+- **Surfaces**: canvas `#f9f9fb`, NavRail `#fafaf8`, tab bar `#f7f5f2`, cards `white`
+- **Borders**: `#e8e7e4` (layout), `#e8e8ed` (components), `#dddfe3` (inputs)
+- **Text hierarchy**: `#1a1a2e` (primary) / `#6b6b80` (muted) / `#95928E` (subtle) / `#b0ada6` (hint)
 
-Always use `design.*` tokens rather than hardcoding colors. Use entity colors consistently when rendering entity-specific UI (icons, badges, tabs).
+Use entity colors consistently when rendering entity-specific UI (icons, badges, tabs, card backgrounds).
 
 ## Environment Variables
 

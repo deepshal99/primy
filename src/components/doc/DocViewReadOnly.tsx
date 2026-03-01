@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Plate, PlateContent, usePlateEditor } from "platejs/react";
+import { Plate, PlateContent, usePlateEditor, createPlatePlugin } from "platejs/react";
 import {
   BasicBlocksPlugin,
   BasicMarksPlugin,
@@ -12,7 +12,25 @@ import { ListPlugin } from "@platejs/list-classic/react";
 import { LinkPlugin } from "@platejs/link/react";
 import { TextAlignPlugin } from "@platejs/basic-styles/react";
 import { MarkdownPlugin } from "@platejs/markdown";
-import { design } from "@/lib/design";
+
+// HR void element plugin — prevents React from passing children to <hr>
+function HrElement({ attributes, children }: any) {
+  return (
+    <div {...attributes} contentEditable={false}>
+      <hr className="my-4 border-t border-border" />
+      {children}
+    </div>
+  );
+}
+
+const HrPlugin = createPlatePlugin({
+  key: 'hr',
+  node: {
+    isElement: true,
+    isVoid: true,
+    component: HrElement,
+  },
+});
 
 interface DocViewReadOnlyProps {
   content: string;
@@ -33,6 +51,7 @@ export function DocViewReadOnly({ content }: DocViewReadOnlyProps) {
       }),
       TextAlignPlugin,
       MarkdownPlugin,
+      HrPlugin,
     ],
     []
   );
@@ -63,8 +82,7 @@ export function DocViewReadOnly({ content }: DocViewReadOnlyProps) {
 
   return (
     <div
-      className="h-full flex flex-col"
-      style={{ backgroundColor: design.colors.bg.primary }}
+      className="h-full flex flex-col bg-background"
     >
       <div className="flex-1 overflow-y-auto">
         <Plate editor={editor} readOnly>

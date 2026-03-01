@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { design } from "@/lib/design";
+import { cn } from "@/lib/cn";
 import { FileText, Table2, GitBranch, Presentation, FolderOpen, Loader2, AlertCircle, Pen, ExternalLink } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -26,7 +26,7 @@ const DeckViewReadOnly = dynamic(
 type ShareData =
   | { type: "document"; title: string; content: string; projectTitle: string }
   | { type: "table"; title: string; sheets: any[]; projectTitle: string }
-  | { type: "diagram"; title: string; diagramType: "mermaid" | "chart" | "excalidraw"; source: string; projectTitle: string }
+  | { type: "diagram"; title: string; diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow"; source: string; projectTitle: string }
   | { type: "deck"; title: string; slides: any[]; theme: string; projectTitle: string }
   | { type: "project"; title: string; description?: string; documents: any[]; tables: any[]; diagrams?: any[]; decks?: any[] };
 
@@ -37,7 +37,6 @@ export default function SharePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // For project view: which file is selected
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<"document" | "table" | "diagram" | "deck" | null>(null);
 
@@ -50,7 +49,6 @@ export default function SharePage() {
       })
       .then((d) => {
         setData(d);
-        // Auto-select first file for project view
         if (d.type === "project") {
           if (d.documents?.length > 0) {
             setSelectedId(d.documents[0].id);
@@ -73,10 +71,10 @@ export default function SharePage() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center" style={{ backgroundColor: design.colors.bg.primary }}>
+      <div className="h-screen flex items-center justify-center bg-background">
         <div className="flex items-center gap-3">
-          <Loader2 className="w-5 h-5 animate-spin" style={{ color: design.colors.brand.primary }} />
-          <span className="text-[14px]" style={{ color: design.colors.text.secondary }}>Loading...</span>
+          <Loader2 className="w-5 h-5 animate-spin text-[#ff4a00]" />
+          <span className="text-sm text-muted-foreground">Loading...</span>
         </div>
       </div>
     );
@@ -84,26 +82,22 @@ export default function SharePage() {
 
   if (error || !data) {
     return (
-      <div className="h-screen flex items-center justify-center" style={{ backgroundColor: design.colors.bg.primary }}>
+      <div className="h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4 text-center px-8 max-w-md">
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center"
-            style={{ backgroundColor: design.colors.status.errorBg }}
-          >
-            <AlertCircle className="w-7 h-7" style={{ color: design.colors.status.error }} />
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-destructive/10">
+            <AlertCircle className="w-7 h-7 text-destructive" />
           </div>
           <div>
-            <p className="text-[16px] font-semibold mb-1" style={{ color: design.colors.text.primary }}>
+            <p className="text-base font-semibold mb-1 text-foreground">
               Link not found
             </p>
-            <p className="text-[13px]" style={{ color: design.colors.text.secondary }}>
+            <p className="text-[13px] text-muted-foreground">
               {error || "This shared link is no longer available."}
             </p>
           </div>
           <a
             href="/"
-            className="text-[13px] font-medium px-4 py-2 rounded-lg transition-colors"
-            style={{ color: design.colors.brand.primary, backgroundColor: design.colors.brand.subtle }}
+            className="text-[13px] font-medium px-4 py-2 rounded-lg bg-[rgba(255,74,0,0.06)] text-[#ff4a00] transition-colors hover:bg-[rgba(255,74,0,0.12)]"
           >
             Go to Drafta
           </a>
@@ -115,8 +109,8 @@ export default function SharePage() {
   // Single document
   if (data.type === "document") {
     return (
-      <div className="h-screen flex flex-col" style={{ backgroundColor: design.colors.bg.primary }}>
-        <ShareHeader title={data.title} subtitle={data.projectTitle} icon={<FileText className="w-4 h-4" style={{ color: design.colors.entity.doc }} />} />
+      <div className="h-screen flex flex-col bg-background animate-in fade-in duration-300">
+        <ShareHeader title={data.title} subtitle={data.projectTitle} icon={<FileText className="w-4 h-4 text-[#4a7aed]" />} />
         <div className="flex-1 overflow-hidden">
           <DocViewReadOnly content={data.content} />
         </div>
@@ -127,8 +121,8 @@ export default function SharePage() {
   // Single table
   if (data.type === "table") {
     return (
-      <div className="h-screen flex flex-col" style={{ backgroundColor: design.colors.bg.primary }}>
-        <ShareHeader title={data.title} subtitle={data.projectTitle} icon={<Table2 className="w-4 h-4" style={{ color: design.colors.entity.sheet }} />} />
+      <div className="h-screen flex flex-col bg-background animate-in fade-in duration-300">
+        <ShareHeader title={data.title} subtitle={data.projectTitle} icon={<Table2 className="w-4 h-4 text-[#2e9e47]" />} />
         <div className="flex-1 overflow-hidden">
           <SheetViewReadOnly sheets={data.sheets || []} />
         </div>
@@ -139,8 +133,8 @@ export default function SharePage() {
   // Single diagram
   if (data.type === "diagram") {
     return (
-      <div className="h-screen flex flex-col" style={{ backgroundColor: design.colors.bg.primary }}>
-        <ShareHeader title={data.title} subtitle={data.projectTitle} icon={<GitBranch className="w-4 h-4" style={{ color: design.colors.entity.diagram }} />} />
+      <div className="h-screen flex flex-col bg-background animate-in fade-in duration-300">
+        <ShareHeader title={data.title} subtitle={data.projectTitle} icon={<GitBranch className="w-4 h-4 text-[#7c5cb8]" />} />
         <div className="flex-1 overflow-hidden">
           <DiagramViewReadOnly source={data.source} diagramType={data.diagramType} />
         </div>
@@ -151,8 +145,8 @@ export default function SharePage() {
   // Single deck
   if (data.type === "deck") {
     return (
-      <div className="h-screen flex flex-col" style={{ backgroundColor: design.colors.bg.primary }}>
-        <ShareHeader title={data.title} subtitle={data.projectTitle} icon={<Presentation className="w-4 h-4" style={{ color: design.colors.entity.deck }} />} />
+      <div className="h-screen flex flex-col bg-background animate-in fade-in duration-300">
+        <ShareHeader title={data.title} subtitle={data.projectTitle} icon={<Presentation className="w-4 h-4 text-[#d4582a]" />} />
         <div className="flex-1 overflow-hidden">
           <DeckViewReadOnly slides={data.slides} theme={data.theme} />
         </div>
@@ -167,146 +161,67 @@ export default function SharePage() {
   const selectedDeck = data.decks?.find((d: any) => d.id === selectedId);
 
   return (
-    <div className="h-screen flex flex-col" style={{ backgroundColor: design.colors.bg.primary }}>
+    <div className="h-screen flex flex-col bg-background animate-in fade-in duration-300">
       <ShareHeader
         title={data.title}
         subtitle={data.description || "Shared project"}
-        icon={<FolderOpen className="w-4 h-4" style={{ color: design.colors.brand.primary }} />}
+        icon={<FolderOpen className="w-4 h-4 text-[#ff4a00]" />}
       />
       <div className="flex-1 flex overflow-hidden">
         {/* File sidebar */}
-        <div
-          className="w-[220px] flex-shrink-0 border-r overflow-y-auto"
-          style={{ borderColor: design.colors.border.default, backgroundColor: design.colors.bg.secondary }}
-        >
+        <div className="w-[220px] flex-shrink-0 border-r border-border overflow-y-auto bg-muted/50">
           <div className="p-3">
             {data.documents?.length > 0 && (
-              <div className="mb-3">
-                <p
-                  className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 px-2"
-                  style={{ color: design.colors.text.muted, letterSpacing: design.typography.letterSpacing.widest }}
-                >
-                  Documents
-                </p>
+              <SidebarSection title="Documents">
                 {data.documents.map((doc: any) => (
-                  <button
+                  <SidebarItem
                     key={doc.id}
+                    icon={<FileText className="w-3.5 h-3.5 text-[#4a7aed]" strokeWidth={1.8} />}
+                    label={doc.title}
+                    isActive={selectedId === doc.id}
                     onClick={() => { setSelectedId(doc.id); setSelectedType("document"); }}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12px] transition-colors text-left"
-                    style={{
-                      backgroundColor: selectedId === doc.id ? design.colors.bg.elevated : "transparent",
-                      color: selectedId === doc.id ? design.colors.text.primary : design.colors.text.secondary,
-                      fontWeight: selectedId === doc.id ? 500 : 400,
-                      boxShadow: selectedId === doc.id ? design.shadows.sm : "none",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (selectedId !== doc.id) e.currentTarget.style.backgroundColor = design.colors.bg.hover;
-                    }}
-                    onMouseLeave={(e) => {
-                      if (selectedId !== doc.id) e.currentTarget.style.backgroundColor = "transparent";
-                    }}
-                  >
-                    <FileText className="w-3.5 h-3.5 flex-shrink-0" style={{ color: design.colors.entity.doc }} strokeWidth={1.8} />
-                    <span className="truncate">{doc.title}</span>
-                  </button>
+                  />
                 ))}
-              </div>
+              </SidebarSection>
             )}
             {data.tables?.length > 0 && (
-              <div className="mb-3">
-                <p
-                  className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 px-2"
-                  style={{ color: design.colors.text.muted, letterSpacing: design.typography.letterSpacing.widest }}
-                >
-                  Tables
-                </p>
+              <SidebarSection title="Tables">
                 {data.tables.map((table: any) => (
-                  <button
+                  <SidebarItem
                     key={table.id}
+                    icon={<Table2 className="w-3.5 h-3.5 text-[#2e9e47]" strokeWidth={1.8} />}
+                    label={table.title}
+                    isActive={selectedId === table.id}
                     onClick={() => { setSelectedId(table.id); setSelectedType("table"); }}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12px] transition-colors text-left"
-                    style={{
-                      backgroundColor: selectedId === table.id ? design.colors.bg.elevated : "transparent",
-                      color: selectedId === table.id ? design.colors.text.primary : design.colors.text.secondary,
-                      fontWeight: selectedId === table.id ? 500 : 400,
-                      boxShadow: selectedId === table.id ? design.shadows.sm : "none",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (selectedId !== table.id) e.currentTarget.style.backgroundColor = design.colors.bg.hover;
-                    }}
-                    onMouseLeave={(e) => {
-                      if (selectedId !== table.id) e.currentTarget.style.backgroundColor = "transparent";
-                    }}
-                  >
-                    <Table2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: design.colors.entity.sheet }} strokeWidth={1.8} />
-                    <span className="truncate">{table.title}</span>
-                  </button>
+                  />
                 ))}
-              </div>
+              </SidebarSection>
             )}
             {data.diagrams && data.diagrams.length > 0 && (
-              <div>
-                <p
-                  className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 px-2"
-                  style={{ color: design.colors.text.muted, letterSpacing: design.typography.letterSpacing.widest }}
-                >
-                  Diagrams
-                </p>
+              <SidebarSection title="Diagrams">
                 {data.diagrams.map((diagram: any) => (
-                  <button
+                  <SidebarItem
                     key={diagram.id}
+                    icon={<GitBranch className="w-3.5 h-3.5 text-[#7c5cb8]" strokeWidth={1.8} />}
+                    label={diagram.title}
+                    isActive={selectedId === diagram.id}
                     onClick={() => { setSelectedId(diagram.id); setSelectedType("diagram"); }}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12px] transition-colors text-left"
-                    style={{
-                      backgroundColor: selectedId === diagram.id ? design.colors.bg.elevated : "transparent",
-                      color: selectedId === diagram.id ? design.colors.text.primary : design.colors.text.secondary,
-                      fontWeight: selectedId === diagram.id ? 500 : 400,
-                      boxShadow: selectedId === diagram.id ? design.shadows.sm : "none",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (selectedId !== diagram.id) e.currentTarget.style.backgroundColor = design.colors.bg.hover;
-                    }}
-                    onMouseLeave={(e) => {
-                      if (selectedId !== diagram.id) e.currentTarget.style.backgroundColor = "transparent";
-                    }}
-                  >
-                    <GitBranch className="w-3.5 h-3.5 flex-shrink-0" style={{ color: design.colors.entity.diagram }} strokeWidth={1.8} />
-                    <span className="truncate">{diagram.title}</span>
-                  </button>
+                  />
                 ))}
-              </div>
+              </SidebarSection>
             )}
             {data.decks && data.decks.length > 0 && (
-              <div>
-                <p
-                  className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 px-2"
-                  style={{ color: design.colors.text.muted, letterSpacing: design.typography.letterSpacing.widest }}
-                >
-                  Decks
-                </p>
+              <SidebarSection title="Decks">
                 {data.decks.map((deck: any) => (
-                  <button
+                  <SidebarItem
                     key={deck.id}
+                    icon={<Presentation className="w-3.5 h-3.5 text-[#d4582a]" strokeWidth={1.8} />}
+                    label={deck.title}
+                    isActive={selectedId === deck.id}
                     onClick={() => { setSelectedId(deck.id); setSelectedType("deck"); }}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12px] transition-colors text-left"
-                    style={{
-                      backgroundColor: selectedId === deck.id ? design.colors.bg.elevated : "transparent",
-                      color: selectedId === deck.id ? design.colors.text.primary : design.colors.text.secondary,
-                      fontWeight: selectedId === deck.id ? 500 : 400,
-                      boxShadow: selectedId === deck.id ? design.shadows.sm : "none",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (selectedId !== deck.id) e.currentTarget.style.backgroundColor = design.colors.bg.hover;
-                    }}
-                    onMouseLeave={(e) => {
-                      if (selectedId !== deck.id) e.currentTarget.style.backgroundColor = "transparent";
-                    }}
-                  >
-                    <Presentation className="w-3.5 h-3.5 flex-shrink-0" style={{ color: design.colors.entity.deck }} strokeWidth={1.8} />
-                    <span className="truncate">{deck.title}</span>
-                  </button>
+                  />
                 ))}
-              </div>
+              </SidebarSection>
             )}
           </div>
         </div>
@@ -327,7 +242,7 @@ export default function SharePage() {
           )}
           {!selectedId && (
             <div className="h-full flex items-center justify-center">
-              <p className="text-[13px]" style={{ color: design.colors.text.muted }}>
+              <p className="text-[13px] text-muted-foreground">
                 Select a file from the sidebar
               </p>
             </div>
@@ -340,35 +255,27 @@ export default function SharePage() {
 
 function ShareHeader({ title, subtitle, icon }: { title: string; subtitle?: string; icon: React.ReactNode }) {
   return (
-    <div
-      className="flex items-center justify-between px-4 border-b flex-shrink-0"
-      style={{
-        height: design.layout.headerHeight,
-        borderColor: design.colors.border.default,
-        backgroundColor: design.colors.bg.secondary,
-      }}
-    >
+    <div className="flex items-center justify-between px-4 border-b border-border flex-shrink-0 h-12 bg-muted/50">
       <div className="flex items-center gap-2.5 min-w-0">
         {icon}
         <div className="min-w-0">
-          <p className="text-[13px] font-semibold truncate" style={{ color: design.colors.text.primary }}>
+          <p className="text-[13px] font-semibold truncate text-foreground">
             {title}
           </p>
           {subtitle && (
-            <p className="text-[10px] truncate -mt-0.5" style={{ color: design.colors.text.muted }}>
+            <p className="text-[10px] truncate -mt-0.5 text-muted-foreground">
               {subtitle}
             </p>
           )}
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-[11px] font-medium" style={{ color: design.colors.text.muted }}>
+        <span className="text-[11px] font-medium text-muted-foreground">
           Shared via
         </span>
         <a
           href="/"
-          className="flex items-center gap-1.5 text-[12px] font-semibold transition-colors"
-          style={{ color: design.colors.brand.primary }}
+          className="flex items-center gap-1.5 text-xs font-semibold text-[#ff4a00] transition-colors hover:opacity-80"
         >
           <Pen className="w-3.5 h-3.5" strokeWidth={2} />
           Drafta
@@ -376,5 +283,33 @@ function ShareHeader({ title, subtitle, icon }: { title: string; subtitle?: stri
         </a>
       </div>
     </div>
+  );
+}
+
+function SidebarSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-3">
+      <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5 px-2 text-muted-foreground">
+        {title}
+      </p>
+      {children}
+    </div>
+  );
+}
+
+function SidebarItem({ icon, label, isActive, onClick }: { icon: React.ReactNode; label: string; isActive: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors text-left",
+        isActive
+          ? "bg-card text-foreground font-medium shadow-sm"
+          : "text-muted-foreground hover:bg-accent"
+      )}
+    >
+      <span className="flex-shrink-0">{icon}</span>
+      <span className="truncate">{label}</span>
+    </button>
   );
 }

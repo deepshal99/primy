@@ -19,7 +19,9 @@ function sanitizeUserContent(text: string): string {
     .replace(/<\/?current_sheet_data[^>]*>/g, "")
     .replace(/<\/?current_doc_content[^>]*>/g, "")
     .replace(/<\/?project_memory[^>]*>/g, "")
-    .replace(/<\/?uploaded_file[^>]*>/g, "");
+    .replace(/<\/?uploaded_file[^>]*>/g, "")
+    .replace(/<\/?mentioned_diagram[^>]*>/g, "")
+    .replace(/<\/?mentioned_deck[^>]*>/g, "");
 }
 
 export async function POST(req: Request) {
@@ -94,7 +96,6 @@ export async function POST(req: Request) {
     // Detect search-intent queries
     const userTextLower = textContent.toLowerCase();
     const hasSearchIntent =
-      /@\w+/.test(textContent) ||
       /\b(search|look up|find out|research|google|check online|latest|current|recent news)\b/i.test(textContent) ||
       /\b(how many followers|engagement rate|follower count|trending|stock price|weather)\b/i.test(textContent) ||
       /\b(instagram|twitter|youtube|tiktok|linkedin|reddit)\b/i.test(userTextLower);
@@ -123,6 +124,14 @@ export async function POST(req: Request) {
         for (const t of projectContext.relevantTables) {
           textContent += `\n\n<relevant_table title="${t.title}" id="${t.id}">\n${t.csvContent}\n</relevant_table>`;
         }
+      }
+
+      // Inject mentioned diagram/deck context
+      if (projectContext.mentionedDiagramContext) {
+        textContent += projectContext.mentionedDiagramContext;
+      }
+      if (projectContext.mentionedDeckContext) {
+        textContent += projectContext.mentionedDeckContext;
       }
 
       let projCtx = `\n\n<project_context>\nProject: "${projectContext.title}" (id: ${projectContext.id})`;
@@ -290,8 +299,9 @@ export async function POST(req: Request) {
           safeClose();
         } catch (error) {
           clearInterval(timeoutCheck);
+          const errMsg = error instanceof Error ? error.message : "Stream error";
+          console.error("[Drafta Chat] Stream error:", errMsg);
           if (!clientDisconnected) {
-            const errMsg = error instanceof Error ? error.message : "Stream error";
             // Handle Gemini rate limits
             const isRateLimit = errMsg.includes("quota") || errMsg.includes("rate") || errMsg.includes("429");
             safeEnqueue(
