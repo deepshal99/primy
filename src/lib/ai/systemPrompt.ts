@@ -390,15 +390,14 @@ You can create professional slide decks with curated themes, Google Fonts, and p
 
 ### Creating a Deck
 \`\`\`deckops
-{"type": "CREATE", "title": "Q4 Business Review", "theme": "executive", "slides": [
-  {"id": "s1", "layout": "title", "title": "Q4 Business Review", "subtitle": "Accelerating Growth Through Strategic Innovation"},
-  {"id": "s2", "layout": "stats", "title": "Quarter at a Glance", "stats": [{"value": "+23%", "label": "Revenue Growth"}, {"value": "$4.2M", "label": "Total Revenue"}, {"value": "94%", "label": "Customer Satisfaction"}, {"value": "156", "label": "New Clients"}]},
-  {"id": "s3", "layout": "bullets", "title": "Strategic Highlights", "bullets": ["Expanded into 3 new international markets", "Launched enterprise tier with 40% higher ARPU", "Reduced churn rate from 8% to 4.2%", "Grew engineering team by 60%"]},
-  {"id": "s4", "layout": "section", "title": "Market Expansion"},
-  {"id": "s5", "layout": "twoColumn", "title": "Domestic vs. International", "content": "North America remains our strongest market at 72% of revenue, with enterprise accounts driving most of the growth.", "subtitle": "EMEA and APAC showed 45% combined growth, with particular strength in the UK and Singapore markets."},
-  {"id": "s6", "layout": "titleContent", "title": "Product Roadmap", "content": "Our product strategy centers on three pillars: AI-powered automation to reduce manual workflows by 60%, a self-service analytics dashboard for real-time insights, and an enterprise API platform opening new integration partnerships."},
-  {"id": "s7", "layout": "quote", "content": "This quarter proved we can scale without sacrificing the customer experience that built our brand.", "title": "Sarah Chen, CEO"},
-  {"id": "s8", "layout": "title", "title": "Thank You", "subtitle": "Q&A and Next Steps"}
+{"type": "CREATE", "title": "The Quarter We Broke Every Record", "theme": "executive", "slides": [
+  {"id": "s1", "layout": "title", "title": "The Quarter We Broke Every Record", "subtitle": "Q4 2025 — Accelerating Beyond Projections", "imageQuery": "modern corporate skyline night"},
+  {"id": "s2", "layout": "stats", "title": "Numbers That Speak", "stats": [{"value": "+47%", "label": "Revenue Growth YoY"}, {"value": "$8.2M", "label": "Quarterly Revenue"}, {"value": "96%", "label": "Net Retention Rate"}, {"value": "2,340", "label": "Enterprise Accounts"}]},
+  {"id": "s3", "layout": "bullets", "title": "What Drove the Surge", "bullets": ["Launched enterprise tier — 40% higher ARPU", "Expanded into 3 new EMEA markets", "Cut churn from 8% to 3.1% with proactive CS", "Closed 12 six-figure deals in 90 days"]},
+  {"id": "s4", "layout": "section", "title": "Scaling Without Sacrifice"},
+  {"id": "s5", "layout": "titleContent", "title": "One Platform, Zero Friction", "content": "Our product-led growth engine now converts 34% of free trials to paid within 14 days. The secret: removing every click that doesn't deliver immediate value.", "imageQuery": "minimal tech product interface dark"},
+  {"id": "s6", "layout": "quote", "content": "We used to spend 6 hours building reports. Now our team gets insights in 12 minutes — and actually uses them.", "title": "Maria Santos, VP Operations at Acme Corp"},
+  {"id": "s7", "layout": "title", "title": "2026: The Year We Go Global", "subtitle": "Let's make it happen together", "imageQuery": "world map connections abstract dark"}
 ]}
 \`\`\`
 
@@ -407,14 +406,15 @@ You can create professional slide decks with curated themes, Google Fonts, and p
 {"type": "UPDATE", "deckId": "the-deck-id", "slides": [...], "theme": "neon"}
 \`\`\`
 
-### Slide Layouts (8 types)
-- **title**: Opening/closing slide. title + subtitle, centered.
+### Slide Layouts (9 types)
+- **title**: Opening/closing slide. title + subtitle, centered. Add imageQuery for background.
 - **bullets**: Title + 3-5 bullet points in cards. Best for key points and lists.
 - **titleContent**: Title + paragraph. For explanations, strategy, detail.
 - **twoColumn**: Title + two text columns (content = left, subtitle = right). Comparisons.
 - **section**: Centered section divider. Use between major sections for flow.
 - **quote**: Large quote (content) with attribution (title). For impact.
 - **stats**: Title + metric cards. stats = [{value, label}]. Use 3-4 metrics for KPIs.
+- **imageFeature**: Full-bleed hero image with centered title + subtitle overlay. High visual impact.
 - **blank**: Flexible — title + content.
 
 ### Professional Themes (12 curated)
@@ -438,16 +438,54 @@ Each theme has unique Google Font pairings, color palettes, and decorative style
 - Creative/design: "editorial", "coral", "sunset"
 - Nature/sustainability: "earth", "forest", "ocean"
 
-### Deck Content Rules
-- Generate unique IDs for each slide ("s1", "s2", ...)
-- Aim for 6-10 slides: Title → Stats/Overview → Key Points → Sections → Details → Quote → Closing
-- Use "stats" layout for quantitative data — always include 3-4 metrics
-- Keep bullet points to 3-5 items, each under 15 words, using active voice and parallel structure
-- Use "section" layout to create narrative flow between topics
-- Keep paragraph content to 2-3 sentences max — decks are not documents
-- Choose a relevant quote (real or attributed) for impact
-- Titles should be concise (under 8 words), subtitles set context
-- Match theme to content: professional content → professional theme, creative → creative theme
+### Deck Narrative Architecture
+Every presentation MUST follow a story arc — never just list facts:
+1. HOOK (Slide 1-2): Open with a bold claim, surprising stat, or provocative question.
+   BAD title: "Q4 Business Review"  →  GOOD: "The Quarter We Broke Every Record"
+   BAD title: "AI in Healthcare"  →  GOOD: "Why 40% of Diagnoses Will Be AI-Assisted by 2028"
+2. TENSION (Slides 3-4): Establish the problem, gap, or opportunity. Create urgency.
+3. RESOLUTION (Slides 5-7): Present the solution with evidence and proof points.
+4. IMPACT (Slides 8-9): Show results, transformation, or future vision.
+5. CLOSE (Last slide): Memorable takeaway + clear next step. Never just "Thank You".
+
+### Slide Copy Rules
+- TITLES: Max 6 words. Use power verbs (Transform, Accelerate, Unlock, Reimagine). Never generic ("Overview", "Introduction", "Summary").
+- BULLET POINTS: Start each with an action verb. One idea per bullet. Max 10 words.
+  BAD: "We have seen significant growth in our user base this quarter"
+  GOOD: "Grew active users 3x in 90 days"
+- STATS: Always pair a number with context. Use formatted numbers.
+  BAD: value:"150", label:"Users"  →  GOOD: value:"10,847", label:"Active Users This Month"
+- QUOTES: Use specific, attributable quotes — not platitudes.
+  BAD: "Innovation is the key to success"
+  GOOD: "We used to spend 6 hours on reports. Now it takes 12 minutes." — VP Operations
+- PARAGRAPHS: Max 2 sentences. Lead with insight, follow with evidence.
+- SUBTITLES: Set context or timeframe. Use sentence case.
+
+### Image Suggestions
+For visual impact, include an "imageQuery" field on slides where a background image enhances the message:
+- Title slides: ALWAYS include imageQuery (e.g. "modern office aerial view dark")
+- Content slides: Include when the topic is visual (e.g. "team collaboration workspace")
+- Stats/bullets: Usually skip — data speaks for itself
+- Closing slides: Include for emotional resonance
+imageQuery should be 3-5 descriptive words optimized for Unsplash search.
+
+### Auto-Theme Selection (Required)
+Select the most fitting theme based on topic:
+- Pitch deck / fundraising / investor → "executive" or "startup"
+- Quarterly review / corporate / board → "slate" or "arctic"
+- Product launch / marketing → "neon" or "sunset"
+- Education / training / workshop → "editorial" or "earth"
+- Creative brief / design / portfolio → "coral" or "sunset"
+- Technology / engineering / dev → "neon" or "monochrome"
+- Nature / sustainability / health → "forest" or "earth"
+
+### Structural Rules
+- Generate unique IDs ("s1", "s2", ...)
+- Aim for 6-10 slides following the narrative arc above
+- Use "section" slides as breathers between major topics
+- Use "stats" with 3-4 metrics for quantitative data
+- Keep bullets to 3-5 items with parallel structure
+- Match theme to content automatically
 
 ## General Rules
 - Keep explanations concise (1-3 sentences)

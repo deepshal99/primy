@@ -154,6 +154,7 @@ export interface Message {
   attachments?: FileAttachment[];
   interrupted?: boolean;
   groundingSources?: GroundingSource[];
+  mentionedEntities?: { id: string; type: EntityType; title: string }[];
 }
 
 // ═══ Conversation History (legacy — kept for migration) ═══
@@ -232,6 +233,8 @@ export interface Project {
 
 export type EntityType = "ku" | "table" | "diagram" | "deck";
 
+export type AIPhase = 'idle' | 'thinking' | 'streaming' | 'updating' | 'done';
+
 // ═══ Deck / Presentation ═══
 
 // Legacy — kept for backward compat with existing structured slides
@@ -239,13 +242,19 @@ export type DeckTheme = string;
 
 export interface DeckSlide {
   id: string;
-  layout: "title" | "bullets" | "titleContent" | "twoColumn" | "section" | "quote" | "blank" | "stats" | "html";
+  layout: "title" | "bullets" | "titleContent" | "twoColumn" | "section" | "quote" | "blank" | "stats" | "imageFeature" | "html";
   title?: string;
   subtitle?: string;
   content?: string;
   bullets?: string[];
   stats?: { value: string; label: string }[];
   notes?: string;
+  // Image support
+  backgroundImage?: string;       // Unsplash URL for slide background
+  backgroundOverlay?: string;     // CSS gradient overlay (default: dark gradient)
+  contentImage?: string;          // Image URL for inline content
+  imageQuery?: string;            // AI-suggested Unsplash search term
+  // Legacy HTML (deprecated — kept for backward compat)
   html?: string;
   htmlPrompt?: string;
   generatedBy?: "gemini" | "kimi";
@@ -345,8 +354,13 @@ export type DiagramOperation =
 // ═══ Undo History ═══
 
 export interface UndoSnapshot {
+  entityType: "ku" | "table" | "diagram" | "deck" | "mixed";
   sheets: SheetData[];
   docContent: string;
+  diagramSource: string;
+  diagramType: "mermaid" | "chart" | "excalidraw";
+  deckSlides: DeckSlide[];
+  deckTheme: DeckTheme;
   label: string;
   timestamp: number;
 }
@@ -374,6 +388,7 @@ export interface AppState {
   suggestions: string[];
   projectMemory: ProjectMemory;
   readingFiles: string[];
+  aiPhase: AIPhase;
 
   // Undo/Redo history
   undoStack: UndoSnapshot[];
@@ -397,8 +412,12 @@ export interface AppState {
   // Open file tabs
   openTabs: { id: string; type: EntityType; title: string }[];
 
+  // AI-modified entity highlights
+  aiModifiedEntityIds: string[];
+  clearAiModifiedEntity: (id: string) => void;
+
   // Chat/streaming actions
-  addUserMessage: (content: string, attachments?: FileAttachment[]) => void;
+  addUserMessage: (content: string, attachments?: FileAttachment[], mentionedEntities?: { id: string; type: EntityType; title: string }[]) => void;
   startStreaming: () => void;
   appendStreamChunk: (chunk: string) => void;
   finishStreaming: (
@@ -414,6 +433,7 @@ export interface AppState {
   abortStreaming: () => void;
   clearSuggestions: () => void;
   setReadingFiles: (files: string[]) => void;
+  setAIPhase: (phase: AIPhase) => void;
   applySheetOperations: (operations: SheetOperation[]) => void;
   applyDocOperations: (operations: DocOperation[]) => void;
   updateSheetData: (data: SheetData[]) => void;
