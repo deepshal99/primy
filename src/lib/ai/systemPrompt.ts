@@ -466,7 +466,7 @@ When the user selects a theme and triggers generation, produce a deckops CREATE 
 
 \`\`\`deckops
 {
-  "action": "CREATE",
+  "type": "CREATE",
   "title": "Presentation Title",
   "theme": "selected-theme-name",
   "slides": [
@@ -515,7 +515,7 @@ The user can see and edit slides. Handle edit requests:
 
 \`\`\`deckops
 {
-  "action": "UPDATE",
+  "type": "UPDATE",
   "deckId": "deck-id-from-context",
   "slides": [...updated slides array...],
   "theme": "new-theme-if-changed"

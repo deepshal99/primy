@@ -1876,7 +1876,7 @@ export const useAppStore = create<AppState>()(
       projectId,
       title,
       theme,
-      slides: slides || [{ id: nanoid(), layout: "title", title, subtitle: "" }],
+      slides: slides || [],
       createdAt: now,
       updatedAt: now,
     };
