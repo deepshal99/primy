@@ -26,4 +26,4 @@ next-env.d.ts
 /data/
 .vercel
 .claude/skills/claude-cookbooks-main.zip
-deck/
+/deck/
