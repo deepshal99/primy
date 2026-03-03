@@ -264,6 +264,15 @@ export type AIPhase = 'idle' | 'thinking' | 'streaming' | 'updating' | 'done';
 // Legacy — kept for backward compat with existing structured slides
 export type DeckTheme = string;
 
+export type DeckPhase = "gathering" | "outlining" | "theming" | "generating" | "viewing";
+
+export interface DeckOutlineItem {
+  id: string;
+  title: string;
+  description: string;
+  layout?: string;
+}
+
 export interface DeckSlide {
   id: string;
   layout: "title" | "bullets" | "titleContent" | "twoColumn" | "section" | "quote" | "blank" | "stats" | "imageFeature" | "html";
@@ -412,6 +421,10 @@ export interface AppState {
   deckSlides: DeckSlide[];
   deckTheme: DeckTheme;
   deckVersion: number;
+  deckPhase: DeckPhase;
+  deckOutline: DeckOutlineItem[];
+  deckGatheringProgress: number;
+  deckSuggestedThemes: DeckTheme[];
   activeTab: WorkspaceTab;
   workspaceOpen: boolean;
   pendingAttachments: FileAttachment[];
@@ -522,6 +535,12 @@ export interface AppState {
   openDeck: (deckId: string) => void;
   updateDeckSlides: (slides: DeckSlide[]) => void;
   updateDeckTheme: (theme: DeckTheme) => void;
+  setDeckPhase: (phase: DeckPhase) => void;
+  setDeckOutline: (outline: DeckOutlineItem[]) => void;
+  setDeckGatheringProgress: (progress: number) => void;
+  setDeckSuggestedThemes: (themes: DeckTheme[]) => void;
+  advanceDeckPhase: () => void;
+  resetDeckBuilder: () => void;
 
   // Tab management
   closeTab: (id: string) => void;

@@ -11,6 +11,9 @@ import {
   DiagramOperation,
   DeckOperation,
   DeckSlide,
+  DeckTheme,
+  DeckPhase,
+  DeckOutlineItem,
   FileAttachment,
   Conversation,
   UndoSnapshot,
@@ -195,6 +198,10 @@ export const useAppStore = create<AppState>()(
   deckSlides: [] as DeckSlide[],
   deckTheme: "light" as const,
   deckVersion: 0,
+  deckPhase: "viewing" as DeckPhase,
+  deckOutline: [] as DeckOutlineItem[],
+  deckGatheringProgress: 0,
+  deckSuggestedThemes: [] as DeckTheme[],
   activeTab: "sheet",
   workspaceOpen: false,
   pendingAttachments: [],
@@ -1849,6 +1856,19 @@ export const useAppStore = create<AppState>()(
     set({ projects: newProjects });
     saveProjectsToStorage(newProjects);
     get().openDeck(newDeck.id);
+
+    // New decks with no slides start in gathering phase
+    if (!slides || slides.length === 0) {
+      set({
+        deckPhase: "gathering" as DeckPhase,
+        deckOutline: [],
+        deckGatheringProgress: 0,
+        deckSuggestedThemes: [],
+      });
+    } else {
+      set({ deckPhase: "viewing" as DeckPhase });
+    }
+
     return newDeck;
   },
 
@@ -1968,6 +1988,7 @@ export const useAppStore = create<AppState>()(
       deckSlides: found.deck.slides,
       deckTheme: found.deck.theme,
       deckVersion: state.deckVersion + 1,
+      deckPhase: found.deck.slides.length > 0 ? "viewing" as DeckPhase : "gathering" as DeckPhase,
       workspaceOpen: true,
       openTabs: newTabs,
     });
@@ -1982,6 +2003,24 @@ export const useAppStore = create<AppState>()(
     set({ deckTheme: theme });
     scheduleDebouncedSave();
   },
+
+  setDeckPhase: (phase) => set({ deckPhase: phase }),
+  setDeckOutline: (outline) => set({ deckOutline: outline }),
+  setDeckGatheringProgress: (progress) => set({ deckGatheringProgress: progress }),
+  setDeckSuggestedThemes: (themes) => set({ deckSuggestedThemes: themes }),
+
+  advanceDeckPhase: () => {
+    const order: DeckPhase[] = ["gathering", "outlining", "theming", "generating", "viewing"];
+    const idx = order.indexOf(get().deckPhase);
+    if (idx < order.length - 1) set({ deckPhase: order[idx + 1] });
+  },
+
+  resetDeckBuilder: () => set({
+    deckPhase: "gathering" as DeckPhase,
+    deckOutline: [],
+    deckGatheringProgress: 0,
+    deckSuggestedThemes: [],
+  }),
 
   // ══════════════════════════════════
   // ── Tab Management ──
