@@ -343,6 +343,9 @@ export const useAppStore = create<AppState>()(
     let newDeckSlides = state.deckSlides;
     let newDeckTheme = state.deckTheme;
     let newDeckVersion = state.deckVersion;
+    let newDeckPhase = state.deckPhase;
+    let newDeckGatheringProgress = state.deckGatheringProgress;
+    let newDeckSuggestedThemes = state.deckSuggestedThemes;
 
     // Apply project-level KU and Table operations
     let newProjects = state.projects;
@@ -661,6 +664,8 @@ export const useAppStore = create<AppState>()(
                 newDeckSlides = newDeck.slides;
                 newDeckTheme = newDeck.theme;
                 newDeckVersion = state.deckVersion + 1;
+                // Transition to viewing phase after generation
+                newDeckPhase = "viewing";
                 if (!newOpenTabs.some((t) => t.id === newDeck.id)) {
                   newOpenTabs = [...newOpenTabs, { id: newDeck.id, type: "deck" as const, title: newDeck.title }];
                 }
@@ -757,11 +762,28 @@ export const useAppStore = create<AppState>()(
 
     // Parse deck outline blocks
     let newDeckOutline = state.deckOutline;
-    let newDeckPhase = state.deckPhase;
+
     const outlineItems = parseDeckOutline(fullContent);
     if (outlineItems.length > 0) {
       newDeckOutline = outlineItems;
       newDeckPhase = "outlining";
+    }
+
+    // Parse theme suggestions from AI response (e.g. "Suggested themes: startup, executive, arctic")
+    if (state.deckPhase === "outlining" || state.deckPhase === "theming") {
+      const themeMatch = fullContent.match(/[Ss]uggested themes?:\s*([a-z, ]+)/);
+      if (themeMatch) {
+        const themes = themeMatch[1].split(",").map((t: string) => t.trim()).filter(Boolean);
+        if (themes.length > 0) {
+          newDeckSuggestedThemes = themes;
+          newDeckPhase = "theming";
+        }
+      }
+    }
+
+    // Increment gathering progress when AI asks a question during gathering phase
+    if (state.deckPhase === "gathering" && fullContent.includes("?")) {
+      newDeckGatheringProgress = Math.min(state.deckGatheringProgress + 1, 5);
     }
 
     set({
@@ -780,6 +802,8 @@ export const useAppStore = create<AppState>()(
       deckVersion: newDeckVersion,
       deckOutline: newDeckOutline,
       deckPhase: newDeckPhase,
+      deckGatheringProgress: newDeckGatheringProgress,
+      deckSuggestedThemes: newDeckSuggestedThemes,
       activeTab: newActiveTab,
       workspaceOpen: state.workspaceOpen || !!shouldOpen,
       suggestions: suggestions || [],
