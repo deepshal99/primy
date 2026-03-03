@@ -8,6 +8,7 @@ import { ProjectHome } from "./ProjectHome";
 import { ExportMenu } from "@/components/sheet/ExportMenu";
 import { DocExportMenu } from "@/components/doc/DocExportMenu";
 import { DiagramExport, DiagramToolbar, DeckExport } from "./EntityActions";
+import { EditorErrorBoundary } from "./EditorErrorBoundary";
 
 const SheetPanel = dynamic(
   () => import("@/components/sheet/SheetPanel").then((m) => ({ default: m.SheetPanel })),
@@ -63,10 +64,10 @@ export function WorkspacePanel() {
   const isDeck = currentEntityType === "deck";
 
   const renderPanel = () => {
-    if (isDeck) return <DeckPanel />;
-    if (isDiagram) return <DiagramPanel showSource={diagramShowSource} fullscreen={diagramFullscreen} />;
-    if (isTable) return <SheetPanel />;
-    return <DocPanel />;
+    if (isDeck) return <EditorErrorBoundary entityType="presentation"><DeckPanel /></EditorErrorBoundary>;
+    if (isDiagram) return <EditorErrorBoundary entityType="diagram"><DiagramPanel showSource={diagramShowSource} fullscreen={diagramFullscreen} /></EditorErrorBoundary>;
+    if (isTable) return <EditorErrorBoundary entityType="spreadsheet"><SheetPanel /></EditorErrorBoundary>;
+    return <EditorErrorBoundary entityType="document"><DocPanel /></EditorErrorBoundary>;
   };
 
   const renderExportAction = () => {
