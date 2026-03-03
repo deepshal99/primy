@@ -29,7 +29,6 @@ export function MessageList() {
   const lastMessage = messages[messages.length - 1];
   const showSuggestions =
     !isStreaming &&
-    suggestions.length > 0 &&
     lastMessage?.role === "assistant";
 
   const hasMoreMessages = messages.length > visibleCount;
