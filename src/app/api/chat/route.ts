@@ -23,7 +23,8 @@ function sanitizeUserContent(text: string): string {
     .replace(/<\/?uploaded_file[^>]*>/g, "")
     .replace(/<\/?mentioned_diagram[^>]*>/g, "")
     .replace(/<\/?mentioned_deck[^>]*>/g, "")
-    .replace(/<\/?active_entity[^>]*>/g, "");
+    .replace(/<\/?active_entity[^>]*>/g, "")
+    .replace(/<\/?deck_phase[^>]*>/g, "");
 }
 
 export async function POST(req: Request) {
@@ -64,6 +65,7 @@ export async function POST(req: Request) {
       activeEntityType,
       activeEntityTitle,
       activeEntityContent,
+      deckPhase,
     } = body;
 
     if (!Array.isArray(messages) || messages.length === 0) {
@@ -151,6 +153,11 @@ export async function POST(req: Request) {
       }
 
       textContent += `\n\n<active_entity type="${typeLabel}" title="${activeEntityTitle}" id="${activeEntityId}">\n[Currently viewing: "${activeEntityTitle}" (${typeLabel})]\n${entityContent}\n</active_entity>`;
+    }
+
+    // Inject deck phase for conversational presentation flow
+    if (deckPhase && activeEntityType === "deck") {
+      textContent += `\n\n<deck_phase>${deckPhase}</deck_phase>`;
     }
 
     textContent += `\n\n<current_sheet_data>\n${sheetContext}\n</current_sheet_data>`;

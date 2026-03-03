@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
 import { EntityType, FileAttachment, GroundingSource } from "@/lib/types";
@@ -18,7 +18,7 @@ import {
 import { scoreRelevance } from "@/lib/ai/contextRelevance";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
-import { ExamplePrompts } from "./ExamplePrompts";
+import { ExamplePrompts, ENTITY_PILLS } from "./ExamplePrompts";
 
 
 interface ChatPanelProps {
@@ -54,6 +54,19 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         useAppStore.setState({ workspaceOpen: false });
       }
 
+      // Prepend entity type intent if user selected one from the empty-state pills
+      const entityIntent = selectedEntityTypeRef.current;
+      if (entityIntent) {
+        const intentLabels: Record<EntityType, string> = {
+          ku: "Create a document:",
+          table: "Create a spreadsheet:",
+          diagram: "Create a diagram:",
+          deck: "Create a presentation:",
+        };
+        content = `${intentLabels[entityIntent]} ${content}`;
+        setSelectedEntityType(null);
+      }
+
       // Snapshot messages BEFORE addUserMessage to avoid sending the new message twice
       const priorMessages = useAppStore.getState().messages;
 
@@ -69,7 +82,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         if (mentionedEntities && mentionedEntities.length > 0) {
           const typeLabels: Record<EntityType, string> = { ku: "document", table: "spreadsheet", diagram: "diagram", deck: "deck" };
           const refs = mentionedEntities.map((e) => `[User referenced: "${e.title}" (${typeLabels[e.type]})]`).join("\n");
-          enrichedContent = refs + "\n\n" + content;
+          enrichedContent = refs + "\n\n" + enrichedContent;
         }
 
         const allMessages = [
@@ -253,6 +266,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           activeEntityType,
           activeEntityTitle,
           activeEntityContent,
+          deckPhase: activeEntityType === "deck" ? state.deckPhase : undefined,
         };
 
         abortControllerRef.current = new AbortController();
@@ -434,12 +448,44 @@ export function ChatPanel({ centered }: ChatPanelProps) {
 
   const hasMessages = messages.length > 0;
   const currentProject = currentProjectId ? projects.find((p) => p.id === currentProjectId) : null;
+  const [selectedEntityType, setSelectedEntityType] = useState<EntityType | null>(null);
+  const selectedEntityTypeRef = useRef<EntityType | null>(null);
+  // Keep ref in sync so sendMessage callback always sees latest value
+  selectedEntityTypeRef.current = selectedEntityType;
+
+  // Compute placeholder based on selected entity type
+  const activePlaceholder = selectedEntityType
+    ? ENTITY_PILLS.find((p) => p.type === selectedEntityType)?.placeholder
+    : undefined;
+
+  // Handle entity pill click on fullscreen hero: create project + open blank entity
+  const handleEntityPillClick = useCallback((type: EntityType | null) => {
+    if (!type) return;
+    const store = useAppStore.getState();
+    // Create a new project
+    store.createProject("New Project");
+    const projectId = useAppStore.getState().currentProjectId;
+    if (!projectId) return;
+    // Create a blank entity of the chosen type and open workspace
+    if (type === "ku") {
+      store.createKnowledgeUnit(projectId, "Untitled Document");
+    } else if (type === "table") {
+      store.createTable(projectId, "Untitled Spreadsheet");
+    } else if (type === "diagram") {
+      store.createDiagram(projectId, "Untitled Diagram");
+    } else if (type === "deck") {
+      store.createDeck(projectId, "Untitled Presentation");
+    }
+    useAppStore.setState({ workspaceOpen: true });
+  }, []);
+
+  // Empty + centered = hero layout with chatbox in the middle
+  const showHeroLayout = centered && !hasMessages;
 
   return (
     <div
       className={cn(
-        "flex flex-col h-full bg-background",
-        !centered && "border-r border-[#e8e7e4]"
+        "flex flex-col h-full bg-background"
       )}
     >
       {/* Chat header -- sidebar mode only */}
@@ -451,30 +497,61 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         </div>
       )}
 
-      {/* Content area */}
-      <div className="flex-1 overflow-y-auto">
-        {hasMessages ? (
-          <div className={centered ? "max-w-[680px] mx-auto w-full px-6" : ""}>
-            <MessageList />
-          </div>
-        ) : (
-          <ExamplePrompts
-            onSelect={sendMessage}
-            centered={centered}
-            hasProject={!!currentProjectId}
-          />
-        )}
-      </div>
+      {showHeroLayout ? (
+        /* Centered empty state: title + chatbox + entity pills */
+        <div className="flex-1 flex flex-col items-center justify-center px-6 pb-12">
+          <div className="w-full max-w-[680px]">
+            {/* Title */}
+            <h1 className="font-heading text-[32px] font-semibold text-foreground text-center mb-7 tracking-[-0.03em] leading-tight">
+              What are you working on?
+            </h1>
 
-      {/* Input */}
-      <div className={centered ? "max-w-[680px] mx-auto w-full px-6" : ""}>
-        <ChatInput
-          onSend={sendMessage}
-          disabled={isStreaming}
-          centered={centered}
-          onStop={stopStreaming}
-        />
-      </div>
+            {/* Chat input */}
+            <ChatInput
+              onSend={sendMessage}
+              disabled={isStreaming}
+              centered={centered}
+              onStop={stopStreaming}
+              placeholder={activePlaceholder || "Describe what you want to create..."}
+            />
+
+            {/* Entity type pills — click to create project + open blank entity */}
+            <div className="mt-5">
+              <ExamplePrompts
+                centered
+                selectedEntityType={selectedEntityType}
+                onEntityTypeSelect={handleEntityPillClick}
+              />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Content area */}
+          <div className="flex-1 overflow-y-auto">
+            {hasMessages ? (
+              <div className={centered ? "max-w-[680px] mx-auto w-full px-6" : ""}>
+                <MessageList />
+              </div>
+            ) : (
+              <ExamplePrompts
+                onSelect={sendMessage}
+                hasProject={!!currentProjectId}
+              />
+            )}
+          </div>
+
+          {/* Input — pinned to bottom */}
+          <div className={centered ? "max-w-[680px] mx-auto w-full px-6" : ""}>
+            <ChatInput
+              onSend={sendMessage}
+              disabled={isStreaming}
+              centered={centered}
+              onStop={stopStreaming}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }
