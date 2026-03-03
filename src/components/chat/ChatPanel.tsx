@@ -217,17 +217,49 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           }
         }
 
+        // Resolve active entity metadata for context injection
+        const activeEntityId = state.currentEntityId ?? undefined;
+        const activeEntityType = state.currentEntityType ?? undefined;
+        let activeEntityTitle: string | undefined;
+        let activeEntityContent: string | undefined;
+        if (activeEntityId && activeEntityType && state.currentProjectId) {
+          const proj = state.projects.find((p) => p.id === state.currentProjectId);
+          if (proj) {
+            if (activeEntityType === "ku") {
+              const ku = proj.knowledgeUnits.find((k) => k.id === activeEntityId);
+              activeEntityTitle = ku?.title;
+            } else if (activeEntityType === "table") {
+              const tbl = proj.tables.find((t) => t.id === activeEntityId);
+              activeEntityTitle = tbl?.title;
+            } else if (activeEntityType === "diagram") {
+              const diag = (proj.diagrams || []).find((d) => d.id === activeEntityId);
+              activeEntityTitle = diag?.title;
+              activeEntityContent = diag?.source;
+            } else if (activeEntityType === "deck") {
+              const dk = (proj.decks || []).find((d) => d.id === activeEntityId);
+              activeEntityTitle = dk?.title;
+              activeEntityContent = dk ? JSON.stringify(dk.slides) : undefined;
+            }
+          }
+        }
+
+        const chatPayload = {
+          messages: allMessages,
+          sheetData: state.sheets,
+          docContent: state.docContent,
+          projectMemory: state.projectMemory,
+          projectContext,
+          activeEntityId,
+          activeEntityType,
+          activeEntityTitle,
+          activeEntityContent,
+        };
+
         abortControllerRef.current = new AbortController();
         let response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: allMessages,
-            sheetData: state.sheets,
-            docContent: state.docContent,
-            projectMemory: state.projectMemory,
-            projectContext,
-          }),
+          body: JSON.stringify(chatPayload),
           signal: abortControllerRef.current.signal,
         });
 
@@ -242,13 +274,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           const retryResponse = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              messages: allMessages,
-              sheetData: state.sheets,
-              docContent: state.docContent,
-              projectMemory: state.projectMemory,
-              projectContext,
-            }),
+            body: JSON.stringify(chatPayload),
             signal: abortControllerRef.current.signal,
           });
           if (!retryResponse.ok) {

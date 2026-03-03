@@ -22,7 +22,8 @@ function sanitizeUserContent(text: string): string {
     .replace(/<\/?project_memory[^>]*>/g, "")
     .replace(/<\/?uploaded_file[^>]*>/g, "")
     .replace(/<\/?mentioned_diagram[^>]*>/g, "")
-    .replace(/<\/?mentioned_deck[^>]*>/g, "");
+    .replace(/<\/?mentioned_deck[^>]*>/g, "")
+    .replace(/<\/?active_entity[^>]*>/g, "");
 }
 
 export async function POST(req: Request) {
@@ -53,7 +54,17 @@ export async function POST(req: Request) {
       });
     }
 
-    const { messages, sheetData, docContent, projectMemory, projectContext } = body;
+    const {
+      messages,
+      sheetData,
+      docContent,
+      projectMemory,
+      projectContext,
+      activeEntityId,
+      activeEntityType,
+      activeEntityTitle,
+      activeEntityContent,
+    } = body;
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: "messages array is required" }), {
@@ -117,6 +128,29 @@ export async function POST(req: Request) {
       for (const att of lastMessage.attachmentTexts) {
         textContent += `\n\n<uploaded_file name="${att.name}">\n${att.text}\n</uploaded_file>`;
       }
+    }
+
+    // Inject active entity context so the AI knows what the user is currently viewing
+    if (activeEntityId && activeEntityType && activeEntityTitle) {
+      const ACTIVE_ENTITY_CAP = 10 * 1024; // 10KB
+      const entityTypeLabels: Record<string, string> = {
+        ku: "document",
+        table: "sheet",
+        diagram: "diagram",
+        deck: "deck",
+      };
+      const typeLabel = entityTypeLabels[activeEntityType] || activeEntityType;
+      let entityContent = "";
+
+      if (activeEntityType === "ku" && docContent) {
+        entityContent = String(docContent).slice(0, ACTIVE_ENTITY_CAP);
+      } else if (activeEntityType === "table" && sheetContext) {
+        entityContent = sheetContext.slice(0, ACTIVE_ENTITY_CAP);
+      } else if (activeEntityContent) {
+        entityContent = String(activeEntityContent).slice(0, ACTIVE_ENTITY_CAP);
+      }
+
+      textContent += `\n\n<active_entity type="${typeLabel}" title="${activeEntityTitle}" id="${activeEntityId}">\n[Currently viewing: "${activeEntityTitle}" (${typeLabel})]\n${entityContent}\n</active_entity>`;
     }
 
     textContent += `\n\n<current_sheet_data>\n${sheetContext}\n</current_sheet_data>`;

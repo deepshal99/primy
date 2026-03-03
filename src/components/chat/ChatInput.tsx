@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { ArrowUp, Plus, Upload, Square, X } from "lucide-react";
+import { ArrowUp, Plus, Upload, Square, X, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
 import { FileAttachment, EntityType } from "@/lib/types";
@@ -89,6 +89,16 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
     }
     return entities;
   }, [projects, currentProjectId]);
+
+  // Resolve the active entity title for the context indicator
+  const currentEntityId = useAppStore((s) => s.currentEntityId);
+  const currentEntityType = useAppStore((s) => s.currentEntityType);
+  const activeEntityInfo = useMemo(() => {
+    if (!currentEntityId || !currentEntityType) return null;
+    const entity = allEntities.find((e) => e.id === currentEntityId && e.type === currentEntityType);
+    if (!entity) return null;
+    return { title: entity.title, type: currentEntityType };
+  }, [currentEntityId, currentEntityType, allEntities]);
 
   // Filter entities by mention query
   const filteredEntities = useMemo(() => {
@@ -339,6 +349,19 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
 
   return (
     <div className={cn("px-3 pb-4 pt-2", centered && "px-6")}>
+      {/* Active entity context indicator */}
+      {activeEntityInfo && (
+        <div className="flex items-center gap-1.5 px-2 pb-1.5">
+          <Eye className="w-3 h-3 text-[#95928E] shrink-0" strokeWidth={1.8} />
+          <span className="text-[11px] text-[#95928E] leading-none truncate max-w-[280px]">
+            AI can see:{" "}
+            <span className="font-medium text-[#6b6b80]" title={activeEntityInfo.title}>
+              &ldquo;{activeEntityInfo.title.length > 40 ? activeEntityInfo.title.slice(0, 40) + "..." : activeEntityInfo.title}&rdquo;
+            </span>
+            {" "}({ENTITY_LABELS[activeEntityInfo.type].toLowerCase()})
+          </span>
+        </div>
+      )}
       <div
         className={cn(
           "relative rounded-[20px] border border-[#dddfe3] bg-card shadow-[0px_2px_4px_0px_rgba(0,0,0,0.06)] transition-all duration-150",
