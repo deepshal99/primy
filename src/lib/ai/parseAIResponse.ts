@@ -1,4 +1,4 @@
-import { SheetOperation, DocOperation, KuOperation, TableOperation, DiagramOperation, DeckOperation } from "@/lib/types";
+import { SheetOperation, DocOperation, KuOperation, TableOperation, DiagramOperation, DeckOperation, DeckOutlineItem } from "@/lib/types";
 
 /**
  * Extract content between ```tag and ``` fences.
@@ -336,10 +336,34 @@ export function parseDeckOperations(fullText: string): DeckOperation[] {
   return operations;
 }
 
+// ── Deck Outline Parser ──
+
+export function parseDeckOutline(fullText: string): DeckOutlineItem[] {
+  const blocks = extractFencedBlocks(fullText, "deckoutline");
+  for (const block of blocks) {
+    try {
+      const parsed = JSON.parse(block);
+      if (parsed.slides && Array.isArray(parsed.slides)) {
+        return parsed.slides.map((s: any, i: number) => ({
+          id: `outline-${i}-${Date.now()}`,
+          title: s.title || `Slide ${i + 1}`,
+          description: s.description || "",
+          layout: s.layout,
+        }));
+      }
+    } catch {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[Drafta] Failed to parse deckoutline block:", block.slice(0, 200));
+      }
+    }
+  }
+  return [];
+}
+
 export function extractDisplayText(fullText: string): string {
   // Use the same extraction approach — find fenced blocks and remove them
   let result = fullText;
-  for (const tag of ["sheetops", "docops", "kuops", "tableops", "diagramops", "deckops"]) {
+  for (const tag of ["sheetops", "docops", "kuops", "tableops", "diagramops", "deckops", "deckoutline"]) {
     const openPattern = new RegExp("```" + tag + "\\s*\\n?", "g");
     let openMatch: RegExpExecArray | null;
     const ranges: [number, number][] = [];
@@ -405,12 +429,12 @@ export function parseSuggestions(fullText: string): string[] {
   try {
     const parsed = JSON.parse(match[1]);
     if (Array.isArray(parsed)) {
-      return parsed.filter((s): s is string => typeof s === "string").slice(0, 3);
+      return parsed.filter((s): s is string => typeof s === "string").slice(0, 4);
     }
   } catch {
     // Try line-by-line fallback
     const lines = match[1].split("\n").map((l) => l.replace(/^[-*]\s*/, "").replace(/^["']|["']$/g, "").trim()).filter(Boolean);
-    if (lines.length > 0) return lines.slice(0, 3);
+    if (lines.length > 0) return lines.slice(0, 4);
   }
   return [];
 }

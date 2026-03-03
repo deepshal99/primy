@@ -27,6 +27,7 @@ import {
 import { createEmptySheet } from "@/lib/sheet/defaultData";
 import { applyOperations, normalizeCells } from "@/lib/ai/sheetOperations";
 import { applyDocOps } from "@/lib/ai/docOperations";
+import { parseDeckOutline } from "@/lib/ai/parseAIResponse";
 import {
   fetchProjects,
   fetchFullProject,
@@ -754,6 +755,15 @@ export const useAppStore = create<AppState>()(
       }
     }
 
+    // Parse deck outline blocks
+    let newDeckOutline = state.deckOutline;
+    let newDeckPhase = state.deckPhase;
+    const outlineItems = parseDeckOutline(fullContent);
+    if (outlineItems.length > 0) {
+      newDeckOutline = outlineItems;
+      newDeckPhase = "outlining";
+    }
+
     set({
       messages: [...state.messages, newMessage],
       isStreaming: false,
@@ -768,6 +778,8 @@ export const useAppStore = create<AppState>()(
       deckSlides: newDeckSlides,
       deckTheme: newDeckTheme,
       deckVersion: newDeckVersion,
+      deckOutline: newDeckOutline,
+      deckPhase: newDeckPhase,
       activeTab: newActiveTab,
       workspaceOpen: state.workspaceOpen || !!shouldOpen,
       suggestions: suggestions || [],
