@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { nanoid } from "nanoid";
 import {
   Plus, Trash2, ChevronUp, ChevronDown, Copy, StickyNote,
-  LayoutTemplate, Palette, GripVertical, Play,
+  LayoutTemplate, Palette, GripVertical, Play, Presentation, Sparkles,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/cn";
@@ -399,7 +399,35 @@ export function DeckPanel() {
               />
             </div>
           ) : (
-            <p className="text-xs text-[#95928E]">No slides yet</p>
+            <div className="flex flex-col items-center gap-4 text-center px-8">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[#fde8dc]">
+                <Presentation className="w-5 h-5 text-[#F59E0B]" strokeWidth={1.5} />
+              </div>
+              <div>
+                <p className="text-[13px] font-medium mb-1.5 text-[#95928E]">
+                  No slides yet
+                </p>
+                <p className="text-[11px] text-[#b0ada6] mb-4 max-w-[260px] leading-relaxed">
+                  Ask AI to generate a presentation from a topic, or add your first slide manually
+                </p>
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    onClick={() => setShowAIDialog(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-[#d4582a] text-white hover:bg-[#c04d25] transition-colors"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    Generate with AI
+                  </button>
+                  <button
+                    onClick={() => addSlide(-1)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border border-[#e8e7e4] text-[#6b6b80] hover:bg-[#f7f6f3] transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Blank slide
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
 

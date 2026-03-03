@@ -591,14 +591,14 @@ export function DocView() {
           <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
             <div className="flex flex-col items-center gap-3 text-center px-8">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[#f0f4fd]">
-                <FileText className="w-6 h-6 text-[#4a7aed]" strokeWidth={1.5} />
+                <FileText className="w-5 h-5 text-[#6366F1]" strokeWidth={1.5} />
               </div>
               <div>
-                <p className="text-sm font-medium mb-1 text-muted-foreground">
-                  Your document will appear here
+                <p className="text-[13px] font-medium mb-1 text-[#95928E]">
+                  Start typing or ask AI to write
                 </p>
-                <p className="text-xs max-w-[280px] text-muted-foreground/70">
-                  Ask the AI to draft, outline, brainstorm, or write any content
+                <p className="text-[12px] max-w-[280px] text-[#b0ada6] leading-relaxed">
+                  Draft a document, outline ideas, or brainstorm — click here to begin or describe what you need in chat
                 </p>
               </div>
             </div>
@@ -608,7 +608,7 @@ export function DocView() {
           <PlateContent
             className="doc-editor focus:outline-none px-12 py-10 min-h-full max-w-[800px] mx-auto"
             style={{ lineHeight: "1.8" }}
-            placeholder="Start writing, or ask the AI to draft something..."
+            placeholder="Start typing or ask AI to help write something..."
           />
           {/* Selection Bubble - must be inside <Plate> for editor.selection access */}
           <SelectionBubble editor={editor} containerRef={editorContainerRef} />

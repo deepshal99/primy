@@ -8,6 +8,7 @@ import {
   PieChart, Pie, Cell, ScatterChart, Scatter,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
+import { GitBranch, MessageSquare, PenTool } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const ExcalidrawEditor = dynamic(
@@ -288,9 +289,27 @@ function MermaidRenderer({ source }: { source: string }) {
   if (!source.trim()) {
     return (
       <div className="h-full flex items-center justify-center">
-        <p className="text-[13px] text-muted-foreground">
-          No diagram source yet. Ask AI to create a diagram!
-        </p>
+        <div className="flex flex-col items-center gap-3 text-center px-8">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[#e6fafb]">
+            <GitBranch className="w-5 h-5 text-[#06B6D4]" strokeWidth={1.5} />
+          </div>
+          <div>
+            <p className="text-[13px] font-medium mb-1.5 text-[#95928E]">
+              No diagram yet
+            </p>
+            <div className="flex items-center justify-center gap-4 text-[11px] text-[#b0ada6]">
+              <span className="flex items-center gap-1">
+                <MessageSquare className="w-3 h-3" />
+                Describe it in chat
+              </span>
+              <span className="text-[#d0cfc9]">/</span>
+              <span className="flex items-center gap-1">
+                <PenTool className="w-3 h-3" />
+                Draw with Excalidraw
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -369,9 +388,19 @@ function ChartRenderer({ source }: { source: string }) {
   if (!source.trim()) {
     return (
       <div className="h-full flex items-center justify-center">
-        <p className="text-[13px] text-muted-foreground">
-          No chart data yet. Ask AI to create a chart!
-        </p>
+        <div className="flex flex-col items-center gap-3 text-center px-8">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[#e6fafb]">
+            <GitBranch className="w-5 h-5 text-[#06B6D4]" strokeWidth={1.5} />
+          </div>
+          <div>
+            <p className="text-[13px] font-medium mb-1 text-[#95928E]">
+              No chart data yet
+            </p>
+            <p className="text-[11px] text-[#b0ada6]">
+              Ask AI to create a chart from your data
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
