@@ -9,7 +9,7 @@ import type { DeckOutlineItem } from "@/lib/types";
 /* ── tiny id helper ── */
 const uid = () => Math.random().toString(36).slice(2, 10);
 
-export default function DeckOutlineEditor() {
+export function DeckOutlineEditor() {
   const outline = useAppStore((s) => s.deckOutline);
   const setOutline = useAppStore((s) => s.setDeckOutline);
   const setPhase = useAppStore((s) => s.setDeckPhase);
