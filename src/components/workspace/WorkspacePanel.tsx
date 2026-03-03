@@ -22,8 +22,8 @@ const DiagramPanel = dynamic(
   () => import("@/components/diagram/DiagramPanel").then((m) => ({ default: m.DiagramPanel })),
   { ssr: false, loading: () => <PanelSkeleton /> }
 );
-const DeckPanel = dynamic(
-  () => import("@/components/deck/DeckPanel").then((m) => ({ default: m.DeckPanel })),
+const DeckBuilder = dynamic(
+  () => import("@/components/deck/DeckBuilder").then((m) => ({ default: m.DeckBuilder })),
   { ssr: false, loading: () => <PanelSkeleton /> }
 );
 
@@ -64,7 +64,7 @@ export function WorkspacePanel() {
   const isDeck = currentEntityType === "deck";
 
   const renderPanel = () => {
-    if (isDeck) return <EditorErrorBoundary entityType="presentation"><DeckPanel /></EditorErrorBoundary>;
+    if (isDeck) return <EditorErrorBoundary entityType="presentation"><DeckBuilder /></EditorErrorBoundary>;
     if (isDiagram) return <EditorErrorBoundary entityType="diagram"><DiagramPanel showSource={diagramShowSource} fullscreen={diagramFullscreen} /></EditorErrorBoundary>;
     if (isTable) return <EditorErrorBoundary entityType="spreadsheet"><SheetPanel /></EditorErrorBoundary>;
     return <EditorErrorBoundary entityType="document"><DocPanel /></EditorErrorBoundary>;

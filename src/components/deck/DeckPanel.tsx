@@ -1,3 +1,4 @@
+// DEPRECATED: Replaced by DeckBuilder.tsx. Remove after v2 is stable.
 "use client";
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
@@ -12,8 +13,8 @@ import { DeckSlide } from "@/lib/types";
 import { SlideRenderer, SlideEditHandlers } from "./SlideRenderer";
 import { resolveTheme, loadThemeFonts, deckThemes, activeThemeKeys, getThemeConfig } from "./deckThemes";
 import { PresentationMode } from "./PresentationMode";
-import { DeckAIGenerateDialog } from "./DeckAIGenerateDialog";
-import { ImagePicker } from "./ImagePicker";
+// DeckAIGenerateDialog and ImagePicker were removed — see DeckBuilder.tsx
+
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -308,11 +309,7 @@ export function DeckPanel() {
 
               {/* Image + Notes group */}
               <div className="flex items-center gap-1">
-                <ImagePicker
-                  onSelect={(url) => updateSlide(activeIdx, { backgroundImage: url })}
-                  onRemove={() => updateSlide(activeIdx, { backgroundImage: undefined, backgroundOverlay: undefined })}
-                  hasImage={!!activeSlide.backgroundImage}
-                />
+                {/* ImagePicker removed — see DeckBuilder.tsx */}
 
                 <TooltipProvider delayDuration={300}>
                   <Tooltip>
@@ -455,13 +452,7 @@ export function DeckPanel() {
         />
       )}
 
-      {/* AI Generate dialog */}
-      {showAIDialog && (
-        <DeckAIGenerateDialog
-          onClose={() => setShowAIDialog(false)}
-          onApply={handleAIApply}
-        />
-      )}
+      {/* DeckAIGenerateDialog removed — see DeckBuilder.tsx */}
     </div>
   );
 }
