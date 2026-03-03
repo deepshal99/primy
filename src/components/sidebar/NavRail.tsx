@@ -53,7 +53,6 @@ export function NavRail() {
   const projects = useAppStore((s) => s.projects);
   const currentProjectId = useAppStore((s) => s.currentProjectId);
   const loadProjects = useAppStore((s) => s.loadProjects);
-  const loadConversations = useAppStore((s) => s.loadConversations);
   const migrateConversations = useAppStore((s) => s.migrateConversations);
   const conversations = useAppStore((s) => s.conversations);
   const createProject = useAppStore((s) => s.createProject);
@@ -73,7 +72,7 @@ export function NavRail() {
   const drawerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { loadConversations(); loadProjects(); }, [loadConversations, loadProjects]);
+  useEffect(() => { loadProjects(); }, [loadProjects]);
 
   useEffect(() => {
     if (projects.length === 0 && conversations.length > 0) migrateConversations();

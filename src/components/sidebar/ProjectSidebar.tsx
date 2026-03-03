@@ -28,7 +28,6 @@ export function ProjectSidebar() {
   const projects = serverProjects && serverProjects.length > 0 ? serverProjects : storeProjects;
   const currentProjectId = useAppStore((s) => s.currentProjectId);
   const loadProjects = useAppStore((s) => s.loadProjects);
-  const loadConversations = useAppStore((s) => s.loadConversations);
   const migrateConversations = useAppStore((s) => s.migrateConversations);
   const conversations = useAppStore((s) => s.conversations);
   const createProject = useAppStore((s) => s.createProject);
@@ -63,9 +62,8 @@ export function ProjectSidebar() {
   }, [serverProjects]);
 
   useEffect(() => {
-    loadConversations();
     loadProjects();
-  }, [loadConversations, loadProjects]);
+  }, [loadProjects]);
 
   useEffect(() => {
     if (projects.length === 0 && conversations.length > 0) {

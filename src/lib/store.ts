@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { immer } from "zustand/middleware/immer";
 import { nanoid } from "nanoid";
 import { toast } from "sonner";
 import {
@@ -62,27 +63,17 @@ if (typeof window !== "undefined") {
 
 // ── LocalStorage helpers ──
 
-const STORAGE_KEY = "drafta_conversations";
 const PROJECTS_KEY = "drafta_projects";
 
+// TODO: Remove in next release — only needed for migrateConversations()
+const LEGACY_CONVERSATIONS_KEY = "drafta_conversations";
 function loadConversationsFromStorage(): Conversation[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(LEGACY_CONVERSATIONS_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
-  }
-}
-
-function saveConversationsToStorage(conversations: Conversation[]) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
-  } catch (err) {
-    if (err instanceof DOMException && err.name === "QuotaExceededError") {
-      toast.error("Storage full — some changes may not be saved");
-    }
   }
 }
 
@@ -154,14 +145,6 @@ function generateEntityEmbedding(entityId: string, projectId: string, text: stri
     .catch(() => {});
 }
 
-function generateTitle(messages: { role: string; content: string }[]): string {
-  const firstUser = messages.find((m) => m.role === "user");
-  if (!firstUser) return "New Chat";
-  const content = firstUser.content.trim();
-  if (content.length <= 40) return content;
-  return content.slice(0, 40).trim() + "…";
-}
-
 // ── Helper: find entity across all projects ──
 
 function findKnowledgeUnit(projects: Project[], kuId: string): { project: Project; ku: KnowledgeUnit } | null {
@@ -196,7 +179,8 @@ function findDeck(projects: Project[], deckId: string): { project: Project; deck
   return null;
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>()(
+  immer((set, get) => ({
   // Active view (flat fields synced to current entity)
   messages: [],
   isStreaming: false,
@@ -229,10 +213,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   // AI-modified entity highlights
   aiModifiedEntityIds: [],
 
-  // Legacy conversations
+  // Legacy conversations (TODO: Remove in next release)
   conversations: [],
   currentConversationId: null,
-  sidebarOpen: true,
 
   // Project system
   projects: loadProjectsFromStorage(),
@@ -845,11 +828,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }
 
-    // Auto-save (debounced for batching, immediate for legacy conversations)
+    // Auto-save (debounced for batching)
     if (state.currentProjectId) {
       scheduleDebouncedSave();
-    } else {
-      setTimeout(() => get().saveCurrentConversation(), 100);
     }
 
     // Auto-generate title
@@ -915,151 +896,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setReadingFiles: (files: string[]) => set({ readingFiles: files }),
   setAIPhase: (phase) => set({ aiPhase: phase }),
 
-  // ── Legacy Conversation History ──
-
-  saveCurrentConversation: () => {
-    const state = get();
-    if (state.messages.length === 0) return;
-
-    const hasSheet = state.sheets.some((s) => s.celldata && s.celldata.length > 0);
-    const hasDoc = !!state.docContent;
-
-    const conversation: Conversation = {
-      id: state.currentConversationId || nanoid(),
-      title: generateTitle(state.messages),
-      createdAt: state.conversations.find((c) => c.id === state.currentConversationId)?.createdAt || Date.now(),
-      updatedAt: Date.now(),
-      messages: state.messages,
-      hasSheet,
-      hasDoc,
-      sheets: hasSheet ? state.sheets : undefined,
-      docContent: hasDoc ? state.docContent : undefined,
-      memory: Object.keys(state.projectMemory).length > 0 ? state.projectMemory : undefined,
-    };
-
-    const existing = state.conversations.filter((c) => c.id !== conversation.id);
-    const updated = [conversation, ...existing].slice(0, 50);
-
-    set({ conversations: updated, currentConversationId: conversation.id });
-    saveConversationsToStorage(updated);
-  },
-
-  loadConversation: (id: string) => {
-    const state = get();
-    if (state.messages.length > 0 && state.currentConversationId) {
-      state.saveCurrentConversation();
-    }
-
-    const conv = state.conversations.find((c) => c.id === id);
-    if (!conv) return;
-
-    set({
-      messages: conv.messages,
-      currentConversationId: conv.id,
-      currentProjectId: null,
-      currentEntityId: null,
-      currentEntityType: null,
-      sheets: conv.sheets || createEmptySheet(),
-      sheetVersion: state.sheetVersion + 1,
-      docContent: conv.docContent || "",
-      docVersion: state.docVersion + 1,
-      diagramSource: "",
-      diagramType: "mermaid",
-      diagramVersion: state.diagramVersion + 1,
-      deckSlides: [],
-      deckTheme: "light" as const,
-      deckVersion: state.deckVersion + 1,
-      workspaceOpen: conv.hasSheet || conv.hasDoc,
-      activeTab: conv.hasDoc ? "doc" : "sheet",
-      isStreaming: false,
-      streamingContent: "",
-      pendingAttachments: [],
-      projectMemory: conv.memory || {},
-      undoStack: [],
-      canUndo: false,
-      redoStack: [],
-      canRedo: false,
-    });
-  },
-
-  deleteConversation: (id: string) => {
-    const state = get();
-    const updated = state.conversations.filter((c) => c.id !== id);
-    const isCurrent = state.currentConversationId === id;
-
-    set({
-      conversations: updated,
-      ...(isCurrent
-        ? {
-            currentConversationId: null,
-            messages: [],
-            sheets: createEmptySheet(),
-            sheetVersion: state.sheetVersion + 1,
-            docContent: "",
-            docVersion: state.docVersion + 1,
-            diagramSource: "",
-            diagramType: "mermaid",
-            diagramVersion: state.diagramVersion + 1,
-            deckSlides: [],
-            deckTheme: "light" as const,
-            deckVersion: state.deckVersion + 1,
-            workspaceOpen: false,
-            isStreaming: false,
-            streamingContent: "",
-          }
-        : {}),
-    });
-    saveConversationsToStorage(updated);
-  },
-
-  renameConversation: (id: string, title: string) => {
-    const state = get();
-    const updated = state.conversations.map((c) =>
-      c.id === id ? { ...c, title } : c
-    );
-    set({ conversations: updated });
-    saveConversationsToStorage(updated);
-  },
-
-  newConversation: () => {
-    const state = get();
-    if (state.messages.length > 0) {
-      if (state.currentProjectId) {
-        state.saveCurrentEntity();
-      } else {
-        state.saveCurrentConversation();
-      }
-    }
-
-    set({
-      messages: [],
-      currentConversationId: null,
-      currentProjectId: null,
-      currentEntityId: null,
-      currentEntityType: null,
-      isStreaming: false,
-      streamingContent: "",
-      sheets: createEmptySheet(),
-      sheetVersion: state.sheetVersion + 1,
-      docContent: "",
-      docVersion: state.docVersion + 1,
-      diagramSource: "",
-      diagramType: "mermaid",
-      diagramVersion: state.diagramVersion + 1,
-      deckSlides: [],
-      deckTheme: "light" as const,
-      deckVersion: state.deckVersion + 1,
-      activeTab: "sheet",
-      workspaceOpen: false,
-      pendingAttachments: [],
-      undoStack: [],
-      canUndo: false,
-      redoStack: [],
-      canRedo: false,
-    });
-  },
-
-  toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+  // ── Legacy Conversations (TODO: Remove in next release — only kept for migration) ──
 
   loadConversations: () => {
     const conversations = loadConversationsFromStorage();
@@ -1111,8 +948,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (Object.keys(updates).length > 0) {
           get().updateProject(state.currentProjectId, updates);
         }
-      } else if (state.currentConversationId) {
-        get().renameConversation(state.currentConversationId, title);
       }
     } catch {
       // Silently fail — title generation is best-effort
@@ -1171,11 +1006,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     setTimeout(() => {
       const s = get();
-      if (s.currentProjectId) {
-        s.saveCurrentEntity();
-      } else {
-        s.saveCurrentConversation();
-      }
+      if (s.currentProjectId) s.saveCurrentEntity();
     }, 100);
   },
 
@@ -1218,22 +1049,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     setTimeout(() => {
       const s = get();
-      if (s.currentProjectId) {
-        s.saveCurrentEntity();
-      } else {
-        s.saveCurrentConversation();
-      }
+      if (s.currentProjectId) s.saveCurrentEntity();
     }, 100);
   },
 
   resetAll: () => {
     const state = get();
-    if (state.messages.length > 0) {
-      if (state.currentProjectId) {
-        state.saveCurrentEntity();
-      } else {
-        state.saveCurrentConversation();
-      }
+    if (state.messages.length > 0 && state.currentProjectId) {
+      state.saveCurrentEntity();
     }
 
     set({
@@ -1284,12 +1107,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const state = get();
     // Save current work before switching
-    if (state.messages.length > 0) {
-      if (state.currentProjectId) {
-        state.saveCurrentEntity();
-      } else {
-        state.saveCurrentConversation();
-      }
+    if (state.messages.length > 0 && state.currentProjectId) {
+      state.saveCurrentEntity();
     }
 
     const updated = [project, ...state.projects];
@@ -1399,12 +1218,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   switchProject: (id: string) => {
     const state = get();
     // Save current work
-    if (state.messages.length > 0) {
-      if (state.currentProjectId) {
-        state.saveCurrentEntity();
-      } else {
-        state.saveCurrentConversation();
-      }
+    if (state.messages.length > 0 && state.currentProjectId) {
+      state.saveCurrentEntity();
     }
 
     const project = state.projects.find((p) => p.id === id);
@@ -2570,4 +2385,4 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ projects });
     saveProjectsToStorage(projects);
   },
-}));
+})));

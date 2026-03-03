@@ -123,6 +123,7 @@ export type DocOperation =
       markdown: string;
     };
 
+/** @deprecated Legacy type — only "sheet" | "doc" but activeTab is now driven by entity type. Will be removed in a future release. */
 export type WorkspaceTab = "sheet" | "doc";
 
 // ═══ File Attachments ═══
@@ -166,6 +167,7 @@ export interface ProjectMemory {
   customInstructions?: string; // user-defined AI instructions for this project
 }
 
+/** @deprecated Legacy conversation model — replaced by the Project system. Kept only for migration via `migrateConversations()`. Will be removed in a future release. */
 export interface Conversation {
   id: string;
   title: string;
@@ -427,10 +429,9 @@ export interface AppState {
   lastSavedAt: number;
   saveError: string | null;
 
-  // Legacy conversation history (kept for migration)
+  // Legacy conversation history (kept for migration — TODO: Remove in next release)
   conversations: Conversation[];
   currentConversationId: string | null;
-  sidebarOpen: boolean;
 
   // Project system
   projects: Project[];
@@ -479,15 +480,10 @@ export interface AppState {
   redo: () => void;
   resetAll: () => void;
 
-  // Legacy conversation actions (kept for backward compat)
-  saveCurrentConversation: () => void;
-  loadConversation: (id: string) => void;
-  deleteConversation: (id: string) => void;
-  renameConversation: (id: string, title: string) => void;
-  newConversation: () => void;
-  toggleSidebar: () => void;
-  loadConversations: () => void;
   autoGenerateTitle: () => void;
+
+  // Legacy (TODO: Remove in next release — only kept for migration)
+  loadConversations: () => void;
 
   // Project CRUD
   createProject: (title: string) => Project;
