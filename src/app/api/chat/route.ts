@@ -1,7 +1,7 @@
 import { streamText, convertToModelMessages, type UIMessage } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { SYSTEM_PROMPT } from "@/lib/ai/systemPrompt";
-import { getModelForTask, estimateContextSize } from "@/lib/ai/modelRouter";
+import { getModelForTask, estimateContextSize, type AITask } from "@/lib/ai/modelRouter";
 import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import "@/lib/env";
@@ -76,7 +76,16 @@ export async function POST(req: Request) {
     }
 
     const contextSize = estimateContextSize({ sheetData, docContent, projectContext, messages });
-    const { model: modelId, maxOutputTokens } = getModelForTask("chat", contextSize);
+    // Upgrade to Gemini 3.1 Pro for deck generation/editing
+    let taskType: AITask = "chat";
+    if (deckPhase === "generating") {
+      taskType = "deck-generate";
+    } else if (deckPhase === "viewing" && activeEntityType === "deck") {
+      taskType = "deck-edit";
+    } else if (contextSize && contextSize > 30 * 1024) {
+      taskType = "chat-heavy";
+    }
+    const { model: modelId, maxOutputTokens } = getModelForTask(taskType, contextSize);
     const isProModel = modelId.includes("pro");
 
     // Build the last user message with context injection
@@ -252,6 +261,9 @@ export async function POST(req: Request) {
         system: SYSTEM_PROMPT,
         messages: modelMessages,
         maxOutputTokens,
+        providerOptions: modelId.includes("3.1-pro") ? {
+          google: { thinkingConfig: { thinkingBudget: 8192 } },
+        } : undefined,
         tools: {
           googleSearch: google.tools.googleSearch({}),
         },
