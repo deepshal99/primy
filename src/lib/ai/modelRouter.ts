@@ -1,4 +1,4 @@
-export type AITask = "chat" | "chat-heavy" | "title" | "web-search" | "embedding" | "summarize";
+export type AITask = "chat" | "chat-heavy" | "deck-generate" | "deck-edit" | "title" | "web-search" | "embedding" | "summarize";
 
 export interface ModelConfig {
   model: string;
@@ -18,6 +18,10 @@ export function getModelForTask(task: AITask, contextSizeBytes?: number): ModelC
       return { model: "gemini-3-flash-preview", maxOutputTokens: 8192 };
     case "chat-heavy":
       return { model: "gemini-2.5-pro", maxOutputTokens: 16384 };
+    case "deck-generate":
+      return { model: "gemini-3.1-pro-preview", maxOutputTokens: 65536 };
+    case "deck-edit":
+      return { model: "gemini-3.1-pro-preview", maxOutputTokens: 32768 };
     case "title":
       return { model: "gemini-3-flash-preview", maxOutputTokens: 256 };
     case "web-search":
