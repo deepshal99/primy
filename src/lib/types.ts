@@ -270,6 +270,7 @@ export interface DeckOutlineItem {
   id: string;
   title: string;
   description: string;
+  category?: string;
   layout?: string;
 }
 

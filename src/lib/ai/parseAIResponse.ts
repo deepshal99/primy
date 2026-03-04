@@ -348,6 +348,7 @@ export function parseDeckOutline(fullText: string): DeckOutlineItem[] {
           id: `outline-${i}-${Date.now()}`,
           title: s.title || `Slide ${i + 1}`,
           description: s.description || "",
+          category: s.category,
           layout: s.layout,
         }));
       }

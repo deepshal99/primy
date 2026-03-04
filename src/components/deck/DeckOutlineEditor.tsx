@@ -1,19 +1,20 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { GripVertical, Plus, Trash2, Sparkles } from "lucide-react";
+import { ChevronRight, Plus, Trash2, Sparkles, GripVertical } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useAppStore } from "@/lib/store";
 import type { DeckOutlineItem } from "@/lib/types";
 
-/* ── tiny id helper ── */
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 export function DeckOutlineEditor() {
   const outline = useAppStore((s) => s.deckOutline);
   const setOutline = useAppStore((s) => s.setDeckOutline);
   const setPhase = useAppStore((s) => s.setDeckPhase);
+  const updateDeckTheme = useAppStore((s) => s.updateDeckTheme);
 
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
   const dragNode = useRef<number | null>(null);
@@ -54,22 +55,44 @@ export function DeckOutlineEditor() {
   );
 
   const addItem = useCallback(() => {
-    setOutline([
-      ...outline,
-      { id: uid(), title: "", description: "", layout: undefined },
-    ]);
+    const newItem = { id: uid(), title: "", description: "", category: "", layout: undefined };
+    setOutline([...outline, newItem]);
+    setExpandedId(newItem.id);
   }, [outline, setOutline]);
 
-  /* ── empty guard ── */
+  /* ── generate handler ── */
+  const handleGenerate = useCallback(() => {
+    setPhase("generating");
+    // AI auto-selects theme based on content
+    window.dispatchEvent(
+      new CustomEvent("drafta:send-message", {
+        detail: {
+          content: `Generate the full presentation. Auto-select the best theme based on the topic and audience. Use the approved outline.`,
+        },
+      })
+    );
+  }, [setPhase]);
+
   if (outline.length === 0) return null;
 
   return (
     <div className="flex flex-col h-full">
+      {/* header */}
+      <div className="shrink-0 px-5 pt-5 pb-3">
+        <h2 className="text-[14px] font-semibold text-[#1a1a2e]">
+          Storyline
+        </h2>
+        <p className="text-[12px] text-[#95928E] mt-0.5">
+          Drag to reorder, expand to edit details
+        </p>
+      </div>
+
       {/* scrollable card list */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+      <div className="flex-1 overflow-y-auto px-4 pb-3 space-y-2">
         {outline.map((item, idx) => {
           const isDragging = dragIdx === idx;
           const isOver = overIdx === idx && dragIdx !== idx;
+          const isExpanded = expandedId === item.id;
 
           return (
             <div
@@ -80,53 +103,95 @@ export function DeckOutlineEditor() {
               onDragOver={(e) => e.preventDefault()}
               onDragEnd={handleDragEnd}
               className={cn(
-                "group flex items-start gap-2 rounded-lg border bg-white p-3",
-                "transition-all duration-[120ms]",
-                isDragging && "opacity-40",
-                isOver && "border-[#d4582a] ring-1 ring-[#d4582a]/30",
-                !isOver && "border-[#e8e7e4]",
+                "group rounded-xl border transition-all duration-150",
+                isDragging && "opacity-40 scale-[0.98]",
+                isOver && "border-[#d4582a] ring-1 ring-[#d4582a]/20",
+                !isOver && "border-[#e8e7e4] hover:border-[#dddfe3]",
               )}
             >
-              {/* grip handle */}
-              <button
-                type="button"
-                className="mt-1 cursor-grab text-[#b0ada6] hover:text-[#6b6b80] transition-colors duration-[120ms]"
-                onMouseDown={(e) => e.stopPropagation()}
+              {/* collapsed row */}
+              <div
+                className="flex items-center gap-2.5 px-3 py-3 cursor-pointer select-none"
+                onClick={() => setExpandedId(isExpanded ? null : item.id)}
               >
-                <GripVertical size={16} />
-              </button>
+                {/* drag handle */}
+                <div
+                  className="shrink-0 cursor-grab text-[#b0ada6] hover:text-[#6b6b80] opacity-0 group-hover:opacity-100 transition-opacity"
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <GripVertical size={14} />
+                </div>
 
-              {/* slide number */}
-              <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[#d4582a]/10 text-[11px] font-semibold text-[#d4582a]">
-                {idx + 1}
-              </span>
+                {/* chevron */}
+                <ChevronRight
+                  size={14}
+                  className={cn(
+                    "shrink-0 text-[#b0ada6] transition-transform duration-150",
+                    isExpanded && "rotate-90"
+                  )}
+                />
 
-              {/* editable fields */}
-              <div className="flex-1 min-w-0 space-y-1">
-                <input
-                  type="text"
-                  value={item.title}
-                  onChange={(e) => updateItem(item.id, { title: e.target.value })}
-                  placeholder="Slide title"
-                  className="w-full bg-transparent text-[13px] font-medium text-[#1a1a2e] placeholder:text-[#b0ada6] outline-none"
-                />
-                <input
-                  type="text"
-                  value={item.description}
-                  onChange={(e) => updateItem(item.id, { description: e.target.value })}
-                  placeholder="Brief description or talking points"
-                  className="w-full bg-transparent text-[12px] text-[#6b6b80] placeholder:text-[#b0ada6] outline-none"
-                />
+                {/* title */}
+                <span className={cn(
+                  "flex-1 text-[13px] font-medium min-w-0 truncate",
+                  item.title ? "text-[#1a1a2e]" : "text-[#b0ada6]"
+                )}>
+                  {item.title || "Untitled slide"}
+                </span>
+
+                {/* category tag */}
+                {item.category && (
+                  <span className="shrink-0 px-2.5 py-0.5 rounded-md bg-[#f5f5f3] text-[11px] font-medium text-[#6b6b80] border border-[#e8e7e4]">
+                    {item.category}
+                  </span>
+                )}
+
+                {/* delete — visible on hover */}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }}
+                  className="shrink-0 opacity-0 group-hover:opacity-100 text-[#b0ada6] hover:text-red-500 transition-all duration-100"
+                >
+                  <Trash2 size={13} />
+                </button>
               </div>
 
-              {/* delete */}
-              <button
-                type="button"
-                onClick={() => deleteItem(item.id)}
-                className="mt-1 opacity-0 group-hover:opacity-100 text-[#b0ada6] hover:text-red-500 transition-all duration-[120ms]"
-              >
-                <Trash2 size={14} />
-              </button>
+              {/* expanded detail */}
+              {isExpanded && (
+                <div className="px-4 pb-3.5 pt-0 space-y-2.5 border-t border-[#f0f0ee]">
+                  <div className="pt-2.5">
+                    <label className="text-[11px] font-medium text-[#95928E] uppercase tracking-wider">Title</label>
+                    <input
+                      type="text"
+                      value={item.title}
+                      onChange={(e) => updateItem(item.id, { title: e.target.value })}
+                      placeholder="Slide title"
+                      className="w-full mt-1 bg-transparent text-[13px] font-medium text-[#1a1a2e] placeholder:text-[#b0ada6] outline-none"
+                      autoFocus
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-medium text-[#95928E] uppercase tracking-wider">Description</label>
+                    <textarea
+                      value={item.description}
+                      onChange={(e) => updateItem(item.id, { description: e.target.value })}
+                      placeholder="What should this slide cover?"
+                      rows={2}
+                      className="w-full mt-1 bg-transparent text-[12px] text-[#6b6b80] placeholder:text-[#b0ada6] outline-none resize-none leading-relaxed"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-medium text-[#95928E] uppercase tracking-wider">Category</label>
+                    <input
+                      type="text"
+                      value={item.category || ""}
+                      onChange={(e) => updateItem(item.id, { category: e.target.value })}
+                      placeholder="e.g. Opening, Problem, Solution"
+                      className="w-full mt-1 bg-transparent text-[12px] text-[#6b6b80] placeholder:text-[#b0ada6] outline-none"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -135,7 +200,7 @@ export function DeckOutlineEditor() {
         <button
           type="button"
           onClick={addItem}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-[#dddfe3] py-2.5 text-[12px] text-[#95928E] hover:border-[#d4582a] hover:text-[#d4582a] transition-colors duration-[120ms]"
+          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-[#dddfe3] py-2.5 text-[12px] text-[#95928E] hover:border-[#d4582a] hover:text-[#d4582a] transition-colors duration-150"
         >
           <Plus size={14} />
           Add slide
@@ -146,11 +211,11 @@ export function DeckOutlineEditor() {
       <div className="shrink-0 border-t border-[#e8e7e4] bg-white px-4 py-3">
         <button
           type="button"
-          onClick={() => setPhase("theming")}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#d4582a] px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-[#d4582a]/90 transition-colors duration-[120ms]"
+          onClick={handleGenerate}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1a1a2e] px-4 py-2.5 text-[13px] font-medium text-white hover:bg-[#2a2a3e] transition-colors duration-150 active:scale-[0.98]"
         >
           <Sparkles size={14} />
-          Looks good, pick a theme
+          Generate slides
         </button>
       </div>
     </div>

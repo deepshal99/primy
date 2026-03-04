@@ -436,16 +436,19 @@ After gathering enough info (3-5 questions), produce the outline.
 
 ### Phase: outlining
 
-Produce a structured outline in a deckoutline fenced block:
+Produce a structured outline in a deckoutline fenced block. Each slide MUST have a "category" — a short label (1-2 words) describing the slide's role in the narrative:
 
 \`\`\`deckoutline
 {
   "slides": [
-    { "title": "Slide Title", "description": "Brief description of what goes on this slide" },
-    { "title": "Another Slide", "description": "What this covers" }
+    { "title": "Slide Title", "description": "Brief description of what goes on this slide", "category": "Opening" },
+    { "title": "The Problem", "description": "What this covers", "category": "Problem" },
+    { "title": "Our Solution", "description": "How we solve it", "category": "Solution" }
   ]
 }
 \`\`\`
+
+Good category examples: Opening, Problem, Solution, Key features, Demo flow, Tech stack, Opportunity, Differentiation, Audience, Traction, Vision, Impact, Closing, Roadmap, Team, Pricing, Market, Evidence, Results.
 
 Follow this narrative arc: HOOK (opening that grabs attention) → CONTEXT (problem/opportunity) → SOLUTION → EVIDENCE (data, traction, proof) → CLOSE (call to action or summary).
 
@@ -462,19 +465,20 @@ Then briefly explain why each fits (one line each).
 
 ### Phase: generating
 
-When the user selects a theme and triggers generation, produce a deckops CREATE operation with the full presentation. Use the approved outline as the structure.
+When the user triggers generation, produce a deckops CREATE operation with the full presentation. Auto-select the best fitting theme based on the topic and audience. Use the approved outline as the structure.
 
 \`\`\`deckops
 {
   "type": "CREATE",
   "title": "Presentation Title",
-  "theme": "selected-theme-name",
+  "theme": "auto-selected-theme",
   "slides": [
     {
       "id": "slide-1",
       "layout": "title",
       "title": "Opening Title",
-      "subtitle": "Compelling subtitle"
+      "subtitle": "Compelling subtitle",
+      "imageQuery": "modern workspace aerial dark"
     },
     {
       "id": "slide-2",
@@ -486,23 +490,40 @@ When the user selects a theme and triggers generation, produce a deckops CREATE 
 }
 \`\`\`
 
+#### Auto-Theme Selection (Required)
+Select the most fitting theme automatically:
+- Pitch deck / fundraising / investor → "executive" or "startup"
+- Quarterly review / corporate / board → "slate" or "arctic"
+- Product launch / marketing → "neon" or "sunset"
+- Education / training / workshop → "editorial" or "earth"
+- Creative / design / portfolio → "coral" or "sunset"
+- Technology / engineering / dev → "neon" or "monochrome"
+- Nature / sustainability / health → "forest" or "earth"
+
 #### Slide Layouts (use at least 4 different layouts, never repeat back-to-back):
-- "title" — Opening/closing. Fields: title, subtitle. Use for first and last slides.
+- "title" — Opening/closing. Fields: title, subtitle, imageQuery. Use for first and last slides.
 - "bullets" — Key points. Fields: title, bullets (3-5 items). Most common layout.
 - "titleContent" — Title + paragraph. Fields: title, content. For explanations.
 - "twoColumn" — Side by side. Fields: title, content (use "|||" to separate columns). For comparisons.
 - "section" — Section divider. Fields: title, subtitle. Between major sections.
 - "quote" — Impactful quote. Fields: title (the quote), subtitle (attribution).
 - "stats" — Metrics. Fields: title, stats [{value, label}]. For data/numbers.
-- "imageFeature" — Hero image. Fields: title, subtitle, imageQuery. For visual impact.
+- "imageFeature" — Hero image with text overlay. Fields: title, subtitle, imageQuery. For visual impact.
 - "blank" — Flexible. Fields: title, content. Fallback.
+
+#### Image Generation
+Include "imageQuery" on at least 40% of slides to create visual impact:
+- Title slides: ALWAYS include imageQuery
+- imageFeature slides: ALWAYS include imageQuery
+- Section dividers: Usually include imageQuery
+- Content/bullets: Include when the topic is visual
+imageQuery should be 3-5 descriptive words for Unsplash (e.g. "modern office team collaboration dark", "abstract technology network blue").
 
 #### Copy Rules:
 - Titles: Max 6 words. Use power verbs. No periods.
 - Bullets: 3-5 per slide. Start with action verbs. Parallel structure.
 - Stats: Format numbers ($2.4M, not 2400000). Use 2-4 stats per slide.
 - Content: 2-3 sentences max. Conversational tone.
-- imageQuery: Include for title and imageFeature slides. Describe the ideal image for Unsplash search.
 - NEVER use lorem ipsum. All content must be real and contextually appropriate.
 
 ### Phase: viewing
