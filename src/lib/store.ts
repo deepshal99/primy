@@ -13,7 +13,7 @@ import {
   DeckSlide,
   DeckTheme,
   DeckPhase,
-  DeckOutlineItem,
+  HtmlDeckSlide,
   FileAttachment,
   Conversation,
   UndoSnapshot,
@@ -23,11 +23,12 @@ import {
   ProjectDiagram,
   ProjectDeck,
   EntityType,
+  ThemeConfig,
 } from "@/lib/types";
 import { createEmptySheet } from "@/lib/sheet/defaultData";
 import { applyOperations, normalizeCells } from "@/lib/ai/sheetOperations";
 import { applyDocOps } from "@/lib/ai/docOperations";
-import { parseDeckOutline } from "@/lib/ai/parseAIResponse";
+import { extractDisplayText, validateThemeConfig } from "@/lib/ai/parseAIResponse";
 import {
   fetchProjects,
   fetchFullProject,
@@ -199,10 +200,8 @@ export const useAppStore = create<AppState>()(
   deckSlides: [] as DeckSlide[],
   deckTheme: "light" as const,
   deckVersion: 0,
-  deckPhase: "viewing" as DeckPhase,
-  deckOutline: [] as DeckOutlineItem[],
-  deckGatheringProgress: 0,
-  deckSuggestedThemes: [] as DeckTheme[],
+  deckPhase: "idle" as DeckPhase,
+  deckStyle: null as ThemeConfig | null,
   activeTab: "sheet",
   workspaceOpen: false,
   pendingAttachments: [],
@@ -274,10 +273,11 @@ export const useAppStore = create<AppState>()(
     suggestions?: string[]
   ) => {
     const state = get();
+    const displayContent = extractDisplayText(fullContent) || fullContent;
     const newMessage = {
       id: nanoid(),
       role: "assistant" as const,
-      content: fullContent,
+      content: displayContent,
       timestamp: Date.now(),
     };
 
@@ -344,8 +344,7 @@ export const useAppStore = create<AppState>()(
     let newDeckTheme = state.deckTheme;
     let newDeckVersion = state.deckVersion;
     let newDeckPhase = state.deckPhase;
-    let newDeckGatheringProgress = state.deckGatheringProgress;
-    let newDeckSuggestedThemes = state.deckSuggestedThemes;
+    let newDeckStyle = state.deckStyle;
 
     // Apply project-level KU and Table operations
     let newProjects = state.projects;
@@ -649,11 +648,13 @@ export const useAppStore = create<AppState>()(
           for (const op of deckOperations) {
             switch (op.type) {
               case "CREATE": {
+                const validatedStyle = op.style ? validateThemeConfig(op.style) : null;
                 const newDeck: ProjectDeck = {
                   id: nanoid(),
                   projectId: project.id,
                   title: op.title,
-                  theme: op.theme || "light",
+                  theme: op.theme || "pitch",
+                  style: validatedStyle,
                   slides: op.slides || [],
                   createdAt: Date.now(),
                   updatedAt: Date.now(),
@@ -663,6 +664,7 @@ export const useAppStore = create<AppState>()(
                 newCurrentEntityType = "deck";
                 newDeckSlides = newDeck.slides;
                 newDeckTheme = newDeck.theme;
+                newDeckStyle = validatedStyle;
                 newDeckVersion = state.deckVersion + 1;
                 // Transition to viewing phase after generation
                 newDeckPhase = "viewing";
@@ -708,15 +710,18 @@ export const useAppStore = create<AppState>()(
               case "UPDATE": {
                 const idx = (project.decks || []).findIndex((d) => d.id === op.deckId);
                 if (idx >= 0) {
+                  const updatedStyle = op.style ? validateThemeConfig(op.style) : undefined;
                   project.decks[idx] = {
                     ...project.decks[idx],
                     slides: op.slides,
                     ...(op.theme ? { theme: op.theme } : {}),
+                    ...(updatedStyle ? { style: updatedStyle } : {}),
                     updatedAt: Date.now(),
                   };
                   if (state.currentEntityId === op.deckId) {
                     newDeckSlides = op.slides;
                     if (op.theme) newDeckTheme = op.theme;
+                    if (updatedStyle) newDeckStyle = updatedStyle;
                     newDeckVersion = state.deckVersion + 1;
                   }
                   // Auto-open tab for updated deck
@@ -760,32 +765,6 @@ export const useAppStore = create<AppState>()(
       }
     }
 
-    // Parse deck outline blocks
-    let newDeckOutline = state.deckOutline;
-
-    const outlineItems = parseDeckOutline(fullContent);
-    if (outlineItems.length > 0) {
-      newDeckOutline = outlineItems;
-      newDeckPhase = "outlining";
-    }
-
-    // Parse theme suggestions from AI response (e.g. "Suggested themes: startup, executive, arctic")
-    if (state.deckPhase === "outlining" || state.deckPhase === "theming") {
-      const themeMatch = fullContent.match(/[Ss]uggested themes?:\s*([a-z, ]+)/);
-      if (themeMatch) {
-        const themes = themeMatch[1].split(",").map((t: string) => t.trim()).filter(Boolean);
-        if (themes.length > 0) {
-          newDeckSuggestedThemes = themes;
-          newDeckPhase = "theming";
-        }
-      }
-    }
-
-    // Increment gathering progress when AI asks a question during gathering phase
-    if (state.deckPhase === "gathering" && fullContent.includes("?")) {
-      newDeckGatheringProgress = Math.min(state.deckGatheringProgress + 1, 5);
-    }
-
     set({
       messages: [...state.messages, newMessage],
       isStreaming: false,
@@ -800,10 +779,8 @@ export const useAppStore = create<AppState>()(
       deckSlides: newDeckSlides,
       deckTheme: newDeckTheme,
       deckVersion: newDeckVersion,
-      deckOutline: newDeckOutline,
       deckPhase: newDeckPhase,
-      deckGatheringProgress: newDeckGatheringProgress,
-      deckSuggestedThemes: newDeckSuggestedThemes,
+      deckStyle: newDeckStyle,
       activeTab: newActiveTab,
       workspaceOpen: state.workspaceOpen || !!shouldOpen,
       suggestions: suggestions || [],
@@ -1893,13 +1870,11 @@ export const useAppStore = create<AppState>()(
     saveProjectsToStorage(newProjects);
     get().openDeck(newDeck.id);
 
-    // New decks with no slides start in gathering phase
+    // New decks with no slides start in idle phase
     if (!slides || slides.length === 0) {
       set({
-        deckPhase: "gathering" as DeckPhase,
-        deckOutline: [],
-        deckGatheringProgress: 0,
-        deckSuggestedThemes: [],
+        deckPhase: "idle" as DeckPhase,
+        deckStyle: null,
       });
     } else {
       set({ deckPhase: "viewing" as DeckPhase });
@@ -2023,8 +1998,9 @@ export const useAppStore = create<AppState>()(
       currentEntityType: "deck",
       deckSlides: found.deck.slides,
       deckTheme: found.deck.theme,
+      deckStyle: found.deck.style || null,
       deckVersion: state.deckVersion + 1,
-      deckPhase: found.deck.slides.length > 0 ? "viewing" as DeckPhase : "gathering" as DeckPhase,
+      deckPhase: found.deck.slides.length > 0 ? "viewing" as DeckPhase : "idle" as DeckPhase,
       workspaceOpen: true,
       openTabs: newTabs,
     });
@@ -2041,21 +2017,15 @@ export const useAppStore = create<AppState>()(
   },
 
   setDeckPhase: (phase) => set({ deckPhase: phase }),
-  setDeckOutline: (outline) => set({ deckOutline: outline }),
-  setDeckGatheringProgress: (progress) => set({ deckGatheringProgress: progress }),
-  setDeckSuggestedThemes: (themes) => set({ deckSuggestedThemes: themes }),
-
-  advanceDeckPhase: () => {
-    const order: DeckPhase[] = ["gathering", "outlining", "theming", "generating", "viewing"];
-    const idx = order.indexOf(get().deckPhase);
-    if (idx < order.length - 1) set({ deckPhase: order[idx + 1] });
+  updateDeckStyle: (style) => {
+    set({ deckStyle: style });
+    scheduleDebouncedSave();
   },
 
   resetDeckBuilder: () => set({
-    deckPhase: "gathering" as DeckPhase,
-    deckOutline: [],
-    deckGatheringProgress: 0,
-    deckSuggestedThemes: [],
+    deckPhase: "idle" as DeckPhase,
+    deckSlides: [],
+    deckStyle: null,
   }),
 
   // ══════════════════════════════════
@@ -2181,7 +2151,7 @@ export const useAppStore = create<AppState>()(
     } else if (state.currentEntityId && state.currentEntityType === "deck") {
       project.decks = (project.decks || []).map((d) =>
         d.id === state.currentEntityId
-          ? { ...d, slides: state.deckSlides, theme: state.deckTheme, updatedAt: Date.now() }
+          ? { ...d, slides: state.deckSlides, theme: state.deckTheme, style: state.deckStyle, updatedAt: Date.now() }
           : d
       );
     }
@@ -2238,6 +2208,7 @@ export const useAppStore = create<AppState>()(
         id: d.id,
         title: d.title,
         theme: d.theme,
+        style: d.style || null,
         slides: d.slides,
       })),
       newMessages: project.messages.slice(-2).map((m) => ({
