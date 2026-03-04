@@ -27,7 +27,7 @@ type ShareData =
   | { type: "document"; title: string; content: string; projectTitle: string }
   | { type: "table"; title: string; sheets: any[]; projectTitle: string }
   | { type: "diagram"; title: string; diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow"; source: string; projectTitle: string }
-  | { type: "deck"; title: string; slides: any[]; theme: string; projectTitle: string }
+  | { type: "deck"; title: string; slides: any[]; theme: string; style?: any; projectTitle: string }
   | { type: "project"; title: string; description?: string; documents: any[]; tables: any[]; diagrams?: any[]; decks?: any[] };
 
 export default function SharePage() {
@@ -148,7 +148,7 @@ export default function SharePage() {
       <div className="h-screen flex flex-col bg-background animate-in fade-in duration-300">
         <ShareHeader title={data.title} subtitle={data.projectTitle} icon={<Presentation className="w-4 h-4 text-[#d4582a]" />} />
         <div className="flex-1 overflow-hidden">
-          <DeckViewReadOnly slides={data.slides} theme={data.theme} />
+          <DeckViewReadOnly slides={data.slides} theme={data.theme} style={data.style} />
         </div>
       </div>
     );
@@ -238,7 +238,7 @@ export default function SharePage() {
             <DiagramViewReadOnly source={selectedDiagram.source} diagramType={selectedDiagram.diagramType} />
           )}
           {selectedType === "deck" && selectedDeck && (
-            <DeckViewReadOnly slides={selectedDeck.slides} theme={selectedDeck.theme} />
+            <DeckViewReadOnly slides={selectedDeck.slides} theme={selectedDeck.theme} style={selectedDeck.style} />
           )}
           {!selectedId && (
             <div className="h-full flex items-center justify-center">

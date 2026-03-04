@@ -12,6 +12,7 @@ import {
   parseTableOperations,
   parseDiagramOperations,
   parseDeckOperations,
+  parseDeckOutlineItems,
   extractDisplayText,
   parseSuggestions,
 } from "@/lib/ai/parseAIResponse";
@@ -177,7 +178,13 @@ export function ChatPanel({ centered }: ChatPanelProps) {
                 } else if (mention.type === "deck") {
                   const deck = (project.decks || []).find((d) => d.id === mention.id);
                   if (deck) {
-                    const slideSummary = deck.slides.map((s, i) => `Slide ${i + 1}: ${s.title || ""} (${s.layout})`).join("\n");
+                    const slideSummary = deck.slides.map((s, i) => {
+                      if ("html" in s && !("layout" in s)) {
+                        return `Slide ${i + 1}: [HTML slide]`;
+                      }
+                      const legacy = s as { title?: string; layout?: string };
+                      return `Slide ${i + 1}: ${legacy.title || ""} (${legacy.layout || "unknown"})`;
+                    }).join("\n");
                     mentionedDeckContext += `\n<mentioned_deck id="${deck.id}" title="${deck.title}">\n${slideSummary}\n</mentioned_deck>`;
                   }
                 }
@@ -266,7 +273,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           activeEntityType,
           activeEntityTitle,
           activeEntityContent,
-          deckPhase: activeEntityType === "deck" ? state.deckPhase : undefined,
+          deckPhase: state.deckPhase,
         };
 
         abortControllerRef.current = new AbortController();
@@ -384,18 +391,17 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         const diagramOps = parseDiagramOperations(fullText);
         const deckOps = parseDeckOperations(fullText);
         const suggestions = parseSuggestions(fullText);
-        const displayText = extractDisplayText(fullText);
-
+        const outlineItems = parseDeckOutlineItems(fullText);
         const hasAnyOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || diagramOps.length > 0 || deckOps.length > 0;
-        if (!hasAnyOps) {
-          const hasFences = fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops") || fullText.includes("```diagramops") || fullText.includes("```deckops");
+        if (!hasAnyOps && outlineItems.length === 0) {
+          const hasFences = fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops") || fullText.includes("```diagramops") || fullText.includes("```deckops") || fullText.includes("```deckoutline");
           if (hasFences) {
             console.warn("[Drafta] Operation blocks found but none parsed. Raw tail:", fullText.slice(-600));
             toast.error("AI response had formatting issues -- some changes may not have been applied. Try again.");
           }
         }
 
-        finishStreaming(displayText || fullText, sheetOps, docOps, kuOps, tableOps, diagramOps, deckOps, suggestions);
+        finishStreaming(fullText, sheetOps, docOps, kuOps, tableOps, diagramOps, deckOps, suggestions);
 
 
         // Attach grounding sources to the assistant message

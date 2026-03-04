@@ -16,6 +16,7 @@ export function AppShell() {
   const currentEntityId = useAppStore((s) => s.currentEntityId);
   const currentProjectId = useAppStore((s) => s.currentProjectId);
   const createProject = useAppStore((s) => s.createProject);
+  const resetAll = useAppStore((s) => s.resetAll);
   const undo = useAppStore((s) => s.undo);
   const redo = useAppStore((s) => s.redo);
   const canUndo = useAppStore((s) => s.canUndo);
@@ -40,7 +41,7 @@ export function AppShell() {
         }
         if (e.key === "n") {
           e.preventDefault();
-          createProject("New Project");
+          resetAll();
         }
         if (e.key === "b") {
           e.preventDefault();
@@ -97,7 +98,7 @@ export function AppShell() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [createProject, undo, redo, canUndo, canRedo, closeTab]);
+  }, [resetAll, undo, redo, canUndo, canRedo, closeTab]);
 
   // Listen for search open event from NavRail
   useEffect(() => {
@@ -114,7 +115,7 @@ export function AppShell() {
       {/* Chat Panel */}
       <div
         data-chat-panel
-        className={`flex-shrink-0 bg-white overflow-hidden transition-all duration-300 ease-in-out ${
+        className={`flex-shrink-0 bg-white overflow-hidden transition-[flex,width,min-width,max-width] duration-[320ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
           viewMode === "chat"
             ? "flex-1"
             : "w-[25vw] min-w-[300px] max-w-[420px] border-r border-[#e8e7e4]"

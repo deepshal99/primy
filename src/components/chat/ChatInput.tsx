@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { ArrowUp, Plus, Upload, Square, X, Eye } from "lucide-react";
+import { ArrowUp, Plus, Upload, Square, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
 import { FileAttachment, EntityType } from "@/lib/types";
@@ -41,9 +41,10 @@ interface ChatInputProps {
   disabled: boolean;
   centered?: boolean;
   onStop?: () => void;
+  placeholder?: string;
 }
 
-export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps) {
+export function ChatInput({ onSend, disabled, centered, onStop, placeholder: placeholderProp }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
@@ -89,16 +90,6 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
     }
     return entities;
   }, [projects, currentProjectId]);
-
-  // Resolve the active entity title for the context indicator
-  const currentEntityId = useAppStore((s) => s.currentEntityId);
-  const currentEntityType = useAppStore((s) => s.currentEntityType);
-  const activeEntityInfo = useMemo(() => {
-    if (!currentEntityId || !currentEntityType) return null;
-    const entity = allEntities.find((e) => e.id === currentEntityId && e.type === currentEntityType);
-    if (!entity) return null;
-    return { title: entity.title, type: currentEntityType };
-  }, [currentEntityId, currentEntityType, allEntities]);
 
   // Filter entities by mention query
   const filteredEntities = useMemo(() => {
@@ -348,26 +339,13 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
   const showMentionPopover = mentionQuery !== null && filteredEntities.length > 0;
 
   return (
-    <div className={cn("px-3 pb-4 pt-2", centered && "px-6")}>
-      {/* Active entity context indicator */}
-      {activeEntityInfo && (
-        <div className="flex items-center gap-1.5 px-2 pb-1.5">
-          <Eye className="w-3 h-3 text-[#95928E] shrink-0" strokeWidth={1.8} />
-          <span className="text-[11px] text-[#95928E] leading-none truncate max-w-[280px]">
-            AI can see:{" "}
-            <span className="font-medium text-[#6b6b80]" title={activeEntityInfo.title}>
-              &ldquo;{activeEntityInfo.title.length > 40 ? activeEntityInfo.title.slice(0, 40) + "..." : activeEntityInfo.title}&rdquo;
-            </span>
-            {" "}({ENTITY_LABELS[activeEntityInfo.type].toLowerCase()})
-          </span>
-        </div>
-      )}
+    <div className={cn("px-3 pb-4 pt-2", centered && "px-0")}>
       <div
         className={cn(
-          "relative rounded-[20px] border border-[#dddfe3] bg-card shadow-[0px_2px_4px_0px_rgba(0,0,0,0.06)] transition-all duration-150",
-          isDragOver && "border-[#ff4a00]",
+          "relative rounded-[20px] border border-[#e8e8ed] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)] t-normal",
+          isDragOver && "border-[#ff4a00] shadow-[0_0_0_2px_rgba(255,74,0,0.08)]",
           disabled && "opacity-60",
-          !isDragOver && !disabled && "focus-within:border-[#ff4a00]/30"
+          !isDragOver && !disabled && "focus-within:border-[#ff4a00]/25 focus-within:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         )}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
@@ -422,7 +400,7 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
 
         {/* Pending file previews */}
         {pendingAttachments.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 px-4 pt-3 pb-0">
+          <div className="flex flex-wrap gap-2 px-4 pt-3.5 pb-0">
             {pendingAttachments.map((att) => (
               <FilePreviewPill
                 key={att.id}
@@ -473,12 +451,12 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
           placeholder={
             disabled
               ? "Waiting for response..."
-              : "Ask anything... (type @ to mention)"
+              : placeholderProp || "Ask anything... (type @ to mention)"
           }
           disabled={disabled}
           rows={1}
           aria-label="Chat message"
-          className="w-full bg-transparent resize-none outline-none px-5 pt-4 pb-14 text-[14px] text-foreground tracking-[-0.14px] placeholder:text-[#95928E]"
+          className="w-full bg-transparent resize-none outline-none px-5 pt-4 pb-14 text-[14px] text-foreground tracking-[-0.01em] placeholder:text-[#a3a3a3]"
           style={{ minHeight: 100, maxHeight: 180 }}
         />
 
@@ -497,17 +475,17 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
         <button
           onClick={handleFileClick}
           disabled={disabled}
-          className="absolute bottom-2.5 left-3 w-8 h-8 rounded-full border border-[#dddfe3] bg-card flex items-center justify-center text-[#6b6b80] hover:text-foreground hover:border-[#c0bfba] hover:bg-[#f5f4f1] active:scale-[0.93] transition-all duration-150 disabled:opacity-40 cursor-pointer"
+          className="absolute bottom-3 left-3.5 w-8 h-8 rounded-full border border-[#e8e8ed] bg-white flex items-center justify-center text-[#737373] hover:text-[#1a1a1a] hover:border-[#dddfe3] hover:bg-[#f5f5f3] active:scale-[0.93] t-fast disabled:opacity-40 cursor-pointer"
           title="Attach files"
         >
-          <Plus className="w-4 h-4" strokeWidth={2} />
+          <Plus className="w-4 h-4" strokeWidth={1.8} />
         </button>
 
         {/* Send / Stop button -- bottom right */}
         {disabled && onStop ? (
           <button
             onClick={onStop}
-            className="absolute bottom-2.5 right-3 w-8 h-8 rounded-full bg-[#1a1a2e] text-white flex items-center justify-center hover:bg-[#2d2d42] active:scale-[0.93] transition-all duration-150 cursor-pointer"
+            className="absolute bottom-3 right-3.5 w-8 h-8 rounded-full bg-[#1a1a2e] text-white flex items-center justify-center hover:bg-[#2d2d42] active:scale-[0.93] t-fast cursor-pointer"
             title="Stop generating"
           >
             <Square className="w-3 h-3 rounded-[1px]" fill="currentColor" strokeWidth={0} />
@@ -518,10 +496,10 @@ export function ChatInput({ onSend, disabled, centered, onStop }: ChatInputProps
             disabled={!canSend}
             aria-label="Send message"
             className={cn(
-              "absolute bottom-2.5 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-150",
+              "absolute bottom-3 right-3.5 w-8 h-8 rounded-full flex items-center justify-center t-fast",
               canSend
-                ? "bg-[#ff4a00] text-white cursor-pointer hover:bg-[#e54400] active:scale-[0.93]"
-                : "bg-[#ff4a00] text-white disabled:opacity-30 cursor-not-allowed"
+                ? "bg-[#ff4a00] text-white cursor-pointer hover:bg-[#e04300] active:scale-[0.93] shadow-[0_2px_6px_rgba(255,74,0,0.25)]"
+                : "bg-[#f0f0ee] text-[#a3a3a3] cursor-not-allowed"
             )}
           >
             <ArrowUp className="w-3.5 h-3.5" strokeWidth={2.5} />

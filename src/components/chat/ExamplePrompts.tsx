@@ -1,231 +1,187 @@
 "use client";
 
-import {
-  PenLine,
-  Lightbulb,
-  FileText,
-  Wand2,
-  BarChart3,
-  TableProperties,
-  TrendingUp,
-  Filter,
-  GitBranch,
-  Minimize2,
-  MessageSquare,
-  Repeat,
-  PlusCircle,
-  Palette,
-  StickyNote,
-  LayoutList,
-} from "lucide-react";
+import { FileText, Table2, GitBranch, Presentation } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useAppStore } from "@/lib/store";
 import type { EntityType } from "@/lib/types";
 import type { LucideIcon } from "lucide-react";
 
-// -- Prompt definitions per entity type --
+// -- Entity pill definitions (for centered hero screen) --
 
-interface PromptItem {
+interface EntityPill {
+  type: EntityType;
+  label: string;
   icon: LucideIcon;
-  title: string;
-  prompt: string;
+  color: string;
+  bg: string;
+  border: string;
+  placeholder: string;
 }
 
-const GENERIC_PROMPTS: PromptItem[] = [
+const ENTITY_PILLS: EntityPill[] = [
   {
-    icon: PenLine,
-    title: "Write a document",
-    prompt:
-      "Write a compelling introduction that hooks readers and sets the stage for the rest of the document",
-  },
-  {
-    icon: Lightbulb,
-    title: "Brainstorm ideas",
-    prompt:
-      "Brainstorm a list of key topics, themes, and fresh angles I should explore in my writing",
-  },
-  {
+    type: "ku",
+    label: "Document",
     icon: FileText,
-    title: "Analyze data",
-    prompt:
-      "Create a detailed, structured outline with sections, sub-points, and logical flow",
+    color: "#4a7aed",
+    bg: "#f0f4fd",
+    border: "#4a7aed",
+    placeholder: "Describe your document...",
   },
   {
-    icon: Wand2,
-    title: "Create something",
-    prompt:
-      "Help me improve my writing \u2014 tighten the tone, sharpen clarity, and polish the language",
+    type: "table",
+    label: "Spreadsheet",
+    icon: Table2,
+    color: "#2e9e47",
+    bg: "#e8f7ea",
+    border: "#2e9e47",
+    placeholder: "Describe your spreadsheet...",
+  },
+  {
+    type: "diagram",
+    label: "Diagram",
+    icon: GitBranch,
+    color: "#7c5cb8",
+    bg: "#f3eefa",
+    border: "#7c5cb8",
+    placeholder: "Describe your diagram...",
+  },
+  {
+    type: "deck",
+    label: "Presentation",
+    icon: Presentation,
+    color: "#d4582a",
+    bg: "#fef0e8",
+    border: "#d4582a",
+    placeholder: "Describe your presentation...",
   },
 ];
 
-const ENTITY_PROMPTS: Record<EntityType, PromptItem[]> = {
-  ku: [
-    {
-      icon: Wand2,
-      title: "Polish writing",
-      prompt: "Fix grammar, tighten the tone, and improve clarity throughout this document",
-    },
-    {
-      icon: FileText,
-      title: "Summarize",
-      prompt: "Summarize this document into a concise executive overview with key takeaways",
-    },
-    {
-      icon: PenLine,
-      title: "Expand content",
-      prompt: "Add more detail and depth to the existing sections of this document",
-    },
-    {
-      icon: Lightbulb,
-      title: "Add a conclusion",
-      prompt: "Write a strong conclusion that ties together the main points and ends with a clear call to action",
-    },
-  ],
-  table: [
-    {
-      icon: BarChart3,
-      title: "Visualize data",
-      prompt: "Create a chart that best represents the trends and patterns in this spreadsheet",
-    },
-    {
-      icon: TableProperties,
-      title: "Add summary row",
-      prompt: "Add a summary row with totals, averages, or other aggregate values for each column",
-    },
-    {
-      icon: TrendingUp,
-      title: "Analyze trends",
-      prompt: "Analyze the data in this spreadsheet and highlight the most significant trends and outliers",
-    },
-    {
-      icon: Filter,
-      title: "Clean and organize",
-      prompt: "Sort the data, remove duplicates, and organize the spreadsheet for easier reading",
-    },
-  ],
-  diagram: [
-    {
-      icon: GitBranch,
-      title: "Add detail",
-      prompt: "Add more nodes, branches, and detail to make this diagram more comprehensive",
-    },
-    {
-      icon: Minimize2,
-      title: "Simplify",
-      prompt: "Simplify this diagram by removing unnecessary complexity while keeping the core structure",
-    },
-    {
-      icon: MessageSquare,
-      title: "Explain it",
-      prompt: "Explain what this diagram represents in plain language with a step-by-step walkthrough",
-    },
-    {
-      icon: Repeat,
-      title: "Convert format",
-      prompt: "Convert this diagram into a different format \u2014 try a flowchart, sequence diagram, or mind map",
-    },
-  ],
-  deck: [
-    {
-      icon: PlusCircle,
-      title: "Add a slide",
-      prompt: "Add a new slide that continues the narrative and fits the existing deck structure",
-    },
-    {
-      icon: Palette,
-      title: "Improve design",
-      prompt: "Improve the visual design of the slides \u2014 better layout, typography, and visual hierarchy",
-    },
-    {
-      icon: StickyNote,
-      title: "Speaker notes",
-      prompt: "Generate detailed speaker notes for each slide with key talking points and transitions",
-    },
-    {
-      icon: LayoutList,
-      title: "Summary slide",
-      prompt: "Add a summary slide at the end that recaps the key points from the entire presentation",
-    },
-  ],
-};
+// -- Sidebar suggestions --
+// Context-aware: different for empty vs populated entities.
+// These are real, useful things you'd actually want to do.
 
-// -- Compact pills for sidebar with project context --
-
-const GENERIC_PROJECT_PILLS = [
-  "Summarize this document into an exec overview",
-  "Find key insights and action items",
-  "Write speaker notes for the presentation",
-  "Simplify the content for non-technical readers",
-];
-
-const ENTITY_PROJECT_PILLS: Record<EntityType, string[]> = {
-  ku: [
-    "Summarize this document",
-    "Fix grammar and improve clarity",
-    "Add more detail to each section",
-    "Rewrite for a different audience",
-  ],
-  table: [
-    "Chart the most important data",
-    "Add totals and averages",
-    "Find patterns and outliers",
-    "Format and clean up the data",
-  ],
-  diagram: [
-    "Explain this diagram step by step",
-    "Add more nodes and connections",
-    "Simplify the structure",
-    "Convert to a different format",
-  ],
-  deck: [
-    "Add a new slide to the deck",
-    "Generate speaker notes",
-    "Improve the slide design",
-    "Create a summary slide",
-  ],
+const ENTITY_CONFIG: Record<
+  EntityType,
+  { emptySuggestions: string[]; populatedSuggestions: string[] }
+> = {
+  ku: {
+    emptySuggestions: [
+      "Draft a project brief for...",
+      "Write meeting notes from...",
+    ],
+    populatedSuggestions: [
+      "Summarize the key points",
+      "Improve clarity and tone",
+    ],
+  },
+  table: {
+    emptySuggestions: [
+      "Create a budget tracker for...",
+      "Build a task list with...",
+    ],
+    populatedSuggestions: [
+      "Visualize this as a chart",
+      "Find patterns in the data",
+    ],
+  },
+  diagram: {
+    emptySuggestions: [
+      "Draw a user signup flow",
+      "Map out an API architecture",
+    ],
+    populatedSuggestions: [
+      "Explain this step by step",
+      "Add more detail to the flow",
+    ],
+  },
+  deck: {
+    emptySuggestions: [
+      "Create a pitch deck about...",
+      "Build a quarterly update for...",
+    ],
+    populatedSuggestions: [
+      "Add a new slide about...",
+      "Generate speaker notes",
+    ],
+  },
 };
 
 // -- Component --
 
 interface ExamplePromptsProps {
-  onSelect: (prompt: string) => void;
+  onSelect?: (prompt: string) => void;
   centered?: boolean;
   hasProject?: boolean;
+  selectedEntityType?: EntityType | null;
+  onEntityTypeSelect?: (type: EntityType | null) => void;
 }
 
-export function ExamplePrompts({ onSelect, centered, hasProject }: ExamplePromptsProps) {
+export function ExamplePrompts({
+  onSelect,
+  centered,
+  hasProject,
+  selectedEntityType,
+  onEntityTypeSelect,
+}: ExamplePromptsProps) {
   const currentEntityType = useAppStore((s) => s.currentEntityType);
+  const docContent = useAppStore((s) => s.docContent);
+  const sheets = useAppStore((s) => s.sheets);
+  const diagramSource = useAppStore((s) => s.diagramSource);
+  const deckSlides = useAppStore((s) => s.deckSlides);
+  const projects = useAppStore((s) => s.projects);
+  const currentProjectId = useAppStore((s) => s.currentProjectId);
 
-  // Sidebar mode with project context: show compact suggestion pills
+  // Sidebar mode with project context
   if (hasProject && !centered) {
-    const pills = currentEntityType
-      ? ENTITY_PROJECT_PILLS[currentEntityType]
-      : GENERIC_PROJECT_PILLS;
-
-    const contextLabel = currentEntityType
+    // Determine if the current entity has content
+    const isEntityEmpty = currentEntityType
       ? {
-          ku: "Ask about this document",
-          table: "Ask about this spreadsheet",
-          diagram: "Ask about this diagram",
-          deck: "Ask about this deck",
+          ku: !docContent || docContent.trim().length === 0,
+          table: !sheets?.[0]?.celldata || sheets[0].celldata.length === 0,
+          diagram: !diagramSource || diagramSource.trim().length === 0,
+          deck: !deckSlides || deckSlides.length === 0,
         }[currentEntityType]
-      : "Ask anything about your project";
+      : null;
 
+    // Determine if the project has any meaningful content
+    const project = projects.find((p) => p.id === currentProjectId);
+    const projectEntityCount = project
+      ? project.knowledgeUnits.length +
+        project.tables.length +
+        (project.diagrams || []).length +
+        (project.decks || []).length
+      : 0;
+
+    // Pick suggestions based on context
+    let suggestions: string[];
+
+    if (currentEntityType && ENTITY_CONFIG[currentEntityType]) {
+      const config = ENTITY_CONFIG[currentEntityType];
+      suggestions = isEntityEmpty ? config.emptySuggestions : config.populatedSuggestions;
+    } else if (projectEntityCount <= 1) {
+      suggestions = [
+        "Help me plan a project about...",
+        "I need to organize data for...",
+      ];
+    } else {
+      suggestions = [
+        "Summarize everything so far",
+        "What should I work on next?",
+      ];
+    }
+
+    // Layout: push pills to bottom, just above the chatbox
     return (
-      <div className="flex flex-col items-center justify-center h-full px-4 pb-4">
-        <div className="text-center mb-6">
-          <p className="text-[13px] text-muted-foreground">
-            {contextLabel}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-1.5 w-full">
-          {pills.map((s) => (
+      <div className="flex flex-col justify-end h-full px-4 pb-3">
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {suggestions.map((s) => (
             <button
               key={s}
-              onClick={() => onSelect(s)}
-              className="px-3 py-[7px] rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] transition-all text-left group active:scale-[0.98]"
+              onClick={() => onSelect?.(s)}
+              className="px-3 py-[7px] rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] t-fast text-left group active:scale-[0.98]"
             >
-              <span className="text-[12px] leading-snug text-muted-foreground group-hover:text-foreground transition-colors">
+              <span className="text-[12px] leading-snug text-[#95928E] group-hover:text-foreground t-colors">
                 {s}
               </span>
             </button>
@@ -235,66 +191,45 @@ export function ExamplePrompts({ onSelect, centered, hasProject }: ExamplePrompt
     );
   }
 
-  // Fullscreen / centered mode: show hero + card grid
-  const prompts = currentEntityType
-    ? ENTITY_PROMPTS[currentEntityType]
-    : GENERIC_PROMPTS;
-
-  const heroText = currentEntityType
-    ? {
-        ku: "What would you like to do with this document?",
-        table: "What would you like to do with this spreadsheet?",
-        diagram: "What would you like to do with this diagram?",
-        deck: "What would you like to do with this deck?",
-      }[currentEntityType]
-    : "What would you like to write?";
-
-  const heroSubtext = currentEntityType
-    ? {
-        ku: "I can help you write, edit, summarize, or restructure your document.",
-        table: "I can help you analyze, visualize, and organize your data.",
-        diagram: "I can help you refine, explain, or transform your diagram.",
-        deck: "I can help you design slides, add content, and polish your presentation.",
-      }[currentEntityType]
-    : "Start a conversation and I\u2019ll help you draft, edit, or brainstorm.";
-
+  // Centered mode: entity type selector pills (hero screen)
   return (
-    <div
-      className={cn(
-        "flex flex-col items-center justify-center h-full px-5 pb-8",
-        centered && "max-w-[720px] mx-auto w-full"
-      )}
-    >
-      {/* Hero */}
-      <div className="text-center mb-10 animate-fade-in">
-        <h2 className="text-display-lg text-foreground mb-2">
-          {heroText}
-        </h2>
-        <p className="text-[14px] text-muted-foreground leading-relaxed">
-          {heroSubtext}
-        </p>
-      </div>
-
-      {/* Suggestion cards */}
-      <div className="space-y-2 w-full max-w-[520px]">
-        {prompts.map((s) => (
+    <div className="flex flex-wrap items-center justify-center gap-2">
+      {ENTITY_PILLS.map((pill) => {
+        const isSelected = selectedEntityType === pill.type;
+        return (
           <button
-            key={s.prompt}
-            onClick={() => onSelect(s.prompt)}
-            className="w-full flex items-start gap-3.5 px-4 py-3.5 rounded-xl border border-border hover:border-[#ff4a00]/30 hover:bg-accent transition-all text-left group active:scale-[0.99]"
+            key={pill.type}
+            onClick={() =>
+              onEntityTypeSelect?.(isSelected ? null : pill.type)
+            }
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-[14px] border text-[13px] font-medium t-fast active:scale-[0.97] cursor-pointer",
+              isSelected
+                ? "shadow-sm"
+                : "border-[#e8e8ed] text-[#737373] hover:border-[#dddfe3] hover:text-[#1a1a1a] hover:bg-[#f5f5f3]"
+            )}
+            style={
+              isSelected
+                ? {
+                    borderColor: pill.border,
+                    backgroundColor: pill.bg,
+                    color: pill.color,
+                  }
+                : undefined
+            }
           >
-            <div className="w-8 h-8 rounded-lg bg-[#fafaf8] border border-[#f0eee9] flex items-center justify-center flex-shrink-0 group-hover:bg-[#fff4ef] group-hover:border-[#ff4a00]/20 transition-colors">
-              <s.icon
-                className="w-4 h-4 text-muted-foreground group-hover:text-[#ff4a00] transition-colors"
-                strokeWidth={1.8}
-              />
-            </div>
-            <span className="flex-1 min-w-0 text-[13px] text-muted-foreground leading-relaxed pt-1 group-hover:text-foreground transition-colors">
-              {s.prompt}
-            </span>
+            <pill.icon
+              className="w-4 h-4"
+              strokeWidth={1.6}
+              style={isSelected ? { color: pill.color } : undefined}
+            />
+            {pill.label}
           </button>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }
+
+export { ENTITY_PILLS };
+export type { EntityPill };

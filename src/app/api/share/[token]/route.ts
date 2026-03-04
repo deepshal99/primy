@@ -63,6 +63,7 @@ export async function GET(
             id: projectDecks.id,
             title: projectDecks.title,
             theme: projectDecks.theme,
+            style: projectDecks.style,
             slides: projectDecks.slides,
             createdAt: projectDecks.createdAt,
             updatedAt: projectDecks.updatedAt,
@@ -177,6 +178,7 @@ export async function GET(
         id: projectDecks.id,
         title: projectDecks.title,
         theme: projectDecks.theme,
+        style: projectDecks.style,
         slides: projectDecks.slides,
         projectId: projectDecks.projectId,
         createdAt: projectDecks.createdAt,
@@ -198,6 +200,7 @@ export async function GET(
         title: deck.title,
         slides: deck.slides,
         theme: deck.theme,
+        style: deck.style || null,
         projectTitle: proj?.title || "",
       });
     }

@@ -126,12 +126,14 @@
   --font-body: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Motion tokens */
-  --duration-fast: 150ms;
-  --duration-normal: 200ms;
-  --duration-slow: 300ms;
-  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Motion tokens — single system for all animations */
+  --duration-fast: 120ms;    /* micro-interactions: hover, active, toggle */
+  --duration-normal: 200ms;  /* standard: fade, scale, color change */
+  --duration-slow: 320ms;    /* layout: panel resize, drawer, view switch */
+  --duration-enter: 240ms;   /* entrance: modals, new content appearing */
+  --ease-default: cubic-bezier(0.25, 0.1, 0.25, 1);      /* smooth decel */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);           /* spring overshoot for entrances */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);                 /* fast exit */
 }
 
 .dark {
@@ -389,23 +391,34 @@ html, body { height: 100%; margin: 0; padding: 0; }
    Animations
    ═══════════════════════════════════════ */
 
+/* ═══════════════════════════════════════
+   Unified Keyframes
+   All entrance animations use --ease-spring for a natural feel.
+   All durations reference the motion tokens above.
+   ═══════════════════════════════════════ */
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-@keyframes fadeInSoft {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(12px); }
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 @keyframes slideInFromRight {
-  from { opacity: 0; transform: translateX(24px); }
+  from { opacity: 0; transform: translateX(16px); }
   to { opacity: 1; transform: translateX(0); }
 }
 
@@ -414,19 +427,9 @@ html, body { height: 100%; margin: 0; padding: 0; }
   to { opacity: 1; transform: translateX(0); }
 }
 
-@keyframes fadeInDown {
-  from { opacity: 0; transform: translateY(-8px); }
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes subtleBounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
-}
-
-@keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
 }
 
 @keyframes spinSlow {
@@ -439,26 +442,28 @@ html, body { height: 100%; margin: 0; padding: 0; }
   to { opacity: 1; transform: scale(1); }
 }
 
-.animate-fade-in { animation: fadeIn 0.3s ease-out both; }
-.animate-fade-in-soft { animation: fadeInSoft 0.25s ease-out both; }
-.animate-fade-in-up { animation: fadeInUp 0.3s ease-out both; }
-.animate-fade-in-down { animation: fadeInDown 0.3s ease-out both; }
-.animate-slide-up { animation: slideUp 0.35s ease-out both; }
-.animate-slide-in-right { animation: slideInFromRight 0.4s cubic-bezier(0.4, 0, 0.2, 1) both; }
-.animate-slide-in-left { animation: slideInFromLeft 0.4s cubic-bezier(0.4, 0, 0.2, 1) both; }
-.animate-scale-in { animation: scaleIn 0.2s ease-out both; }
-.animate-spin-slow { animation: spinSlow 1.5s linear infinite; }
-.animate-checkmark { animation: checkmarkIn 0.25s ease-out both; }
-.animate-subtle-bounce { animation: subtleBounce 0.6s ease-in-out; }
+/* ── Animation utility classes ─────────────────────────────
+   All entrance animations: --duration-enter + --ease-spring
+   Keeps every fade, scale, slide feeling identical.
+   ────────────────────────────────────────────────────────── */
 
-/* Drawer slide-in */
-@keyframes slideIn {
-  from { opacity: 0; transform: translateX(-8px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-.drawer-slide-in { animation: slideIn 0.15s ease-out both; }
+.animate-fade-in       { animation: fadeIn var(--duration-enter) var(--ease-spring) both; }
+.animate-fade-in-soft  { animation: fadeIn var(--duration-normal) var(--ease-default) both; }
+.animate-fade-in-up    { animation: fadeInUp var(--duration-enter) var(--ease-spring) both; }
+.animate-fade-in-down  { animation: fadeInDown var(--duration-enter) var(--ease-spring) both; }
+.animate-slide-up      { animation: slideUp var(--duration-slow) var(--ease-spring) both; }
+.animate-slide-in-right{ animation: slideInFromRight var(--duration-slow) var(--ease-spring) both; }
+.animate-slide-in-left { animation: slideInFromLeft var(--duration-slow) var(--ease-spring) both; }
+.animate-scale-in      { animation: scaleIn var(--duration-enter) var(--ease-spring) both; }
+.animate-spin-slow     { animation: spinSlow 1.5s linear infinite; }
+.animate-checkmark     { animation: checkmarkIn var(--duration-enter) var(--ease-spring) both; }
+.fade-in-up            { animation: fadeInUp var(--duration-enter) var(--ease-spring) both; }
+.spin-slow             { animation: spinSlow 1.5s linear infinite; }
 
-/* Shimmer text for AI thinking states — smooth, subtle sweep */
+/* Drawer slide-in — fast, uses --duration-normal */
+.drawer-slide-in { animation: slideInFromLeft var(--duration-normal) var(--ease-spring) both; }
+
+/* Shimmer text for AI thinking states */
 @keyframes shimmer {
   0% { background-position: 200% center; }
   100% { background-position: -200% center; }
@@ -471,16 +476,6 @@ html, body { height: 100%; margin: 0; padding: 0; }
   -webkit-text-fill-color: transparent;
   animation: shimmer 3s ease-in-out infinite;
 }
-
-/* Fade-in-up */
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.fade-in-up { animation: fadeInUp 0.3s ease-out both; }
-
-/* spin-slow alias */
-.spin-slow { animation: spinSlow 1.5s linear infinite; }
 
 /* ═══════════════════════════════════════
    Content Loading Animation
@@ -555,7 +550,7 @@ html, body { height: 100%; margin: 0; padding: 0; }
 }
 
 /* ═══════════════════════════════════════
-   Icon Effects
+   Interaction effects — all use motion tokens
    ═══════════════════════════════════════ */
 
 @keyframes sparkle-pulse {
@@ -569,9 +564,12 @@ html, body { height: 100%; margin: 0; padding: 0; }
   50% { transform: translateX(3px); }
 }
 .group:hover .icon-nudge-right,
-.group\/msg:hover .icon-nudge-right { animation: nudge-right 0.4s ease-in-out; }
+.group\/msg:hover .icon-nudge-right { animation: nudge-right 0.3s var(--ease-default); }
 
-.icon-btn-hover { transition: transform 0.15s ease, color 0.15s ease; }
+.icon-btn-hover {
+  transition: transform var(--duration-fast) var(--ease-default),
+              color var(--duration-fast) var(--ease-default);
+}
 .icon-btn-hover:hover { transform: translateY(-1px); }
 .icon-btn-hover:active { transform: translateY(0) scale(0.95); }
 
@@ -580,23 +578,43 @@ html, body { height: 100%; margin: 0; padding: 0; }
   40% { transform: scale(0.88) translateY(1px); }
   100% { transform: scale(1); }
 }
-.icon-send-press:active { animation: send-press 0.25s ease-out; }
+.icon-send-press:active { animation: send-press var(--duration-normal) var(--ease-out); }
 
-.icon-plus-hover { transition: transform 0.25s ease; }
+.icon-plus-hover { transition: transform var(--duration-normal) var(--ease-spring); }
 .icon-plus-hover:hover { transform: rotate(90deg); }
 
 /* Scrollbar-hidden utility */
 .scrollbar-none, .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 .scrollbar-none::-webkit-scrollbar, .no-scrollbar::-webkit-scrollbar { display: none; }
 
-/* Stagger children */
+/* Stagger children — consistent 50ms intervals */
 .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-.stagger-children > *:nth-child(2) { animation-delay: 60ms; }
-.stagger-children > *:nth-child(3) { animation-delay: 120ms; }
-.stagger-children > *:nth-child(4) { animation-delay: 180ms; }
-.stagger-children > *:nth-child(5) { animation-delay: 240ms; }
-.stagger-children > *:nth-child(6) { animation-delay: 300ms; }
-.stagger-children > *:nth-child(7) { animation-delay: 360ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+
+/* ── Transition utilities ─────────────
+   Use these instead of raw transition-all duration-N.
+   Keeps every interactive element feeling the same.
+   ─────────────────────────────────────── */
+.t-fast    { transition: all var(--duration-fast) var(--ease-default); }
+.t-normal  { transition: all var(--duration-normal) var(--ease-default); }
+.t-slow    { transition: all var(--duration-slow) var(--ease-spring); }
+.t-colors  { transition: color var(--duration-fast) var(--ease-default),
+                          background-color var(--duration-fast) var(--ease-default),
+                          border-color var(--duration-fast) var(--ease-default); }
+
+/* ── Reduced motion ──────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 .stagger-children > *:nth-child(8) { animation-delay: 420ms; }
 
 /* Stagger delay utilities — use with animate-* classes for staggered entrances */

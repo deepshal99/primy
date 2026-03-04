@@ -171,15 +171,15 @@ export const design = {
 
   animation: {
     duration: {
-      fast: "100ms",
-      normal: "200ms",
-      slow: "350ms",
-      layout: "450ms",
+      fast: "120ms",     // micro-interactions: hover, active, toggle
+      normal: "200ms",   // standard: fade, scale, color change
+      slow: "320ms",     // layout: panel resize, drawer, view switch
+      enter: "240ms",    // entrance: modals, new content appearing
     },
     easing: {
-      default: "cubic-bezier(0.4, 0, 0.2, 1)",
-      spring: "cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-      smooth: "cubic-bezier(0.25, 0.1, 0.25, 1)",
+      default: "cubic-bezier(0.25, 0.1, 0.25, 1)",  // smooth decel
+      spring: "cubic-bezier(0.16, 1, 0.3, 1)",       // spring overshoot for entrances
+      out: "cubic-bezier(0, 0, 0.2, 1)",             // fast exit
     },
   },
 

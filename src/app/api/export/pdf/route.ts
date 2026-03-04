@@ -21,22 +21,49 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing html field" }, { status: 400 });
     }
 
-    let chromium: typeof import("@sparticuz/chromium").default;
     let puppeteer: typeof import("puppeteer-core");
     try {
-      chromium = (await import("@sparticuz/chromium")).default;
       puppeteer = await import("puppeteer-core");
     } catch {
       return NextResponse.json({ error: "PDF generation dependencies not available" }, { status: 500 });
     }
 
-    const executablePath = await chromium.executablePath();
-    if (!executablePath) {
-      return NextResponse.json({ error: "Chromium binary not available" }, { status: 500 });
+    // In production (serverless), use @sparticuz/chromium for the bundled binary.
+    // In development, use the local Chrome installation.
+    let executablePath: string;
+    let launchArgs: string[] = [];
+    const isDev = process.env.NODE_ENV === "development";
+
+    if (isDev) {
+      // Try common local Chrome paths
+      const { existsSync } = await import("fs");
+      const localPaths = [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/usr/bin/google-chrome",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/chromium",
+      ];
+      const found = localPaths.find((p) => existsSync(p));
+      if (!found) {
+        return NextResponse.json({ error: "No local Chrome found. Install Google Chrome for PDF export in dev." }, { status: 500 });
+      }
+      executablePath = found;
+      launchArgs = ["--no-sandbox", "--disable-setuid-sandbox"];
+    } else {
+      try {
+        const chromium = (await import("@sparticuz/chromium")).default;
+        executablePath = await chromium.executablePath();
+        launchArgs = chromium.args;
+      } catch {
+        return NextResponse.json({ error: "Chromium binary not available" }, { status: 500 });
+      }
+      if (!executablePath) {
+        return NextResponse.json({ error: "Chromium binary not available" }, { status: 500 });
+      }
     }
 
     const browser = await puppeteer.launch({
-      args: chromium.args,
+      args: launchArgs,
       defaultViewport: { width: 1920, height: 1080 },
       executablePath,
       headless: true,
@@ -50,12 +77,22 @@ export async function POST(req: Request) {
       await page.setContent(fullHtml, { waitUntil: "networkidle0", timeout: 15000 });
 
       const opts = body.options || {};
-      const pdfBuffer = await page.pdf({
-        format: (opts.format as any) || "A4",
+      // Support custom dimensions (e.g. "960px 540px") via width/height,
+      // or standard named formats (e.g. "A4", "Letter") via format.
+      const formatStr = opts.format || "A4";
+      const customSize = formatStr.match(/^(\d+(?:px)?)\s+(\d+(?:px)?)$/);
+      const pdfOpts: Parameters<typeof page.pdf>[0] = {
         landscape: opts.landscape ?? false,
         margin: opts.margin || { top: "0.4in", right: "0.4in", bottom: "0.4in", left: "0.4in" },
         printBackground: true,
-      });
+      };
+      if (customSize) {
+        pdfOpts.width = customSize[1];
+        pdfOpts.height = customSize[2];
+      } else {
+        pdfOpts.format = formatStr as any;
+      }
+      const pdfBuffer = await page.pdf(pdfOpts);
 
       return new NextResponse(Buffer.from(pdfBuffer), {
         headers: {

@@ -106,6 +106,7 @@ export const projectDecks = pgTable(
       .references(() => projects.id, { onDelete: "cascade" }),
     title: varchar("title", { length: 500 }).notNull().default("Untitled Deck"),
     theme: varchar("theme", { length: 20 }).notNull().default("light"),
+    style: jsonb("style"),
     slides: jsonb("slides").notNull().default([]),
     shareToken: varchar("share_token", { length: 32 }).unique(),
     createdAt: timestamp("created_at").defaultNow().notNull(),

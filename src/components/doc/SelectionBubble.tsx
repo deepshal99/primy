@@ -7,7 +7,7 @@ import { MarkdownPlugin } from "@platejs/markdown";
 import { toast } from "sonner";
 import { cn } from "@/lib/cn";
 import { useAppStore } from "@/lib/store";
-import type { BaseSelection } from "slate";
+import type { TSelection } from "@platejs/slate";
 
 interface SelectionBubbleProps {
   editor: PlateEditor;
@@ -41,7 +41,7 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
   const [animateIn, setAnimateIn] = useState(false);
   const bubbleRef = useRef<HTMLDivElement>(null);
   const selectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const savedSelectionRef = useRef<BaseSelection>(null);
+  const savedSelectionRef = useRef<TSelection>(null);
 
   const hideBubble = useCallback(() => {
     setAnimateIn(false);
@@ -66,65 +66,76 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
         selectionTimerRef.current = null;
       }
 
-      const sel = editor.selection;
-      if (!sel || !sel.anchor || !sel.focus) {
-        if (state === "selecting") hideBubble();
-        return;
-      }
+      try {
+        // Use DOM selection as primary source — avoids Slate timing issues
+        const domSel = window.getSelection();
+        if (!domSel || domSel.isCollapsed || domSel.rangeCount === 0) {
+          if (state === "selecting") hideBubble();
+          return;
+        }
 
-      const isCollapsed =
-        sel.anchor.path.join(",") === sel.focus.path.join(",") &&
-        sel.anchor.offset === sel.focus.offset;
+        const domText = domSel.toString();
+        if (!domText || domText.trim().length <= 2) {
+          if (state === "selecting") hideBubble();
+          return;
+        }
 
-      if (isCollapsed) {
-        if (state === "selecting") hideBubble();
-        return;
-      }
-
-      const text = editor.api.string(sel);
-      if (!text || text.trim().length <= 2) {
-        if (state === "selecting") hideBubble();
-        return;
-      }
-
-      selectionTimerRef.current = setTimeout(() => {
+        // Verify the selection is within the editor container
         const container = containerRef.current;
         if (!container) return;
-
-        try {
-          const domSel = window.getSelection();
-          if (!domSel || domSel.rangeCount === 0) return;
-          const range = domSel.getRangeAt(0);
-          const rect = range.getBoundingClientRect();
-          const containerRect = container.getBoundingClientRect();
-
-          const BUBBLE_HEIGHT_ESTIMATE = 48;
-          const rawTop = rect.top - containerRect.top + container.scrollTop - 12;
-          const shouldFlip = rawTop < BUBBLE_HEIGHT_ESTIMATE + 8;
-
-          const top = shouldFlip
-            ? rect.bottom - containerRect.top + container.scrollTop + 12
-            : rawTop;
-
-          const containerWidth = containerRect.width;
-          const BUBBLE_HALF_WIDTH = 140;
-          const left = Math.max(
-            BUBBLE_HALF_WIDTH,
-            Math.min(rect.left - containerRect.left + rect.width / 2, containerWidth - BUBBLE_HALF_WIDTH)
-          );
-
-          setPos({ top, left });
-          setFlipped(shouldFlip);
-          setSelectedText(text);
-          // Save the editor selection so we can restore it for replace
-          savedSelectionRef.current = JSON.parse(JSON.stringify(sel));
-          setState("selecting");
-          requestAnimationFrame(() => requestAnimationFrame(() => setAnimateIn(true)));
-        } catch {
-          setState("idle");
-          setPos(null);
+        const anchorNode = domSel.anchorNode;
+        if (!anchorNode || !container.contains(anchorNode)) {
+          if (state === "selecting") hideBubble();
+          return;
         }
-      }, 500);
+
+        selectionTimerRef.current = setTimeout(() => {
+          try {
+            // Re-check DOM selection is still valid after delay
+            const freshDomSel = window.getSelection();
+            if (!freshDomSel || freshDomSel.isCollapsed || freshDomSel.rangeCount === 0) return;
+
+            const freshText = freshDomSel.toString();
+            if (!freshText || freshText.trim().length <= 2) return;
+
+            const range = freshDomSel.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            if (rect.width === 0 && rect.height === 0) return;
+
+            const containerRect = container.getBoundingClientRect();
+
+            const BUBBLE_HEIGHT_ESTIMATE = 48;
+            const rawTop = rect.top - containerRect.top + container.scrollTop - 12;
+            const shouldFlip = rawTop < BUBBLE_HEIGHT_ESTIMATE + 8;
+
+            const top = shouldFlip
+              ? rect.bottom - containerRect.top + container.scrollTop + 12
+              : rawTop;
+
+            const containerWidth = containerRect.width;
+            const BUBBLE_HALF_WIDTH = 140;
+            const left = Math.max(
+              BUBBLE_HALF_WIDTH,
+              Math.min(rect.left - containerRect.left + rect.width / 2, containerWidth - BUBBLE_HALF_WIDTH)
+            );
+
+            setPos({ top, left });
+            setFlipped(shouldFlip);
+            setSelectedText(freshText.trim());
+            // Save editor selection for replace — may be null if Slate hasn't synced yet
+            if (editor.selection) {
+              savedSelectionRef.current = JSON.parse(JSON.stringify(editor.selection));
+            }
+            setState("selecting");
+            requestAnimationFrame(() => requestAnimationFrame(() => setAnimateIn(true)));
+          } catch {
+            setState("idle");
+            setPos(null);
+          }
+        }, 500);
+      } catch {
+        // Silently handle any unexpected errors
+      }
     };
 
     document.addEventListener("selectionchange", checkSelection);

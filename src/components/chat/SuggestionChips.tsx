@@ -1,40 +1,82 @@
 "use client";
 
 import { useMemo } from "react";
-import { Zap } from "lucide-react";
+import {
+  FileText,
+  Table2,
+  GitBranch,
+  Presentation,
+  Sparkles,
+  PenLine,
+  BarChart3,
+  ListChecks,
+  Wand2,
+  MessageSquareText,
+  Layers,
+  ArrowRight,
+  LayoutGrid,
+  Search,
+  Lightbulb,
+  type LucideIcon,
+} from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import type { EntityType } from "@/lib/types";
 
+// -- Icon detection based on suggestion content keywords --
+
+const ICON_RULES: { keywords: string[]; icon: LucideIcon }[] = [
+  // Entity-specific (check first — most distinctive)
+  { keywords: ["slide", "deck", "presentation"], icon: Presentation },
+  { keywords: ["diagram", "flow", "node", "flowchart"], icon: GitBranch },
+  { keywords: ["table", "spreadsheet", "row", "column", "sort"], icon: Table2 },
+  { keywords: ["document", "doc", "page", "section"], icon: FileText },
+  // Content actions
+  { keywords: ["summarize", "summary", "overview", "recap", "key points"], icon: ListChecks },
+  { keywords: ["chart", "graph", "visualize", "plot"], icon: BarChart3 },
+  { keywords: ["write", "draft", "compose", "rewrite", "speaker notes", "notes"], icon: PenLine },
+  { keywords: ["explain", "describe", "break down", "step by step"], icon: MessageSquareText },
+  { keywords: ["improve", "enhance", "polish", "fix", "refine", "clean", "clarity"], icon: Wand2 },
+  { keywords: ["simplify", "reduce", "shorten", "concise"], icon: Layers },
+  { keywords: ["convert", "transform", "export", "format"], icon: ArrowRight },
+  { keywords: ["analyze", "find", "search", "pattern", "trend", "insight", "data"], icon: Search },
+  { keywords: ["layout", "arrange", "organize", "grid"], icon: LayoutGrid },
+  { keywords: ["idea", "suggest", "brainstorm", "think"], icon: Lightbulb },
+  // Generic creation (last — catches "create", "build", "generate", "add", "new")
+  { keywords: ["add", "insert", "create", "new", "build", "generate"], icon: Sparkles },
+];
+
+function getIconForSuggestion(text: string): LucideIcon {
+  const lower = text.toLowerCase();
+  for (const rule of ICON_RULES) {
+    if (rule.keywords.some((kw) => lower.includes(kw))) {
+      return rule.icon;
+    }
+  }
+  return Sparkles;
+}
+
+// -- Default suggestions: sensible, variable count --
+
 const DEFAULT_SUGGESTIONS: Record<string, string[]> = {
   ku: [
-    "Summarize this document",
-    "Fix grammar and style",
-    "Add a conclusion",
-    "Make it more concise",
+    "Summarize the key points",
+    "Improve clarity and tone",
   ],
   table: [
-    "Create a chart from this data",
-    "Add a summary row",
-    "Analyze trends",
-    "Sort by first column",
+    "Visualize this data as a chart",
+    "Find patterns and outliers",
   ],
   diagram: [
+    "Explain this step by step",
     "Add more detail",
-    "Simplify the structure",
-    "Explain this diagram",
-    "Convert to flowchart",
   ],
   deck: [
     "Add a new slide",
-    "Improve slide design",
     "Generate speaker notes",
-    "Add a summary slide",
   ],
   default: [
-    "Create a new document",
+    "Create a document",
     "Build a spreadsheet",
-    "Generate a diagram",
-    "Make a presentation",
   ],
 };
 
@@ -70,19 +112,22 @@ export function SuggestionChips({ suggestions }: SuggestionChipsProps) {
   if (chips.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-1.5" role="list" aria-label="Suggested follow-ups">
-      {chips.map((suggestion, i) => (
-        <button
-          key={i}
-          onClick={() => handleClick(suggestion)}
-          className="group flex items-center gap-2 px-3 py-2 rounded-lg border border-border text-[12px] text-muted-foreground font-medium transition-all duration-150 hover:border-[#ff4a00]/30 hover:text-[#ff4a00] hover:bg-[#fff8f5] text-left w-fit animate-fade-in"
-          style={{ animationDelay: `${i * 80}ms`, animationFillMode: "both" }}
-          role="listitem"
-        >
-          <Zap className="w-3 h-3 opacity-40 group-hover:opacity-80 transition-opacity flex-shrink-0" strokeWidth={2} />
-          {suggestion}
-        </button>
-      ))}
+    <div className="flex flex-wrap gap-1.5" role="list" aria-label="Suggested follow-ups">
+      {chips.map((suggestion, i) => {
+        const Icon = getIconForSuggestion(suggestion);
+        return (
+          <button
+            key={i}
+            onClick={() => handleClick(suggestion)}
+            className="group flex items-center gap-1.5 px-3 py-[7px] rounded-xl border border-[#e8e7e4] text-[12px] leading-snug text-[#737373] font-medium t-fast hover:border-[#ff4a00]/30 hover:text-[#ff4a00] hover:bg-[#fff8f5] text-left w-fit animate-fade-in active:scale-[0.98]"
+            style={{ animationDelay: `${i * 60}ms`, animationFillMode: "both" }}
+            role="listitem"
+          >
+            <Icon className="w-3.5 h-3.5 opacity-50 group-hover:opacity-90 transition-opacity flex-shrink-0" strokeWidth={1.8} />
+            {suggestion}
+          </button>
+        );
+      })}
     </div>
   );
 }

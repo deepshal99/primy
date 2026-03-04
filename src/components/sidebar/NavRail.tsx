@@ -118,8 +118,9 @@ export function NavRail() {
 
   const initials = session?.user?.name ? getInitials(session.user.name) : "U";
 
+  const resetAll = useAppStore((s) => s.resetAll);
   const handleNewProject = () => { createProject("New Project"); setDrawerOpen(false); };
-  const handleNewChat = () => { createProject("New Project"); };
+  const handleNewChat = () => { resetAll(); setDrawerOpen(false); };
   const handleRenameSubmit = () => {
     if (renamingId && renameValue.trim()) renameProject(renamingId, renameValue.trim());
     setRenamingId(null);

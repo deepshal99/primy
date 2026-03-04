@@ -154,7 +154,7 @@ export function ZoomPanWrapper({ children }: ZoomPanWrapperProps) {
         style={{
           transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
           transformOrigin: "0 0",
-          willChange: "transform",
+          willChange: isPanning ? "transform" : "auto",
         }}
       >
         {children}

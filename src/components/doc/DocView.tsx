@@ -12,6 +12,7 @@ import { ListPlugin } from "@platejs/list-classic/react";
 import { LinkPlugin } from "@platejs/link/react";
 import { TextAlignPlugin } from "@platejs/basic-styles/react";
 import { MarkdownPlugin, serializeMd } from "@platejs/markdown";
+import remarkGfm from "remark-gfm";
 import { TablePlugin } from "@platejs/table/react";
 import { ImagePlugin } from "@platejs/media/react";
 import { useAppStore } from "@/lib/store";
@@ -318,7 +319,11 @@ export function DocView() {
       ListPlugin,
       LinkPlugin,
       TextAlignPlugin,
-      MarkdownPlugin,
+      MarkdownPlugin.configure({
+        options: {
+          remarkPlugins: [remarkGfm],
+        },
+      }),
       HrPlugin,
       TablePlugin.configure({
         render: { node: TableElement },

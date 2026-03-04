@@ -274,7 +274,11 @@ function MermaidRenderer({ source }: { source: string }) {
       const id = `mermaid-${Date.now()}`;
       const sanitized = sanitizeMermaidSource(source.trim());
       const { svg } = await mermaid.render(id, sanitized);
-      setSvgHtml(svg);
+      // Make SVG responsive so it scales as a vector instead of a blurry bitmap
+      const responsiveSvg = svg
+        .replace(/\bwidth="[^"]*"/, 'width="100%"')
+        .replace(/\bheight="[^"]*"/, 'height="auto"');
+      setSvgHtml(responsiveSvg);
       setError(null);
     } catch (err: any) {
       setError(err?.message || "Failed to render diagram");

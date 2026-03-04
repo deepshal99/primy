@@ -6,8 +6,8 @@ import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import "@/lib/env";
 
-// Allow longer processing for file-heavy requests
-export const maxDuration = 60;
+// Allow longer processing for deck generation and file-heavy requests
+export const maxDuration = 300;
 
 const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -80,9 +80,22 @@ export async function POST(req: Request) {
     let taskType: AITask = "chat";
     if (deckPhase === "generating") {
       taskType = "deck-generate";
+    } else if (deckPhase === "idle") {
+      // Detect deck generation intent from last message — user approving outline or requesting generation
+      const lastMsg = messages[messages.length - 1];
+      const lastContent = typeof lastMsg?.content === "string" ? lastMsg.content.toLowerCase() : "";
+      const deckGenerationSignals = ["generate", "create the deck", "create the pitch", "create the presentation",
+        "build the deck", "build the pitch", "build the presentation", "make the deck", "make the pitch",
+        "make the presentation", "go ahead", "looks good", "let's go", "start generating", "generate now",
+        "generate the slides", "generate the pitch", "create slides", "create it", "build it", "make it",
+        "approved", "looks great", "perfect", "yes", "do it", "proceed"];
+      if (deckGenerationSignals.some(s => lastContent.includes(s))) {
+        taskType = "deck-generate";
+      }
     } else if (deckPhase === "viewing" && activeEntityType === "deck") {
       taskType = "deck-edit";
-    } else if (contextSize && contextSize > 30 * 1024) {
+    }
+    if (taskType === "chat" && contextSize && contextSize > 30 * 1024) {
       taskType = "chat-heavy";
     }
     const { model: modelId, maxOutputTokens } = getModelForTask(taskType, contextSize);
@@ -165,7 +178,7 @@ export async function POST(req: Request) {
     }
 
     // Inject deck phase for conversational presentation flow
-    if (deckPhase && activeEntityType === "deck") {
+    if (deckPhase) {
       textContent += `\n\n<deck_phase>${deckPhase}</deck_phase>`;
     }
 
@@ -262,7 +275,7 @@ export async function POST(req: Request) {
         messages: modelMessages,
         maxOutputTokens,
         providerOptions: modelId.includes("3.1-pro") ? {
-          google: { thinkingConfig: { thinkingBudget: 8192 } },
+          google: { thinkingConfig: { thinkingBudget: taskType === "deck-generate" ? 2048 : 8192 } },
         } : undefined,
         tools: {
           googleSearch: google.tools.googleSearch({}),
@@ -309,7 +322,9 @@ export async function POST(req: Request) {
           try { controller.close(); } catch { /* already closed */ }
         };
 
-        // Timeout: abort if no chunks arrive within 30s
+        // Timeout: abort if no chunks arrive within timeout period
+        // Deck generation with thinking needs longer — model thinks before first token
+        const chunkTimeoutMs = taskType.startsWith("deck") ? 120000 : 30000;
         let lastChunkTime = Date.now();
         const timeoutCheck = setInterval(() => {
           if (clientDisconnected) {
@@ -317,7 +332,7 @@ export async function POST(req: Request) {
             safeClose();
             return;
           }
-          if (Date.now() - lastChunkTime > 30000) {
+          if (Date.now() - lastChunkTime > chunkTimeoutMs) {
             clearInterval(timeoutCheck);
             safeEnqueue(
               encoder.encode(`data: ${JSON.stringify({ error: "Response timed out. Please try again." })}\n\n`)

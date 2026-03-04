@@ -141,6 +141,7 @@ export async function GET(
         projectId: d.projectId,
         title: d.title,
         theme: d.theme,
+        style: d.style || null,
         slides: d.slides,
         shareToken: d.shareToken || null,
         createdAt: d.createdAt.getTime(),
@@ -338,6 +339,7 @@ export async function PUT(
             .set({
               title: deck.title,
               theme: deck.theme,
+              style: deck.style || null,
               slides: deck.slides,
               updatedAt: new Date(),
             })
@@ -348,6 +350,7 @@ export async function PUT(
             projectId: id,
             title: deck.title,
             theme: deck.theme || "light",
+            style: deck.style || null,
             slides: deck.slides || [],
           });
         }

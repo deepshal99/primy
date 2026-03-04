@@ -54,7 +54,10 @@ function MermaidRendererRO({ source }: { source: string }) {
       mermaid.initialize({ startOnLoad: false, theme: "default", securityLevel: "loose" });
       const id = `mermaid-ro-${Date.now()}`;
       const { svg } = await mermaid.render(id, source.trim());
-      setSvgHtml(svg);
+      const responsiveSvg = svg
+        .replace(/\bwidth="[^"]*"/, 'width="100%"')
+        .replace(/\bheight="[^"]*"/, 'height="auto"');
+      setSvgHtml(responsiveSvg);
       setError(null);
       requestAnimationFrame(() => setRendered(true));
     } catch (err: any) {

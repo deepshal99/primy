@@ -12,6 +12,7 @@ import { ListPlugin } from "@platejs/list-classic/react";
 import { LinkPlugin } from "@platejs/link/react";
 import { TextAlignPlugin } from "@platejs/basic-styles/react";
 import { MarkdownPlugin } from "@platejs/markdown";
+import remarkGfm from "remark-gfm";
 
 // HR void element plugin — prevents React from passing children to <hr>
 function HrElement({ attributes, children }: any) {
@@ -50,7 +51,11 @@ export function DocViewReadOnly({ content }: DocViewReadOnlyProps) {
         },
       }),
       TextAlignPlugin,
-      MarkdownPlugin,
+      MarkdownPlugin.configure({
+        options: {
+          remarkPlugins: [remarkGfm],
+        },
+      }),
       HrPlugin,
     ],
     []
