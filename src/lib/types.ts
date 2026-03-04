@@ -264,7 +264,28 @@ export type AIPhase = 'idle' | 'thinking' | 'streaming' | 'updating' | 'done';
 // Legacy — kept for backward compat with existing structured slides
 export type DeckTheme = string;
 
-export type DeckPhase = "gathering" | "outlining" | "theming" | "generating" | "viewing";
+export type DeckPhase = "idle" | "generating" | "viewing";
+
+/** Full custom style config — AI generates this for every deck */
+export interface ThemeConfig {
+  label: string;
+  bg: string;
+  text: string;
+  textSecondary: string;
+  accent: string;
+  accentAlt: string;
+  accentLight: string;
+  headingFont: string;
+  bodyFont: string;
+  headingWeight: number;
+  headingCase: "none" | "uppercase";
+  cardBg: string;
+  cardBorder: string;
+  divider: string;
+  bulletStyle: "disc" | "dash" | "number" | "arrow" | "check" | "ring" | "bar";
+  decorStyle: "geometric" | "minimal" | "gradient";
+  googleFonts: string[];
+}
 
 export interface DeckOutlineItem {
   id: string;
@@ -276,7 +297,7 @@ export interface DeckOutlineItem {
 
 export interface DeckSlide {
   id: string;
-  layout: "title" | "bullets" | "titleContent" | "twoColumn" | "section" | "quote" | "blank" | "stats" | "imageFeature" | "html";
+  layout: "title" | "bullets" | "titleContent" | "twoColumn" | "section" | "quote" | "blank" | "stats" | "imageFeature" | "statement" | "metrics" | "featureGrid" | "logoGrid" | "html";
   title?: string;
   subtitle?: string;
   content?: string;
@@ -294,12 +315,35 @@ export interface DeckSlide {
   generatedBy?: "gemini" | "kimi";
 }
 
+/** Editable region declared by the AI inside an HTML slide */
+export interface SlideEditableField {
+  id: string;
+  selector: string;
+  type: "text" | "heading" | "image" | "list";
+  currentValue: string;
+}
+
+/** New HTML/CSS slide — AI generates the full markup */
+export interface HtmlDeckSlide {
+  id: string;
+  html: string;
+  editableFields: SlideEditableField[];
+  notes?: string;
+  imageQuery?: string;
+}
+
+/** Check if a slide uses the new HTML format */
+export function isHtmlSlide(slide: DeckSlide | HtmlDeckSlide): slide is HtmlDeckSlide {
+  return 'html' in slide && !('layout' in slide);
+}
+
 export interface ProjectDeck {
   id: string;
   projectId: string;
   title: string;
   theme: DeckTheme;
-  slides: DeckSlide[];
+  style?: ThemeConfig | null;
+  slides: (DeckSlide | HtmlDeckSlide)[];
   shareToken?: string | null;
   createdAt: number;
   updatedAt: number;
@@ -311,13 +355,15 @@ export type DeckOperation =
       type: "CREATE";
       title: string;
       theme?: DeckTheme;
-      slides: DeckSlide[];
+      style?: ThemeConfig;
+      slides: (DeckSlide | HtmlDeckSlide)[];
     }
   | {
       type: "UPDATE";
       deckId: string;
-      slides: DeckSlide[];
+      slides: (DeckSlide | HtmlDeckSlide)[];
       theme?: DeckTheme;
+      style?: ThemeConfig;
     }
   | { type: "DELETE"; deckId: string }
   | { type: "RENAME"; deckId: string; title: string };
@@ -399,7 +445,7 @@ export interface UndoSnapshot {
   docContent: string;
   diagramSource: string;
   diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow";
-  deckSlides: DeckSlide[];
+  deckSlides: (DeckSlide | HtmlDeckSlide)[];
   deckTheme: DeckTheme;
   label: string;
   timestamp: number;
@@ -419,13 +465,11 @@ export interface AppState {
   diagramSource: string;
   diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow";
   diagramVersion: number;
-  deckSlides: DeckSlide[];
+  deckSlides: (DeckSlide | HtmlDeckSlide)[];
   deckTheme: DeckTheme;
   deckVersion: number;
   deckPhase: DeckPhase;
-  deckOutline: DeckOutlineItem[];
-  deckGatheringProgress: number;
-  deckSuggestedThemes: DeckTheme[];
+  deckStyle: ThemeConfig | null;
   activeTab: WorkspaceTab;
   workspaceOpen: boolean;
   pendingAttachments: FileAttachment[];
@@ -529,18 +573,15 @@ export interface AppState {
   updateDiagramSource: (source: string) => void;
 
   // Deck CRUD
-  createDeck: (projectId: string, title: string, theme?: DeckTheme, slides?: DeckSlide[]) => ProjectDeck;
+  createDeck: (projectId: string, title: string, theme?: DeckTheme, slides?: (DeckSlide | HtmlDeckSlide)[]) => ProjectDeck;
   duplicateDeck: (projectId: string, deckId: string) => ProjectDeck | null;
   deleteDeck: (projectId: string, deckId: string) => void;
   renameDeck: (projectId: string, deckId: string, title: string) => void;
   openDeck: (deckId: string) => void;
-  updateDeckSlides: (slides: DeckSlide[]) => void;
+  updateDeckSlides: (slides: (DeckSlide | HtmlDeckSlide)[]) => void;
   updateDeckTheme: (theme: DeckTheme) => void;
   setDeckPhase: (phase: DeckPhase) => void;
-  setDeckOutline: (outline: DeckOutlineItem[]) => void;
-  setDeckGatheringProgress: (progress: number) => void;
-  setDeckSuggestedThemes: (themes: DeckTheme[]) => void;
-  advanceDeckPhase: () => void;
+  updateDeckStyle: (style: ThemeConfig | null) => void;
   resetDeckBuilder: () => void;
 
   // Tab management
