@@ -1,4 +1,4 @@
-import { SheetOperation, DocOperation, KuOperation, TableOperation, DiagramOperation, DeckOperation, ThemeConfig } from "@/lib/types";
+import { SheetOperation, DocOperation, KuOperation, TableOperation, DiagramOperation, DeckOperation, DeckOutlineItem, ThemeConfig } from "@/lib/types";
 
 /**
  * Extract content between ```tag and ``` fences.
@@ -318,22 +318,346 @@ export function parseDiagramOperations(fullText: string): DiagramOperation[] {
   return operations;
 }
 
+// ── HTML Deck Slide Normalization ──
+
+/**
+ * Normalize an HTML slide: coerce missing/malformed editableFields to [],
+ * assign a fallback id if missing. Returns null only if html is missing entirely.
+ */
+function normalizeHtmlSlide(slide: any): any | null {
+  if (typeof slide.html !== "string" || slide.html.length === 0) {
+    console.warn("[Drafta] HTML slide rejected — missing or empty html field:", slide.id);
+    return null;
+  }
+  // Ensure id
+  if (typeof slide.id !== "string" || !slide.id) {
+    slide.id = `slide-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  }
+  // Coerce editableFields — if missing or not an array, default to empty
+  if (!Array.isArray(slide.editableFields)) {
+    slide.editableFields = [];
+  }
+  return slide;
+}
+
+/**
+ * Attempt to fix JSON containing HTML strings where double quotes in HTML
+ * attributes corrupt the JSON structure. Walks each "html":"..." value
+ * char-by-char, escaping internal double quotes that aren't valid JSON boundaries.
+ */
+function fixHtmlJsonQuotes(jsonStr: string): string {
+  const htmlFieldPattern = /"html"\s*:\s*"/g;
+  let result = "";
+  let lastEnd = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = htmlFieldPattern.exec(jsonStr)) !== null) {
+    const valueStart = match.index + match[0].length;
+    result += jsonStr.slice(lastEnd, valueStart);
+
+    // Walk to find the true end of the HTML string value
+    let i = valueStart;
+    let htmlContent = "";
+    while (i < jsonStr.length) {
+      const ch = jsonStr[i];
+      if (ch === '\\' && i + 1 < jsonStr.length) {
+        htmlContent += ch + jsonStr[i + 1];
+        i += 2;
+        continue;
+      }
+      if (ch === '"') {
+        // Look ahead: is this the real JSON close-quote?
+        // A real close-quote is followed by optional whitespace then , or } or ]
+        const after = jsonStr.slice(i + 1).match(/^\s*([,}\]])/);
+        if (after) {
+          // Also check: does the rest parse as valid JSON continuation?
+          // Heuristic: if after the quote we see ,"editableFields" or ,"id" or ,"notes" or }
+          const afterTrimmed = jsonStr.slice(i + 1).trimStart();
+          if (
+            afterTrimmed.startsWith(",") ||
+            afterTrimmed.startsWith("}") ||
+            afterTrimmed.startsWith("]")
+          ) {
+            // This looks like the real end
+            break;
+          }
+        }
+        // Otherwise escape this quote — it's inside the HTML
+        htmlContent += '\\"';
+        i++;
+        continue;
+      }
+      // Escape literal newlines/tabs inside the string
+      if (ch === '\n') { htmlContent += '\\n'; i++; continue; }
+      if (ch === '\r') { htmlContent += '\\r'; i++; continue; }
+      if (ch === '\t') { htmlContent += '\\t'; i++; continue; }
+      htmlContent += ch;
+      i++;
+    }
+
+    result += htmlContent;
+    lastEnd = i; // the close quote itself will be included from jsonStr
+  }
+
+  result += jsonStr.slice(lastEnd);
+  return result;
+}
+
 // ── Deck Operations Parser ──
+
+/**
+ * HTML-aware JSON parse for deckops blocks.
+ * If the block contains HTML slides, applies HTML-specific fixups before standard parsing.
+ */
+function parseHtmlDeckopsBlock(block: string): any {
+  // Step 1: try direct parse
+  try {
+    return JSON.parse(block);
+  } catch { /* continue */ }
+
+  // Step 2: fix unescaped newlines (standard recovery)
+  const fixedNewlines = fixUnescapedNewlinesInJson(block);
+  try {
+    return JSON.parse(fixedNewlines);
+  } catch { /* continue */ }
+
+  // Step 3: fix double quotes inside HTML attribute values
+  const fixedQuotes = fixHtmlJsonQuotes(block);
+  try {
+    return JSON.parse(fixedQuotes);
+  } catch { /* continue */ }
+
+  // Step 4: combined — fix newlines then quotes
+  const fixedBoth = fixHtmlJsonQuotes(fixUnescapedNewlinesInJson(block));
+  try {
+    return JSON.parse(fixedBoth);
+  } catch { /* continue */ }
+
+  // Step 5: strip trailing commas then retry
+  const cleaned = block.replace(/,\s*([}\]])/g, "$1").trim();
+  const fixedCleaned = fixHtmlJsonQuotes(fixUnescapedNewlinesInJson(cleaned));
+  try {
+    return JSON.parse(fixedCleaned);
+  } catch { /* continue */ }
+
+  return null;
+}
 
 export function parseDeckOperations(fullText: string): DeckOperation[] {
   const blocks = extractFencedBlocks(fullText, "deckops");
   const operations: DeckOperation[] = [];
 
   for (const block of blocks) {
-    const ops = parseOpsFromBlock<DeckOperation>(block);
+    let ops: DeckOperation[] = [];
+
+    // For blocks with HTML slides, use the HTML-aware parser
+    if (block.includes('"html"')) {
+      const parsed = parseHtmlDeckopsBlock(block);
+      if (parsed) {
+        if (parsed.type) {
+          ops = [parsed as DeckOperation];
+        } else if (Array.isArray(parsed)) {
+          ops = parsed.filter((item: any) => item?.type) as DeckOperation[];
+        } else if (parsed.operations && Array.isArray(parsed.operations)) {
+          ops = parsed.operations as DeckOperation[];
+        }
+      }
+      if (ops.length === 0) {
+        console.warn("[Drafta] All HTML-aware parse attempts failed for deckops block");
+      } else {
+        console.log("[Drafta] HTML deckops block parsed successfully");
+      }
+    } else {
+      // Standard parse for non-HTML deck operations
+      ops = parseOpsFromBlock<DeckOperation>(block);
+    }
+
     if (ops.length > 0) {
+      // Normalize HTML slides (coerce fields, log rejections)
+      for (const op of ops) {
+        if (op.type === "CREATE" || op.type === "UPDATE") {
+          if (op.slides) {
+            const before = op.slides.length;
+            op.slides = op.slides
+              .map((slide: any) => {
+                if ('html' in slide && !('layout' in slide)) {
+                  return normalizeHtmlSlide(slide);
+                }
+                return slide; // legacy structured slides pass through
+              })
+              .filter(Boolean);
+            if (op.slides.length < before) {
+              console.warn(`[Drafta] ${before - op.slides.length} HTML slides were rejected during normalization`);
+            }
+            if (op.slides.length > 0) {
+              console.log(`[Drafta] Deck ${op.type}: ${op.slides.length} slides parsed successfully (${op.slides.filter((s: any) => 'html' in s).length} HTML)`);
+            }
+          }
+        }
+      }
       operations.push(...ops);
     } else {
-      if (process.env.NODE_ENV !== "production") console.warn("[Drafta] Failed to parse deckops block:", block.slice(0, 200));
+      console.warn("[Drafta] Failed to parse deckops block:", block.slice(0, 300));
+      // Last-resort: try to extract individual slide objects from the block
+      if (block.includes('"html"') && block.includes('"slides"')) {
+        console.warn("[Drafta] Attempting last-resort slide extraction...");
+        const recovered = lastResortSlideExtraction(block);
+        if (recovered) {
+          operations.push(recovered);
+          console.log("[Drafta] Last-resort extraction recovered", recovered.type === "CREATE" ? recovered.slides?.length : 0, "slides");
+        }
+      }
     }
   }
 
   return operations;
+}
+
+/**
+ * Last-resort: when JSON parsing completely fails, try to extract
+ * a CREATE operation by pulling out the title and individual slide HTML strings.
+ */
+function lastResortSlideExtraction(block: string): DeckOperation | null {
+  try {
+    // Extract title
+    const titleMatch = block.match(/"title"\s*:\s*"([^"]+)"/);
+    const title = titleMatch ? titleMatch[1] : "Untitled Deck";
+
+    // Extract type
+    const typeMatch = block.match(/"type"\s*:\s*"(CREATE|UPDATE)"/);
+    const type = (typeMatch ? typeMatch[1] : "CREATE") as "CREATE" | "UPDATE";
+
+    // Find all "html": "..." values by walking the string
+    const slides: any[] = [];
+    const idPattern = /"id"\s*:\s*"([^"]+)"/g;
+    const ids: string[] = [];
+    let idMatch: RegExpExecArray | null;
+    while ((idMatch = idPattern.exec(block)) !== null) {
+      // Skip the top-level "type" and "title" fields
+      if (idMatch[1] !== "CREATE" && idMatch[1] !== "UPDATE" && idMatch[1].startsWith("slide")) {
+        ids.push(idMatch[1]);
+      }
+    }
+
+    // Extract html values using a state machine approach
+    const htmlPattern = /"html"\s*:\s*"/g;
+    let htmlMatch: RegExpExecArray | null;
+    let slideIdx = 0;
+    while ((htmlMatch = htmlPattern.exec(block)) !== null) {
+      const valueStart = htmlMatch.index + htmlMatch[0].length;
+      // Find end: walk until we find a quote followed by valid JSON continuation
+      let i = valueStart;
+      let htmlStr = "";
+      while (i < block.length) {
+        const ch = block[i];
+        if (ch === '\\' && i + 1 < block.length) {
+          htmlStr += ch + block[i + 1];
+          i += 2;
+          continue;
+        }
+        if (ch === '"') {
+          const afterTrimmed = block.slice(i + 1).trimStart();
+          if (afterTrimmed.startsWith(",") || afterTrimmed.startsWith("}") || afterTrimmed.startsWith("]")) {
+            break;
+          }
+          htmlStr += ch; // keep the quote in the HTML
+          i++;
+          continue;
+        }
+        htmlStr += ch;
+        i++;
+      }
+
+      if (htmlStr.length > 50) { // sanity check — slides should be substantial
+        // Unescape the JSON string
+        try {
+          htmlStr = JSON.parse(`"${htmlStr}"`);
+        } catch {
+          // Use as-is with basic unescaping
+          htmlStr = htmlStr.replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\"/g, '"');
+        }
+        slides.push({
+          id: ids[slideIdx] || `slide-${slideIdx + 1}`,
+          html: htmlStr,
+          editableFields: [],
+        });
+      }
+      slideIdx++;
+    }
+
+    if (slides.length === 0) return null;
+
+    if (type === "CREATE") {
+      return { type: "CREATE", title, slides } as DeckOperation;
+    } else {
+      const deckIdMatch = block.match(/"deckId"\s*:\s*"([^"]+)"/);
+      return { type: "UPDATE", deckId: deckIdMatch?.[1] || "", slides } as DeckOperation;
+    }
+  } catch (e) {
+    console.warn("[Drafta] Last-resort slide extraction failed:", e);
+    return null;
+  }
+}
+
+// ── Deck Outline Parser ──
+
+export function parseDeckOutlineItems(fullText: string): DeckOutlineItem[] {
+  const blocks = extractFencedBlocks(fullText, "deckoutline");
+  const items: DeckOutlineItem[] = [];
+
+  for (const block of blocks) {
+    const parsed = robustJsonParse(block);
+    if (!parsed) continue;
+
+    // Handle { slides: [...] } wrapper
+    const arr = parsed.slides && Array.isArray(parsed.slides)
+      ? parsed.slides
+      : Array.isArray(parsed)
+        ? parsed
+        : null;
+
+    if (arr) {
+      for (const item of arr) {
+        if (item && typeof item === "object" && item.title) {
+          items.push({
+            id: item.id || `outline-${items.length + 1}`,
+            title: item.title,
+            description: item.description || "",
+            category: item.category,
+            layout: item.layout,
+            visual: item.visual,
+            imageQuery: item.imageQuery,
+          });
+        }
+      }
+    }
+  }
+
+  return items;
+}
+
+/** Convert a deckoutline block to readable markdown for display */
+function deckOutlineToMarkdown(block: string): string {
+  const parsed = robustJsonParse(block);
+  if (!parsed) return "";
+
+  const arr = parsed.slides && Array.isArray(parsed.slides)
+    ? parsed.slides
+    : Array.isArray(parsed)
+      ? parsed
+      : null;
+
+  if (!arr || arr.length === 0) return "";
+
+  const lines = arr.map((item: any, i: number) => {
+    const category = item.category ? ` [${item.category}]` : "";
+    const layout = item.layout ? ` _(${item.layout})_` : "";
+    const visual = item.visual ? ` · ${item.visual}` : "";
+    const photo = item.imageQuery ? ` 📷` : "";
+    return `${i + 1}. **${item.title}**${category}${layout}${item.description ? ` — ${item.description}` : ""}${visual}${photo}`;
+  });
+
+  return lines.join("\n");
 }
 
 // ── ThemeConfig Validator ──
@@ -398,12 +722,12 @@ export function validateThemeConfig(raw: unknown): ThemeConfig | null {
 }
 
 export function extractDisplayText(fullText: string): string {
-  // Use the same extraction approach — find fenced blocks and remove them
+  // Strip operation fenced blocks; convert deckoutline to readable markdown
   let result = fullText;
   for (const tag of ["sheetops", "docops", "kuops", "tableops", "diagramops", "deckops", "deckoutline"]) {
     const openPattern = new RegExp("```" + tag + "\\s*\\n?", "g");
     let openMatch: RegExpExecArray | null;
-    const ranges: [number, number][] = [];
+    const ranges: [number, number, string][] = []; // [start, end, replacement]
 
     while ((openMatch = openPattern.exec(result)) !== null) {
       const start = openMatch.index;
@@ -439,19 +763,24 @@ export function extractDisplayText(fullText: string): string {
       }
 
       if (closeIdx !== -1) {
-        // Include the closing ``` and any trailing newline
         let end = closeIdx + 3;
         if (end < result.length && result[end] === "\n") end++;
-        ranges.push([start, end]);
+        // For deckoutline, convert to readable markdown instead of removing
+        const replacement = tag === "deckoutline"
+          ? deckOutlineToMarkdown(result.slice(contentStart, closeIdx).trim())
+          : "";
+        ranges.push([start, end, replacement]);
       } else {
-        // No closing fence — remove from start to end
-        ranges.push([start, result.length]);
+        const replacement = tag === "deckoutline"
+          ? deckOutlineToMarkdown(result.slice(contentStart).trim())
+          : "";
+        ranges.push([start, result.length, replacement]);
       }
     }
 
-    // Remove ranges in reverse
+    // Replace ranges in reverse
     for (let i = ranges.length - 1; i >= 0; i--) {
-      result = result.slice(0, ranges[i][0]) + result.slice(ranges[i][1]);
+      result = result.slice(0, ranges[i][0]) + ranges[i][2] + result.slice(ranges[i][1]);
     }
   }
 

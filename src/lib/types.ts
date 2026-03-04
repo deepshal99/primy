@@ -293,6 +293,8 @@ export interface DeckOutlineItem {
   description: string;
   category?: string;
   layout?: string;
+  visual?: string;
+  imageQuery?: string;
 }
 
 export interface DeckSlide {

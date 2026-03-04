@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { sanitizeSlideHtml, extractGoogleFontUrls } from "./sanitizeSlideHtml";
+import { sanitizeSlideHtml, extractGoogleFontUrls, enforceSlideContrast } from "./sanitizeSlideHtml";
+import { resolveImageQuery } from "@/lib/imageCache";
 import type { HtmlDeckSlide } from "@/lib/types";
 
 interface HtmlSlideRendererProps {
@@ -26,6 +27,7 @@ export function HtmlSlideRenderer({
 }: HtmlSlideRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const fontsLoadedRef = useRef<Set<string>>(new Set());
+  const sanitizedHtml = sanitizeSlideHtml(enforceSlideContrast(slide.html));
 
   // Preload Google Fonts from the HTML
   useEffect(() => {
@@ -39,6 +41,28 @@ export function HtmlSlideRenderer({
       document.head.appendChild(link);
     }
   }, [slide.html]);
+
+  // Resolve data-image-query attributes into background images
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    let cancelled = false;
+
+    const els = container.querySelectorAll<HTMLElement>("[data-image-query]");
+    if (els.length === 0) return;
+
+    const promises = Array.from(els).map(async (el) => {
+      const query = el.dataset.imageQuery;
+      if (!query) return;
+      const url = await resolveImageQuery(query);
+      if (cancelled || !url) return;
+      el.style.backgroundImage = `url(${url})`;
+    });
+
+    Promise.allSettled(promises);
+
+    return () => { cancelled = true; };
+  }, [sanitizedHtml]);
 
   // Handle click-to-edit on data-field elements
   const handleClick = useCallback(
@@ -69,14 +93,15 @@ export function HtmlSlideRenderer({
     [editable, onFieldEdit, onClick],
   );
 
-  const sanitizedHtml = sanitizeSlideHtml(slide.html);
-
   return (
     <div
       className="relative"
       style={{
         width: SLIDE_W * scale,
         height: SLIDE_H * scale,
+        borderRadius: 6,
+        overflow: "hidden",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.06)",
       }}
     >
       <div

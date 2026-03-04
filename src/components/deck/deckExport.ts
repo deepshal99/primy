@@ -1,5 +1,7 @@
-import { DeckSlide } from "@/lib/types";
-import { ThemeConfig, getThemeConfig } from "./deckThemes";
+import { DeckSlide, HtmlDeckSlide, ThemeConfig, isHtmlSlide } from "@/lib/types";
+import { getThemeConfig } from "./deckThemes";
+import { enforceSlideContrast } from "./sanitizeSlideHtml";
+import { resolveImageQuery } from "@/lib/imageCache";
 
 /**
  * Build a Google Fonts <link> tag for the given theme fonts.
@@ -20,32 +22,15 @@ function decorHtml(t: ThemeConfig): string {
   switch (t.decorStyle) {
     case "geometric":
       return `
-        <div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;border:2px solid ${t.accentLight};border-radius:16px;transform:rotate(45deg)"></div>
-        <div style="position:absolute;bottom:40px;left:-20px;width:60px;height:60px;background:${t.accentLight};border-radius:8px;transform:rotate(15deg)"></div>
-        <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,${t.accent},${t.accentAlt})"></div>`;
-    case "organic":
-      return `
-        <div style="position:absolute;top:-120px;right:-80px;width:400px;height:400px;background:radial-gradient(circle,${t.accentLight} 0%,transparent 70%);border-radius:50%"></div>
-        <div style="position:absolute;bottom:-100px;left:-60px;width:300px;height:300px;background:radial-gradient(circle,${t.accentLight} 0%,transparent 70%);border-radius:50%"></div>
-        <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent 0%,${t.accent} 50%,transparent 100%);opacity:0.4"></div>`;
+        <div style="position:absolute;top:-30px;right:-30px;width:100px;height:100px;border:1.5px solid ${t.accentLight};border-radius:12px;transform:rotate(45deg);opacity:0.8"></div>
+        <div style="position:absolute;bottom:50px;left:-15px;width:44px;height:44px;background:${t.accentLight};border-radius:6px;transform:rotate(15deg);opacity:0.6"></div>`;
     case "minimal":
       return `
-        <div style="position:absolute;top:48px;left:0;width:4px;height:80px;background:${t.accent};border-radius:0 2px 2px 0;opacity:0.8"></div>
-        <div style="position:absolute;bottom:0;left:72px;right:72px;height:1px;background:${t.divider}"></div>`;
+        <div style="position:absolute;top:64px;left:0;width:3px;height:64px;background:${t.accent};border-radius:0 2px 2px 0;opacity:0.7"></div>`;
     case "gradient":
       return `
-        <div style="position:absolute;top:-150px;right:-100px;width:500px;height:500px;background:radial-gradient(circle,${t.accentLight} 0%,transparent 60%);border-radius:50%"></div>
-        <div style="position:absolute;bottom:-120px;left:-80px;width:400px;height:400px;background:radial-gradient(circle,rgba(255,60,172,0.08) 0%,transparent 60%);border-radius:50%"></div>`;
-    case "dots":
-      return `
-        <div style="position:absolute;inset:0;opacity:0.04;background-image:radial-gradient(${t.accent} 1px,transparent 1px);background-size:24px 24px"></div>
-        <div style="position:absolute;top:-80px;right:-80px;width:300px;height:300px;background:radial-gradient(circle,${t.accentLight} 0%,transparent 60%);border-radius:50%"></div>
-        <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,${t.accent},${t.accentAlt})"></div>`;
-    case "lines":
-      return `
-        <div style="position:absolute;top:0;right:0;width:200px;height:200px;opacity:0.03;background-image:repeating-linear-gradient(-45deg,${t.accent},${t.accent} 1px,transparent 1px,transparent 16px)"></div>
-        <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,${t.accent},${t.accentAlt})"></div>
-        <div style="position:absolute;top:24px;right:24px;width:48px;height:48px;border:1.5px solid ${t.accentLight};border-radius:8px;transform:rotate(45deg)"></div>`;
+        <div style="position:absolute;top:-180px;right:-120px;width:500px;height:500px;background:radial-gradient(circle,${t.accentLight} 0%,transparent 60%);border-radius:50%;opacity:0.8"></div>
+        <div style="position:absolute;bottom:-160px;left:-100px;width:400px;height:400px;background:radial-gradient(circle,${t.accentLight} 0%,transparent 60%);border-radius:50%;opacity:0.5"></div>`;
     default:
       return "";
   }
@@ -60,17 +45,17 @@ function esc(s: string): string {
  * Render a single slide's inner content as HTML matching SlideRenderer layouts.
  */
 function slideContentHtml(slide: DeckSlide, t: ThemeConfig): string {
-  const isCentered = slide.layout === "title" || slide.layout === "section" || slide.layout === "quote";
-  const padding = isCentered ? "64px 80px" : "56px 72px";
+  const isCentered = slide.layout === "title" || slide.layout === "section" || slide.layout === "quote" || slide.layout === "statement";
+  const padding = "64px 80px";
   const justify = isCentered ? "center" : "flex-start";
   const headingCss = `font-weight:${t.headingWeight};font-family:${t.headingFont};letter-spacing:-0.02em;color:${t.text};${t.headingCase === "uppercase" ? "text-transform:uppercase;" : ""}`;
 
   switch (slide.layout) {
     case "title":
       return `<div style="text-align:center;max-width:800px;margin:0 auto;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:${justify};padding:${padding};box-sizing:border-box;height:100%">
-        <div style="width:48px;height:4px;border-radius:2px;background:linear-gradient(90deg,${t.accent},${t.accentAlt});margin-bottom:28px"></div>
-        <div style="font-size:52px;line-height:1.12;letter-spacing:-0.03em;text-align:center;${headingCss}">${esc(slide.title || "Untitled")}</div>
-        ${slide.subtitle ? `<div style="font-size:21px;color:${t.textSecondary};line-height:1.55;font-weight:400;letter-spacing:0.01em;text-align:center;margin-top:20px;font-family:${t.bodyFont}">${esc(slide.subtitle)}</div>` : ""}
+        <div style="width:48px;height:3px;border-radius:2px;background:linear-gradient(90deg,${t.accent},${t.accentAlt});margin-bottom:28px"></div>
+        <div style="font-size:56px;line-height:1.1;letter-spacing:-0.03em;text-align:center;${headingCss}">${esc(slide.title || "Untitled")}</div>
+        ${slide.subtitle ? `<div style="font-size:22px;color:${t.textSecondary};line-height:1.3;font-weight:500;letter-spacing:-0.01em;text-align:center;margin-top:20px;font-family:${t.bodyFont}">${esc(slide.subtitle)}</div>` : ""}
       </div>`;
 
     case "section":
@@ -81,6 +66,12 @@ function slideContentHtml(slide: DeckSlide, t: ThemeConfig): string {
           <div style="width:40px;height:1px;background:${t.divider}"></div>
         </div>
         <div style="font-size:44px;line-height:1.2;text-align:center;${headingCss}">${esc(slide.title || "Section")}</div>
+      </div>`;
+
+    case "statement":
+      return `<div style="text-align:center;max-width:720px;margin:0 auto;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:${padding};box-sizing:border-box;height:100%">
+        <div style="font-size:42px;font-weight:600;line-height:1.25;letter-spacing:-0.02em;text-align:center;font-family:${t.headingFont};color:${t.text}">${esc(slide.content || "")}</div>
+        ${slide.title ? `<div style="font-size:13px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:${t.textSecondary};margin-top:32px;font-family:${t.bodyFont}">${esc(slide.title)}</div>` : ""}
       </div>`;
 
     case "bullets": {
@@ -104,41 +95,95 @@ function slideContentHtml(slide: DeckSlide, t: ThemeConfig): string {
             icon = `<span style="flex-shrink:0;width:12px;height:12px;border-radius:50%;border:2.5px solid ${t.accent};margin-top:8px"></span>`;
             break;
           case "bar":
-            icon = `<span style="flex-shrink:0;width:4px;height:20px;border-radius:2px;background:${t.accent};margin-top:5px"></span>`;
+            icon = `<span style="flex-shrink:0;width:3px;height:20px;border-radius:2px;background:${t.accent};margin-top:5px"></span>`;
             break;
           default:
             icon = `<span style="flex-shrink:0;width:8px;height:8px;border-radius:50%;background:${t.accent};margin-top:10px"></span>`;
         }
-        return `<div style="display:flex;align-items:flex-start;gap:14px;padding:10px 16px;background:${t.cardBg};border:1px solid ${t.cardBorder};border-radius:10px">
+        return `<div style="display:flex;align-items:flex-start;gap:14px;padding:10px 16px;border-left:3px solid ${t.accent};border-radius:2px">
           ${icon}
-          <span style="font-size:19px;line-height:1.5;flex:1;font-family:${t.bodyFont}">${esc(b)}</span>
+          <span style="font-size:18px;line-height:1.6;flex:1;font-family:${t.bodyFont}">${esc(b)}</span>
         </div>`;
       }).join("\n");
 
       return `<div style="display:flex;flex-direction:column;justify-content:flex-start;padding:${padding};box-sizing:border-box;height:100%">
-        ${slide.title ? `<div style="font-size:34px;margin-bottom:32px;line-height:1.2;${headingCss}">${esc(slide.title)}</div>` : ""}
-        <div style="display:flex;flex-direction:column;gap:10px;overflow:hidden;flex:1">${bulletItems}</div>
+        ${slide.title ? `<div style="font-size:38px;margin-bottom:32px;line-height:1.15;${headingCss}">${esc(slide.title)}</div>` : ""}
+        <div style="display:flex;flex-direction:column;gap:14px;overflow:hidden;flex:1">${bulletItems}</div>
+      </div>`;
+    }
+
+    case "metrics": {
+      const stats = slide.stats || [];
+      const metricItems = stats.map((s, i) => {
+        const divider = i < stats.length - 1 ? `<div style="width:1px;height:64px;background:${t.divider};flex-shrink:0"></div>` : "";
+        return `<div style="display:flex;align-items:center">
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 48px;text-align:center">
+            <div style="font-size:64px;font-weight:700;font-family:${t.headingFont};color:${t.accent};letter-spacing:-0.03em;line-height:1">${esc(s.value)}</div>
+            <div style="font-size:13px;font-weight:500;font-family:${t.bodyFont};color:${t.textSecondary};letter-spacing:0.05em;text-transform:uppercase;margin-top:12px">${esc(s.label)}</div>
+          </div>
+          ${divider}
+        </div>`;
+      }).join("\n");
+
+      return `<div style="display:flex;flex-direction:column;justify-content:flex-start;padding:${padding};box-sizing:border-box;height:100%">
+        ${slide.title ? `<div style="font-size:38px;margin-bottom:40px;line-height:1.15;${headingCss}">${esc(slide.title)}</div>` : ""}
+        <div style="display:flex;flex:1;align-items:center;justify-content:center">${metricItems}</div>
       </div>`;
     }
 
     case "stats": {
       const stats = slide.stats || [];
       const statCards = stats.map((s) => `
-        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 20px;border-radius:14px;background:${t.cardBg};border:1px solid ${t.cardBorder};text-align:center;gap:8px">
-          <div style="font-size:48px;font-weight:${t.headingWeight};font-family:${t.headingFont};color:${t.accent};letter-spacing:-0.03em;line-height:1.1">${esc(s.value)}</div>
-          <div style="font-size:14px;font-weight:600;font-family:${t.bodyFont};color:${t.textSecondary};letter-spacing:0.04em;text-transform:uppercase">${esc(s.label)}</div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 20px;border-radius:14px;background:${t.cardBg};border:1px solid ${t.cardBorder};text-align:center;gap:8px;position:relative;overflow:hidden">
+          <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,${t.accent},${t.accentAlt})"></div>
+          <div style="font-size:52px;font-weight:${t.headingWeight};font-family:${t.headingFont};color:${t.accent};letter-spacing:-0.03em;line-height:1.1">${esc(s.value)}</div>
+          <div style="font-size:14px;font-weight:600;font-family:${t.bodyFont};color:${t.textSecondary};letter-spacing:0.05em;text-transform:uppercase">${esc(s.label)}</div>
         </div>`).join("\n");
 
       return `<div style="display:flex;flex-direction:column;justify-content:flex-start;padding:${padding};box-sizing:border-box;height:100%">
-        ${slide.title ? `<div style="font-size:34px;margin-bottom:36px;line-height:1.2;${headingCss}">${esc(slide.title)}</div>` : ""}
+        ${slide.title ? `<div style="font-size:38px;margin-bottom:36px;line-height:1.15;${headingCss}">${esc(slide.title)}</div>` : ""}
         <div style="display:flex;gap:20px;flex:1;align-items:stretch">${statCards}</div>
+      </div>`;
+    }
+
+    case "featureGrid": {
+      const bullets = slide.bullets || [];
+      const features = bullets.map((b) => {
+        const match = b.match(/^\*\*(.+?)\*\*\s*(.*)/);
+        if (match) return { title: match[1], desc: match[2] };
+        return { title: b, desc: "" };
+      });
+      const cols = features.length <= 4 ? 2 : 3;
+      const featureCards = features.map((f) => `
+        <div style="padding:20px 22px;border-radius:12px;background:${t.cardBg};border:1px solid ${t.cardBorder}">
+          <div style="font-size:15px;font-weight:600;color:${t.text};font-family:${t.bodyFont};margin-bottom:6px">${esc(f.title)}</div>
+          ${f.desc ? `<div style="font-size:14px;line-height:1.5;color:${t.textSecondary};font-family:${t.bodyFont}">${esc(f.desc)}</div>` : ""}
+        </div>`).join("\n");
+
+      return `<div style="display:flex;flex-direction:column;justify-content:flex-start;padding:${padding};box-sizing:border-box;height:100%">
+        ${slide.title ? `<div style="font-size:38px;margin-bottom:32px;line-height:1.15;${headingCss}">${esc(slide.title)}</div>` : ""}
+        <div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:16px;flex:1;align-content:start">${featureCards}</div>
+      </div>`;
+    }
+
+    case "logoGrid": {
+      const bullets = slide.bullets || [];
+      const cols = bullets.length <= 4 ? bullets.length : bullets.length <= 6 ? 3 : 4;
+      const logoCards = bullets.map((name) => `
+        <div style="display:flex;align-items:center;justify-content:center;padding:24px 20px;border-radius:12px;background:${t.cardBg};border:1px solid ${t.cardBorder}">
+          <span style="font-size:16px;font-weight:600;color:${t.textSecondary};font-family:${t.bodyFont};letter-spacing:0.02em">${esc(name)}</span>
+        </div>`).join("\n");
+
+      return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:${padding};box-sizing:border-box;height:100%">
+        ${slide.title ? `<div style="font-size:38px;margin-bottom:40px;line-height:1.15;text-align:center;${headingCss}">${esc(slide.title)}</div>` : ""}
+        <div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:20px;max-width:700px;width:100%">${logoCards}</div>
       </div>`;
     }
 
     case "quote":
       return `<div style="text-align:center;max-width:720px;margin:0 auto;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:${padding};box-sizing:border-box;height:100%">
         <div style="font-size:120px;line-height:0.6;font-family:${t.headingFont};color:${t.accent};opacity:0.25;margin-bottom:12px;font-weight:${t.headingWeight}">&ldquo;</div>
-        <div style="font-size:28px;font-style:italic;line-height:1.55;font-weight:400;letter-spacing:0.005em;color:${t.text};font-family:${t.headingFont};text-align:center">${esc(slide.content || "")}</div>
+        <div style="font-size:30px;font-style:italic;line-height:1.5;font-weight:400;letter-spacing:0.005em;color:${t.text};font-family:${t.headingFont};text-align:center">${esc(slide.content || "")}</div>
         ${slide.title ? `<div style="margin-top:32px;display:flex;align-items:center;justify-content:center;gap:12px">
           <div style="width:24px;height:2px;background:${t.accent};border-radius:1px"></div>
           <div style="font-size:16px;color:${t.textSecondary};font-weight:500;letter-spacing:0.03em;font-family:${t.bodyFont}">${esc(slide.title)}</div>
@@ -148,31 +193,31 @@ function slideContentHtml(slide: DeckSlide, t: ThemeConfig): string {
 
     case "twoColumn":
       return `<div style="display:flex;flex-direction:column;justify-content:flex-start;padding:${padding};box-sizing:border-box;height:100%">
-        ${slide.title ? `<div style="font-size:34px;margin-bottom:12px;line-height:1.2;${headingCss}">${esc(slide.title)}</div>
+        ${slide.title ? `<div style="font-size:38px;margin-bottom:12px;line-height:1.15;${headingCss}">${esc(slide.title)}</div>
         <div style="width:48px;height:3px;border-radius:2px;margin-bottom:32px;background:linear-gradient(90deg,${t.accent},${t.accentAlt})"></div>` : ""}
         <div style="display:flex;gap:28px;flex:1">
           <div style="flex:1;padding:20px 24px;border-radius:12px;background:${t.cardBg};border:1px solid ${t.cardBorder}">
-            <div style="font-size:17px;line-height:1.65;color:${t.textSecondary};white-space:pre-wrap;font-family:${t.bodyFont}">${esc(slide.content || "")}</div>
+            <div style="font-size:17px;line-height:1.6;color:${t.textSecondary};white-space:pre-wrap;font-family:${t.bodyFont}">${esc(slide.content || "")}</div>
           </div>
           <div style="flex:1;padding:20px 24px;border-radius:12px;background:${t.cardBg};border:1px solid ${t.cardBorder}">
-            <div style="font-size:17px;line-height:1.65;color:${t.textSecondary};white-space:pre-wrap;font-family:${t.bodyFont}">${esc(slide.subtitle || "")}</div>
+            <div style="font-size:17px;line-height:1.6;color:${t.textSecondary};white-space:pre-wrap;font-family:${t.bodyFont}">${esc(slide.subtitle || "")}</div>
           </div>
         </div>
       </div>`;
 
     case "imageFeature":
       return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:${padding};box-sizing:border-box;height:100%">
-        <div style="font-size:56px;line-height:1.05;letter-spacing:-0.04em;text-align:center;font-weight:${t.headingWeight};font-family:${t.headingFont};color:#ffffff;text-shadow:0 2px 24px rgba(0,0,0,0.4)">${esc(slide.title || "Untitled")}</div>
-        ${slide.subtitle ? `<div style="font-size:22px;color:rgba(255,255,255,0.75);line-height:1.55;font-weight:400;text-align:center;margin-top:20px;font-family:${t.bodyFont}">${esc(slide.subtitle)}</div>` : ""}
-        ${slide.content ? `<div style="font-size:18px;color:rgba(255,255,255,0.65);line-height:1.65;max-width:700px;margin-top:24px;font-family:${t.bodyFont}">${esc(slide.content)}</div>` : ""}
+        <div style="font-size:64px;line-height:1.1;letter-spacing:-0.03em;text-align:center;font-weight:${t.headingWeight};font-family:${t.headingFont};color:#ffffff;text-shadow:0 2px 24px rgba(0,0,0,0.4)">${esc(slide.title || "Untitled")}</div>
+        ${slide.subtitle ? `<div style="font-size:22px;color:rgba(255,255,255,0.75);line-height:1.3;font-weight:400;text-align:center;margin-top:20px;font-family:${t.bodyFont}">${esc(slide.subtitle)}</div>` : ""}
+        ${slide.content ? `<div style="font-size:18px;color:rgba(255,255,255,0.65);line-height:1.6;max-width:700px;margin-top:24px;font-family:${t.bodyFont}">${esc(slide.content)}</div>` : ""}
       </div>`;
 
     case "titleContent":
     default:
       return `<div style="display:flex;flex-direction:column;justify-content:flex-start;padding:${padding};box-sizing:border-box;height:100%">
-        ${slide.title ? `<div style="font-size:34px;margin-bottom:12px;line-height:1.2;${headingCss}">${esc(slide.title)}</div>
-        <div style="width:48px;height:3px;border-radius:2px;margin-bottom:28px;background:linear-gradient(90deg,${t.accent},${t.accentAlt})"></div>` : ""}
-        ${slide.content ? `<div style="font-size:19px;line-height:1.7;color:${t.textSecondary};white-space:pre-wrap;max-width:780px;font-family:${t.bodyFont};flex:1">${esc(slide.content)}</div>` : ""}
+        ${slide.title ? `<div style="font-size:38px;margin-bottom:12px;line-height:1.15;${headingCss}">${esc(slide.title)}</div>
+        <div style="width:48px;height:3px;border-radius:2px;margin-bottom:32px;background:linear-gradient(90deg,${t.accent},${t.accentAlt})"></div>` : ""}
+        ${slide.content ? `<div style="font-size:18px;line-height:1.6;color:${t.textSecondary};white-space:pre-wrap;max-width:780px;font-family:${t.bodyFont};flex:1">${esc(slide.content)}</div>` : ""}
       </div>`;
   }
 }
@@ -194,7 +239,7 @@ function slideToHtml(slide: DeckSlide, t: ThemeConfig): string {
     : `background:${t.bg}`;
 
   const overlayHtml = slide.backgroundImage
-    ? `<div style="position:absolute;inset:0;background:${slide.backgroundOverlay || 'linear-gradient(to bottom, rgba(0,0,0,0.35), rgba(0,0,0,0.7))'}"></div>`
+    ? `<div style="position:absolute;inset:0;background:${slide.backgroundOverlay || 'linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.6))'}"></div>`
     : "";
 
   const effectiveText = slide.backgroundImage ? "#ffffff" : t.text;
@@ -209,14 +254,35 @@ function slideToHtml(slide: DeckSlide, t: ThemeConfig): string {
 }
 
 /**
+ * Scan HTML for data-image-query attributes, resolve them via the image cache,
+ * and inline the resulting URLs as background-image styles.
+ */
+async function bakeImagesIntoHtml(html: string): Promise<string> {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+  const els = doc.querySelectorAll<HTMLElement>("[data-image-query]");
+  if (els.length === 0) return html;
+
+  await Promise.allSettled(
+    Array.from(els).map(async (el) => {
+      const query = el.dataset.imageQuery;
+      if (!query) return;
+      const url = await resolveImageQuery(query);
+      if (!url) return;
+      el.style.backgroundImage = `url(${url})`;
+      el.removeAttribute("data-image-query");
+    })
+  );
+
+  return doc.body.innerHTML;
+}
+
+/**
  * Export deck as PDF via server-side Puppeteer rendering.
  * Each slide becomes a separate landscape page.
  */
-export async function exportDeckToPDF(slides: DeckSlide[], theme: string) {
-  const t = getThemeConfig(theme);
-
-  // Build a single HTML document with all slides as page-break-separated sections
-  const slidePages = slides.map((slide) => slideToHtml(slide, t)).join("\n");
+export async function exportDeckToPDF(slides: (DeckSlide | HtmlDeckSlide)[], theme: string, style?: ThemeConfig | null) {
+  const t = style || getThemeConfig(theme);
 
   const css = `
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -226,10 +292,18 @@ export async function exportDeckToPDF(slides: DeckSlide[], theme: string) {
     .slide-page:last-child { page-break-after: auto; }
   `;
 
-  // Wrap each slide in a page container
-  const wrappedSlides = slides.map((slide) =>
-    `<div class="slide-page">${slideToHtml(slide, t)}</div>`
-  ).join("\n");
+  // Wrap each slide in a page container, baking images for HTML slides
+  const wrappedSlides = (await Promise.all(
+    slides.map(async (slide) => {
+      if (isHtmlSlide(slide)) {
+        const contrastFixed = enforceSlideContrast(slide.html);
+        const scopedHtml = contrastFixed.replace(/:root\s*\{/g, `#slide-${slide.id} {`);
+        const bakedHtml = await bakeImagesIntoHtml(scopedHtml);
+        return `<div class="slide-page">${bakedHtml}</div>`;
+      }
+      return `<div class="slide-page">${slideToHtml(slide, t)}</div>`;
+    })
+  )).join("\n");
 
   const html = `${fontLinkTag(t)}${wrappedSlides}`;
 
@@ -258,12 +332,12 @@ export async function exportDeckToPDF(slides: DeckSlide[], theme: string) {
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-/* PPTX export — unchanged, uses pptxgenjs                                      */
+/* PPTX export — uses pptxgenjs                                                  */
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
-export async function exportDeckToPPTX(slides: DeckSlide[], theme: string) {
+export async function exportDeckToPPTX(slides: (DeckSlide | HtmlDeckSlide)[], theme: string, style?: ThemeConfig | null) {
   const PptxGenJS = (await import("pptxgenjs")).default;
-  const t = getThemeConfig(theme);
+  const t = style || getThemeConfig(theme);
   const pptx = new PptxGenJS();
 
   const bgColor = resolveColor(t.bg).replace("#", "");
@@ -273,6 +347,16 @@ export async function exportDeckToPPTX(slides: DeckSlide[], theme: string) {
 
   for (const slide of slides) {
     const pptSlide = pptx.addSlide();
+
+    // New HTML slides: fallback text (PPTX cannot render raw HTML)
+    if (isHtmlSlide(slide)) {
+      pptSlide.background = { color: bgColor };
+      pptSlide.addText("HTML Slide (view in browser for full fidelity)", {
+        x: 0, y: 2, w: 10, h: 1.5,
+        fontSize: 18, color: textColor, align: "center",
+      });
+      continue;
+    }
 
     // Legacy HTML slides: fallback text
     if (slide.layout === "html") {
@@ -303,11 +387,6 @@ export async function exportDeckToPPTX(slides: DeckSlide[], theme: string) {
     const slideTextColor = slide.backgroundImage ? "FFFFFF" : textColor;
     const slideSubColor = slide.backgroundImage ? "CCCCCC" : subtitleColorHex;
 
-    // Bottom accent bar
-    pptSlide.addShape("rect" as any, {
-      x: 0, y: 5.34, w: 10, h: 0.04, fill: { color: accentColorHex },
-    });
-
     switch (slide.layout) {
       case "title":
         pptSlide.addText(slide.title || "Untitled", {
@@ -318,6 +397,19 @@ export async function exportDeckToPPTX(slides: DeckSlide[], theme: string) {
           pptSlide.addText(slide.subtitle, {
             x: 0.8, y: 3.4, w: 8.4, h: 0.8,
             fontSize: 20, color: slideSubColor, align: "center",
+          });
+        }
+        break;
+
+      case "statement":
+        pptSlide.addText(slide.content || "", {
+          x: 1.2, y: 1.5, w: 7.6, h: 2.5,
+          fontSize: 32, bold: true, color: slideTextColor, align: "center", valign: "middle",
+        });
+        if (slide.title) {
+          pptSlide.addText(slide.title.toUpperCase(), {
+            x: 1.5, y: 4.2, w: 7, h: 0.5,
+            fontSize: 10, color: slideSubColor, align: "center",
           });
         }
         break;
@@ -360,6 +452,7 @@ export async function exportDeckToPPTX(slides: DeckSlide[], theme: string) {
         }
         break;
 
+      case "metrics":
       case "stats": {
         if (slide.title) {
           pptSlide.addText(slide.title, {
@@ -376,7 +469,8 @@ export async function exportDeckToPPTX(slides: DeckSlide[], theme: string) {
             const cy = slide.title ? 1.6 : 0.8;
             pptSlide.addText(stats[si].value, {
               x: cx, y: cy, w: cardW, h: 1.2,
-              fontSize: 36, bold: true, color: accentColorHex, align: "center", valign: "bottom",
+              fontSize: slide.layout === "metrics" ? 44 : 36,
+              bold: true, color: accentColorHex, align: "center", valign: "bottom",
             });
             pptSlide.addText(stats[si].label.toUpperCase(), {
               x: cx, y: cy + 1.2, w: cardW, h: 0.5,
@@ -384,6 +478,69 @@ export async function exportDeckToPPTX(slides: DeckSlide[], theme: string) {
             });
           }
         }
+        break;
+      }
+
+      case "featureGrid": {
+        if (slide.title) {
+          pptSlide.addText(slide.title, {
+            x: 0.7, y: 0.5, w: 8.5, h: 0.8,
+            fontSize: 26, bold: true, color: slideTextColor,
+          });
+        }
+        const bullets = slide.bullets || [];
+        const features = bullets.map((b) => {
+          const match = b.match(/^\*\*(.+?)\*\*\s*(.*)/);
+          if (match) return { title: match[1], desc: match[2] };
+          return { title: b, desc: "" };
+        });
+        const cols = features.length <= 4 ? 2 : 3;
+        const rows = Math.ceil(features.length / cols);
+        const cardW = (8.5 - (cols - 1) * 0.2) / cols;
+        const cardH = Math.min(1.5, (3.5 - (rows - 1) * 0.15) / rows);
+        features.forEach((f, fi) => {
+          const col = fi % cols;
+          const row = Math.floor(fi / cols);
+          const cx = 0.7 + col * (cardW + 0.2);
+          const cy = (slide.title ? 1.5 : 0.5) + row * (cardH + 0.15);
+          pptSlide.addText(f.title, {
+            x: cx, y: cy, w: cardW, h: 0.5,
+            fontSize: 14, bold: true, color: slideTextColor,
+          });
+          if (f.desc) {
+            pptSlide.addText(f.desc, {
+              x: cx, y: cy + 0.45, w: cardW, h: cardH - 0.5,
+              fontSize: 11, color: slideSubColor,
+            });
+          }
+        });
+        break;
+      }
+
+      case "logoGrid": {
+        if (slide.title) {
+          pptSlide.addText(slide.title, {
+            x: 0.5, y: 0.5, w: 9, h: 0.8,
+            fontSize: 26, bold: true, color: slideTextColor, align: "center",
+          });
+        }
+        const logos = slide.bullets || [];
+        const lCols = logos.length <= 4 ? logos.length : logos.length <= 6 ? 3 : 4;
+        const lRows = Math.ceil(logos.length / lCols);
+        const lCardW = Math.min(2, (8 - (lCols - 1) * 0.3) / lCols);
+        const lCardH = Math.min(1.2, (3 - (lRows - 1) * 0.3) / lRows);
+        const totalW = lCols * lCardW + (lCols - 1) * 0.3;
+        const startX = (10 - totalW) / 2;
+        logos.forEach((name, li) => {
+          const col = li % lCols;
+          const row = Math.floor(li / lCols);
+          const cx = startX + col * (lCardW + 0.3);
+          const cy = (slide.title ? 1.8 : 1) + row * (lCardH + 0.3);
+          pptSlide.addText(name, {
+            x: cx, y: cy, w: lCardW, h: lCardH,
+            fontSize: 14, bold: true, color: slideSubColor, align: "center", valign: "middle",
+          });
+        });
         break;
       }
 
