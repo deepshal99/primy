@@ -1,4 +1,4 @@
-import { SheetOperation, DocOperation, KuOperation, TableOperation, DiagramOperation, DeckOperation, DeckOutlineItem } from "@/lib/types";
+import { SheetOperation, DocOperation, KuOperation, TableOperation, DiagramOperation, DeckOperation, ThemeConfig } from "@/lib/types";
 
 /**
  * Extract content between ```tag and ``` fences.
@@ -336,29 +336,65 @@ export function parseDeckOperations(fullText: string): DeckOperation[] {
   return operations;
 }
 
-// ── Deck Outline Parser ──
+// ── ThemeConfig Validator ──
 
-export function parseDeckOutline(fullText: string): DeckOutlineItem[] {
-  const blocks = extractFencedBlocks(fullText, "deckoutline");
-  for (const block of blocks) {
-    try {
-      const parsed = JSON.parse(block);
-      if (parsed.slides && Array.isArray(parsed.slides)) {
-        return parsed.slides.map((s: any, i: number) => ({
-          id: `outline-${i}-${Date.now()}`,
-          title: s.title || `Slide ${i + 1}`,
-          description: s.description || "",
-          category: s.category,
-          layout: s.layout,
-        }));
-      }
-    } catch {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[Drafta] Failed to parse deckoutline block:", block.slice(0, 200));
-      }
-    }
+const VALID_BULLET_STYLES = ["disc", "dash", "number", "arrow", "check", "ring", "bar"] as const;
+const VALID_DECOR_STYLES = ["geometric", "minimal", "gradient"] as const;
+const VALID_HEADING_CASES = ["none", "uppercase"] as const;
+
+/** Validate and normalize an AI-generated style object into a valid ThemeConfig */
+export function validateThemeConfig(raw: unknown): ThemeConfig | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+
+  // Required color fields
+  const bg = typeof o.bg === "string" ? o.bg : null;
+  const text = typeof o.text === "string" ? o.text : null;
+  const accent = typeof o.accent === "string" ? o.accent : null;
+  if (!bg || !text || !accent) return null;
+
+  const textSecondary = typeof o.textSecondary === "string" ? o.textSecondary : `${text}99`;
+  const accentAlt = typeof o.accentAlt === "string" ? o.accentAlt : accent;
+  const accentLight = typeof o.accentLight === "string" ? o.accentLight : `${accent}12`;
+
+  const headingFont = typeof o.headingFont === "string" ? o.headingFont : "'Inter', system-ui, sans-serif";
+  const bodyFont = typeof o.bodyFont === "string" ? o.bodyFont : "'Inter', system-ui, sans-serif";
+  const headingWeight = typeof o.headingWeight === "number" ? o.headingWeight : 700;
+  const headingCase = VALID_HEADING_CASES.includes(o.headingCase as any) ? (o.headingCase as "none" | "uppercase") : "none";
+
+  const cardBg = typeof o.cardBg === "string" ? o.cardBg : bg;
+  const cardBorder = typeof o.cardBorder === "string" ? o.cardBorder : "#E0E0E0";
+  const divider = typeof o.divider === "string" ? o.divider : "#D0D0D0";
+
+  const bulletStyle = VALID_BULLET_STYLES.includes(o.bulletStyle as any) ? (o.bulletStyle as ThemeConfig["bulletStyle"]) : "bar";
+  const decorStyle = VALID_DECOR_STYLES.includes(o.decorStyle as any) ? (o.decorStyle as ThemeConfig["decorStyle"]) : "minimal";
+
+  let googleFonts: string[] = [];
+  if (Array.isArray(o.googleFonts)) {
+    googleFonts = o.googleFonts.filter((f): f is string => typeof f === "string");
   }
-  return [];
+
+  const label = typeof o.label === "string" ? o.label : "Custom";
+
+  return {
+    label,
+    bg,
+    text,
+    textSecondary,
+    accent,
+    accentAlt,
+    accentLight,
+    headingFont,
+    bodyFont,
+    headingWeight,
+    headingCase,
+    cardBg,
+    cardBorder,
+    divider,
+    bulletStyle,
+    decorStyle,
+    googleFonts,
+  };
 }
 
 export function extractDisplayText(fullText: string): string {

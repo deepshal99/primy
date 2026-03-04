@@ -4,27 +4,27 @@ import { useState } from "react";
 import { Check } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/cn";
-import { getThemeConfig } from "./deckThemes";
+import { deckThemes, activeThemeKeys, getThemeConfig } from "./deckThemes";
 import type { DeckTheme } from "@/lib/types";
 
+/**
+ * Preset theme selector — no longer a standalone phase view.
+ * Used as an optional toolbar popover for applying a preset style.
+ */
 export function DeckThemePicker() {
-  const suggestedThemes = useAppStore((s) => s.deckSuggestedThemes);
-  const outline = useAppStore((s) => s.deckOutline);
   const updateDeckTheme = useAppStore((s) => s.updateDeckTheme);
+  const updateDeckStyle = useAppStore((s) => s.updateDeckStyle);
   const setPhase = useAppStore((s) => s.setDeckPhase);
   const [selected, setSelected] = useState<DeckTheme | null>(null);
 
-  // Use AI suggestions if available, else show a curated default set
-  const themes =
-    suggestedThemes.length > 0
-      ? suggestedThemes
-      : ["startup", "arctic", "slate"];
-
-  const titleSlideTitle = outline[0]?.title || "Your Presentation";
+  const themes = [...activeThemeKeys];
+  const titleSlideTitle = "Your Presentation";
 
   const handleGenerate = () => {
     if (!selected) return;
     updateDeckTheme(selected);
+    // Apply the full ThemeConfig from the preset
+    updateDeckStyle(getThemeConfig(selected));
     setPhase("generating");
 
     // Dispatch a chat message to trigger AI slide generation
@@ -49,7 +49,7 @@ export function DeckThemePicker() {
 
         <div className="grid grid-cols-1 gap-3">
           {themes.map((themeKey) => {
-            const theme = getThemeConfig(themeKey);
+            const theme = deckThemes[themeKey];
             if (!theme) return null;
             const isSelected = selected === themeKey;
 
