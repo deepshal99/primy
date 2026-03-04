@@ -2,20 +2,21 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { DeckSlide } from "@/lib/types";
-import { SlideRenderer } from "./SlideRenderer";
-import { resolveTheme, loadThemeFonts } from "./deckThemes";
+import type { DeckSlide, HtmlDeckSlide, ThemeConfig } from "@/lib/types";
+import { UniversalSlideRenderer } from "./UniversalSlideRenderer";
+import { resolveTheme, loadThemeFonts, loadThemeFontsFromConfig } from "./deckThemes";
 
 interface PresentationModeProps {
-  slides: DeckSlide[];
+  slides: (DeckSlide | HtmlDeckSlide)[];
   theme: string;
+  style?: ThemeConfig | null;
   startIdx?: number;
   onExit: () => void;
 }
 
 type NavDirection = "forward" | "backward";
 
-export function PresentationMode({ slides, theme, startIdx = 0, onExit }: PresentationModeProps) {
+export function PresentationMode({ slides, theme, style, startIdx = 0, onExit }: PresentationModeProps) {
   const [currentIdx, setCurrentIdx] = useState(startIdx);
   const [showCounter, setShowCounter] = useState(true);
   const [showUI, setShowUI] = useState(true);
@@ -31,8 +32,12 @@ export function PresentationMode({ slides, theme, startIdx = 0, onExit }: Presen
 
   // Load theme fonts
   useEffect(() => {
-    loadThemeFonts(theme);
-  }, [theme]);
+    if (style) {
+      loadThemeFontsFromConfig(style);
+    } else {
+      loadThemeFonts(theme);
+    }
+  }, [theme, style]);
 
   // Auto-hide UI after 3s of inactivity
   const resetUITimer = useCallback(() => {
@@ -223,7 +228,7 @@ export function PresentationMode({ slides, theme, startIdx = 0, onExit }: Presen
           transition: "opacity 200ms ease-out, transform 200ms ease-out",
         }}
       >
-        <SlideRenderer slide={slide} theme={resolvedTheme} scale={1} />
+        <UniversalSlideRenderer slide={slide} theme={resolvedTheme} themeConfig={style} scale={1} />
       </div>
 
       {/* Progress bar at bottom */}

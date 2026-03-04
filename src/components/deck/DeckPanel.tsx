@@ -9,7 +9,8 @@ import {
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/cn";
-import { DeckSlide } from "@/lib/types";
+import { DeckSlide, isHtmlSlide } from "@/lib/types";
+import type { HtmlDeckSlide } from "@/lib/types";
 import { SlideRenderer, SlideEditHandlers } from "./SlideRenderer";
 import { resolveTheme, loadThemeFonts, deckThemes, activeThemeKeys, getThemeConfig } from "./deckThemes";
 import { PresentationMode } from "./PresentationMode";
@@ -141,7 +142,7 @@ export function DeckPanel() {
   }, [slides.length, activeIdx]);
 
   const editHandlers: SlideEditHandlers | undefined = useMemo(() => {
-    if (!activeSlide || activeSlide.layout === "html") return undefined;
+    if (!activeSlide || isHtmlSlide(activeSlide)) return undefined;
     return {
       onTitleChange: (value: string) => updateSlide(activeIdx, { title: value }),
       onSubtitleChange: (value: string) => updateSlide(activeIdx, { subtitle: value }),
@@ -267,7 +268,7 @@ export function DeckPanel() {
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Toolbar */}
         <div className="flex items-center gap-1.5 px-4 border-b border-[#e8e7e4] flex-shrink-0 h-12 bg-[#fafaf9]">
-          {activeSlide && activeSlide.layout !== "html" && (
+          {activeSlide && !isHtmlSlide(activeSlide) && (
             <>
               {/* Layout + Theme group */}
               <div className="flex items-center gap-1">

@@ -2,25 +2,30 @@
 
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Play } from "lucide-react";
-import { DeckSlide } from "@/lib/types";
-import { SlideRenderer } from "./SlideRenderer";
+import type { DeckSlide, HtmlDeckSlide, ThemeConfig } from "@/lib/types";
+import { UniversalSlideRenderer } from "./UniversalSlideRenderer";
 import { PresentationMode } from "./PresentationMode";
-import { resolveTheme, loadThemeFonts } from "./deckThemes";
+import { resolveTheme, loadThemeFonts, loadThemeFontsFromConfig } from "./deckThemes";
 
 interface DeckViewReadOnlyProps {
-  slides: DeckSlide[];
+  slides: (DeckSlide | HtmlDeckSlide)[];
   theme: string;
+  style?: ThemeConfig | null;
 }
 
-export function DeckViewReadOnly({ slides, theme }: DeckViewReadOnlyProps) {
+export function DeckViewReadOnly({ slides, theme, style }: DeckViewReadOnlyProps) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [showPresentation, setShowPresentation] = useState(false);
   const [mounted, setMounted] = useState(false);
   const resolvedTheme = resolveTheme(theme);
 
   useEffect(() => {
-    loadThemeFonts(theme);
-  }, [theme]);
+    if (style) {
+      loadThemeFontsFromConfig(style);
+    } else {
+      loadThemeFonts(theme);
+    }
+  }, [theme, style]);
 
   useEffect(() => {
     setMounted(true);
@@ -63,9 +68,10 @@ export function DeckViewReadOnly({ slides, theme }: DeckViewReadOnlyProps) {
                 <div className="flex-1" />
               </div>
               <div className="transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md rounded-lg">
-                <SlideRenderer
+                <UniversalSlideRenderer
                   slide={slide}
                   theme={resolvedTheme}
+                  themeConfig={style}
                   scale={186 / 960}
                   onClick={() => setActiveIdx(i)}
                   isActive={i === activeIdx}
@@ -113,9 +119,10 @@ export function DeckViewReadOnly({ slides, theme }: DeckViewReadOnlyProps) {
         {/* Slide canvas */}
         <div className="flex-1 flex items-center justify-center overflow-auto p-8 bg-[#f4f3f0]">
           {activeSlide && (
-            <SlideRenderer
+            <UniversalSlideRenderer
               slide={activeSlide}
               theme={resolvedTheme}
+              themeConfig={style}
               scale={0.75}
             />
           )}
@@ -127,6 +134,7 @@ export function DeckViewReadOnly({ slides, theme }: DeckViewReadOnlyProps) {
         <PresentationMode
           slides={slides}
           theme={theme}
+          style={style}
           startIdx={activeIdx}
           onExit={() => setShowPresentation(false)}
         />

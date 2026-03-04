@@ -1,21 +1,24 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useAppStore } from "@/lib/store";
-import { DeckSlide } from "@/lib/types";
-import { SlideRenderer, SlideEditHandlers } from "./SlideRenderer";
+import { UniversalSlideRenderer } from "./UniversalSlideRenderer";
+import { isHtmlSlide } from "@/lib/types";
+import type { HtmlDeckSlide } from "@/lib/types";
 import { PresentationMode } from "./PresentationMode";
 import { exportDeckToPDF, exportDeckToPPTX } from "./deckExport";
-
-const DECK_COLOR = "#d4582a";
-const BORDER_COLOR = "#e8e7e4";
-const TEXT_PRIMARY = "#1a1a2e";
-const TEXT_MUTED = "#6b6b80";
-const TEXT_SUBTLE = "#95928E";
+import {
+  Play,
+  Download,
+  RotateCcw,
+  ChevronDown,
+} from "lucide-react";
+import { cn } from "@/lib/cn";
 
 export function DeckLinearView() {
   const slides = useAppStore((s) => s.deckSlides);
   const theme = useAppStore((s) => s.deckTheme);
+  const style = useAppStore((s) => s.deckStyle);
   const updateDeckSlides = useAppStore((s) => s.updateDeckSlides);
   const resetDeckBuilder = useAppStore((s) => s.resetDeckBuilder);
 
@@ -49,15 +52,13 @@ export function DeckLinearView() {
         for (const entry of entries) {
           if (entry.isIntersecting) {
             const idx = Number(entry.target.getAttribute("data-slide-idx"));
-            if (!isNaN(idx)) {
-              setCurrentSlideIdx(idx);
-            }
+            if (!isNaN(idx)) setCurrentSlideIdx(idx);
           }
         }
       },
       {
         root: scrollContainerRef.current,
-        rootMargin: "-40% 0px -40% 0px",
+        rootMargin: "-30% 0px -30% 0px",
         threshold: 0,
       }
     );
@@ -69,203 +70,96 @@ export function DeckLinearView() {
     return () => observer.disconnect();
   }, [slides.length]);
 
-  const makeEditHandlers = useCallback(
-    (idx: number): SlideEditHandlers => ({
-      onTitleChange: (value: string) => {
-        const newSlides = slides.map((s, i) => (i === idx ? { ...s, title: value } : s));
-        updateDeckSlides(newSlides);
-      },
-      onSubtitleChange: (value: string) => {
-        const newSlides = slides.map((s, i) => (i === idx ? { ...s, subtitle: value } : s));
-        updateDeckSlides(newSlides);
-      },
-      onContentChange: (value: string) => {
-        const newSlides = slides.map((s, i) => (i === idx ? { ...s, content: value } : s));
-        updateDeckSlides(newSlides);
-      },
-      onBulletsChange: (bullets: string[]) => {
-        const newSlides = slides.map((s, i) => (i === idx ? { ...s, bullets } : s));
-        updateDeckSlides(newSlides);
-      },
-      onStatsChange: (stats: { value: string; label: string }[]) => {
-        const newSlides = slides.map((s, i) => (i === idx ? { ...s, stats } : s));
-        updateDeckSlides(newSlides);
-      },
-    }),
-    [slides, updateDeckSlides]
-  );
+  const handleFieldEdit = useCallback((slideId: string, fieldId: string, newValue: string) => {
+    const newSlides = slides.map(s => {
+      if (s.id !== slideId || !isHtmlSlide(s)) return s;
+      const updatedFields = s.editableFields.map(f =>
+        f.id === fieldId ? { ...f, currentValue: newValue } : f
+      );
+      // Patch the HTML content
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(`<div>${s.html}</div>`, "text/html");
+      const el = doc.querySelector(`[data-field="${fieldId}"]`);
+      if (el) el.textContent = newValue;
+      const container = doc.body.firstElementChild;
+      return { ...s, html: container ? container.innerHTML : s.html, editableFields: updatedFields };
+    });
+    updateDeckSlides(newSlides);
+  }, [slides, updateDeckSlides]);
 
   const handleExportPDF = useCallback(async () => {
     setExporting(true);
     setExportOpen(false);
     try {
-      await exportDeckToPDF(slides, theme);
+      await exportDeckToPDF(slides, theme, style);
     } catch (err) {
       console.error("PDF export failed:", err);
     } finally {
       setExporting(false);
     }
-  }, [slides, theme]);
+  }, [slides, theme, style]);
 
   const handleExportPPTX = useCallback(async () => {
     setExporting(true);
     setExportOpen(false);
     try {
-      await exportDeckToPPTX(slides, theme);
+      await exportDeckToPPTX(slides, theme, style);
     } catch (err) {
       console.error("PPTX export failed:", err);
     } finally {
       setExporting(false);
     }
-  }, [slides, theme]);
+  }, [slides, theme, style]);
 
   if (!slides.length) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100%",
-          color: TEXT_MUTED,
-          fontFamily: "system-ui, sans-serif",
-          gap: 12,
-        }}
-      >
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={TEXT_SUBTLE} strokeWidth="1.5">
+      <div className="h-full flex flex-col items-center justify-center text-[#6b6b80] gap-3">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#95928E" strokeWidth="1.5">
           <rect x="2" y="3" width="20" height="14" rx="2" />
           <path d="M8 21h8M12 17v4" />
         </svg>
-        <div style={{ fontSize: 16, fontWeight: 500 }}>No slides yet</div>
-        <div style={{ fontSize: 13, color: TEXT_SUBTLE }}>
-          Generate a presentation to get started
-        </div>
+        <p className="text-[15px] font-medium text-[#1a1a2e]">No slides yet</p>
+        <p className="text-[13px] text-[#95928E]">Generate a presentation to get started</p>
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-      {/* Sticky toolbar */}
-      <div
-        style={{
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "8px 16px",
-          borderBottom: `1px solid ${BORDER_COLOR}`,
-          backgroundColor: "#fff",
-          zIndex: 10,
-        }}
-      >
-        {/* Present button */}
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Compact toolbar */}
+      <div className="shrink-0 flex items-center gap-2 px-4 py-2 border-b border-[#e8e7e4] bg-white">
         <button
           onClick={() => setPresenting(true)}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "6px 14px",
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#fff",
-            backgroundColor: DECK_COLOR,
-            border: "none",
-            borderRadius: 6,
-            cursor: "pointer",
-            fontFamily: "system-ui, sans-serif",
-            transition: "opacity 0.15s",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.9")}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-[13px] font-semibold text-white bg-[#d4582a] rounded-lg hover:bg-[#c04d24] transition-colors active:scale-[0.97]"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-            <polygon points="5,3 19,12 5,21" />
-          </svg>
+          <Play size={13} fill="currentColor" />
           Present
         </button>
 
-        {/* Export dropdown */}
-        <div ref={exportDropdownRef} style={{ position: "relative" }}>
+        <div ref={exportDropdownRef} className="relative">
           <button
             onClick={() => setExportOpen(!exportOpen)}
             disabled={exporting}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "6px 12px",
-              fontSize: 13,
-              fontWeight: 500,
-              color: TEXT_PRIMARY,
-              backgroundColor: "#fff",
-              border: `1px solid ${BORDER_COLOR}`,
-              borderRadius: 6,
-              cursor: exporting ? "wait" : "pointer",
-              fontFamily: "system-ui, sans-serif",
-              opacity: exporting ? 0.6 : 1,
-            }}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[#1a1a2e] bg-white border border-[#e8e7e4] rounded-lg hover:bg-[#f9f9fb] transition-colors",
+              exporting && "opacity-60 cursor-wait"
+            )}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
-            </svg>
+            <Download size={13} />
             {exporting ? "Exporting..." : "Export"}
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+            <ChevronDown size={10} />
           </button>
           {exportOpen && (
-            <div
-              style={{
-                position: "absolute",
-                top: "calc(100% + 4px)",
-                left: 0,
-                minWidth: 140,
-                backgroundColor: "#fff",
-                border: `1px solid ${BORDER_COLOR}`,
-                borderRadius: 8,
-                boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                zIndex: 20,
-                overflow: "hidden",
-              }}
-            >
+            <div className="absolute top-full mt-1 left-0 min-w-[140px] bg-white border border-[#e8e7e4] rounded-lg shadow-lg z-20 overflow-hidden">
               <button
                 onClick={handleExportPDF}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  padding: "8px 14px",
-                  fontSize: 13,
-                  fontFamily: "system-ui, sans-serif",
-                  color: TEXT_PRIMARY,
-                  backgroundColor: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f5f5f5")}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                className="block w-full px-3.5 py-2 text-[13px] text-left text-[#1a1a2e] hover:bg-[#f5f5f3] transition-colors"
               >
                 Export as PDF
               </button>
               <button
                 onClick={handleExportPPTX}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  padding: "8px 14px",
-                  fontSize: 13,
-                  fontFamily: "system-ui, sans-serif",
-                  color: TEXT_PRIMARY,
-                  backgroundColor: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f5f5f5")}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                className="block w-full px-3.5 py-2 text-[13px] text-left text-[#1a1a2e] hover:bg-[#f5f5f3] transition-colors"
               >
                 Export as PPTX
               </button>
@@ -273,125 +167,42 @@ export function DeckLinearView() {
           )}
         </div>
 
-        {/* Spacer */}
-        <div style={{ flex: 1 }} />
+        <div className="flex-1" />
 
-        {/* Slide counter */}
-        <span
-          style={{
-            fontSize: 12,
-            fontWeight: 500,
-            color: TEXT_MUTED,
-            fontFamily: "system-ui, sans-serif",
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
+        <span className="text-[12px] font-medium text-[#95928E] tabular-nums">
           {currentSlideIdx + 1} / {slides.length}
         </span>
 
-        {/* Regenerate button */}
         <button
           onClick={resetDeckBuilder}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 5,
-            padding: "6px 12px",
-            fontSize: 13,
-            fontWeight: 500,
-            color: TEXT_MUTED,
-            backgroundColor: "transparent",
-            border: `1px solid ${BORDER_COLOR}`,
-            borderRadius: 6,
-            cursor: "pointer",
-            fontFamily: "system-ui, sans-serif",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#f9f9fb")}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[#6b6b80] hover:text-[#1a1a2e] bg-transparent border border-[#e8e7e4] rounded-lg hover:bg-[#f9f9fb] transition-colors"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="1 4 1 10 7 10" />
-            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-          </svg>
+          <RotateCcw size={13} />
           Regenerate
         </button>
       </div>
 
-      {/* Scrollable slide list */}
+      {/* Slides — clean, edge-to-edge, one after another */}
       <div
         ref={scrollContainerRef}
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: "32px 16px",
-          backgroundColor: "#f9f9fb",
-        }}
+        className="flex-1 overflow-y-auto"
       >
-        <div
-          style={{
-            maxWidth: 900,
-            margin: "0 auto",
-            display: "flex",
-            flexDirection: "column",
-            gap: 24,
-          }}
-        >
+        <div className="mx-auto py-6 flex flex-col items-center gap-6">
           {slides.map((slide, idx) => (
             <div
               key={idx}
-              ref={(el) => {
-                slideRefs.current[idx] = el;
-              }}
+              ref={(el) => { slideRefs.current[idx] = el; }}
               data-slide-idx={idx}
-              style={{
-                borderRadius: 10,
-                border: `1px solid ${BORDER_COLOR}`,
-                boxShadow: "0 1px 4px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.02)",
-                overflow: "hidden",
-                backgroundColor: "#fff",
-              }}
+              className="flex justify-center"
             >
-              {/* Slide number badge */}
-              <div
-                style={{
-                  padding: "6px 12px",
-                  borderBottom: `1px solid ${BORDER_COLOR}`,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: TEXT_SUBTLE,
-                    fontFamily: "system-ui, sans-serif",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  Slide {idx + 1}
-                </span>
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: TEXT_SUBTLE,
-                    fontFamily: "system-ui, sans-serif",
-                  }}
-                >
-                  {slide.layout}
-                </span>
-              </div>
-              {/* Slide content */}
-              <div style={{ display: "flex", justifyContent: "center", padding: 16, backgroundColor: "#fafafa" }}>
-                <SlideRenderer
-                  slide={slide}
-                  theme={theme}
-                  scale={0.85}
-                  edit={makeEditHandlers(idx)}
-                />
-              </div>
+              <UniversalSlideRenderer
+                slide={slide}
+                theme={theme}
+                themeConfig={style}
+                scale={0.85}
+                editable
+                onFieldEdit={(fieldId, newValue) => handleFieldEdit(slide.id, fieldId, newValue)}
+              />
             </div>
           ))}
         </div>
@@ -402,6 +213,7 @@ export function DeckLinearView() {
         <PresentationMode
           slides={slides}
           theme={theme}
+          style={style}
           startIdx={currentSlideIdx}
           onExit={() => setPresenting(false)}
         />

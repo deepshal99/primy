@@ -14,6 +14,7 @@ import {
   DeckTheme,
   DeckPhase,
   HtmlDeckSlide,
+  isHtmlSlide,
   FileAttachment,
   Conversation,
   UndoSnapshot,
@@ -197,7 +198,7 @@ export const useAppStore = create<AppState>()(
   diagramSource: "",
   diagramType: "mermaid" as const,
   diagramVersion: 0,
-  deckSlides: [] as DeckSlide[],
+  deckSlides: [] as (DeckSlide | HtmlDeckSlide)[],
   deckTheme: "light" as const,
   deckVersion: 0,
   deckPhase: "idle" as DeckPhase,
@@ -672,7 +673,7 @@ export const useAppStore = create<AppState>()(
                   newOpenTabs = [...newOpenTabs, { id: newDeck.id, type: "deck" as const, title: newDeck.title }];
                 }
                 // Auto-fetch background images for slides with imageQuery
-                const slidesWithQuery = newDeck.slides.filter((s) => s.imageQuery && !s.backgroundImage);
+                const slidesWithQuery = newDeck.slides.filter((s) => !isHtmlSlide(s) && s.imageQuery && !s.backgroundImage);
                 if (slidesWithQuery.length > 0) {
                   const deckId = newDeck.id;
                   Promise.allSettled(
