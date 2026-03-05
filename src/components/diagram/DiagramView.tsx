@@ -274,10 +274,11 @@ function MermaidRenderer({ source }: { source: string }) {
       const id = `mermaid-${Date.now()}`;
       const sanitized = sanitizeMermaidSource(source.trim());
       const { svg } = await mermaid.render(id, sanitized);
-      // Make SVG responsive so it scales as a vector instead of a blurry bitmap
-      const responsiveSvg = svg
-        .replace(/\bwidth="[^"]*"/, 'width="100%"')
-        .replace(/\bheight="[^"]*"/, 'height="auto"');
+      // Make SVG responsive — only modify the root <svg> tag's width/height
+      const responsiveSvg = svg.replace(
+        /^(<svg\b[^>]*?)(\bwidth="[^"]*")([^>]*?)(\bheight="[^"]*")/,
+        '$1width="100%"$3height="100%"'
+      );
       setSvgHtml(responsiveSvg);
       setError(null);
     } catch (err: any) {

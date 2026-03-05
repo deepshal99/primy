@@ -465,7 +465,7 @@ export function parseDeckOperations(fullText: string): DeckOperation[] {
       if (ops.length === 0) {
         console.warn("[Drafta] All HTML-aware parse attempts failed for deckops block");
       } else {
-        console.log("[Drafta] HTML deckops block parsed successfully");
+        console.debug("[Drafta] HTML deckops block parsed successfully");
       }
     } else {
       // Standard parse for non-HTML deck operations
@@ -504,7 +504,7 @@ export function parseDeckOperations(fullText: string): DeckOperation[] {
         const recovered = lastResortSlideExtraction(block);
         if (recovered) {
           operations.push(recovered);
-          console.log("[Drafta] Last-resort extraction recovered", recovered.type === "CREATE" ? recovered.slides?.length : 0, "slides");
+          console.debug("[Drafta] Last-resort extraction recovered", recovered.type === "CREATE" ? recovered.slides?.length : 0, "slides");
         }
       }
     }

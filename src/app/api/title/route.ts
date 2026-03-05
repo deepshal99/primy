@@ -1,6 +1,7 @@
 import { generateText } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { auth } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY! });
 
@@ -9,6 +10,14 @@ export async function POST(req: Request) {
     const session = await auth();
     if (!session?.user?.id) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const rateLimit = checkRateLimit(`${session.user.id}:title`, 20, 60_000);
+    if (!rateLimit.allowed) {
+      return Response.json(
+        { error: "Too many requests" },
+        { status: 429, headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) } },
+      );
     }
 
     let body: any;

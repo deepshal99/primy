@@ -304,7 +304,7 @@ export function NavRail() {
           <div className="w-[6px] h-px bg-[#e8e7e4] mb-3" />
           <Tooltip>
             <TooltipTrigger asChild>
-              <button onClick={handleNewChat} className="w-8 h-8 rounded-[10px] bg-[#f0eee9] flex items-center justify-center text-[#5a5852] hover:bg-[#e8e6e0] hover:scale-105 active:scale-[0.92] transition-all duration-150 mb-3 cursor-pointer">
+              <button onClick={handleNewChat} aria-label="New chat" className="w-8 h-8 rounded-[10px] bg-[#f0eee9] flex items-center justify-center text-[#5a5852] hover:bg-[#e8e6e0] hover:scale-105 active:scale-[0.92] transition-all duration-150 mb-3 cursor-pointer">
                 <Plus className="w-3.5 h-3.5 icon-plus-hover" strokeWidth={2.5} />
               </button>
             </TooltipTrigger>
@@ -316,6 +316,7 @@ export function NavRail() {
             <TooltipTrigger asChild>
               <button
                 onClick={() => setDrawerOpen(!drawerOpen)}
+                aria-label="Projects"
                 className={cn(
                   "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-150 active:scale-[0.92] mb-1.5 cursor-pointer",
                   drawerOpen ? "bg-[#ff4a00]/10 text-[#ff4a00]" : "text-[#8a877f] hover:bg-[#f0eee9] hover:text-[#5a5852] hover:scale-105"
@@ -332,6 +333,7 @@ export function NavRail() {
             <TooltipTrigger asChild>
               <button
                 onClick={() => window.dispatchEvent(new Event("drafta:open-search"))}
+                aria-label="Search"
                 className="w-10 h-10 rounded-xl flex items-center justify-center text-[#8a877f] hover:bg-[#f0eee9] hover:text-[#5a5852] hover:scale-105 active:scale-[0.92] transition-all duration-150 mb-1.5 cursor-pointer"
               >
                 <Search className="w-[18px] h-[18px] transition-transform duration-150" strokeWidth={1.75} />
@@ -346,7 +348,7 @@ export function NavRail() {
         <div className="relative mb-4">
           <Popover open={profileOpen} onOpenChange={setProfileOpen}>
             <PopoverTrigger asChild>
-              <button className={cn("w-8 h-8 rounded-full flex items-center justify-center active:scale-[0.92] transition-all duration-150 cursor-pointer overflow-hidden", profileOpen && "ring-2 ring-[#b0ada6]/40 ring-offset-1")}>
+              <button aria-label="Profile menu" className={cn("w-8 h-8 rounded-full flex items-center justify-center active:scale-[0.92] transition-all duration-150 cursor-pointer overflow-hidden", profileOpen && "ring-2 ring-[#b0ada6]/40 ring-offset-1")}>
                 {session?.user?.image ? (
                   <img src={session.user.image} alt="" className="w-8 h-8 rounded-full object-cover" />
                 ) : (

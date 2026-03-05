@@ -1,9 +1,14 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Toaster } from "sonner";
-import { Agentation } from "agentation";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
 
 export const metadata: Metadata = {
   title: "Drafta AI — AI-Powered Workspace",
@@ -29,7 +34,6 @@ export default function RootLayout({
             {children}
           </SessionProvider>
         </QueryProvider>
-        {process.env.NODE_ENV === "development" && <Agentation />}
         <Toaster
           position="bottom-right"
           toastOptions={{

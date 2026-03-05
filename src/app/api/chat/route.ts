@@ -251,11 +251,13 @@ export async function POST(req: Request) {
     const lastParts: UIMessage["parts"] = [{ type: "text", text: textContent }];
     if (lastMessage.imageAttachments?.length) {
       for (const img of lastMessage.imageAttachments) {
+        // Vercel AI SDK v6 UIMessage expects file parts with a data URL
+        const mimeType = img.mimeType || "image/jpeg";
         lastParts.push({
           type: "file",
-          mediaType: img.mimeType,
-          data: img.base64,
-        } as any);
+          mediaType: mimeType,
+          url: `data:${mimeType};base64,${img.base64}`,
+        });
       }
     }
     aiMessages.push({

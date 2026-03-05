@@ -49,30 +49,47 @@ function ActionButton({
 
 // ═══ Diagram helpers ═══
 
-function svgToCanvas(svgEl: Element, scale: number = 2): Promise<HTMLCanvasElement> {
-  return new Promise((resolve, reject) => {
-    const svgData = new XMLSerializer().serializeToString(svgEl);
-    const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-    const url = URL.createObjectURL(svgBlob);
-    const img = new window.Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      const ctx = canvas.getContext("2d")!;
-      ctx.scale(scale, scale);
-      ctx.fillStyle = "#FFFFFF";
-      ctx.fillRect(0, 0, img.width, img.height);
-      ctx.drawImage(img, 0, 0);
-      URL.revokeObjectURL(url);
-      resolve(canvas);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("Failed to render SVG to canvas"));
-    };
-    img.src = url;
-  });
+async function captureDiagramToCanvas(scale: number = 2): Promise<HTMLCanvasElement> {
+  const html2canvas = (await import("html2canvas")).default;
+  const svgEl = document.querySelector(".diagram-render-area svg") as SVGSVGElement | null;
+  if (!svgEl) throw new Error("No diagram SVG found");
+
+  // Get the SVG's natural dimensions from viewBox
+  const vb = svgEl.getAttribute("viewBox");
+  const parts = vb?.split(/[\s,]+/).map(Number);
+  let w: number, h: number;
+  if (parts && parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+    w = parts[2];
+    h = parts[3];
+  } else {
+    const bbox = svgEl.getBBox();
+    w = bbox.width || svgEl.clientWidth || 800;
+    h = bbox.height || svgEl.clientHeight || 600;
+  }
+
+  // Clone SVG into an offscreen container at full native size
+  const offscreen = document.createElement("div");
+  offscreen.style.cssText = `position:fixed;left:-99999px;top:0;width:${w}px;height:${h}px;background:#fff;overflow:visible;z-index:-1;`;
+  const clone = svgEl.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute("width", String(w));
+  clone.setAttribute("height", String(h));
+  clone.style.width = `${w}px`;
+  clone.style.height = `${h}px`;
+  offscreen.appendChild(clone);
+  document.body.appendChild(offscreen);
+
+  try {
+    return await html2canvas(offscreen, {
+      scale,
+      backgroundColor: "#FFFFFF",
+      useCORS: true,
+      logging: false,
+      width: w,
+      height: h,
+    });
+  } finally {
+    document.body.removeChild(offscreen);
+  }
 }
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -105,7 +122,7 @@ export function DiagramExport() {
         downloadBlob(blob, "diagram.svg");
         toast.success("Exported as SVG");
       } else if (format === "png") {
-        const canvas = await svgToCanvas(svgEl);
+        const canvas = await captureDiagramToCanvas();
         canvas.toBlob((blob) => {
           if (blob) {
             downloadBlob(blob, "diagram.png");
@@ -113,7 +130,7 @@ export function DiagramExport() {
           }
         }, "image/png");
       } else {
-        const canvas = await svgToCanvas(svgEl);
+        const canvas = await captureDiagramToCanvas();
         canvas.toBlob(async (blob) => {
           if (blob) {
             try {
@@ -137,7 +154,7 @@ export function DiagramExport() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="w-[36px] h-[36px] flex items-center justify-center rounded-lg text-[#95928E] hover:text-[#2d2e2e] hover:bg-[#efeee9] active:scale-[0.92] transition-all duration-150 cursor-pointer">
+        <button className="w-[36px] h-[36px] flex items-center justify-center rounded-lg text-[#95928E] hover:text-[#2d2e2e] hover:bg-[#efeee9] active:scale-[0.92] transition-all duration-150 cursor-pointer" aria-label="Export diagram">
           <Download className="w-4 h-4" />
         </button>
       </DropdownMenuTrigger>
@@ -202,7 +219,7 @@ export function DeckExport() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="w-[36px] h-[36px] flex items-center justify-center rounded-lg text-[#95928E] hover:text-[#2d2e2e] hover:bg-[#efeee9] active:scale-[0.92] transition-all duration-150 cursor-pointer">
+        <button className="w-[36px] h-[36px] flex items-center justify-center rounded-lg text-[#95928E] hover:text-[#2d2e2e] hover:bg-[#efeee9] active:scale-[0.92] transition-all duration-150 cursor-pointer" aria-label="Export presentation">
           <Download className="w-4 h-4" />
         </button>
       </DropdownMenuTrigger>

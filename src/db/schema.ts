@@ -41,7 +41,10 @@ export const projects = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (table) => [index("projects_user_id_idx").on(table.userId)]
+  (table) => [
+    index("projects_user_id_idx").on(table.userId),
+    index("projects_share_token_idx").on(table.shareToken),
+  ]
 );
 
 // ── Knowledge Units (Documents) ──
@@ -58,7 +61,10 @@ export const knowledgeUnits = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (table) => [index("ku_project_id_idx").on(table.projectId)]
+  (table) => [
+    index("ku_project_id_idx").on(table.projectId),
+    index("ku_share_token_idx").on(table.shareToken),
+  ]
 );
 
 // ── Project Tables (Spreadsheets) ──
@@ -75,7 +81,10 @@ export const projectTables = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (table) => [index("pt_project_id_idx").on(table.projectId)]
+  (table) => [
+    index("pt_project_id_idx").on(table.projectId),
+    index("pt_share_token_idx").on(table.shareToken),
+  ]
 );
 
 // ── Project Diagrams ──
@@ -93,7 +102,10 @@ export const projectDiagrams = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (table) => [index("pd_project_id_idx").on(table.projectId)]
+  (table) => [
+    index("pd_project_id_idx").on(table.projectId),
+    index("pd_share_token_idx").on(table.shareToken),
+  ]
 );
 
 // ── Project Decks (Presentations) ──
@@ -112,19 +124,26 @@ export const projectDecks = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (table) => [index("pdk_project_id_idx").on(table.projectId)]
+  (table) => [
+    index("pdk_project_id_idx").on(table.projectId),
+    index("pdk_share_token_idx").on(table.shareToken),
+  ]
 );
 
 // ── Password Reset Tokens ──
-export const passwordResetTokens = pgTable("password_reset_tokens", {
-  id: text("id").primaryKey(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  token: varchar("token", { length: 64 }).notNull().unique(),
-  expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    token: varchar("token", { length: 64 }).notNull().unique(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("prt_user_id_idx").on(table.userId)]
+);
 
 // ── Messages (Chat history per project) ──
 export const messages = pgTable(

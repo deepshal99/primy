@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { projects, knowledgeUnits, projectTables, projectDiagrams, projectDecks } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 /**
  * GET /api/share/[token] — Public endpoint (no auth).
@@ -16,6 +17,16 @@ export async function GET(
 
     if (!token || token.length < 8) {
       return Response.json({ error: "Invalid token" }, { status: 400 });
+    }
+
+    // IP-based rate limiting to prevent token enumeration (60 req/min)
+    const ip = _req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rateLimit = checkRateLimit(`${ip}:share`, 60, 60_000);
+    if (!rateLimit.allowed) {
+      return Response.json(
+        { error: "Too many requests" },
+        { status: 429, headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) } },
+      );
     }
 
     // 1. Check projects

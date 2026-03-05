@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
 const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
@@ -75,6 +76,16 @@ async function searchPexels(q: string, page: string): Promise<ImageResult[]> {
 }
 
 export async function GET(req: NextRequest) {
+  // IP-based rate limiting for this public-ish endpoint (30 req/min)
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const rateLimit = checkRateLimit(`${ip}:unsplash`, 30, 60_000);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) } },
+    );
+  }
+
   const q = req.nextUrl.searchParams.get("q") || "";
   const page = req.nextUrl.searchParams.get("page") || "1";
 

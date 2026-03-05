@@ -193,7 +193,9 @@ export function ExamplePrompts({
 
   // Centered mode: entity type selector pills (hero screen)
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2">
+    <div className="flex flex-col items-center gap-2.5">
+      <span className="text-[12px] text-[#b0ada6] tracking-wide">or start from scratch</span>
+      <div className="flex flex-wrap items-center justify-center gap-2">
       {ENTITY_PILLS.map((pill) => {
         const isSelected = selectedEntityType === pill.type;
         return (
@@ -227,6 +229,7 @@ export function ExamplePrompts({
           </button>
         );
       })}
+      </div>
     </div>
   );
 }

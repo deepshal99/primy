@@ -31,6 +31,11 @@ function isDark(rgb: [number, number, number]): boolean {
   return luminance(rgb) < 0.35;
 }
 
+/** Escape string for use in RegExp constructor. */
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
  * Post-process slide HTML to enforce text/background contrast.
  * Extracts --bg and --text CSS variables, checks luminance, and fixes mismatches.
@@ -40,9 +45,12 @@ export function enforceSlideContrast(html: string): string {
   // Extract CSS variable definitions from <style> block
   const varRegex = /--bg\s*:\s*([^;}\s]+)/;
   const textVarRegex = /--text\s*:\s*([^;}\s]+)/;
+  const accentVarRegex = /--accent\s*:\s*([^;}\s]+)/;
 
   const bgMatch = html.match(varRegex);
   const textMatch = html.match(textVarRegex);
+  const accentMatch = html.match(accentVarRegex);
+  const accentColor = accentMatch ? parseColor(accentMatch[1]) : null;
 
   // Also try to extract bg from inline style on root div (background:#... or background:linear-gradient(...))
   let bgColor: [number, number, number] | null = null;
@@ -120,6 +128,95 @@ export function enforceSlideContrast(html: string): string {
         return "color:#1a1a2e";
       }
       return match;
+    }
+  );
+
+  // Build a map of known CSS variable values for resolving var() references
+  const varMap: Record<string, [number, number, number] | null> = {
+    "--accent": accentColor,
+    "--bg": bgColor,
+    "--text": textMatch ? parseColor(textMatch[1]) : null,
+  };
+
+  /** Resolve a CSS color value which may be a var() reference or a literal color. */
+  function resolveColor(val: string): [number, number, number] | null {
+    const trimmed = val.trim();
+    const varRef = trimmed.match(/^var\(\s*(--[a-zA-Z-]+)\s*\)$/);
+    if (varRef) return varMap[varRef[1]] || null;
+    return parseColor(trimmed);
+  }
+
+  /** Extract background color from a style string, resolving var() refs. */
+  function extractBgFromStyle(style: string): [number, number, number] | null {
+    // Match var(--xxx) in background
+    const varBg = style.match(/background(?:-color)?\s*:\s*var\(\s*(--[a-zA-Z-]+)\s*\)/);
+    if (varBg) return varMap[varBg[1]] || null;
+    // Match literal color
+    const litBg = style.match(/background(?:-color)?\s*:\s*(?:linear-gradient\([^,]+,\s*)?([#][0-9a-fA-F]{3,6}|rgba?\([^)]+\))/);
+    if (litBg) return parseColor(litBg[1]);
+    return null;
+  }
+
+  /** Extract text color from a style string, resolving var() refs. */
+  function extractColorFromStyle(style: string): { raw: string; rgb: [number, number, number] } | null {
+    // Match var(--xxx) color
+    const varColor = style.match(/(?:^|;)\s*color\s*:\s*(var\(\s*--[a-zA-Z-]+\s*\))/);
+    if (varColor) {
+      const rgb = resolveColor(varColor[1]);
+      return rgb ? { raw: varColor[1], rgb } : null;
+    }
+    // Match literal color
+    const litColor = style.match(/(?:^|;)\s*color\s*:\s*([#][0-9a-fA-F]{3,6}|rgba?\([^)]+\))/);
+    if (litColor) {
+      const rgb = parseColor(litColor[1]);
+      return rgb ? { raw: litColor[1], rgb } : null;
+    }
+    return null;
+  }
+
+  // Fix per-element contrast: scan ALL style attributes for background+color mismatches.
+  // Catches buttons, cards, badges where bg and text color don't contrast.
+  result = result.replace(
+    /style\s*=\s*['"]([^'"]+)['"]/gi,
+    (fullMatch, styleContent: string) => {
+      const elBg = extractBgFromStyle(styleContent);
+      if (!elBg) return fullMatch; // No background — skip
+
+      const elBgIsDark = isDark(elBg);
+      const colorInfo = extractColorFromStyle(styleContent);
+
+      if (!colorInfo) {
+        // Has background but no explicit color — check if bg differs from root (likely button/card)
+        const elBgLum = luminance(elBg);
+        const rootBgLum = luminance(bgColor!);
+        if (Math.abs(elBgLum - rootBgLum) > 0.15) {
+          const safeColor = elBgIsDark ? "#ffffff" : "#1a1a2e";
+          const newStyle = styleContent + `;color:${safeColor}`;
+          return fullMatch.replace(styleContent, newStyle);
+        }
+        return fullMatch;
+      }
+
+      const elColorIsDark = isDark(colorInfo.rgb);
+
+      // Both dark = contrast violation → force white
+      if (elBgIsDark && elColorIsDark) {
+        const fixed = styleContent.replace(
+          new RegExp(`color\\s*:\\s*${escapeRegExp(colorInfo.raw)}`),
+          "color:#ffffff"
+        );
+        return fullMatch.replace(styleContent, fixed);
+      }
+      // Both light = contrast violation → force dark
+      if (!elBgIsDark && !elColorIsDark && luminance(colorInfo.rgb) > 0.6) {
+        const fixed = styleContent.replace(
+          new RegExp(`color\\s*:\\s*${escapeRegExp(colorInfo.raw)}`),
+          "color:#1a1a2e"
+        );
+        return fullMatch.replace(styleContent, fixed);
+      }
+
+      return fullMatch;
     }
   );
 

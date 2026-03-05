@@ -344,7 +344,6 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
         className={cn(
           "relative rounded-[20px] border border-[#e8e8ed] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)] t-normal",
           isDragOver && "border-[#ff4a00] shadow-[0_0_0_2px_rgba(255,74,0,0.08)]",
-          disabled && "opacity-60",
           !isDragOver && !disabled && "focus-within:border-[#ff4a00]/25 focus-within:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         )}
         onDragEnter={handleDragEnter}
@@ -448,12 +447,7 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
           onChange={handleInput}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder={
-            disabled
-              ? "Waiting for response..."
-              : placeholderProp || "Ask anything... (type @ to mention)"
-          }
-          disabled={disabled}
+          placeholder={placeholderProp || "Ask anything... (type @ to mention)"}
           rows={1}
           aria-label="Chat message"
           className="w-full bg-transparent resize-none outline-none px-5 pt-4 pb-14 text-[14px] text-foreground tracking-[-0.01em] placeholder:text-[#a3a3a3]"
@@ -477,6 +471,7 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
           disabled={disabled}
           className="absolute bottom-3 left-3.5 w-8 h-8 rounded-full border border-[#e8e8ed] bg-white flex items-center justify-center text-[#737373] hover:text-[#1a1a1a] hover:border-[#dddfe3] hover:bg-[#f5f5f3] active:scale-[0.93] t-fast disabled:opacity-40 cursor-pointer"
           title="Attach files"
+          aria-label="Attach files"
         >
           <Plus className="w-4 h-4" strokeWidth={1.8} />
         </button>
@@ -487,6 +482,7 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
             onClick={onStop}
             className="absolute bottom-3 right-3.5 w-8 h-8 rounded-full bg-[#1a1a2e] text-white flex items-center justify-center hover:bg-[#2d2d42] active:scale-[0.93] t-fast cursor-pointer"
             title="Stop generating"
+            aria-label="Stop generating"
           >
             <Square className="w-3 h-3 rounded-[1px]" fill="currentColor" strokeWidth={0} />
           </button>
