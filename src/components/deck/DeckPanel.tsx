@@ -168,7 +168,7 @@ export function DeckPanel() {
               <div
                 key={slide.id}
                 className={cn(
-                  "relative group rounded-xl transition-all duration-200",
+                  "relative group rounded-xl t-normal",
                   dragOverIdx === i && dragIdx !== i && "ring-2 ring-[#d4582a]/40",
                 )}
                 draggable
@@ -184,7 +184,7 @@ export function DeckPanel() {
                     <Badge
                       variant="outline"
                       className={cn(
-                        "text-[9px] px-1.5 py-0 h-4 font-semibold border transition-colors duration-150",
+                        "text-[9px] px-1.5 py-0 h-4 font-semibold border t-colors",
                         i === activeIdx
                           ? "border-[#d4582a]/40 text-[#d4582a] bg-[#d4582a]/5"
                           : "border-[#e8e8ed] text-[#95928E]"
@@ -200,7 +200,7 @@ export function DeckPanel() {
                         <TooltipTrigger asChild>
                           <button
                             onClick={(e) => { e.stopPropagation(); duplicateSlide(i); }}
-                            className="p-0.5 rounded text-[#95928E] hover:text-[#1a1a2e] transition-colors duration-150"
+                            className="p-0.5 rounded text-[#95928E] hover:text-[#1a1a2e] t-colors"
                           >
                             <Copy className="w-3 h-3" />
                           </button>
@@ -211,7 +211,7 @@ export function DeckPanel() {
                         <TooltipTrigger asChild>
                           <button
                             onClick={(e) => { e.stopPropagation(); moveSlide(i, -1); }}
-                            className="p-0.5 rounded text-[#95928E] hover:text-[#1a1a2e] transition-colors duration-150"
+                            className="p-0.5 rounded text-[#95928E] hover:text-[#1a1a2e] t-colors"
                           >
                             <ChevronUp className="w-3 h-3" />
                           </button>
@@ -222,7 +222,7 @@ export function DeckPanel() {
                         <TooltipTrigger asChild>
                           <button
                             onClick={(e) => { e.stopPropagation(); moveSlide(i, 1); }}
-                            className="p-0.5 rounded text-[#95928E] hover:text-[#1a1a2e] transition-colors duration-150"
+                            className="p-0.5 rounded text-[#95928E] hover:text-[#1a1a2e] t-colors"
                           >
                             <ChevronDown className="w-3 h-3" />
                           </button>
@@ -235,7 +235,7 @@ export function DeckPanel() {
                 {/* Slide thumbnail */}
                 <div
                   className={cn(
-                    "rounded-lg overflow-hidden ring-1 transition-all duration-200 cursor-pointer",
+                    "rounded-lg overflow-hidden ring-1 t-normal cursor-pointer",
                     i === activeIdx
                       ? "ring-2 ring-[#d4582a] shadow-md scale-[1.02]"
                       : "ring-[#e8e8ed] hover:ring-[#d4582a]/30 hover:shadow-sm hover:-translate-y-0.5"
@@ -255,7 +255,7 @@ export function DeckPanel() {
             {/* Add slide button */}
             <button
               onClick={() => addSlide(slides.length - 1)}
-              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#d4582a]/5 text-[#d4582a] text-[11px] font-semibold transition-all duration-200 hover:bg-[#d4582a]/10 hover:shadow-sm"
+              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#d4582a]/5 text-[#d4582a] text-[11px] font-semibold t-normal hover:bg-[#d4582a]/10 hover:shadow-sm"
             >
               <Plus className="w-3.5 h-3.5" />
               Add slide
@@ -277,7 +277,7 @@ export function DeckPanel() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <DropdownMenuTrigger asChild>
-                          <button className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[12px] font-medium transition-colors duration-150 text-[#6b6b80] hover:text-[#1a1a2e] hover:bg-[#efeee9]">
+                          <button className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[12px] font-medium t-colors text-[#6b6b80] hover:text-[#1a1a2e] hover:bg-[#efeee9]">
                             <LayoutTemplate className="w-3.5 h-3.5" />
                             <span className="hidden sm:inline">{LAYOUT_OPTIONS.find(l => l.value === activeSlide.layout)?.label || "Layout"}</span>
                           </button>
@@ -318,7 +318,7 @@ export function DeckPanel() {
                       <button
                         onClick={() => setShowNotes(!showNotes)}
                         className={cn(
-                          "flex items-center justify-center w-8 h-8 rounded-lg transition-colors duration-150",
+                          "flex items-center justify-center w-8 h-8 rounded-lg t-colors",
                           showNotes ? "text-[#d4582a] bg-[#d4582a]/10" : "text-[#6b6b80] hover:text-[#1a1a2e] hover:bg-[#efeee9]"
                         )}
                       >
@@ -341,7 +341,7 @@ export function DeckPanel() {
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => setShowPresentation(true)}
-                    className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium transition-colors duration-150 bg-[#d4582a] text-white hover:bg-[#c04d25]"
+                    className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium t-colors bg-[#d4582a] text-white hover:bg-[#c04d25]"
                   >
                     <Play className="w-3.5 h-3.5" fill="currentColor" />
                     <span className="hidden sm:inline">Present</span>
@@ -365,7 +365,7 @@ export function DeckPanel() {
                     <TooltipTrigger asChild>
                       <button
                         onClick={() => deleteSlide(activeIdx)}
-                        className="flex items-center justify-center w-8 h-8 rounded-lg text-[#95928E] transition-colors duration-150 hover:bg-red-50 hover:text-red-500"
+                        className="flex items-center justify-center w-8 h-8 rounded-lg text-[#95928E] t-colors hover:bg-red-50 hover:text-red-500"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -437,7 +437,7 @@ export function DeckPanel() {
               value={activeSlide.notes || ""}
               onChange={(e) => updateSlide(activeIdx, { notes: e.target.value })}
               placeholder="Add speaker notes..."
-              className="w-full h-24 text-[13px] bg-white border border-[#e8e8ed] rounded-lg px-3 py-2 outline-none resize-none focus:border-[#d4582a]/40 focus:ring-1 focus:ring-[#d4582a]/20 transition-all duration-150 text-[#1a1a2e] placeholder:text-[#b0ada6]"
+              className="w-full h-24 text-[13px] bg-white border border-[#e8e8ed] rounded-lg px-3 py-2 outline-none resize-none focus:border-[#d4582a]/40 focus:ring-1 focus:ring-[#d4582a]/20 t-fast text-[#1a1a2e] placeholder:text-[#b0ada6]"
             />
           </div>
         )}
@@ -468,7 +468,7 @@ function ThemePicker({ currentTheme }: { currentTheme: string }) {
         <Tooltip>
           <TooltipTrigger asChild>
             <PopoverTrigger asChild>
-              <button className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[12px] font-medium transition-colors duration-150 text-[#6b6b80] hover:text-[#1a1a2e] hover:bg-[#efeee9]">
+              <button className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[12px] font-medium t-colors text-[#6b6b80] hover:text-[#1a1a2e] hover:bg-[#efeee9]">
                 <Palette className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">{deckThemes[currentTheme]?.label || "Theme"}</span>
               </button>
@@ -489,7 +489,7 @@ function ThemePicker({ currentTheme }: { currentTheme: string }) {
                 key={key}
                 onClick={() => setTheme(key)}
                 className={cn(
-                  "flex flex-col items-center gap-1.5 p-2 rounded-lg transition-all duration-150 border",
+                  "flex flex-col items-center gap-1.5 p-2 rounded-lg t-fast border",
                   isActive
                     ? "border-[#d4582a] bg-[#d4582a]/5"
                     : "border-transparent hover:bg-muted"

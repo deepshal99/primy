@@ -143,7 +143,7 @@ export function ShareModal({
                 <Loader2 className="w-3.5 h-3.5 animate-spin absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white" />
               ) : (
                 <div
-                  className="absolute top-[2px] w-5 h-5 rounded-full bg-white transition-all duration-200"
+                  className="absolute top-[2px] w-5 h-5 rounded-full bg-white t-normal"
                   style={{
                     left: isShared ? "22px" : "2px",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
@@ -165,7 +165,7 @@ export function ShareModal({
               <button
                 onClick={handleCopy}
                 className={cn(
-                  "h-10 px-3.5 rounded-lg text-[13px] font-medium transition-all duration-150 flex items-center gap-1.5 flex-shrink-0 cursor-pointer",
+                  "h-10 px-3.5 rounded-lg text-[13px] font-medium t-fast flex items-center gap-1.5 flex-shrink-0 cursor-pointer",
                   copied
                     ? "bg-[#2e9e47] text-white"
                     : "bg-[#ff4a00] text-white hover:bg-[#e54400]"

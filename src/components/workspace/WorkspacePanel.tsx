@@ -46,15 +46,35 @@ function PanelSkeleton() {
 export function WorkspacePanel() {
   const currentEntityId = useAppStore((s) => s.currentEntityId);
   const currentEntityType = useAppStore((s) => s.currentEntityType);
+  const openTabs = useAppStore((s) => s.openTabs);
 
   // Diagram state lifted from DiagramPanel
   const [diagramShowSource, setDiagramShowSource] = useState(false);
   const [diagramFullscreen, setDiagramFullscreen] = useState(false);
 
+  // Home tab is always first; entity tabs follow. First tab active = home or first entity tab
+  const isHomeActive = !currentEntityId;
+  const isFirstTabActive = isHomeActive || openTabs.findIndex((t) => t.id === currentEntityId) === 0;
+
   if (!currentEntityId) {
+    // No open tabs: clean white card, no tab bar
+    if (openTabs.length === 0) {
+      return (
+        <div className="flex-1 overflow-hidden bg-white rounded-xl shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_2px_6px_rgba(0,0,0,0.03)]">
+          <ProjectHome />
+        </div>
+      );
+    }
+    // Has open tabs: show tab bar with home tab active
     return (
-      <div className="flex flex-col h-full bg-background">
-        <ProjectHome />
+      <div className="flex flex-col h-full">
+        <TabBar exportAction={null} />
+        <div
+          className="flex-1 overflow-hidden bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_2px_6px_rgba(0,0,0,0.03)]"
+          style={{ borderRadius: "0 12px 12px 12px" }}
+        >
+          <ProjectHome />
+        </div>
       </div>
     );
   }
@@ -93,16 +113,29 @@ export function WorkspacePanel() {
 
   const toolbarActions = renderToolbarActions();
 
+  // Content area border-radius: when home (first tab) is active, top-left is flush (0)
+  const contentRadius = isHomeActive
+    ? "0 12px 12px 12px"
+    : "12px";
+
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full">
+      {/* Tab bar — sits in the beige background area */}
       <TabBar exportAction={renderExportAction()} />
-      {toolbarActions && (
-        <div className="flex items-center gap-1 px-3 h-[40px] border-b border-[#e8e7e4] bg-[#fafaf9] flex-shrink-0">
-          {toolbarActions}
+
+      {/* Content — white card that merges with active tab */}
+      <div
+        className="flex-1 flex flex-col overflow-hidden bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_2px_6px_rgba(0,0,0,0.03)]"
+        style={{ borderRadius: contentRadius }}
+      >
+        {toolbarActions && (
+          <div className="flex items-center gap-1 px-3 h-[40px] border-b border-[#f0efec] bg-white flex-shrink-0">
+            {toolbarActions}
+          </div>
+        )}
+        <div className="flex-1 overflow-hidden relative">
+          {renderPanel()}
         </div>
-      )}
-      <div className="flex-1 overflow-hidden relative">
-        {renderPanel()}
       </div>
     </div>
   );

@@ -3,9 +3,17 @@ import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { generateText } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
+import { getModelForTask, getProvider } from "@/lib/ai/modelRouter";
 import "@/lib/env";
 
 const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY! });
+const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+
+function getSummarizeModel() {
+  const { model: modelId } = getModelForTask("summarize");
+  return getProvider() === "openai" ? openai(modelId) : google(modelId);
+}
 
 async function parsePdfBuffer(buffer: Buffer): Promise<string> {
   const { extractText } = await import("unpdf");
@@ -125,7 +133,7 @@ const SUMMARY_THRESHOLD = 50000; // Only summarize files > 50K chars
 async function summarizeLargeDocument(text: string): Promise<{ summary: string; keyPoints: string[] }> {
   try {
     const { text: raw } = await generateText({
-      model: google("gemini-2.5-pro"),
+      model: getSummarizeModel(),
       maxOutputTokens: 4096,
       prompt: `Analyze this document and provide:
 1. A comprehensive summary (2-3 paragraphs)

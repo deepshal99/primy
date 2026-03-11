@@ -1,9 +1,17 @@
 import { generateText } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
+import { getModelForTask, getProvider } from "@/lib/ai/modelRouter";
 import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
 
 const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY! });
+const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+
+function getModel() {
+  const { model: modelId } = getModelForTask("title");
+  return getProvider() === "openai" ? openai(modelId) : google(modelId);
+}
 
 export async function POST(req: Request) {
   try {
@@ -35,7 +43,7 @@ export async function POST(req: Request) {
 
     if (includeProjectDetails) {
       const { text } = await generateText({
-        model: google("gemini-3-flash-preview"),
+        model: getModel(),
         prompt: `Based on this conversation, generate project metadata. Return ONLY valid JSON with these exact keys:
 {
   "title": "short project name, 3-6 words, no quotes or trailing punctuation",
@@ -67,7 +75,7 @@ Return ONLY the JSON object, no markdown fences, no explanation.`,
 
     // Legacy: title-only generation
     const { text } = await generateText({
-      model: google("gemini-3-flash-preview"),
+      model: getModel(),
       prompt: `Generate a very short title (4-6 words max) for a conversation that starts with this exchange. Return ONLY the title text, nothing else. No quotes, no punctuation at the end.
 
 User: ${userMessage}

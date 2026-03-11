@@ -132,10 +132,10 @@ export function NavRail() {
       <div
         ref={drawerRef}
         className={cn(
-          "fixed inset-y-0 z-40 flex flex-col bg-white border-r border-[#e8e7e4] transition-transform duration-300 ease-[var(--ease-spring)]",
-          drawerOpen ? "translate-x-0" : "-translate-x-full pointer-events-none"
+          "fixed z-40 flex flex-col bg-white transition-transform duration-300 ease-[var(--ease-spring)] rounded-xl shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.08)]",
+          drawerOpen ? "translate-x-0 opacity-100 visible" : "-translate-x-full opacity-0 invisible pointer-events-none"
         )}
-        style={{ left: 60, width: "clamp(300px, 25vw, 420px)" }}
+        style={{ left: 66, top: 8, bottom: 8, width: "clamp(300px, 25vw, 420px)" }}
       >
         {/* Header */}
         <div className="flex items-center h-[52px] px-5 flex-shrink-0">
@@ -144,7 +144,7 @@ export function NavRail() {
           </span>
           <button
             onClick={handleNewProject}
-            className="h-[30px] flex items-center gap-1.5 px-2.5 rounded-lg text-[12px] text-[#6b6b80] hover:text-[#2d2e2e] hover:bg-[#f5f4f0] active:scale-[0.95] transition-all duration-150 cursor-pointer"
+            className="h-[30px] flex items-center gap-1.5 px-2.5 rounded-lg text-[12px] text-[#6b6b80] hover:text-[#2d2e2e] hover:bg-[#f5f4f0] active:scale-[0.95] t-fast cursor-pointer"
             style={{ fontWeight: 500 }}
           >
             <Plus className="w-3.5 h-3.5" strokeWidth={2} />
@@ -290,7 +290,7 @@ export function NavRail() {
       {/* ── Nav Rail ── */}
       <div
         data-nav-rail
-        className="w-[60px] h-full flex flex-col items-center bg-[#fafaf8] border-r border-[#e8e7e4] flex-shrink-0 relative z-50"
+        className="w-[60px] h-full flex flex-col items-center bg-[#EAEAEA] flex-shrink-0 relative z-50"
       >
         <div className="flex flex-col items-center gap-1 pt-4 pb-5 w-full">
           <div className="w-8 h-8 rounded-[10px] bg-[#ff4a00] flex items-center justify-center shadow-[0_1px_3px_rgba(255,74,0,0.25)] mb-0">
@@ -304,7 +304,7 @@ export function NavRail() {
           <div className="w-[6px] h-px bg-[#e8e7e4] mb-3" />
           <Tooltip>
             <TooltipTrigger asChild>
-              <button onClick={handleNewChat} aria-label="New chat" className="w-8 h-8 rounded-[10px] bg-[#f0eee9] flex items-center justify-center text-[#5a5852] hover:bg-[#e8e6e0] hover:scale-105 active:scale-[0.92] transition-all duration-150 mb-3 cursor-pointer">
+              <button onClick={handleNewChat} aria-label="New chat" className="w-8 h-8 rounded-[10px] bg-[#f0eee9] flex items-center justify-center text-[#5a5852] hover:bg-[#e8e6e0] hover:scale-105 active:scale-[0.95] t-fast mb-3 cursor-pointer">
                 <Plus className="w-3.5 h-3.5 icon-plus-hover" strokeWidth={2.5} />
               </button>
             </TooltipTrigger>
@@ -318,11 +318,11 @@ export function NavRail() {
                 onClick={() => setDrawerOpen(!drawerOpen)}
                 aria-label="Projects"
                 className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-150 active:scale-[0.92] mb-1.5 cursor-pointer",
+                  "w-10 h-10 rounded-xl flex items-center justify-center t-fast active:scale-[0.95] mb-1.5 cursor-pointer",
                   drawerOpen ? "bg-[#ff4a00]/10 text-[#ff4a00]" : "text-[#8a877f] hover:bg-[#f0eee9] hover:text-[#5a5852] hover:scale-105"
                 )}
               >
-                <FolderOpen className="w-[18px] h-[18px] transition-transform duration-150" strokeWidth={1.75} />
+                <FolderOpen className="w-[18px] h-[18px] t-fast" strokeWidth={1.75} />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={8}>
@@ -334,9 +334,9 @@ export function NavRail() {
               <button
                 onClick={() => window.dispatchEvent(new Event("drafta:open-search"))}
                 aria-label="Search"
-                className="w-10 h-10 rounded-xl flex items-center justify-center text-[#8a877f] hover:bg-[#f0eee9] hover:text-[#5a5852] hover:scale-105 active:scale-[0.92] transition-all duration-150 mb-1.5 cursor-pointer"
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-[#8a877f] hover:bg-[#f0eee9] hover:text-[#5a5852] hover:scale-105 active:scale-[0.95] t-fast mb-1.5 cursor-pointer"
               >
-                <Search className="w-[18px] h-[18px] transition-transform duration-150" strokeWidth={1.75} />
+                <Search className="w-[18px] h-[18px] t-fast" strokeWidth={1.75} />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={8}>
@@ -348,7 +348,7 @@ export function NavRail() {
         <div className="relative mb-4">
           <Popover open={profileOpen} onOpenChange={setProfileOpen}>
             <PopoverTrigger asChild>
-              <button aria-label="Profile menu" className={cn("w-8 h-8 rounded-full flex items-center justify-center active:scale-[0.92] transition-all duration-150 cursor-pointer overflow-hidden", profileOpen && "ring-2 ring-[#b0ada6]/40 ring-offset-1")}>
+              <button aria-label="Profile menu" className={cn("w-8 h-8 rounded-full flex items-center justify-center active:scale-[0.95] t-fast cursor-pointer overflow-hidden", profileOpen && "ring-2 ring-[#b0ada6]/40 ring-offset-1")}>
                 {session?.user?.image ? (
                   <img src={session.user.image} alt="" className="w-8 h-8 rounded-full object-cover" />
                 ) : (

@@ -130,7 +130,7 @@ export function DeckLinearView() {
       <div className="shrink-0 flex items-center gap-2 px-4 py-2 border-b border-[#e8e7e4] bg-white">
         <button
           onClick={() => setPresenting(true)}
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-[13px] font-semibold text-white bg-[#d4582a] rounded-lg hover:bg-[#c04d24] transition-colors active:scale-[0.97]"
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-[13px] font-semibold text-white bg-[#d4582a] rounded-lg hover:bg-[#c04d24] transition-colors active:scale-[0.95]"
         >
           <Play size={13} fill="currentColor" />
           Present

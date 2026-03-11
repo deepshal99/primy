@@ -205,7 +205,7 @@ export function ExamplePrompts({
               onEntityTypeSelect?.(isSelected ? null : pill.type)
             }
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-[14px] border text-[13px] font-medium t-fast active:scale-[0.97] cursor-pointer",
+              "flex items-center gap-2 px-4 py-2 rounded-[14px] border text-[13px] font-medium t-fast active:scale-[0.98] cursor-pointer",
               isSelected
                 ? "shadow-sm"
                 : "border-[#e8e8ed] text-[#737373] hover:border-[#dddfe3] hover:text-[#1a1a1a] hover:bg-[#f5f5f3]"

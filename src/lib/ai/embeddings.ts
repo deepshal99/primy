@@ -1,11 +1,18 @@
 import { embed, embedMany } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
+import { getModelForTask, getProvider } from "./modelRouter";
 
-const EMBEDDING_MODEL = "gemini-embedding-001";
 const MAX_TEXT_LENGTH = 2048;
 
-function getGoogle() {
-  return createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY! });
+function getEmbeddingModel() {
+  const { model: modelId } = getModelForTask("embedding");
+  if (getProvider() === "openai") {
+    const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+    return openai.textEmbeddingModel(modelId);
+  }
+  const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY! });
+  return google.textEmbeddingModel(modelId);
 }
 
 function truncate(text: string): string {
@@ -14,9 +21,8 @@ function truncate(text: string): string {
 
 /** Generate embedding for a single text */
 export async function generateEmbedding(text: string): Promise<number[]> {
-  const google = getGoogle();
   const { embedding } = await embed({
-    model: google.textEmbeddingModel(EMBEDDING_MODEL),
+    model: getEmbeddingModel(),
     value: truncate(text),
   });
   return embedding;
@@ -24,9 +30,8 @@ export async function generateEmbedding(text: string): Promise<number[]> {
 
 /** Generate embeddings for multiple texts (batch) */
 export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
-  const google = getGoogle();
   const { embeddings } = await embedMany({
-    model: google.textEmbeddingModel(EMBEDDING_MODEL),
+    model: getEmbeddingModel(),
     values: texts.map(truncate),
   });
   return embeddings;

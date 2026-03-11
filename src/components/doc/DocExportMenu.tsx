@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { Download, FileText, FileCode, FileType, FileDown, Copy, Code2 } from "lucide-react";
+import { Download, FileText, FileDown, Copy } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { toast } from "sonner";
 import {
@@ -52,11 +52,11 @@ function markdownToHtml(docContent: string): string {
         .replace(/`(.*?)`/g, '<code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;font-family:monospace;font-size:0.9em">$1</code>');
 
     if (line.startsWith("# ")) {
-      htmlParts.push(`<h1 style="font-size:24px;font-weight:700;margin:18px 0 8px;font-family:'DM Sans',sans-serif">${fmt(line.slice(2))}</h1>`);
+      htmlParts.push(`<h1 style="font-size:24px;font-weight:700;margin:18px 0 8px;font-family:'Inter',sans-serif">${fmt(line.slice(2))}</h1>`);
     } else if (line.startsWith("## ")) {
-      htmlParts.push(`<h2 style="font-size:19px;font-weight:700;margin:14px 0 6px;font-family:'DM Sans',sans-serif">${fmt(line.slice(3))}</h2>`);
+      htmlParts.push(`<h2 style="font-size:19px;font-weight:700;margin:14px 0 6px;font-family:'Inter',sans-serif">${fmt(line.slice(3))}</h2>`);
     } else if (line.startsWith("### ")) {
-      htmlParts.push(`<h3 style="font-size:15px;font-weight:700;margin:10px 0 4px;font-family:'DM Sans',sans-serif">${fmt(line.slice(4))}</h3>`);
+      htmlParts.push(`<h3 style="font-size:15px;font-weight:700;margin:10px 0 4px;font-family:'Inter',sans-serif">${fmt(line.slice(4))}</h3>`);
     } else if (line.startsWith("- ") || line.startsWith("* ")) {
       htmlParts.push(`<div style="display:flex;gap:8px;margin:2px 0;font-size:11pt;line-height:1.6"><span style="color:#999">&bull;</span><span>${fmt(line.slice(2))}</span></div>`);
     } else if (/^\d+\. /.test(line)) {
@@ -79,61 +79,10 @@ export function DocExportMenu() {
   const docContent = useAppStore((s) => s.docContent);
   const hasContent = docContent.length > 0;
 
-  const downloadHTML = useCallback(() => {
-    const html = markdownToHtml(docContent);
-    const fullHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${getEntityTitle()}</title>
-  <style>* { margin: 0; padding: 0; box-sizing: border-box; } body { font-family: 'DM Sans', -apple-system, sans-serif; color: #111; padding: 2rem; max-width: 800px; margin: 0 auto; }</style>
-</head>
-<body>${html}</body>
-</html>`;
-    const blob = new Blob([fullHtml], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${getEntityTitle()}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Downloaded HTML");
-  }, [docContent]);
-
-  const downloadMarkdown = useCallback(() => {
-    const blob = new Blob([docContent], { type: "text/markdown" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${getEntityTitle()}.md`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Downloaded Markdown");
-  }, [docContent]);
-
-  const downloadPlainText = useCallback(() => {
-    const text = docContent
-      .replace(/^#{1,6}\s/gm, "")
-      .replace(/\*\*(.*?)\*\*/g, "$1")
-      .replace(/\*(.*?)\*/g, "$1")
-      .replace(/`(.*?)`/g, "$1")
-      .replace(/^[-*]\s/gm, "- ")
-      .replace(/^>\s/gm, "");
-    const blob = new Blob([text], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${getEntityTitle()}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Downloaded Plain Text");
-  }, [docContent]);
-
   const downloadPDF = useCallback(async () => {
     const title = getEntityTitle();
     const html = markdownToHtml(docContent);
-    const css = `* { margin: 0; padding: 0; box-sizing: border-box; } body { font-family: 'DM Sans', -apple-system, sans-serif; color: #111; padding: 0.6in; }`;
+    const css = `* { margin: 0; padding: 0; box-sizing: border-box; } body { font-family: 'Inter', -apple-system, sans-serif; color: #111; padding: 0.6in; }`;
 
     try {
       const res = await fetch("/api/export/pdf", {
@@ -207,6 +156,17 @@ export function DocExportMenu() {
     toast.success("Downloaded DOCX");
   }, [docContent]);
 
+  const downloadMarkdown = useCallback(() => {
+    const blob = new Blob([docContent], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${getEntityTitle()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Downloaded Markdown");
+  }, [docContent]);
+
   const copyToClipboard = useCallback(async () => {
     await navigator.clipboard.writeText(docContent);
     toast.success("Copied to clipboard");
@@ -217,53 +177,29 @@ export function DocExportMenu() {
       <DropdownMenuTrigger asChild>
         <button
           disabled={!hasContent}
-          className="w-[36px] h-[36px] flex items-center justify-center rounded-lg transition-colors text-[#95928E] hover:text-[#2d2e2e] hover:bg-[#efeee9] disabled:opacity-40 disabled:cursor-not-allowed"
-          title="Export document"
+          className="w-[30px] h-[30px] flex items-center justify-center rounded-lg text-[#a3a3a3] hover:text-[#525252] hover:bg-black/[0.04] active:scale-[0.95] transition-colors duration-150 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+          title="Export"
         >
-          <Download className="w-4 h-4" />
+          <Download className="w-[14px] h-[14px]" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuItem onClick={downloadHTML} className="transition-transform duration-150 hover:translate-x-0.5">
-          <FileCode className="w-4 h-4 text-muted-foreground" />
-          <div>
-            <div className="text-[13px]">HTML Document</div>
-            <div className="text-[11px] text-muted-foreground">.html &mdash; Formatted document</div>
-          </div>
+      <DropdownMenuContent align="end" className="w-44 p-1">
+        <DropdownMenuItem onClick={downloadPDF} className="gap-2.5 px-2.5 py-1.5 rounded-md cursor-pointer">
+          <FileDown className="w-3.5 h-3.5 text-[#eb3424] flex-shrink-0" />
+          <span className="text-[12.5px]" style={{ fontWeight: 450 }}>PDF</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={downloadMarkdown} className="transition-transform duration-150 hover:translate-x-0.5">
-          <FileText className="w-4 h-4 text-muted-foreground" />
-          <div>
-            <div className="text-[13px]">Markdown</div>
-            <div className="text-[11px] text-muted-foreground">.md &mdash; Lightweight markup</div>
-          </div>
+        <DropdownMenuItem onClick={downloadDocx} className="gap-2.5 px-2.5 py-1.5 rounded-md cursor-pointer">
+          <FileText className="w-3.5 h-3.5 text-[#2a6dfb] flex-shrink-0" />
+          <span className="text-[12.5px]" style={{ fontWeight: 450 }}>Word (.docx)</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={downloadPlainText} className="transition-transform duration-150 hover:translate-x-0.5">
-          <FileType className="w-4 h-4 text-muted-foreground" />
-          <div>
-            <div className="text-[13px]">Plain Text</div>
-            <div className="text-[11px] text-muted-foreground">.txt &mdash; No formatting</div>
-          </div>
+        <DropdownMenuItem onClick={downloadMarkdown} className="gap-2.5 px-2.5 py-1.5 rounded-md cursor-pointer">
+          <FileText className="w-3.5 h-3.5 text-[#525252] flex-shrink-0" />
+          <span className="text-[12.5px]" style={{ fontWeight: 450 }}>Markdown</span>
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={downloadPDF} className="transition-transform duration-150 hover:translate-x-0.5">
-          <FileDown className="w-4 h-4 text-red-500" />
-          <div>
-            <div className="text-[13px]">PDF Document</div>
-            <div className="text-[11px] text-muted-foreground">.pdf &mdash; Print-ready</div>
-          </div>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={downloadDocx} className="transition-transform duration-150 hover:translate-x-0.5">
-          <FileType className="w-4 h-4 text-blue-500" />
-          <div>
-            <div className="text-[13px]">Word Document</div>
-            <div className="text-[11px] text-muted-foreground">.docx &mdash; Microsoft Word</div>
-          </div>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={copyToClipboard} className="transition-transform duration-150 hover:translate-x-0.5">
-          <Copy className="w-4 h-4 text-muted-foreground" />
-          <span className="text-[13px]">Copy to clipboard</span>
+        <DropdownMenuSeparator className="my-1" />
+        <DropdownMenuItem onClick={copyToClipboard} className="gap-2.5 px-2.5 py-1.5 rounded-md cursor-pointer">
+          <Copy className="w-3.5 h-3.5 text-[#525252] flex-shrink-0" />
+          <span className="text-[12.5px]" style={{ fontWeight: 450 }}>Copy text</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

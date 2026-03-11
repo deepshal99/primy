@@ -185,7 +185,7 @@ export function SheetAIBar() {
                 key={action.label}
                 onClick={() => executeAIAction(action.prompt)}
                 disabled={isLoading || isStreaming}
-                className="px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-150 disabled:opacity-50 bg-muted text-muted-foreground hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950/30 dark:hover:text-amber-400"
+                className="px-2 py-1 rounded-md text-[10px] font-medium t-fast disabled:opacity-50 bg-muted text-muted-foreground hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950/30 dark:hover:text-amber-400"
               >
                 {action.label}
               </button>
@@ -197,7 +197,7 @@ export function SheetAIBar() {
       {/* FAB trigger */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 bg-amber-500 text-white shadow-md hover:shadow-lg"
+        className="w-10 h-10 rounded-full flex items-center justify-center t-normal hover:scale-110 active:scale-[0.95] bg-amber-500 text-white shadow-md hover:shadow-lg"
         title="AI actions on sheet data"
       >
         <Wand2 className="w-4 h-4" strokeWidth={2} />

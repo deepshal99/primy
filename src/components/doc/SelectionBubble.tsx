@@ -317,7 +317,7 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
     >
       <div
         className={cn(
-          "transition-all duration-150 ease-[cubic-bezier(0.175,0.885,0.32,1.275)]",
+          "transition-all duration-[var(--duration-fast)] ease-[cubic-bezier(0.175,0.885,0.32,1.275)]",
           animateIn ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-1 scale-[0.92]"
         )}
         style={{ transformOrigin: flipped ? "center top" : "center bottom" }}
@@ -355,20 +355,20 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
               <div className="flex items-center gap-1.5 px-3 py-2 border-t border-border">
                 <button
                   onClick={handleReplace}
-                  className="flex-1 h-[30px] bg-[#ff4a00] text-white rounded-lg text-[12px] font-medium hover:bg-[#e54400] transition-colors duration-150 cursor-pointer"
+                  className="flex-1 h-[30px] bg-[#ff4a00] text-white rounded-lg text-[12px] font-medium hover:bg-[#e54400] t-colors cursor-pointer"
                 >
                   Replace
                 </button>
                 <button
                   onClick={handleRetry}
-                  className="w-[30px] h-[30px] rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors duration-150 cursor-pointer"
+                  className="w-[30px] h-[30px] rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted t-colors cursor-pointer"
                   title="Retry"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={hideBubble}
-                  className="w-[30px] h-[30px] rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors duration-150 cursor-pointer"
+                  className="w-[30px] h-[30px] rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted t-colors cursor-pointer"
                   title="Close"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -385,7 +385,7 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
                 return (
                   <button
                     key={action.key}
-                    className="h-[30px] px-2.5 flex items-center gap-1.5 rounded-lg transition-colors duration-150 active:scale-[0.98] cursor-pointer"
+                    className="h-[30px] px-2.5 flex items-center gap-1.5 rounded-lg t-colors active:scale-[0.98] cursor-pointer"
                     style={{
                       background: isHovered ? action.bg : "transparent",
                       color: isHovered ? action.color : "#6b6b80",

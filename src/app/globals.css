@@ -14,6 +14,7 @@
 :root {
   --font-size: 16px;
   --background: #ffffff;
+  --canvas: #EAEAEA;
   --foreground: #1a1a2e;
   --card: #ffffff;
   --card-foreground: #1a1a2e;
@@ -455,10 +456,10 @@ html, body { height: 100%; margin: 0; padding: 0; }
 .animate-slide-in-right{ animation: slideInFromRight var(--duration-slow) var(--ease-spring) both; }
 .animate-slide-in-left { animation: slideInFromLeft var(--duration-slow) var(--ease-spring) both; }
 .animate-scale-in      { animation: scaleIn var(--duration-enter) var(--ease-spring) both; }
-.animate-spin-slow     { animation: spinSlow 1.5s linear infinite; }
+.animate-spin-slow     { animation: spinSlow 1.2s linear infinite; }
 .animate-checkmark     { animation: checkmarkIn var(--duration-enter) var(--ease-spring) both; }
 .fade-in-up            { animation: fadeInUp var(--duration-enter) var(--ease-spring) both; }
-.spin-slow             { animation: spinSlow 1.5s linear infinite; }
+.spin-slow             { animation: spinSlow 1.2s linear infinite; }
 
 /* Drawer slide-in — fast, uses --duration-normal */
 .drawer-slide-in { animation: slideInFromLeft var(--duration-normal) var(--ease-spring) both; }
@@ -474,7 +475,7 @@ html, body { height: 100%; margin: 0; padding: 0; }
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: shimmer 3s ease-in-out infinite;
+  animation: shimmer 2s ease-in-out infinite;
 }
 
 /* ═══════════════════════════════════════
@@ -651,6 +652,15 @@ input:-webkit-autofill:active {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #E0E0E0; border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: #CCCCCC; }
+
+/* Chat scroll — auto-hide scrollbar, show only while scrolling */
+.chat-scroll { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+.chat-scroll::-webkit-scrollbar { width: 4px; }
+.chat-scroll::-webkit-scrollbar-track { background: transparent; }
+.chat-scroll::-webkit-scrollbar-thumb { background: transparent; border-radius: 4px; transition: background 0.3s; }
+.chat-scroll:hover { scrollbar-color: rgba(0,0,0,0.12) transparent; }
+.chat-scroll:hover::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); }
+.chat-scroll:hover::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
 
 /* ═══════════════════════════════════════
    Markdown Chat Content
@@ -845,7 +855,7 @@ input:-webkit-autofill:active {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: shimmer 3s ease-in-out infinite;
+  animation: shimmer 2s ease-in-out infinite;
 }
 
 /* Legacy data-theme dark compat — keep during transition */
@@ -892,7 +902,7 @@ input:-webkit-autofill:active {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: shimmer 3s ease-in-out infinite;
+  animation: shimmer 2s ease-in-out infinite;
 }
 
 /* ═══════════════════════════════════════

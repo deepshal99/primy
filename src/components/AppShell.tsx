@@ -108,28 +108,31 @@ export function AppShell() {
   }, []);
 
   return (
-    <div className="h-screen w-screen flex bg-[#f9f9fb] overflow-hidden">
+    <div className="h-screen w-screen flex bg-[#EAEAEA] overflow-hidden">
       {/* Navigation Rail — fixed 60px */}
       <NavRail />
 
-      {/* Chat Panel */}
-      <div
-        data-chat-panel
-        className={`flex-shrink-0 bg-white overflow-hidden transition-[flex,width,min-width,max-width] duration-[320ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
-          viewMode === "chat"
-            ? "flex-1"
-            : "w-[25vw] min-w-[300px] max-w-[420px] border-r border-[#e8e7e4]"
-        }`}
-      >
-        <ChatPanel centered={viewMode === "chat"} />
-      </div>
-
-      {/* Workspace Panel */}
-      {workspaceOpen && (
-        <div data-workspace-panel className="flex-1 overflow-hidden animate-fade-in">
-          <WorkspacePanel />
+      {/* Main content area with floating panels */}
+      <div className="flex-1 flex gap-2 p-2 pl-0 min-w-0 overflow-hidden">
+        {/* Chat Panel — floating pane */}
+        <div
+          data-chat-panel
+          className={`flex-shrink-0 overflow-hidden bg-white rounded-xl shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_2px_6px_rgba(0,0,0,0.03)] transition-[flex,width,min-width,max-width,margin] duration-[320ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
+            viewMode === "chat"
+              ? "flex-1"
+              : "w-[25vw] min-w-[300px] max-w-[420px]"
+          }`}
+        >
+          <ChatPanel centered={viewMode === "chat"} />
         </div>
-      )}
+
+        {/* Workspace Panel — tab bar sits in beige, content is white */}
+        {workspaceOpen && (
+          <div data-workspace-panel className="flex-1 flex flex-col overflow-hidden animate-fade-in min-w-0">
+            <WorkspacePanel />
+          </div>
+        )}
+      </div>
 
       <KeyboardShortcuts />
       <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />

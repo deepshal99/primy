@@ -33,7 +33,7 @@ function ActionButton({
       <TooltipTrigger asChild>
         <button
           onClick={onClick}
-          className={`w-[36px] h-[36px] flex items-center justify-center rounded-lg transition-all duration-150 active:scale-[0.92] cursor-pointer ${
+          className={`w-[36px] h-[36px] flex items-center justify-center rounded-lg t-fast active:scale-[0.95] cursor-pointer ${
             active
               ? "text-[#ff4a00] bg-[#fff3ee]"
               : "text-[#95928E] hover:text-[#2d2e2e] hover:bg-[#efeee9]"
@@ -154,7 +154,7 @@ export function DiagramExport() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="w-[36px] h-[36px] flex items-center justify-center rounded-lg text-[#95928E] hover:text-[#2d2e2e] hover:bg-[#efeee9] active:scale-[0.92] transition-all duration-150 cursor-pointer" aria-label="Export diagram">
+        <button className="w-[36px] h-[36px] flex items-center justify-center rounded-lg text-[#95928E] hover:text-[#2d2e2e] hover:bg-[#efeee9] active:scale-[0.95] t-fast cursor-pointer" aria-label="Export diagram">
           <Download className="w-4 h-4" />
         </button>
       </DropdownMenuTrigger>
@@ -219,7 +219,7 @@ export function DeckExport() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="w-[36px] h-[36px] flex items-center justify-center rounded-lg text-[#95928E] hover:text-[#2d2e2e] hover:bg-[#efeee9] active:scale-[0.92] transition-all duration-150 cursor-pointer" aria-label="Export presentation">
+        <button className="w-[36px] h-[36px] flex items-center justify-center rounded-lg text-[#95928E] hover:text-[#2d2e2e] hover:bg-[#efeee9] active:scale-[0.95] t-fast cursor-pointer" aria-label="Export presentation">
           <Download className="w-4 h-4" />
         </button>
       </DropdownMenuTrigger>

@@ -469,7 +469,7 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
         <button
           onClick={handleFileClick}
           disabled={disabled}
-          className="absolute bottom-3 left-3.5 w-8 h-8 rounded-full border border-[#e8e8ed] bg-white flex items-center justify-center text-[#737373] hover:text-[#1a1a1a] hover:border-[#dddfe3] hover:bg-[#f5f5f3] active:scale-[0.93] t-fast disabled:opacity-40 cursor-pointer"
+          className="absolute bottom-3 left-3.5 w-8 h-8 rounded-full border border-[#e8e8ed] bg-white flex items-center justify-center text-[#737373] hover:text-[#1a1a1a] hover:border-[#dddfe3] hover:bg-[#f5f5f3] active:scale-[0.95] t-fast disabled:opacity-40 cursor-pointer"
           title="Attach files"
           aria-label="Attach files"
         >
@@ -480,7 +480,7 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
         {disabled && onStop ? (
           <button
             onClick={onStop}
-            className="absolute bottom-3 right-3.5 w-8 h-8 rounded-full bg-[#1a1a2e] text-white flex items-center justify-center hover:bg-[#2d2d42] active:scale-[0.93] t-fast cursor-pointer"
+            className="absolute bottom-3 right-3.5 w-8 h-8 rounded-full bg-[#1a1a2e] text-white flex items-center justify-center hover:bg-[#2d2d42] active:scale-[0.95] t-fast cursor-pointer"
             title="Stop generating"
             aria-label="Stop generating"
           >
@@ -494,7 +494,7 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
             className={cn(
               "absolute bottom-3 right-3.5 w-8 h-8 rounded-full flex items-center justify-center t-fast",
               canSend
-                ? "bg-[#ff4a00] text-white cursor-pointer hover:bg-[#e04300] active:scale-[0.93] shadow-[0_2px_6px_rgba(255,74,0,0.25)]"
+                ? "bg-[#ff4a00] text-white cursor-pointer hover:bg-[#e04300] active:scale-[0.95] shadow-[0_2px_6px_rgba(255,74,0,0.25)]"
                 : "bg-[#f0f0ee] text-[#a3a3a3] cursor-not-allowed"
             )}
           >

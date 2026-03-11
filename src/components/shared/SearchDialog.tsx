@@ -174,7 +174,7 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
       {/* Search panel */}
       <div
         className={cn(
-          "relative w-[520px] max-w-[calc(100vw-32px)] bg-card rounded-2xl overflow-hidden shadow-[0_24px_64px_rgba(0,0,0,0.18),0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 ease-[var(--ease-spring)]",
+          "relative w-[520px] max-w-[calc(100vw-32px)] bg-card rounded-2xl overflow-hidden shadow-[0_24px_64px_rgba(0,0,0,0.18),0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-[var(--duration-normal)] ease-[var(--ease-spring)]",
           animateIn ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-[0.97] -translate-y-2"
         )}
       >

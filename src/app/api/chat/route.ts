@@ -1,7 +1,8 @@
 import { streamText, convertToModelMessages, type UIMessage } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
 import { SYSTEM_PROMPT } from "@/lib/ai/systemPrompt";
-import { getModelForTask, estimateContextSize, type AITask } from "@/lib/ai/modelRouter";
+import { getModelForTask, getProvider, estimateContextSize, type AITask } from "@/lib/ai/modelRouter";
 import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import "@/lib/env";
@@ -10,6 +11,7 @@ import "@/lib/env";
 export const maxDuration = 300;
 
 const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY! });
+const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
 /** Strip context-injection tags from user input to prevent prompt injection. */
 function sanitizeUserContent(text: string): string {
@@ -269,24 +271,35 @@ export async function POST(req: Request) {
     // Convert UIMessages to model messages for streamText
     const modelMessages = await convertToModelMessages(aiMessages);
 
+    const aiProvider = getProvider();
     let result;
     try {
-      result = streamText({
-        model: google(modelId),
-        system: SYSTEM_PROMPT,
-        messages: modelMessages,
-        maxOutputTokens,
-        providerOptions: modelId.includes("3.1-pro") ? {
-          google: { thinkingConfig: { thinkingBudget: taskType === "deck-generate" ? 2048 : 8192 } },
-        } : undefined,
-        tools: {
-          googleSearch: google.tools.googleSearch({}),
-        },
-        abortSignal: req.signal,
-      });
+      if (aiProvider === "openai") {
+        result = streamText({
+          model: openai(modelId),
+          system: SYSTEM_PROMPT,
+          messages: modelMessages,
+          maxOutputTokens,
+          abortSignal: req.signal,
+        });
+      } else {
+        result = streamText({
+          model: google(modelId),
+          system: SYSTEM_PROMPT,
+          messages: modelMessages,
+          maxOutputTokens,
+          providerOptions: modelId.includes("pro") ? {
+            google: { thinkingConfig: { thinkingBudget: taskType === "deck-generate" ? 2048 : 8192 } },
+          } : undefined,
+          tools: {
+            googleSearch: google.tools.googleSearch({}),
+          },
+          abortSignal: req.signal,
+        });
+      }
     } catch (error: any) {
-      const msg = error?.message ?? "Gemini API error";
-      const isRateLimit = msg.includes("quota") || msg.includes("rate");
+      const msg = error?.message ?? "AI API error";
+      const isRateLimit = msg.includes("quota") || msg.includes("rate") || msg.includes("429");
       return new Response(
         JSON.stringify({
           error: isRateLimit

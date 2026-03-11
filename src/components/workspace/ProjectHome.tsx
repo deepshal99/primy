@@ -333,7 +333,7 @@ export function ProjectHome() {
                         key={tab.key}
                         onClick={() => setFilter(tab.key)}
                         className={cn(
-                          "flex items-center gap-1.5 px-3.5 py-[6px] rounded-full text-[12px] transition-all duration-200 cursor-pointer",
+                          "flex items-center gap-1.5 px-3.5 py-[6px] rounded-full text-[12px] t-normal cursor-pointer",
                           isActive
                             ? "bg-[#1a1a2e] text-white"
                             : "bg-white border border-[#e8e7e4] text-[#5a5852] hover:border-[#d0cfc9] hover:bg-[#f7f6f3]"
@@ -353,7 +353,7 @@ export function ProjectHome() {
                 <div className="flex items-center gap-1 flex-shrink-0">
                   {/* Expandable search */}
                   <div className={cn(
-                    "flex items-center rounded-full border transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden",
+                    "flex items-center rounded-full border t-slow ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden",
                     searchOpen
                       ? "w-[220px] border-[#d0cfc9] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.04)]"
                       : "w-[32px] border-transparent hover:bg-[#f7f6f3]"
@@ -468,25 +468,25 @@ export function ProjectHome() {
 
               <div className="grid grid-cols-2 gap-3 w-full max-w-[400px] stagger-children">
                 {/* Document */}
-                <button onClick={() => handleCreate('ku')} className="group flex items-center gap-3 px-5 py-4 rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all duration-200 active:scale-[0.98] animate-fade-in">
+                <button onClick={() => handleCreate('ku')} className="group flex items-center gap-3 px-5 py-4 rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] t-normal active:scale-[0.98] animate-fade-in">
                   <FileText className="w-5 h-5 text-[#4a7aed] transition-transform duration-150 group-hover:scale-110" strokeWidth={1.75} />
                   <span className="text-[13px] font-medium text-[#2d2e2e]">Document</span>
                 </button>
 
                 {/* Spreadsheet */}
-                <button onClick={() => handleCreate('table')} className="group flex items-center gap-3 px-5 py-4 rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all duration-200 active:scale-[0.98] animate-fade-in">
+                <button onClick={() => handleCreate('table')} className="group flex items-center gap-3 px-5 py-4 rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] t-normal active:scale-[0.98] animate-fade-in">
                   <Table2 className="w-5 h-5 text-[#2e9e47] transition-transform duration-150 group-hover:scale-110" strokeWidth={1.75} />
                   <span className="text-[13px] font-medium text-[#2d2e2e]">Spreadsheet</span>
                 </button>
 
                 {/* Diagram */}
-                <button onClick={() => handleCreate('diagram')} className="group flex items-center gap-3 px-5 py-4 rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all duration-200 active:scale-[0.98] animate-fade-in">
+                <button onClick={() => handleCreate('diagram')} className="group flex items-center gap-3 px-5 py-4 rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] t-normal active:scale-[0.98] animate-fade-in">
                   <GitBranch className="w-5 h-5 text-[#7c5cb8] transition-transform duration-150 group-hover:scale-110" strokeWidth={1.75} />
                   <span className="text-[13px] font-medium text-[#2d2e2e]">Diagram</span>
                 </button>
 
                 {/* Presentation */}
-                <button onClick={() => handleCreate('deck')} className="group flex items-center gap-3 px-5 py-4 rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-all duration-200 active:scale-[0.98] animate-fade-in">
+                <button onClick={() => handleCreate('deck')} className="group flex items-center gap-3 px-5 py-4 rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] t-normal active:scale-[0.98] animate-fade-in">
                   <Presentation className="w-5 h-5 text-[#d4582a] transition-transform duration-150 group-hover:scale-110" strokeWidth={1.75} />
                   <span className="text-[13px] font-medium text-[#2d2e2e]">Presentation</span>
                 </button>
@@ -503,7 +503,7 @@ export function ProjectHome() {
                 return (
                   <div
                     key={entity.id}
-                    className="group relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 active:scale-[0.98] hover:shadow-[0_6px_20px_rgba(0,0,0,0.07)] animate-scale-in"
+                    className="group relative rounded-2xl overflow-hidden cursor-pointer t-normal active:scale-[0.98] hover:shadow-[0_6px_20px_rgba(0,0,0,0.07)] hover:-translate-y-0.5 animate-scale-in"
                     style={{
                       background: config.cardBg,
                       animationDelay: `${idx * 50}ms`,
@@ -671,7 +671,7 @@ export function ProjectHome() {
                       handleCreate(type);
                       setFabOpen(false);
                     }}
-                    className="flex items-center gap-3 pl-4 pr-5 py-2.5 rounded-2xl bg-white border border-[#e8e7e4] shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.04)] hover:border-[#d0cfc9] hover:shadow-[0_6px_24px_rgba(0,0,0,0.12)] active:scale-[0.97] transition-all duration-200 cursor-pointer"
+                    className="flex items-center gap-3 pl-4 pr-5 py-2.5 rounded-2xl bg-white border border-[#e8e7e4] shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.04)] hover:border-[#d0cfc9] hover:shadow-[0_6px_24px_rgba(0,0,0,0.12)] active:scale-[0.95] t-normal cursor-pointer"
                     style={{
                       animation: `fab-item-in 200ms ${(3 - i) * 40}ms both cubic-bezier(0.34,1.56,0.64,1)`,
                     }}
@@ -700,7 +700,7 @@ export function ProjectHome() {
         {/* Main FAB button */}
         <button
           onClick={() => setFabOpen(!fabOpen)}
-          className="relative z-50 w-14 h-14 rounded-2xl bg-[#ff4a00] text-white flex items-center justify-center shadow-[0_6px_24px_rgba(255,74,0,0.35),0_2px_6px_rgba(255,74,0,0.2)] hover:bg-[#e54400] hover:shadow-[0_8px_30px_rgba(255,74,0,0.4)] active:scale-[0.93] transition-all duration-200 cursor-pointer"
+          className="relative z-50 w-14 h-14 rounded-2xl bg-[#ff4a00] text-white flex items-center justify-center shadow-[0_6px_24px_rgba(255,74,0,0.35),0_2px_6px_rgba(255,74,0,0.2)] hover:bg-[#e54400] hover:shadow-[0_8px_30px_rgba(255,74,0,0.4)] active:scale-[0.95] t-normal cursor-pointer"
           aria-label={fabOpen ? "Close menu" : "Create new file"}
         >
           <Plus

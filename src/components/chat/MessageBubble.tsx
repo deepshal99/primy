@@ -183,7 +183,7 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
                 <TooltipTrigger asChild>
                   <button
                     onClick={handleRetry}
-                    className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted active:scale-[0.92] transition-all duration-150"
+                    className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted active:scale-[0.95] t-fast"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                   </button>

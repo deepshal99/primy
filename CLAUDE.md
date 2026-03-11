@@ -89,14 +89,16 @@ This is the largest file (~78KB). All client-side state lives in a single Zustan
 
 ## Design System
 
-CSS variables are defined in `globals.css`. Design tokens in `src/lib/design.ts`.
+Based on Firecrawl's design system (v3). CSS variables in `globals.css`. Tokens in `src/lib/design.ts`. Full spec in `src/design-system/`.
 
-- **Brand**: Electric orange `#ff4a00` — always use white (`#fff`) text on orange backgrounds. **NEVER use black or dark text on the primary orange.**
-- **Fonts**: Degular (headings), Inter (body), JetBrains Mono (code)
-- **Entity colors**: doc `#4a7aed`, sheet `#2e9e47`, diagram `#7c5cb8`, deck `#d4582a`
-- **Surfaces**: canvas `#f9f9fb`, NavRail `#fafaf8`, tab bar `#f7f5f2`, cards `white`
-- **Borders**: `#e8e7e4` (layout), `#e8e8ed` (components), `#dddfe3` (inputs)
-- **Text hierarchy**: `#1a1a2e` (primary) / `#6b6b80` (muted) / `#95928E` (subtle) / `#b0ada6` (hint)
+- **Brand (Heat)**: `#fa5d19` — opacity-based scale (heat.4 through heat.100). Always white text on heat backgrounds. **NEVER use dark text on orange.**
+- **Fonts**: Inter (UI/body, weights 400/450/500/600/700 — headings use 500), Geist Mono (code)
+- **Entity colors**: doc `#2a6dfb` (bluetron), sheet `#42c366` (forest), diagram `#9061ff` (amethyst), deck `#fa5d19` (heat)
+- **Surfaces**: white (#ffffff) base, #fafafa lighter, alpha-based borders throughout
+- **Borders**: `rgba(0,0,0,0.04)` faint, `rgba(0,0,0,0.08)` muted (default), `rgba(0,0,0,0.16)` loud — NOT hex colors
+- **Text hierarchy**: `#171717` (primary) / `#525252` (secondary) / `#737373` (tertiary) / `#a3a3a3` (muted)
+- **Radius**: Pixel-based — 4/6/8/12/16/full. Buttons+inputs=6px, cards=8px, modals=8px
+- **Accents**: bluetron `#2a6dfb`, forest `#42c366`, crimson `#eb3424`, honey `#ecb730`, amethyst `#9061ff`
 
 Use entity colors consistently when rendering entity-specific UI (icons, badges, tabs, card backgrounds).
 

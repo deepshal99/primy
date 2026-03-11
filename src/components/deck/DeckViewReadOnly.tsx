@@ -67,7 +67,7 @@ export function DeckViewReadOnly({ slides, theme, style }: DeckViewReadOnlyProps
                 <span className="text-[10px] font-semibold text-[#95928E]">{i + 1}</span>
                 <div className="flex-1" />
               </div>
-              <div className="transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md rounded-lg">
+              <div className="t-normal hover:-translate-y-0.5 hover:shadow-md rounded-lg">
                 <UniversalSlideRenderer
                   slide={slide}
                   theme={resolvedTheme}
@@ -91,7 +91,7 @@ export function DeckViewReadOnly({ slides, theme, style }: DeckViewReadOnlyProps
             <button
               onClick={() => setActiveIdx(Math.max(0, activeIdx - 1))}
               disabled={activeIdx === 0}
-              className="p-1 rounded text-[#6b6b80] disabled:opacity-30 transition-all duration-150 hover:bg-[#efeee9] active:scale-95"
+              className="p-1 rounded text-[#6b6b80] disabled:opacity-30 t-fast hover:bg-[#efeee9] active:scale-[0.95]"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -101,14 +101,14 @@ export function DeckViewReadOnly({ slides, theme, style }: DeckViewReadOnlyProps
             <button
               onClick={() => setActiveIdx(Math.min(slides.length - 1, activeIdx + 1))}
               disabled={activeIdx === slides.length - 1}
-              className="p-1 rounded text-[#6b6b80] disabled:opacity-30 transition-all duration-150 hover:bg-[#efeee9] active:scale-95"
+              className="p-1 rounded text-[#6b6b80] disabled:opacity-30 t-fast hover:bg-[#efeee9] active:scale-[0.95]"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
             <div className="w-px h-4 mx-1 bg-[#e8e7e4]" />
             <button
               onClick={() => setShowPresentation(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-medium transition-all duration-150 bg-[#d4582a] text-white hover:bg-[#c04d25] active:scale-95"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-medium t-fast bg-[#d4582a] text-white hover:bg-[#c04d25] active:scale-[0.95]"
             >
               <Play className="w-3.5 h-3.5" fill="currentColor" />
               Present

@@ -16,10 +16,14 @@ export function MessageList() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [visibleCount, setVisibleCount] = useState(MESSAGES_PER_PAGE);
 
-  // Reset visible count when switching projects/conversations
+  // Reset visible count and scroll to bottom instantly on project switch
   const currentProjectId = useAppStore((s) => s.currentProjectId);
   useEffect(() => {
     setVisibleCount(MESSAGES_PER_PAGE);
+    // Instant scroll after DOM updates with new messages
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "instant" });
+    });
   }, [currentProjectId]);
 
   useEffect(() => {

@@ -236,11 +236,11 @@ export function ProjectSidebar() {
                       ) : (
                         <>
                           <Folder
-                            className="w-[18px] h-[18px] absolute inset-0 text-[#95928E] transition-all duration-200 group-hover:opacity-0 group-hover:scale-90"
+                            className="w-[18px] h-[18px] absolute inset-0 text-[#95928E] t-normal group-hover:opacity-0 group-hover:scale-90"
                             strokeWidth={1.5}
                           />
                           <FolderOpen
-                            className="w-[18px] h-[18px] absolute inset-0 text-[#6b6b80] transition-all duration-200 opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100"
+                            className="w-[18px] h-[18px] absolute inset-0 text-[#6b6b80] t-normal opacity-0 scale-90 group-hover:opacity-100 group-hover:scale-100"
                             strokeWidth={1.5}
                           />
                         </>

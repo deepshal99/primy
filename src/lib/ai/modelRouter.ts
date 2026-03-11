@@ -5,32 +5,68 @@ export interface ModelConfig {
   maxOutputTokens: number;
 }
 
+const provider = process.env.AI_PROVIDER || "google";
+
 // Context size threshold for routing to Pro model (30KB)
 const HEAVY_CONTEXT_THRESHOLD = 30 * 1024;
 
-export function getModelForTask(task: AITask, contextSizeBytes?: number): ModelConfig {
+function getGoogleModel(task: AITask, contextSizeBytes?: number): ModelConfig {
   switch (task) {
     case "chat":
-      // Auto-upgrade to Pro if context is heavy
       if (contextSizeBytes && contextSizeBytes > HEAVY_CONTEXT_THRESHOLD) {
         return { model: "gemini-2.5-pro", maxOutputTokens: 16384 };
       }
-      return { model: "gemini-3-flash-preview", maxOutputTokens: 8192 };
+      return { model: "gemini-2.5-flash", maxOutputTokens: 8192 };
     case "chat-heavy":
       return { model: "gemini-2.5-pro", maxOutputTokens: 16384 };
     case "deck-generate":
-      return { model: "gemini-3.1-pro-preview", maxOutputTokens: 65536 };
+      return { model: "gemini-2.5-pro", maxOutputTokens: 65536 };
     case "deck-edit":
-      return { model: "gemini-3.1-pro-preview", maxOutputTokens: 32768 };
+      return { model: "gemini-2.5-pro", maxOutputTokens: 32768 };
     case "title":
-      return { model: "gemini-3-flash-preview", maxOutputTokens: 256 };
+      return { model: "gemini-2.5-flash", maxOutputTokens: 256 };
     case "web-search":
-      return { model: "gemini-3-flash-preview", maxOutputTokens: 8192 };
+      return { model: "gemini-2.5-flash", maxOutputTokens: 8192 };
     case "embedding":
       return { model: "text-embedding-004", maxOutputTokens: 0 };
     case "summarize":
       return { model: "gemini-2.5-pro", maxOutputTokens: 4096 };
   }
+}
+
+function getOpenAIModel(task: AITask, contextSizeBytes?: number): ModelConfig {
+  switch (task) {
+    case "chat":
+      if (contextSizeBytes && contextSizeBytes > HEAVY_CONTEXT_THRESHOLD) {
+        return { model: "gpt-4.1", maxOutputTokens: 16384 };
+      }
+      return { model: "gpt-4.1-mini", maxOutputTokens: 8192 };
+    case "chat-heavy":
+      return { model: "gpt-4.1", maxOutputTokens: 16384 };
+    case "deck-generate":
+      return { model: "gpt-4.1", maxOutputTokens: 65536 };
+    case "deck-edit":
+      return { model: "gpt-4.1", maxOutputTokens: 32768 };
+    case "title":
+      return { model: "gpt-4.1-mini", maxOutputTokens: 256 };
+    case "web-search":
+      return { model: "gpt-4.1-mini", maxOutputTokens: 8192 };
+    case "embedding":
+      return { model: "text-embedding-3-small", maxOutputTokens: 0 };
+    case "summarize":
+      return { model: "gpt-4.1", maxOutputTokens: 4096 };
+  }
+}
+
+export function getModelForTask(task: AITask, contextSizeBytes?: number): ModelConfig {
+  if (provider === "openai") {
+    return getOpenAIModel(task, contextSizeBytes);
+  }
+  return getGoogleModel(task, contextSizeBytes);
+}
+
+export function getProvider(): string {
+  return provider;
 }
 
 // Helper to estimate context size in bytes from request body

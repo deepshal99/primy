@@ -14,6 +14,7 @@
   "description": "",
   "dependencies": {
     "@ai-sdk/google": "^3.0.33",
+    "@ai-sdk/openai": "^3.0.41",
     "@ai-sdk/react": "^3.0.106",
     "@auth/core": "^0.41.0",
     "@excalidraw/excalidraw": "^0.18.0",
@@ -45,6 +46,7 @@
     "@types/react-dom": "^19.2.3",
     "@univerjs/preset-sheets-core": "^0.15.5",
     "@univerjs/presets": "^0.15.5",
+    "@vercel/blob": "^2.3.1",
     "@xyflow/react": "^12.10.1",
     "ai": "^6.0.104",
     "bcryptjs": "^3.0.3",

@@ -204,7 +204,7 @@ function ControlButton({
       }}
       onMouseDown={(e) => e.stopPropagation()}
       title={title}
-      className="flex items-center justify-center w-7 h-7 rounded-full transition-all duration-150 text-[#95928E] hover:text-[#2d2e2e] hover:bg-[#efeee9] active:scale-95"
+      className="flex items-center justify-center w-7 h-7 rounded-full t-fast text-[#95928E] hover:text-[#2d2e2e] hover:bg-[#efeee9] active:scale-[0.95]"
     >
       {children}
     </button>

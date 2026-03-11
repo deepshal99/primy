@@ -143,7 +143,7 @@ export function DiagramToolbar({
         <div ref={exportMenuRef} className="relative">
           <button
             onClick={() => setExportMenuOpen(!exportMenuOpen)}
-            className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors duration-150 text-[#6b6b80] hover:bg-[#efeee9] ${exportMenuOpen ? "bg-[#efeee9]" : ""}`}
+            className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium t-colors text-[#6b6b80] hover:bg-[#efeee9] ${exportMenuOpen ? "bg-[#efeee9]" : ""}`}
           >
             <Download className="w-3.5 h-3.5" />
             Export
@@ -154,14 +154,14 @@ export function DiagramToolbar({
             <div className="absolute top-full right-0 mt-1 border border-[#e8e8ed] rounded-xl py-1 min-w-[150px] z-50 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.02)] animate-in fade-in zoom-in-95 duration-150">
               <button
                 onClick={() => exportAs("svg")}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-left transition-colors duration-150 text-[#1a1a2e] hover:bg-[#efeee9]"
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-left t-colors text-[#1a1a2e] hover:bg-[#efeee9]"
               >
                 <FileCode2 className="w-3.5 h-3.5 text-[#95928E]" />
                 Export SVG
               </button>
               <button
                 onClick={() => exportAs("png")}
-                className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-left transition-colors duration-150 text-[#1a1a2e] hover:bg-[#efeee9]"
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-[12px] text-left t-colors text-[#1a1a2e] hover:bg-[#efeee9]"
               >
                 <Image className="w-3.5 h-3.5 text-[#95928E]" />
                 Export PNG
@@ -194,7 +194,7 @@ function ToolbarButton({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium transition-colors duration-150 active:scale-95 ${
+      className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium t-colors active:scale-95 ${
         active
           ? "text-[#ff4a00] bg-[rgba(255,74,0,0.06)]"
           : "text-[#6b6b80] hover:bg-[#efeee9]"

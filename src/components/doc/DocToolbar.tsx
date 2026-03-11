@@ -259,7 +259,7 @@ export function DocToolbar({ editor }: DocToolbarProps) {
                 onClick={() => execCommand(btn)}
                 title={title}
                 className={cn(
-                  "w-8 h-8 flex items-center justify-center rounded-md transition-all duration-150 active:scale-[0.92]",
+                  "w-8 h-8 flex items-center justify-center rounded-md t-fast active:scale-[0.95]",
                   active
                     ? "bg-muted text-foreground shadow-[0_0_0_1px_rgba(255,74,0,0.15),0_0_6px_rgba(255,74,0,0.08)]"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted hover:shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_0_8px_rgba(0,0,0,0.03)]"

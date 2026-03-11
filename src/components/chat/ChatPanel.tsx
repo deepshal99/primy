@@ -488,76 +488,82 @@ export function ChatPanel({ centered }: ChatPanelProps) {
   // Empty + centered = hero layout with chatbox in the middle
   const showHeroLayout = centered && !hasMessages;
 
+  const goToProjectHome = () => {
+    const s = useAppStore.getState();
+    if (s.currentProjectId) {
+      s.saveCurrentEntity();
+      useAppStore.setState({ currentEntityId: null, currentEntityType: null, workspaceOpen: true });
+    }
+  };
+
   return (
-    <div
-      className={cn(
-        "flex flex-col h-full bg-background"
-      )}
-    >
-      {/* Chat header -- sidebar mode only */}
+    <div className="flex flex-col h-full bg-background">
+      {/* Chat header -- sidebar mode only, inside white card */}
       {!centered && (
-        <div className="flex items-center justify-between border-b border-[#e8e7e4] px-4 h-[52px] flex-shrink-0">
-          <h3 className="text-[13px] font-medium text-foreground truncate">
+        <div className="flex items-center px-3.5 h-[44px] flex-shrink-0 border-b border-[rgba(0,0,0,0.06)] min-w-0">
+          <span
+            className="text-[13px] text-[#171717] truncate min-w-0 flex-1"
+            style={{ fontWeight: 550 }}
+          >
             {currentProject?.title || "Drafta AI"}
-          </h3>
+          </span>
         </div>
       )}
+        {showHeroLayout ? (
+          /* Centered empty state: title + chatbox + entity pills */
+          <div className="flex-1 flex flex-col items-center justify-center px-6 pb-12">
+            <div className="w-full max-w-[680px]">
+              {/* Title */}
+              <h1 className="font-heading text-[32px] font-semibold text-foreground text-center mb-7 tracking-[-0.03em] leading-tight">
+                What are you working on?
+              </h1>
 
-      {showHeroLayout ? (
-        /* Centered empty state: title + chatbox + entity pills */
-        <div className="flex-1 flex flex-col items-center justify-center px-6 pb-12">
-          <div className="w-full max-w-[680px]">
-            {/* Title */}
-            <h1 className="font-heading text-[32px] font-semibold text-foreground text-center mb-7 tracking-[-0.03em] leading-tight">
-              What are you working on?
-            </h1>
-
-            {/* Chat input */}
-            <ChatInput
-              onSend={sendMessage}
-              disabled={isStreaming}
-              centered={centered}
-              onStop={stopStreaming}
-              placeholder={activePlaceholder || "Describe what you want to create..."}
-            />
-
-            {/* Entity type pills — click to create project + open blank entity */}
-            <div className="mt-5">
-              <ExamplePrompts
-                centered
-                selectedEntityType={selectedEntityType}
-                onEntityTypeSelect={handleEntityPillClick}
+              {/* Chat input */}
+              <ChatInput
+                onSend={sendMessage}
+                disabled={isStreaming}
+                centered={centered}
+                onStop={stopStreaming}
+                placeholder={activePlaceholder || "Describe what you want to create..."}
               />
+
+              {/* Entity type pills — click to create project + open blank entity */}
+              <div className="mt-5">
+                <ExamplePrompts
+                  centered
+                  selectedEntityType={selectedEntityType}
+                  onEntityTypeSelect={handleEntityPillClick}
+                />
+              </div>
             </div>
           </div>
-        </div>
-      ) : (
-        <>
-          {/* Content area */}
-          <div className="flex-1 overflow-y-auto">
-            {hasMessages ? (
-              <div className={centered ? "max-w-[680px] mx-auto w-full px-6" : ""}>
-                <MessageList />
-              </div>
-            ) : (
-              <ExamplePrompts
-                onSelect={sendMessage}
-                hasProject={!!currentProjectId}
-              />
-            )}
-          </div>
+        ) : (
+          <>
+            {/* Content area */}
+            <div className="flex-1 overflow-y-auto chat-scroll">
+              {hasMessages ? (
+                <div className={centered ? "max-w-[680px] mx-auto w-full px-6" : ""}>
+                  <MessageList />
+                </div>
+              ) : (
+                <ExamplePrompts
+                  onSelect={sendMessage}
+                  hasProject={!!currentProjectId}
+                />
+              )}
+            </div>
 
-          {/* Input — pinned to bottom */}
-          <div className={centered ? "max-w-[680px] mx-auto w-full px-6" : ""}>
-            <ChatInput
-              onSend={sendMessage}
-              disabled={isStreaming}
-              centered={centered}
-              onStop={stopStreaming}
-            />
-          </div>
-        </>
-      )}
+            {/* Input — pinned to bottom */}
+            <div className={centered ? "max-w-[680px] mx-auto w-full px-6" : ""}>
+              <ChatInput
+                onSend={sendMessage}
+                disabled={isStreaming}
+                centered={centered}
+                onStop={stopStreaming}
+              />
+            </div>
+          </>
+        )}
     </div>
   );
 }

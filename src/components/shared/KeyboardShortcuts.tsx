@@ -58,7 +58,7 @@ export function KeyboardShortcuts() {
           </h3>
           <button
             onClick={() => setOpen(false)}
-            className="w-6 h-6 flex items-center justify-center rounded-md text-[#95928E] hover:bg-[#f5f4f0] transition-colors duration-150"
+            className="w-6 h-6 flex items-center justify-center rounded-md text-[#95928E] hover:bg-[#f5f4f0] t-colors"
           >
             <X className="w-4 h-4" />
           </button>
