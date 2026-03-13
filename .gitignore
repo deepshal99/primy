@@ -14,6 +14,7 @@
 
 # debug
 npm-debug.log*
+firebase-debug.log
 
 # env files
 .env*.local
@@ -25,5 +26,18 @@ next-env.d.ts
 # User data
 /data/
 .vercel
-.claude/skills/claude-cookbooks-main.zip
 /deck/
+
+# Agent skills (installed globally, not project-level)
+.agent/skills/
+.agents/skills/
+.claude/skills/
+.kiro/skills/
+.trae/skills/
+.windsurf/skills/
+.codex/skills/
+.gemini/skills/
+.skill-archive/
+
+# Reference material (not source code)
+src/extra/
