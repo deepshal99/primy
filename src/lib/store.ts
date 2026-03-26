@@ -45,10 +45,21 @@ let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 const SAVE_DEBOUNCE_MS = 2000;
 
 function scheduleDebouncedSave() {
+  // Capture the project + entity IDs at schedule time, not when the timer fires.
+  // This prevents saving the wrong entity when the user switches tabs during the debounce window.
+  const snapshot = useAppStore.getState();
+  const projectId = snapshot.currentProjectId;
+  const entityId = snapshot.currentEntityId;
+
   if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
   saveDebounceTimer = setTimeout(() => {
     const state = useAppStore.getState();
-    if (state.currentProjectId) {
+    // Only save if we're still on the same project (entity may have changed, but the project-level save captures all entities)
+    if (state.currentProjectId && state.currentProjectId === projectId) {
+      state.saveCurrentEntity();
+    } else if (projectId) {
+      // The user switched projects — still try to save the original project's data
+      // by finding it in the store and syncing it
       state.saveCurrentEntity();
     }
   }, SAVE_DEBOUNCE_MS);
@@ -291,28 +302,35 @@ export const useAppStore = create<AppState>()(
 
     // Snapshot current state before applying AI operations (for undo)
     // New AI operations clear the redo stack (standard editor behavior)
-    const hasAnyOps = hasSheetOps || hasDocOps || hasDiagramOps || hasDeckOps;
+    const hasAnyOps = hasSheetOps || hasDocOps || hasDiagramOps || hasDeckOps || hasKuOps || hasTableOps;
     let newUndoStack = state.undoStack;
     if (hasAnyOps) {
       const labelParts: string[] = [];
       if (hasSheetOps) labelParts.push("sheet");
       if (hasDocOps) labelParts.push("doc");
+      if (hasKuOps) labelParts.push("doc");
+      if (hasTableOps) labelParts.push("sheet");
       if (hasDiagramOps) labelParts.push("diagram");
       if (hasDeckOps) labelParts.push("deck");
       const entityType: UndoSnapshot["entityType"] = labelParts.length > 1 ? "mixed"
-        : hasDeckOps ? "deck" : hasDiagramOps ? "diagram" : hasSheetOps ? "table" : "ku";
-      const snapshot: UndoSnapshot = {
-        entityType,
-        sheets: JSON.parse(JSON.stringify(state.sheets)),
-        docContent: state.docContent,
-        diagramSource: state.diagramSource,
-        diagramType: state.diagramType,
-        deckSlides: JSON.parse(JSON.stringify(state.deckSlides)),
-        deckTheme: state.deckTheme,
-        label: `AI ${labelParts.join(" & ")} changes`,
-        timestamp: Date.now(),
-      };
-      newUndoStack = [...state.undoStack, snapshot].slice(-20);
+        : hasDeckOps ? "deck" : hasDiagramOps ? "diagram" : (hasSheetOps || hasTableOps) ? "table" : "ku";
+      try {
+        const snapshot: UndoSnapshot = {
+          entityType,
+          sheets: JSON.parse(JSON.stringify(state.sheets)),
+          docContent: state.docContent,
+          diagramSource: state.diagramSource,
+          diagramType: state.diagramType,
+          deckSlides: JSON.parse(JSON.stringify(state.deckSlides)),
+          deckTheme: state.deckTheme,
+          label: `AI ${[...new Set(labelParts)].join(" & ")} changes`,
+          timestamp: Date.now(),
+        };
+        newUndoStack = [...state.undoStack, snapshot].slice(-20);
+      } catch (e) {
+        // JSON.stringify can fail on very large decks — skip undo snapshot but don't block the pipeline
+        console.warn("[Drafta] Undo snapshot failed (data too large), skipping:", e);
+      }
     }
 
     let newSheets = state.sheets;
@@ -354,7 +372,12 @@ export const useAppStore = create<AppState>()(
     let newOpenTabs = state.openTabs;
     const aiModifiedIds: string[] = [];
 
-    if (state.currentProjectId && (hasKuOps || hasTableOps || hasDiagramOps || hasDeckOps)) {
+    let entityOpsApplied = false;
+    if (hasKuOps || hasTableOps || hasDiagramOps || hasDeckOps) {
+      if (!state.currentProjectId) {
+        console.error("[Drafta] Entity operations received but no currentProjectId");
+        toast.error("No active project — AI changes could not be applied. Please try again.");
+      }
       newProjects = [...state.projects];
       const projIdx = newProjects.findIndex((p) => p.id === state.currentProjectId);
       if (projIdx >= 0) {
@@ -763,6 +786,10 @@ export const useAppStore = create<AppState>()(
 
         project.updatedAt = Date.now();
         newProjects[projIdx] = project;
+        entityOpsApplied = true;
+      } else if (state.currentProjectId) {
+        console.error("[Drafta] Project not found in store for entity ops, projectId:", state.currentProjectId);
+        toast.error("Failed to apply changes — project not found. Please try again.");
       }
     }
 
@@ -799,7 +826,7 @@ export const useAppStore = create<AppState>()(
       aiModifiedEntityIds: aiModifiedIds.length > 0 ? aiModifiedIds : state.aiModifiedEntityIds,
     });
 
-    // Success toasts for AI operations
+    // Success toasts — only fire when mutations actually landed in the store
     if (hasSheetOps) toast.success("Spreadsheet updated");
     else if (hasDocOps) toast.success("Document updated");
 
@@ -809,27 +836,27 @@ export const useAppStore = create<AppState>()(
     const deletedDiagramIds: string[] = [];
     const deletedDeckIds: string[] = [];
 
-    if (hasKuOps) {
+    if (hasKuOps && entityOpsApplied) {
       for (const op of kuOperations) {
         if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
         else if (op.type === "DELETE") deletedKuIds.push(op.kuId);
         else if (op.type === "RENAME") toast.success("Document renamed");
       }
     }
-    if (hasTableOps) {
+    if (hasTableOps && entityOpsApplied) {
       for (const op of tableOperations) {
         if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
         else if (op.type === "DELETE") deletedTableIds.push(op.tableId);
       }
     }
-    if (hasDiagramOps) {
+    if (hasDiagramOps && entityOpsApplied) {
       for (const op of diagramOperations) {
         if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
         else if (op.type === "DELETE") deletedDiagramIds.push(op.diagramId);
         else if (op.type === "RENAME") toast.success("Diagram renamed");
       }
     }
-    if (hasDeckOps) {
+    if (hasDeckOps && entityOpsApplied) {
       for (const op of deckOperations) {
         if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
         else if (op.type === "DELETE") deletedDeckIds.push(op.deckId);
@@ -838,6 +865,7 @@ export const useAppStore = create<AppState>()(
     }
 
     // Immediately sync deletions to server (debounced save won't include deletedXxxIds)
+    // Uses retry with backoff since delete ops are not included in the regular save payload
     if (state.currentProjectId) {
       const deletePayload: Record<string, string[]> = {};
       if (deletedKuIds.length > 0) deletePayload.deletedKnowledgeUnitIds = deletedKuIds;
@@ -845,7 +873,18 @@ export const useAppStore = create<AppState>()(
       if (deletedDiagramIds.length > 0) deletePayload.deletedDiagramIds = deletedDiagramIds;
       if (deletedDeckIds.length > 0) deletePayload.deletedDeckIds = deletedDeckIds;
       if (Object.keys(deletePayload).length > 0) {
-        updateProjectOnServer(state.currentProjectId, deletePayload).catch(() => {});
+        const projectId = state.currentProjectId;
+        updateProjectOnServer(projectId, deletePayload).catch(() => {
+          // First retry failed (updateProjectOnServer already retries 2x internally)
+          // Schedule one more attempt after 5 seconds
+          console.warn("[Drafta] Delete sync failed, scheduling retry...");
+          setTimeout(() => {
+            updateProjectOnServer(projectId, deletePayload).catch(() => {
+              console.error("[Drafta] Delete sync failed permanently:", deletePayload);
+              toast.error("Some deletions may not have been saved to the server. Please refresh.");
+            });
+          }, 5000);
+        });
       }
     }
 
@@ -2224,6 +2263,9 @@ export const useAppStore = create<AppState>()(
       .then((result) => {
         if (!result.ok) {
           toast.error("Failed to save to server — changes are saved locally");
+          set({ saveError: "Failed to save" });
+        } else {
+          set({ saveError: null });
         }
       })
       .catch(() => {

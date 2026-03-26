@@ -16,6 +16,8 @@ import {
 import { cn } from "@/lib/cn";
 import { FilePreviewPill } from "./FilePreviewPill";
 
+const MAX_INPUT_LENGTH = 50_000; // 50K chars — prevents enormous pastes from blowing up context
+
 const ENTITY_STYLES: Record<EntityType, { text: string; bg: string; dot: string }> = {
   ku: { text: "#4a7aed", bg: "#f0f4fd", dot: "#4a7aed" },
   table: { text: "#2e9e47", bg: "#e8f7ea", dot: "#2e9e47" },
@@ -196,7 +198,11 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
   };
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newValue = e.target.value;
+    let newValue = e.target.value;
+    if (newValue.length > MAX_INPUT_LENGTH) {
+      newValue = newValue.slice(0, MAX_INPUT_LENGTH);
+      toast.error("Message truncated — maximum 50,000 characters");
+    }
     const cursorPos = e.target.selectionStart;
     setValue(newValue);
 

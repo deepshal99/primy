@@ -77,6 +77,13 @@ export async function POST(req: Request) {
       });
     }
 
+    // Cap messages array to prevent token/memory abuse
+    const MAX_MESSAGES = 200;
+    if (messages.length > MAX_MESSAGES) {
+      // Keep system context from first few + most recent messages
+      messages.splice(0, messages.length - MAX_MESSAGES);
+    }
+
     const contextSize = estimateContextSize({ sheetData, docContent, projectContext, messages });
     // Upgrade to Gemini 3.1 Pro for deck generation/editing
     let taskType: AITask = "chat";
@@ -238,6 +245,14 @@ export async function POST(req: Request) {
       textContent += memoryContext;
     }
 
+    // Hard cap on context size to prevent model input overflow.
+    // ~400K chars ≈ ~100K tokens, well within limits for both providers.
+    // System prompt (~27K chars) + output tokens are separate.
+    const MAX_CONTEXT_CHARS = 400_000;
+    if (textContent.length > MAX_CONTEXT_CHARS) {
+      textContent = textContent.slice(0, MAX_CONTEXT_CHARS);
+    }
+
     // Build AI SDK messages: history + enriched last message
     const aiMessages: UIMessage[] = [];
     for (let i = 0; i < messages.length - 1; i++) {
@@ -298,13 +313,14 @@ export async function POST(req: Request) {
         });
       }
     } catch (error: any) {
-      const msg = error?.message ?? "AI API error";
+      const msg = error?.message ?? "";
+      console.error("[Drafta Chat] AI init error:", msg);
       const isRateLimit = msg.includes("quota") || msg.includes("rate") || msg.includes("429");
       return new Response(
         JSON.stringify({
           error: isRateLimit
             ? "Rate limit reached. Please wait a moment and try again."
-            : `AI service error: ${msg}`,
+            : "AI service is temporarily unavailable. Please try again.",
         }),
         {
           status: isRateLimit ? 429 : 502,
@@ -394,11 +410,14 @@ export async function POST(req: Request) {
           const errMsg = error instanceof Error ? error.message : "Stream error";
           console.error("[Drafta Chat] Stream error:", errMsg);
           if (!clientDisconnected) {
-            // Handle Gemini rate limits
+            // Handle rate limits — never leak raw error details to client
             const isRateLimit = errMsg.includes("quota") || errMsg.includes("rate") || errMsg.includes("429");
+            const clientError = isRateLimit
+              ? "Rate limit reached. Please wait a moment and try again."
+              : "Something went wrong while generating a response. Please try again.";
             safeEnqueue(
               encoder.encode(
-                `data: ${JSON.stringify({ error: isRateLimit ? "Rate limit reached. Please wait a moment and try again." : errMsg })}\n\n`
+                `data: ${JSON.stringify({ error: clientError })}\n\n`
               )
             );
             safeEnqueue(encoder.encode("data: [DONE]\n\n"));
@@ -416,8 +435,8 @@ export async function POST(req: Request) {
       },
     });
   } catch (error) {
-    const errMsg = error instanceof Error ? error.message : "Internal server error";
-    return new Response(JSON.stringify({ error: errMsg }), {
+    console.error("[Drafta Chat] Unhandled error:", error instanceof Error ? error.message : error);
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });

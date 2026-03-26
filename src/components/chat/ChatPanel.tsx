@@ -40,6 +40,20 @@ export function ChatPanel({ centered }: ChatPanelProps) {
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Safety net: if isStreaming gets stuck (e.g. unhandled error), auto-recover after 3 minutes
+  useEffect(() => {
+    if (!isStreaming) return;
+    const safetyTimer = setTimeout(() => {
+      if (useAppStore.getState().isStreaming) {
+        console.error("[Drafta] Streaming state stuck — auto-recovering after 3 min timeout");
+        abortControllerRef.current?.abort();
+        abortStreaming();
+        toast.error("Response timed out. Please try again.");
+      }
+    }, 180_000);
+    return () => clearTimeout(safetyTimer);
+  }, [isStreaming, abortStreaming]);
+
   const stopStreaming = useCallback(() => {
     abortControllerRef.current?.abort();
   }, []);
@@ -314,7 +328,10 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           );
         }
 
-        const reader = response.body!.getReader();
+        if (!response.body) {
+          throw new Error("Empty response from AI service. Please try again.");
+        }
+        const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let fullText = "";
         let buffer = "";
@@ -322,12 +339,14 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         let groundingSources: GroundingSource[] = [];
 
         let chunkCount = 0;
+        let lastChunkAt = Date.now();
         const processLine = (line: string) => {
           const trimmed = line.trim();
           if (!trimmed.startsWith("data: ")) return;
           const data = trimmed.slice(6);
           if (data === "[DONE]") return;
           chunkCount++;
+          lastChunkAt = Date.now();
           try {
             const parsed = JSON.parse(data);
             if (parsed.text) {
@@ -347,17 +366,31 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           }
         };
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const parts = buffer.split("\n");
-          buffer = parts.pop() || "";
-
-          for (const line of parts) {
-            processLine(line);
+        // Client-side stall detection: if no chunks arrive for 60s, abort
+        const STALL_TIMEOUT_MS = 60_000;
+        const stallCheck = setInterval(() => {
+          if (Date.now() - lastChunkAt > STALL_TIMEOUT_MS) {
+            clearInterval(stallCheck);
+            console.error("[Drafta] Stream stalled — no data for 60s. Aborting.");
+            abortControllerRef.current?.abort();
           }
+        }, 5000);
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const parts = buffer.split("\n");
+            buffer = parts.pop() || "";
+
+            for (const line of parts) {
+              processLine(line);
+            }
+          }
+        } finally {
+          clearInterval(stallCheck);
         }
 
         if (buffer.trim()) {
@@ -381,28 +414,35 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           return;
         }
 
-        // Transition to updating phase while parsing operations
-        useAppStore.getState().setAIPhase('updating');
+        // Parse operations and apply to store — wrapped in try/catch so a parse/apply
+        // failure never loses the AI's text response
+        try {
+          useAppStore.getState().setAIPhase('updating');
 
-        const sheetOps = parseSheetOperations(fullText);
-        const docOps = parseDocOperations(fullText);
-        const kuOps = parseKuOperations(fullText);
-        const tableOps = parseTableOperations(fullText);
-        const diagramOps = parseDiagramOperations(fullText);
-        const deckOps = parseDeckOperations(fullText);
-        const suggestions = parseSuggestions(fullText);
-        const outlineItems = parseDeckOutlineItems(fullText);
-        const hasAnyOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || diagramOps.length > 0 || deckOps.length > 0;
-        if (!hasAnyOps && outlineItems.length === 0) {
-          const hasFences = fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops") || fullText.includes("```diagramops") || fullText.includes("```deckops") || fullText.includes("```deckoutline");
-          if (hasFences) {
-            console.warn("[Drafta] Operation blocks found but none parsed. Raw tail:", fullText.slice(-600));
-            toast.error("AI response had formatting issues -- some changes may not have been applied. Try again.");
+          const sheetOps = parseSheetOperations(fullText);
+          const docOps = parseDocOperations(fullText);
+          const kuOps = parseKuOperations(fullText);
+          const tableOps = parseTableOperations(fullText);
+          const diagramOps = parseDiagramOperations(fullText);
+          const deckOps = parseDeckOperations(fullText);
+          const suggestions = parseSuggestions(fullText);
+          const outlineItems = parseDeckOutlineItems(fullText);
+          const hasAnyOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || diagramOps.length > 0 || deckOps.length > 0;
+          if (!hasAnyOps && outlineItems.length === 0) {
+            const hasFences = fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops") || fullText.includes("```diagramops") || fullText.includes("```deckops") || fullText.includes("```deckoutline");
+            if (hasFences) {
+              console.warn("[Drafta] Operation blocks found but none parsed. Raw tail:", fullText.slice(-600));
+              toast.error("AI response had formatting issues — some changes may not have been applied. Try again.");
+            }
           }
+
+          finishStreaming(fullText, sheetOps, docOps, kuOps, tableOps, diagramOps, deckOps, suggestions);
+        } catch (applyError) {
+          // Operation parsing or store mutation failed — still save the AI text response
+          console.error("[Drafta] Failed to apply AI operations:", applyError);
+          finishStreaming(extractDisplayText(fullText) || fullText);
+          toast.error("AI responded but some changes couldn't be applied. Try again or check the response.");
         }
-
-        finishStreaming(fullText, sheetOps, docOps, kuOps, tableOps, diagramOps, deckOps, suggestions);
-
 
         // Attach grounding sources to the assistant message
         if (groundingSources.length > 0) {
@@ -417,9 +457,26 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
+          // Stream was aborted (user stop, stall detection, or safety timeout)
+          // Try to parse and apply any operations from partial content
           const partial = useAppStore.getState().streamingContent;
           if (partial.trim()) {
-            finishStreaming(extractDisplayText(partial) || partial);
+            try {
+              const sheetOps = parseSheetOperations(partial);
+              const docOps = parseDocOperations(partial);
+              const kuOps = parseKuOperations(partial);
+              const tableOps = parseTableOperations(partial);
+              const diagramOps = parseDiagramOperations(partial);
+              const deckOps = parseDeckOperations(partial);
+              const hasPartialOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || diagramOps.length > 0 || deckOps.length > 0;
+              if (hasPartialOps) {
+                finishStreaming(extractDisplayText(partial) || partial, sheetOps, docOps, kuOps, tableOps, diagramOps, deckOps);
+              } else {
+                finishStreaming(extractDisplayText(partial) || partial);
+              }
+            } catch {
+              finishStreaming(extractDisplayText(partial) || partial);
+            }
             const msgs = useAppStore.getState().messages;
             if (msgs.length > 0) {
               const last = msgs[msgs.length - 1];

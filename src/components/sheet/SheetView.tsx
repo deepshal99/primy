@@ -216,6 +216,11 @@ export function SheetView() {
 
     return () => {
       disposed = true;
+      // Clear any pending save timer to prevent stale writes
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+      }
       if (univerRef.current) {
         try {
           univerRef.current.univerAPI.dispose();
@@ -225,7 +230,6 @@ export function SheetView() {
         univerRef.current = null;
         univerApiRef = null;
       }
-
     };
   // Remount when sheetVersion or entity changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -349,7 +353,7 @@ export function SheetView() {
 function StreamingBar() {
   return (
     <div className="absolute top-0 left-0 right-0 z-50">
-      <div className="h-[2px] w-full overflow-hidden bg-emerald-100 dark:bg-emerald-950/30">
+      <div className="h-[2px] w-full overflow-hidden bg-emerald-100">
         <div className="h-full animate-progress-bar bg-emerald-500" />
       </div>
     </div>

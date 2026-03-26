@@ -72,9 +72,27 @@ export async function POST(req: Request) {
     try {
       const page = await browser.newPage();
 
+      // Block all outbound network requests to prevent SSRF via injected HTML.
+      // Only allow data: URIs and blob: URIs for inline images.
+      await page.setRequestInterception(true);
+      page.on("request", (interceptedRequest) => {
+        const url = interceptedRequest.url();
+        if (url.startsWith("data:") || url.startsWith("blob:")) {
+          interceptedRequest.continue();
+        } else {
+          interceptedRequest.abort("blockedbyclient");
+        }
+      });
+
+      // Cap HTML size to prevent memory abuse (2MB is generous for any slide deck)
+      const MAX_HTML_SIZE = 2 * 1024 * 1024;
+      if (body.html.length > MAX_HTML_SIZE || (body.css && body.css.length > MAX_HTML_SIZE)) {
+        return NextResponse.json({ error: "HTML content too large" }, { status: 400 });
+      }
+
       const cssBlock = body.css ? `<style>${body.css}</style>` : "";
       const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8">${cssBlock}</head><body>${body.html}</body></html>`;
-      await page.setContent(fullHtml, { waitUntil: "networkidle0", timeout: 15000 });
+      await page.setContent(fullHtml, { waitUntil: "domcontentloaded", timeout: 15000 });
 
       const opts = body.options || {};
       // Support custom dimensions (e.g. "960px 540px") via width/height,

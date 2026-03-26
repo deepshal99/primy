@@ -163,15 +163,23 @@ function fixUnescapedNewlinesInJson(jsonStr: string): string {
 
 function parseOpsFromBlock<T>(block: string): T[] {
   const parsed = robustJsonParse(block);
-  if (!parsed) return [];
+  if (!parsed) {
+    console.warn("[Drafta Parse] Failed to parse block as JSON:", block.slice(0, 300));
+    return [];
+  }
 
   if (parsed.operations && Array.isArray(parsed.operations)) {
     return parsed.operations as T[];
   } else if (parsed.type) {
     return [parsed as T];
   } else if (Array.isArray(parsed)) {
-    return parsed.filter((item: any) => item?.type) as T[];
+    const filtered = parsed.filter((item: any) => item?.type) as T[];
+    if (filtered.length === 0 && parsed.length > 0) {
+      console.warn("[Drafta Parse] Parsed JSON array but no items had 'type' field:", JSON.stringify(parsed[0]).slice(0, 200));
+    }
+    return filtered;
   }
+  console.warn("[Drafta Parse] Parsed JSON but couldn't extract operations:", JSON.stringify(parsed).slice(0, 200));
   return [];
 }
 
@@ -287,8 +295,9 @@ export function parseTableOperations(fullText: string): TableOperation[] {
     if (ops.length > 0) {
       for (const op of ops) {
         if (op.type === "CREATE" && (!op.celldata || !Array.isArray(op.celldata) || op.celldata.length === 0)) {
-          if (process.env.NODE_ENV !== "production") console.warn("[Drafta] tableops CREATE has empty/missing celldata, skipping:", JSON.stringify(op).slice(0, 200));
-          continue;
+          // Allow CREATE with empty celldata — the store will create an empty sheet
+          console.warn("[Drafta] tableops CREATE has empty/missing celldata, defaulting to empty sheet:", op.title);
+          op.celldata = [];
         }
         operations.push(op);
       }

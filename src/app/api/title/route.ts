@@ -35,7 +35,11 @@ export async function POST(req: Request) {
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const { userMessage, assistantMessage, includeProjectDetails } = body;
+    const { includeProjectDetails } = body;
+    // Cap input lengths — title generation only needs a snippet
+    const MAX_MSG_LEN = 2000;
+    const userMessage = typeof body.userMessage === "string" ? body.userMessage.slice(0, MAX_MSG_LEN) : "";
+    const assistantMessage = typeof body.assistantMessage === "string" ? body.assistantMessage.slice(0, MAX_MSG_LEN) : "";
 
     if (!userMessage || !assistantMessage) {
       return Response.json({ error: "userMessage and assistantMessage are required" }, { status: 400 });

@@ -43,7 +43,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const embeddings = await generateEmbeddings(texts);
+    // Cap individual text length to prevent cost overruns (32K chars ≈ 8K tokens)
+    const MAX_TEXT_LENGTH = 32_000;
+    const cappedTexts = texts.map((t: string) =>
+      t.length > MAX_TEXT_LENGTH ? t.slice(0, MAX_TEXT_LENGTH) : t
+    );
+
+    const embeddings = await generateEmbeddings(cappedTexts);
     return NextResponse.json({ embeddings });
   } catch (error) {
     console.error("Embeddings API error:", error);

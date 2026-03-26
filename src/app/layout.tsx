@@ -15,20 +15,14 @@ export const metadata: Metadata = {
   description: "Your AI-powered workspace for documents, spreadsheets, and projects.",
 };
 
-// Inline script to set theme before hydration (prevents flash)
-// Sets both .dark class (shadcn) and data-theme attribute (legacy/Excalidraw)
-const themeScript = `(function(){try{var t=localStorage.getItem('drafta-theme')||'system';var d=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme:dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.setAttribute('data-theme',d?'dark':'light')}catch(e){}})()`;
-
-
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en">
       <body className="antialiased">
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <QueryProvider>
           <SessionProvider>
             {children}

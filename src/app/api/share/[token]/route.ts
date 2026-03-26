@@ -20,7 +20,8 @@ export async function GET(
     }
 
     // IP-based rate limiting to prevent token enumeration (60 req/min)
-    const ip = _req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    // Use x-real-ip (set by Vercel) or last entry of x-forwarded-for (proxy-appended, not client-controlled)
+    const ip = _req.headers.get("x-real-ip") || _req.headers.get("x-forwarded-for")?.split(",").pop()?.trim() || "unknown";
     const rateLimit = checkRateLimit(`${ip}:share`, 60, 60_000);
     if (!rateLimit.allowed) {
       return Response.json(

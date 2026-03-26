@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { auth } from "@/lib/auth";
 
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
 const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
@@ -76,9 +77,13 @@ async function searchPexels(q: string, page: string): Promise<ImageResult[]> {
 }
 
 export async function GET(req: NextRequest) {
-  // IP-based rate limiting for this public-ish endpoint (30 req/min)
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const rateLimit = checkRateLimit(`${ip}:unsplash`, 30, 60_000);
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // User-based rate limiting (30 req/min)
+  const rateLimit = checkRateLimit(`${session.user.id}:unsplash`, 30, 60_000);
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests" },

@@ -2,10 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { Loader2, Check, Eye, EyeOff, LogOut, ChevronDown, Sun, Moon, Monitor } from "lucide-react";
+import { Loader2, Check, Eye, EyeOff, LogOut, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { useTheme } from "@/lib/useTheme";
-import { ThemeMode } from "@/lib/theme";
 import {
   Dialog,
   DialogContent,
@@ -237,11 +235,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
               <div className="h-px mb-6 bg-border" />
 
-              {/* Appearance section */}
-              <ThemeSection />
-
-              <div className="h-px mb-6 bg-border" />
-
               {/* Security section */}
               <div className="mb-6">
                 <SectionLabel>Security</SectionLabel>
@@ -396,38 +389,3 @@ function FieldLabel({
   );
 }
 
-const themeOptions: { mode: ThemeMode; icon: typeof Sun; label: string }[] = [
-  { mode: "light", icon: Sun, label: "Light" },
-  { mode: "dark", icon: Moon, label: "Dark" },
-  { mode: "system", icon: Monitor, label: "System" },
-];
-
-function ThemeSection() {
-  const { mode, setMode } = useTheme();
-
-  return (
-    <div className="mb-6">
-      <SectionLabel>Appearance</SectionLabel>
-      <div className="flex gap-2">
-        {themeOptions.map((opt) => {
-          const isActive = mode === opt.mode;
-          return (
-            <button
-              key={opt.mode}
-              onClick={() => setMode(opt.mode)}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[13px] font-medium transition-all border",
-                isActive
-                  ? "bg-[var(--color-brand-subtle)] border-[var(--color-brand)] text-[var(--color-brand)]"
-                  : "bg-muted border-border text-muted-foreground hover:bg-accent"
-              )}
-            >
-              <opt.icon className="w-4 h-4" />
-              {opt.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}

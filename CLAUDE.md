@@ -170,3 +170,29 @@ Several module upgrades are planned (see `.claude/plans/`):
 - Fortune Sheet → Univer (sheets)
 - jsPDF → Puppeteer server-side PDF (export)
 - Yjs + PartyKit (real-time collaboration)
+
+## Design Context
+
+### Users
+Solo founders, marketers, SMB operators, and students who need to create documents, spreadsheets, diagrams, and decks without switching between 5 different tools. They range from semi-technical to non-technical. They value speed and simplicity over power-user features. Their context: busy, often working alone, need professional output without professional design skills.
+
+### Brand Personality
+**Clean, Smart, Approachable.** The interface should feel like a sharp tool that doesn't require a manual. Warm but not playful. Professional but not corporate. The orange brand color (`#ff4a00`) provides energy without aggression.
+
+### Emotional Goal
+**Delight** — "This is fun and surprisingly easy." Users should feel a spark of pleasure when things just work: when AI produces exactly what they asked for, when a deck generates in seconds, when the interface anticipates their next move. The product should feel effortless, not effortful.
+
+### Aesthetic Direction
+- **References**: Linear (clean, fast, sharp UI), Pitch.com (polished, warm, presentation-quality)
+- **Anti-references**: Google Docs (bland, institutional, dated)
+- **Theme**: Light mode only. White surfaces, warm orange accents, generous whitespace, alpha-based borders
+- **Typography**: Degular for headings (warmth + character), Inter for body (clarity + readability), JetBrains Mono for code
+- **Motion**: Spring-based entrances, fast micro-interactions (120ms), staggered reveals. Always respect `prefers-reduced-motion`.
+
+### Design Principles
+
+1. **Content is king** — The interface should disappear. Minimize chrome, maximize the user's work. Every pixel of UI should earn its place.
+2. **One glance, one action** — Users should understand what to do without reading instructions. Clear hierarchy, obvious affordances, no hidden menus for primary actions.
+3. **Warm precision** — Combine the sharpness of Linear with the warmth of Pitch. Clean geometry + warm orange + soft shadows = approachable professionalism.
+4. **AI as collaborator, not wizard** — AI interactions should feel like working with a smart colleague, not invoking magic. Show the process, celebrate the result, keep the user in control.
+5. **Consistent entity language** — Each entity type (doc/sheet/diagram/deck) has its own color and personality. Use these consistently across tabs, icons, badges, and backgrounds to build spatial memory.

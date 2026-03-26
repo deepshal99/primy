@@ -141,9 +141,9 @@ export function SheetAIBar() {
         >
           {/* Selection indicator */}
           {selectionInfo && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border bg-cyan-50/50 dark:bg-cyan-950/20">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border bg-cyan-50/50">
               <Grid3X3 className="w-3 h-3 text-cyan-500" strokeWidth={2} />
-              <span className="text-[10px] font-medium text-cyan-600 dark:text-cyan-400">
+              <span className="text-[10px] font-medium text-cyan-600">
                 Selected: {selectionInfo.rangeLabel}
               </span>
             </div>
@@ -185,7 +185,7 @@ export function SheetAIBar() {
                 key={action.label}
                 onClick={() => executeAIAction(action.prompt)}
                 disabled={isLoading || isStreaming}
-                className="px-2 py-1 rounded-md text-[10px] font-medium t-fast disabled:opacity-50 bg-muted text-muted-foreground hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-950/30 dark:hover:text-amber-400"
+                className="px-2 py-1 rounded-md text-[10px] font-medium t-fast disabled:opacity-50 bg-muted text-muted-foreground hover:bg-amber-50 hover:text-amber-600"
               >
                 {action.label}
               </button>

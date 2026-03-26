@@ -3,6 +3,7 @@ import { users, passwordResetTokens } from "@/db/schema";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { Resend } from "resend";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY);
@@ -10,6 +11,16 @@ function getResend() {
 
 export async function POST(req: Request) {
   try {
+    // IP-based rate limiting before any DB work (10 req/min)
+    const ip = req.headers.get("x-real-ip") || req.headers.get("x-forwarded-for")?.split(",").pop()?.trim() || "unknown";
+    const rateLimit = checkRateLimit(`${ip}:forgot-password`, 10, 60_000);
+    if (!rateLimit.allowed) {
+      return Response.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) } },
+      );
+    }
+
     let body: { email?: string };
     try {
       body = await req.json();

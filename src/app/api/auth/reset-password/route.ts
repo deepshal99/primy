@@ -2,9 +2,20 @@ import { db } from "@/db";
 import { users, passwordResetTokens } from "@/db/schema";
 import { eq, and, gt } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export async function POST(req: Request) {
   try {
+    // IP-based rate limiting (10 req/min)
+    const ip = req.headers.get("x-real-ip") || req.headers.get("x-forwarded-for")?.split(",").pop()?.trim() || "unknown";
+    const rateLimit = checkRateLimit(`${ip}:reset-password`, 10, 60_000);
+    if (!rateLimit.allowed) {
+      return Response.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) } },
+      );
+    }
+
     let body: { token?: string; password?: string };
     try {
       body = await req.json();
