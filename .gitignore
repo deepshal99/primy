@@ -41,3 +41,6 @@ next-env.d.ts
 
 # Reference material (not source code)
 src/extra/
+
+# QA testing artifacts
+.gstack/
