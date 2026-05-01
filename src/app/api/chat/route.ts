@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { SYSTEM_PROMPT } from "@/lib/ai/systemPrompt";
 import { getModelConfig, getModel, estimateContextSize, type AITask } from "@/lib/ai/modelRouter";
 import { withPlanLimit, type PlanCtx } from "@/lib/billing";
+import { getSlashCommand } from "@/lib/ai/slashCommands";
 import { checkRateLimit } from "@/lib/rateLimit";
 import "@/lib/env";
 
@@ -108,6 +109,35 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
 
     // Build the last user message with context injection
     const lastMessage = messages[messages.length - 1];
+
+    // ── Slash command detection ────────────────────────────────────────
+    // Inspect the last user message for a leading "/<name> " token.
+    // If it matches a known command and the user's plan permits the
+    // command's tier, append the command's prompt augmentation to
+    // SYSTEM_PROMPT. Pro-only commands silently fall back to base
+    // prompt for free users (UI also visually mutes them).
+    let composedSystemPrompt = SYSTEM_PROMPT;
+    if (lastMessage && Array.isArray((lastMessage as any).parts)) {
+      // UIMessage shape — parts[0] may be { type: "text", text: ... }
+      const firstPart = (lastMessage as any).parts.find((p: any) => p?.type === "text");
+      const userText: string = typeof firstPart?.text === "string" ? firstPart.text : "";
+      const slashMatch = userText.match(/^\/([a-z][a-z0-9_-]*)\b/i);
+      if (slashMatch) {
+        const cmd = getSlashCommand(slashMatch[1].toLowerCase());
+        if (cmd) {
+          const planPermits =
+            cmd.tier === "starter" || (cmd.tier === "pro" && ctx.plan === "pro");
+          if (planPermits) {
+            const projectTitle =
+              typeof projectContext === "object" && projectContext
+                ? (projectContext as any).title
+                : undefined;
+            const augmentation = cmd.systemPromptFor({ projectTitle });
+            composedSystemPrompt = `${SYSTEM_PROMPT}\n\n${augmentation}`;
+          }
+        }
+      }
+    }
 
     // Build sheet context as CSV for token efficiency
     let sheetContext = "";
@@ -283,7 +313,7 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
       if (modelProvider === "google") {
         result = streamText({
           model: getModel(taskType, contextSize),
-          system: SYSTEM_PROMPT,
+          system: composedSystemPrompt,
           messages: modelMessages,
           maxOutputTokens,
           providerOptions: modelId.includes("pro") ? {
@@ -297,7 +327,7 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
       } else {
         result = streamText({
           model: getModel(taskType, contextSize),
-          system: SYSTEM_PROMPT,
+          system: composedSystemPrompt,
           messages: modelMessages,
           maxOutputTokens,
           abortSignal: req.signal,

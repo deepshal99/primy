@@ -15,6 +15,9 @@ import {
 } from "@/lib/fileUtils";
 import { cn } from "@/lib/cn";
 import { FilePreviewPill } from "./FilePreviewPill";
+import { SlashCommandMenu } from "./SlashCommandMenu";
+import { SLASH_COMMANDS, type SlashCommand } from "@/lib/ai/slashCommands";
+import { usePlanInfo } from "@/hooks/usePlanInfo";
 
 const MAX_INPUT_LENGTH = 50_000; // 50K chars — prevents enormous pastes from blowing up context
 
@@ -51,6 +54,10 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
   const [mentionStart, setMentionStart] = useState<number>(0);
   const [mentionedEntities, setMentionedEntities] = useState<MentionEntity[]>([]);
   const [mentionIndex, setMentionIndex] = useState(0);
+  // Slash command popover state. Active only when value starts with `/`
+  // and the cursor is inside the leading slash word (no whitespace yet).
+  const [slashQuery, setSlashQuery] = useState<string | null>(null);
+  const [slashIndex, setSlashIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
@@ -109,6 +116,45 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
     setMentionStart(0);
     setMentionIndex(0);
   }, []);
+
+  // ── Slash command state derivation ────────────────────────────
+  const planInfo = usePlanInfo();
+  const effectivePlan = planInfo.loading ? "free" : planInfo.plan;
+
+  const filteredSlashCommands = useMemo(() => {
+    if (slashQuery === null) return [] as SlashCommand[];
+    const q = slashQuery.toLowerCase();
+    if (!q) return SLASH_COMMANDS;
+    return SLASH_COMMANDS.filter(
+      (c) => c.name.toLowerCase().startsWith(q) || c.label.toLowerCase().includes(q)
+    );
+  }, [slashQuery]);
+
+  // Reset highlighted slash command when filter changes.
+  const slashCount = filteredSlashCommands.length;
+  useEffect(() => {
+    setSlashIndex(0);
+  }, [slashCount]);
+
+  const selectSlashCommand = useCallback(
+    (cmd: SlashCommand) => {
+      // Replace the leading "/word" with "/<name> " — user continues typing context.
+      const trailing = value.replace(/^\/\S*/, "").trimStart();
+      const next = `/${cmd.name} ${trailing}`;
+      setValue(next);
+      setSlashQuery(null);
+      setSlashIndex(0);
+      // Restore caret to end-of-input on next tick.
+      setTimeout(() => {
+        const ta = textareaRef.current;
+        if (ta) {
+          ta.focus();
+          ta.setSelectionRange(next.length, next.length);
+        }
+      }, 0);
+    },
+    [value]
+  );
 
   const selectMention = useCallback(
     (entity: MentionEntity) => {
@@ -186,6 +232,39 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
       }
     }
 
+    // Slash command popover navigation (only when actively shown).
+    if (slashQuery !== null) {
+      const list = filteredSlashCommands;
+      if (list.length > 0) {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setSlashIndex((prev) => (prev + 1) % list.length);
+          return;
+        }
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setSlashIndex((prev) => (prev - 1 + list.length) % list.length);
+          return;
+        }
+        if (e.key === "Enter") {
+          e.preventDefault();
+          selectSlashCommand(list[slashIndex]);
+          return;
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setSlashQuery(null);
+          return;
+        }
+        // Tab also accepts top suggestion — convenient autocomplete
+        if (e.key === "Tab") {
+          e.preventDefault();
+          selectSlashCommand(list[slashIndex]);
+          return;
+        }
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -226,6 +305,20 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
       }
     } else {
       dismissMention();
+    }
+
+    // Detect leading slash command — only at position 0, before whitespace.
+    // `/proposal` shows menu; `/proposal Acme` (after space) hides it.
+    if (newValue.startsWith("/")) {
+      const firstSpace = newValue.search(/\s/);
+      const slashWord = firstSpace === -1 ? newValue.slice(1) : null;
+      if (slashWord !== null && cursorPos <= newValue.length) {
+        setSlashQuery(slashWord);
+      } else {
+        setSlashQuery(null);
+      }
+    } else {
+      setSlashQuery(null);
     }
 
     const el = e.target;
@@ -360,6 +453,17 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
               <span className="text-[13px] font-medium">Drop files here</span>
             </div>
           </div>
+        )}
+
+        {/* Slash command popover */}
+        {slashQuery !== null && filteredSlashCommands.length > 0 && (
+          <SlashCommandMenu
+            query={slashQuery}
+            selectedIndex={slashIndex}
+            setSelectedIndex={setSlashIndex}
+            onSelect={selectSlashCommand}
+            effectivePlan={effectivePlan}
+          />
         )}
 
         {/* @ Mention popover */}

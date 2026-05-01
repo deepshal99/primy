@@ -27,6 +27,7 @@ import {
 import { createEmptySheet } from "@/lib/sheet/defaultData";
 import { applyOperations, normalizeCells } from "@/lib/ai/sheetOperations";
 import { applyDocOps } from "@/lib/ai/docOperations";
+import { scheduleSnapshot } from "@/lib/snapshots/scheduler";
 import { extractDisplayText, validateThemeConfig } from "@/lib/ai/parseAIResponse";
 import {
   fetchProjects,
@@ -794,6 +795,32 @@ export const useAppStore = create<AppState>()(
     // Auto-save (debounced for batching)
     if (state.currentProjectId) {
       scheduleDebouncedSave();
+    }
+
+    // Persistent snapshot (fire-and-forget, debounced per artifact).
+    // Captures post-AI-edit state of the active artifact so users can
+    // restore via the version history panel. Failures are silent.
+    if (hasAnyOps && state.currentEntityId && state.currentEntityType) {
+      const post = get();
+      const labelPreview = displayContent.slice(0, 60);
+      const label = labelPreview ? `After AI edit — ${labelPreview}` : "After AI edit";
+      const id = post.currentEntityId!;
+      switch (post.currentEntityType) {
+        case "ku":
+          scheduleSnapshot({ type: "ku", id, content: { docContent: post.docContent }, label });
+          break;
+        case "table":
+          scheduleSnapshot({ type: "table", id, content: { sheets: post.sheets }, label });
+          break;
+        case "deck":
+          scheduleSnapshot({
+            type: "deck",
+            id,
+            content: { slides: post.deckSlides, theme: post.deckTheme },
+            label,
+          });
+          break;
+      }
     }
 
     // Auto-generate title

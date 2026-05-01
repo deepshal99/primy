@@ -8,6 +8,7 @@ import { ExportMenu } from "@/components/sheet/ExportMenu";
 import { DocExportMenu } from "@/components/doc/DocExportMenu";
 import { DeckExport } from "./EntityActions";
 import { EditorErrorBoundary } from "./EditorErrorBoundary";
+import { ArtifactHistoryButton } from "@/components/snapshots/ArtifactHistoryButton";
 
 const SheetPanel = dynamic(
   () => import("@/components/sheet/SheetPanel").then((m) => ({ default: m.SheetPanel })),
@@ -80,9 +81,13 @@ export function WorkspacePanel() {
   };
 
   const renderExportAction = () => {
-    if (isDeck) return <DeckExport />;
-    if (isTable) return <ExportMenu />;
-    return <DocExportMenu />;
+    const exportEl = isDeck ? <DeckExport /> : isTable ? <ExportMenu /> : <DocExportMenu />;
+    return (
+      <div className="flex items-center gap-0.5">
+        <ArtifactHistoryButton />
+        {exportEl}
+      </div>
+    );
   };
 
   const toolbarActions = null;
