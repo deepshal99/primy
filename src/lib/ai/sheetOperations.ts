@@ -234,6 +234,11 @@ function applyOperation(
         break;
       }
 
+      case "INSERT_IMAGE": {
+        // Handled separately via Univer API in SheetView — skip here
+        break;
+      }
+
       case "SET_DROPDOWN": {
         if (op.sheetIndex < 0 || op.sheetIndex >= draft.length) break;
         const sheet = draft[op.sheetIndex];

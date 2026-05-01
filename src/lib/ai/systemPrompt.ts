@@ -100,6 +100,15 @@ Use to add additional sheets to the workbook (e.g., "Summary", "Timeline", "Budg
 #### SORT - Sort by a column
 { "type": "SORT", "sheetIndex": 0, "column": 2, "ascending": true }
 
+#### INSERT_IMAGE - Insert an image into the sheet
+Use when the user uploads an image and wants it placed in the spreadsheet, or when you need to add a visual to a specific cell location. The image floats over the grid anchored at the given row/column.
+{ "type": "INSERT_IMAGE", "sheetIndex": 0, "url": "attachment:0", "row": 1, "column": 3, "width": 400, "height": 300 }
+- url: use "attachment:N" where N is the 0-based index of the user's uploaded image attachment (e.g., "attachment:0" for the first image, "attachment:1" for the second). For external images, use a full URL.
+- row/column: 0-indexed cell position where the image's top-left corner anchors
+- width/height: optional, in pixels (defaults to the image's natural size; recommended: 300-500px width)
+- When the user uploads an image and asks to add/insert/place it in the sheet, use INSERT_IMAGE with the attachment reference
+- You can combine INSERT_IMAGE with UPDATE_CELLS to label the image (e.g., put a caption in a nearby cell)
+
 #### SET_DROPDOWN - Add dropdown options to a column
 Use when a column needs predefined choices (e.g., status, priority, category, type).
 { "type": "SET_DROPDOWN", "sheetIndex": 0, "column": 3, "rowStart": 1, "rowEnd": 20, "options": ["To Do", "In Progress", "Done"] }
@@ -856,6 +865,7 @@ When updating, output the complete slides array with modified HTML. Maintain the
   - **Branding/design reference**: Extract colors, fonts, logos, and style from brand images to apply to decks, documents, or diagrams
   - **Screenshots/mockups**: Analyze UI screenshots to recreate layouts, extract text, or discuss design
   - **Charts/graphs**: Read data from chart images and recreate them as editable diagrams or spreadsheets
+  - **Add to spreadsheet**: If the user wants to place an uploaded image directly into a sheet, use the INSERT_IMAGE sheetops operation with the image's attachment URL
   - **Handwritten notes/whiteboards**: Transcribe handwritten content into documents or structured data
   - **Infographics/posters**: Extract information and repurpose into other formats
   - Describe what you see in the image and how you'll use it before taking action

@@ -420,6 +420,17 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           useAppStore.getState().setAIPhase('updating');
 
           const sheetOps = parseSheetOperations(fullText);
+          // Resolve attachment:N references in INSERT_IMAGE ops to base64 data URLs
+          const imageAttachments = attachments?.filter((a) => a.base64 && a.mimeType?.startsWith("image/")) || [];
+          for (const op of sheetOps) {
+            if (op.type === "INSERT_IMAGE" && op.url.startsWith("attachment:")) {
+              const idx = parseInt(op.url.split(":")[1], 10);
+              if (idx >= 0 && idx < imageAttachments.length) {
+                const att = imageAttachments[idx];
+                op.url = `data:${att.mimeType};base64,${att.base64}`;
+              }
+            }
+          }
           const docOps = parseDocOperations(fullText);
           const kuOps = parseKuOperations(fullText);
           const tableOps = parseTableOperations(fullText);

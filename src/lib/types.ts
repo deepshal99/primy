@@ -104,6 +104,15 @@ export type SheetOperation =
       rowStart: number;
       rowEnd: number;
       options: string[];
+    }
+  | {
+      type: "INSERT_IMAGE";
+      sheetIndex: number;
+      url: string;
+      row: number;
+      column: number;
+      width?: number;
+      height?: number;
     };
 
 // ═══ Document Operations ═══
@@ -475,6 +484,7 @@ export interface AppState {
   activeTab: WorkspaceTab;
   workspaceOpen: boolean;
   pendingAttachments: FileAttachment[];
+  pendingSheetImages: { sheetIndex: number; url: string; row: number; column: number; width?: number; height?: number }[];
   suggestions: string[];
   projectMemory: ProjectMemory;
   readingFiles: string[];
@@ -535,6 +545,7 @@ export interface AppState {
   removePendingAttachment: (id: string) => void;
   updatePendingAttachment: (id: string, updates: Partial<FileAttachment>) => void;
   clearPendingAttachments: () => void;
+  clearPendingSheetImages: () => void;
   updateProjectMemory: (memory: Partial<ProjectMemory>) => void;
   undo: () => void;
   redo: () => void;

@@ -217,6 +217,7 @@ export const useAppStore = create<AppState>()(
   activeTab: "sheet",
   workspaceOpen: false,
   pendingAttachments: [],
+  pendingSheetImages: [],
   suggestions: [],
   projectMemory: {},
   readingFiles: [],
@@ -335,8 +336,24 @@ export const useAppStore = create<AppState>()(
 
     let newSheets = state.sheets;
     let newSheetVersion = state.sheetVersion;
+    let newPendingImages = state.pendingSheetImages;
     if (hasSheetOps) {
-      newSheets = applyOperations(state.sheets, sheetOperations);
+      // Separate INSERT_IMAGE ops (need Univer API) from data ops (apply via Immer)
+      const imageOps = sheetOperations.filter((op): op is Extract<SheetOperation, { type: "INSERT_IMAGE" }> => op.type === "INSERT_IMAGE");
+      const dataOps = sheetOperations.filter((op) => op.type !== "INSERT_IMAGE");
+      if (dataOps.length > 0) {
+        newSheets = applyOperations(state.sheets, dataOps);
+      }
+      if (imageOps.length > 0) {
+        newPendingImages = [...state.pendingSheetImages, ...imageOps.map((op) => ({
+          sheetIndex: op.sheetIndex,
+          url: op.url,
+          row: op.row,
+          column: op.column,
+          width: op.width,
+          height: op.height,
+        }))];
+      }
       newSheetVersion = state.sheetVersion + 1;
     }
 
@@ -799,6 +816,7 @@ export const useAppStore = create<AppState>()(
       streamingContent: "",
       sheets: newSheets,
       sheetVersion: newSheetVersion,
+      pendingSheetImages: newPendingImages,
       docContent: newDocContent,
       docVersion: newDocVersion,
       diagramSource: newDiagramSource,
@@ -945,6 +963,8 @@ export const useAppStore = create<AppState>()(
     })),
 
   clearPendingAttachments: () => set({ pendingAttachments: [] }),
+
+  clearPendingSheetImages: () => set({ pendingSheetImages: [] }),
 
   clearSuggestions: () => set({ suggestions: [] }),
 

@@ -171,10 +171,14 @@ export function SheetView() {
       const { createUniver, LocaleType, mergeLocales } = await import("@univerjs/presets");
       const { UniverSheetsCorePreset } = await import("@univerjs/preset-sheets-core");
       const UniverPresetSheetsCoreEnUS = (await import("@univerjs/preset-sheets-core/locales/en-US")).default;
+      const { UniverSheetsDrawingPreset } = await import("@univerjs/preset-sheets-drawing");
+      const UniverPresetSheetsDrawingEnUS = (await import("@univerjs/preset-sheets-drawing/locales/en-US")).default;
 
       // CSS is imported via side-effect in the preset
       // @ts-ignore - CSS module import
       await import("@univerjs/preset-sheets-core/lib/index.css");
+      // @ts-ignore - CSS module import
+      await import("@univerjs/preset-sheets-drawing/lib/index.css");
 
       if (disposed) return;
 
@@ -184,12 +188,13 @@ export function SheetView() {
       const { univer, univerAPI } = createUniver({
         locale: LocaleType.EN_US,
         locales: {
-          [LocaleType.EN_US]: mergeLocales(UniverPresetSheetsCoreEnUS),
+          [LocaleType.EN_US]: mergeLocales(UniverPresetSheetsCoreEnUS, UniverPresetSheetsDrawingEnUS),
         },
         presets: [
           UniverSheetsCorePreset({
             container: containerRef.current!,
           }),
+          UniverSheetsDrawingPreset(),
         ],
       });
 
@@ -202,6 +207,33 @@ export function SheetView() {
       univerRef.current = { univer, univerAPI };
       univerApiRef = univerAPI;
 
+      // Apply any pending sheet images from AI operations
+      const pendingImages = useAppStore.getState().pendingSheetImages;
+      if (pendingImages.length > 0) {
+        const workbook = univerAPI.getActiveWorkbook();
+        if (workbook) {
+          for (const img of pendingImages) {
+            try {
+              const sheetOrder = (workbook as any).getSnapshot?.()?.sheetOrder;
+              const sheetId = sheetOrder?.[img.sheetIndex] || `sheet_${img.sheetIndex}`;
+              const sheet = workbook.getSheetBySheetId(sheetId);
+              if (sheet) {
+                const builder = (sheet as any).newOverGridImage()
+                  .setSource(img.url, (univerAPI as any).Enum?.ImageSourceType?.URL ?? 1)
+                  .setColumn(img.column)
+                  .setRow(img.row);
+                if (img.width) builder.setWidth(img.width);
+                if (img.height) builder.setHeight(img.height);
+                const builtImage = await builder.buildAsync();
+                (sheet as any).insertImages([builtImage]);
+              }
+            } catch (err) {
+              console.error("[Drafta] Failed to insert sheet image:", err);
+            }
+          }
+        }
+        useAppStore.getState().clearPendingSheetImages();
+      }
 
       // Listen for cell edits to sync back to store
       univerAPI.addEvent((univerAPI as any).Event.SheetEditEnded, () => {
