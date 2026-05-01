@@ -206,8 +206,30 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           <div className="px-6 py-5 max-h-[70vh] overflow-y-auto">
             <TabsContent value="account" className="m-0">
               {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                <div className="space-y-5" aria-label="Loading account">
+                  {/* Avatar + name + email row */}
+                  <div className="flex items-center gap-3">
+                    <Skeleton variant="shimmer" className="w-12 h-12 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-[14px] w-[160px] rounded" />
+                      <Skeleton className="h-[12px] w-[200px] rounded" />
+                    </div>
+                  </div>
+                  {/* Name field */}
+                  <div className="space-y-2">
+                    <Skeleton className="h-[10px] w-[40px] rounded" />
+                    <Skeleton className="h-9 w-full" style={{ borderRadius: 6 }} />
+                  </div>
+                  {/* Email field */}
+                  <div className="space-y-2">
+                    <Skeleton className="h-[10px] w-[40px] rounded" />
+                    <Skeleton className="h-9 w-full" style={{ borderRadius: 6 }} />
+                  </div>
+                  {/* Security section */}
+                  <div className="pt-3 space-y-2">
+                    <Skeleton className="h-[10px] w-[60px] rounded" />
+                    <Skeleton className="h-10 w-full" style={{ borderRadius: 8 }} />
+                  </div>
                 </div>
               ) : (
                 <>
@@ -416,13 +438,16 @@ function BillingTabContent() {
 
   if (info.loading) {
     return (
-      <div className="space-y-5">
-        <Skeleton className="h-16 w-full" style={{ borderRadius: 10 }} />
-        <div className="space-y-4">
-          <Skeleton className="h-12 w-full" style={{ borderRadius: 8 }} />
-          <Skeleton className="h-12 w-full" style={{ borderRadius: 8 }} />
-          <Skeleton className="h-12 w-full" style={{ borderRadius: 8 }} />
+      <div className="space-y-5" aria-label="Loading billing">
+        {/* Plan banner */}
+        <Skeleton variant="shimmer" className="h-16 w-full" style={{ borderRadius: 10 }} />
+        {/* Usage rows */}
+        <div className="space-y-3">
+          <Skeleton className="h-[44px] w-full" style={{ borderRadius: 8 }} />
+          <Skeleton className="h-[44px] w-full" style={{ borderRadius: 8 }} />
+          <Skeleton className="h-[44px] w-full" style={{ borderRadius: 8 }} />
         </div>
+        {/* CTA */}
         <Skeleton className="h-9 w-40" style={{ borderRadius: 6 }} />
       </div>
     );

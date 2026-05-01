@@ -396,6 +396,47 @@ html, body { height: 100%; margin: 0; padding: 0; }
 }
 
 /* ═══════════════════════════════════════
+   Skeleton Loaders
+   Base + pulse + shimmer variants
+   ═══════════════════════════════════════ */
+
+.skeleton-base {
+  background-color: rgba(0, 0, 0, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+.skeleton-pulse { animation: skeletonPulse 1.2s linear infinite; }
+
+@keyframes skeletonShimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 100%
+  );
+  animation: skeletonShimmer 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-pulse,
+  .skeleton-shimmer::after {
+    animation: none;
+  }
+}
+
+/* ═══════════════════════════════════════
    Content Loading Animation
    Lines that appear one-by-one like a doc
    ═══════════════════════════════════════ */

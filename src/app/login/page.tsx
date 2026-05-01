@@ -14,7 +14,7 @@ export default function LoginPage() {
   // Redirect authenticated users to dashboard
   useEffect(() => {
     if (status === "authenticated") {
-      router.replace("/");
+      router.replace("/app");
     }
   }, [status, router]);
 
@@ -73,7 +73,10 @@ export default function LoginPage() {
         setError("Something went wrong. Try again.");
       }
     } else if (result?.ok) {
-      window.location.href = "/";
+      // New signups land in onboarding; existing users land in the app.
+      // We do a full page navigation so the JWT/session cookie is
+      // propagated before the next request.
+      window.location.href = mode === "signup" ? "/onboarding" : "/app";
     }
   };
 

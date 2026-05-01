@@ -4,21 +4,50 @@ import { useAppStore } from "@/lib/store";
 import { DeckGeneratingView } from "./DeckGeneratingView";
 import { DeckLinearView } from "./DeckLinearView";
 import type { DeckPhase } from "@/lib/types";
-import { Presentation } from "lucide-react";
 
 function DeckIdleView() {
   return (
     <div className="h-full flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4 text-center px-8 max-w-[320px]">
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-[#fef0e8]">
-          <Presentation className="w-6 h-6 text-[#d4582a]" strokeWidth={1.5} />
+      <div className="flex flex-col items-center gap-4 text-center px-8 max-w-[360px] animate-fade-in">
+        {/* Stacked-slides illustration */}
+        <div className="relative w-[88px] h-[56px]" aria-hidden>
+          <div
+            className="absolute inset-0 rounded-[10px] -rotate-[6deg] -translate-x-1.5"
+            style={{
+              background: "#fde8dc",
+              border: "1px solid rgba(212, 88, 42, 0.16)",
+            }}
+          />
+          <div
+            className="absolute inset-0 rounded-[10px] rotate-[3deg] translate-x-1"
+            style={{
+              background: "#fef0e8",
+              border: "1px solid rgba(212, 88, 42, 0.20)",
+            }}
+          />
+          <div
+            className="absolute inset-0 rounded-[10px] bg-white"
+            style={{
+              border: "1px solid rgba(212, 88, 42, 0.30)",
+              boxShadow: "0 4px 12px rgba(212, 88, 42, 0.10)",
+            }}
+          >
+            <div className="absolute inset-x-3 top-3 h-[3px] rounded-full bg-[rgba(212,88,42,0.45)]" />
+            <div className="absolute inset-x-3 top-[18px] h-[2px] w-[60%] rounded-full bg-[rgba(212,88,42,0.25)]" />
+            <div className="absolute inset-x-3 top-[26px] h-[2px] w-[80%] rounded-full bg-[rgba(212,88,42,0.18)]" />
+            <div className="absolute left-3 bottom-3 flex gap-1">
+              <div className="w-3 h-2 rounded-[2px] bg-[rgba(212,88,42,0.30)]" />
+              <div className="w-3 h-2 rounded-[2px] bg-[rgba(212,88,42,0.18)]" />
+              <div className="w-3 h-2 rounded-[2px] bg-[rgba(212,88,42,0.30)]" />
+            </div>
+          </div>
         </div>
         <div>
-          <p className="text-[14px] font-medium text-[#1a1a2e] mb-1">
-            Ready to create
+          <p className="text-[15px] font-medium text-[#171717] mb-1.5 font-heading tracking-[-0.01em]">
+            Add your first slide
           </p>
-          <p className="text-[12px] text-[#95928E] leading-relaxed">
-            Describe your presentation in the chat — topic, audience, style — and we&apos;ll design it for you
+          <p className="text-[12.5px] text-[#737373] leading-relaxed">
+            Describe your deck in chat — topic, audience, style — and AI will design it for you.
           </p>
         </div>
       </div>

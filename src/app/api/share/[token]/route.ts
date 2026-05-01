@@ -1,12 +1,35 @@
 import { db } from "@/db";
-import { projects, knowledgeUnits, projectTables, projectDecks } from "@/db/schema";
+import { projects, knowledgeUnits, projectTables, projectDecks, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { effectivePlan } from "@/lib/billing";
+import type { Plan } from "@/lib/plans";
 
 /**
  * GET /api/share/[token] — Public endpoint (no auth).
  * Looks up the share token across projects, KUs, tables, and decks.
+ *
+ * Returns `ownerEffectivePlan` ("free" | "pro") so the share viewer
+ * can render the "Built with Drafta" watermark for free-tier owners
+ * and serve a clean canvas for pro owners.
+ *
+ * Single indexed lookup — no caching layer per eng-review decision #7
+ * (KISS, premature caching avoided). The owner's userId is already on
+ * the project row; one extra `users` SELECT keyed by primary key is
+ * cheap and consistent with current load.
  */
+
+async function resolveOwnerPlan(userId: string): Promise<Plan> {
+  // Single indexed lookup — no caching layer per eng-review decision #7
+  // (KISS, premature caching avoided).
+  const [user] = await db
+    .select({ plan: users.plan, proUntil: users.proUntil })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!user) return "free";
+  return effectivePlan({ plan: user.plan, proUntil: user.proUntil });
+}
 
 export async function GET(
   _req: Request,
@@ -38,6 +61,7 @@ export async function GET(
       .limit(1);
 
     if (project) {
+      const ownerEffectivePlan = await resolveOwnerPlan(project.userId);
       const [kus, tables, decks] = await Promise.all([
         db
           .select({
@@ -80,6 +104,7 @@ export async function GET(
         documents: kus,
         tables,
         decks,
+        ownerEffectivePlan,
       });
     }
 
@@ -99,16 +124,21 @@ export async function GET(
 
     if (ku) {
       const [proj] = await db
-        .select({ title: projects.title })
+        .select({ title: projects.title, userId: projects.userId })
         .from(projects)
         .where(eq(projects.id, ku.projectId))
         .limit(1);
+
+      const ownerEffectivePlan: Plan = proj
+        ? await resolveOwnerPlan(proj.userId)
+        : "free";
 
       return Response.json({
         type: "document",
         title: ku.title,
         content: ku.content,
         projectTitle: proj?.title || "",
+        ownerEffectivePlan,
       });
     }
 
@@ -128,16 +158,21 @@ export async function GET(
 
     if (table) {
       const [proj] = await db
-        .select({ title: projects.title })
+        .select({ title: projects.title, userId: projects.userId })
         .from(projects)
         .where(eq(projects.id, table.projectId))
         .limit(1);
+
+      const ownerEffectivePlan: Plan = proj
+        ? await resolveOwnerPlan(proj.userId)
+        : "free";
 
       return Response.json({
         type: "table",
         title: table.title,
         sheets: table.sheets,
         projectTitle: proj?.title || "",
+        ownerEffectivePlan,
       });
     }
 
@@ -159,10 +194,14 @@ export async function GET(
 
     if (deck) {
       const [proj] = await db
-        .select({ title: projects.title })
+        .select({ title: projects.title, userId: projects.userId })
         .from(projects)
         .where(eq(projects.id, deck.projectId))
         .limit(1);
+
+      const ownerEffectivePlan: Plan = proj
+        ? await resolveOwnerPlan(proj.userId)
+        : "free";
 
       return Response.json({
         type: "deck",
@@ -171,6 +210,7 @@ export async function GET(
         theme: deck.theme,
         style: deck.style || null,
         projectTitle: proj?.title || "",
+        ownerEffectivePlan,
       });
     }
 

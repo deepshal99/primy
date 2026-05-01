@@ -2,7 +2,7 @@
 
 import { useRef, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
-import { Table2, Upload, ClipboardPaste, Sparkles } from "lucide-react";
+import { Upload, ClipboardPaste, Sparkles } from "lucide-react";
 import { SheetAIBar } from "./SheetAIBar";
 import type { CellData, CellValue, SheetData } from "@/lib/types";
 import type { FUniver } from "@univerjs/core/lib/facade";
@@ -338,30 +338,60 @@ export function SheetView() {
     <div className="w-full h-full relative bg-background">
       {showPlaceholder && (
         <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-          <div className="flex flex-col items-center gap-3 text-center px-8">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[#e8f7ea]">
-              <Table2
-                className="w-5 h-5 text-[#10B981]"
-                strokeWidth={1.5}
-              />
+          <div className="flex flex-col items-center gap-4 text-center px-8 animate-fade-in">
+            {/* Mini grid illustration */}
+            <div
+              className="relative w-[60px] h-[44px] rounded-[8px] overflow-hidden border border-[rgba(46,158,71,0.22)] bg-white"
+              style={{ boxShadow: "0 2px 6px rgba(0,0,0,0.04)" }}
+              aria-hidden
+            >
+              {/* Header row */}
+              <div className="flex h-[10px] border-b border-[rgba(46,158,71,0.18)]">
+                {[0, 1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="flex-1 border-r last:border-r-0 border-[rgba(46,158,71,0.12)] bg-[#e8f7ea]"
+                  />
+                ))}
+              </div>
+              {/* Body rows */}
+              {[0, 1, 2].map((r) => (
+                <div
+                  key={r}
+                  className="flex h-[11px] border-b last:border-b-0 border-[rgba(46,158,71,0.10)]"
+                >
+                  {[0, 1, 2, 3].map((c) => (
+                    <div
+                      key={c}
+                      className="flex-1 border-r last:border-r-0 border-[rgba(46,158,71,0.08)]"
+                      style={{
+                        background: c === 0 ? "rgba(46,158,71,0.06)" : "transparent",
+                      }}
+                    />
+                  ))}
+                </div>
+              ))}
             </div>
             <div>
-              <p className="text-[13px] font-medium mb-1.5 text-[#95928E]">
-                Your spreadsheet is ready
+              <p className="text-[14px] font-medium mb-1 text-[#171717] font-heading tracking-[-0.01em]">
+                Start typing or paste data
               </p>
-              <div className="flex items-center justify-center gap-4 text-[11px] text-[#b0ada6]">
+              <p className="text-[12px] text-[#737373] mb-3 max-w-[300px] leading-relaxed">
+                Click a cell to begin, or ask AI in chat to build a sheet for you.
+              </p>
+              <div className="flex items-center justify-center gap-3 text-[11px] text-[#a3a3a3]">
                 <span className="flex items-center gap-1">
-                  <Upload className="w-3 h-3" />
-                  Import a file
+                  <Upload className="w-3 h-3" strokeWidth={1.75} />
+                  Import
                 </span>
-                <span className="text-[#d0cfc9]">/</span>
+                <span className="text-[#d4d4d4]">·</span>
                 <span className="flex items-center gap-1">
-                  <ClipboardPaste className="w-3 h-3" />
-                  Paste data
+                  <ClipboardPaste className="w-3 h-3" strokeWidth={1.75} />
+                  Paste
                 </span>
-                <span className="text-[#d0cfc9]">/</span>
+                <span className="text-[#d4d4d4]">·</span>
                 <span className="flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" />
+                  <Sparkles className="w-3 h-3" strokeWidth={1.75} />
                   Ask AI
                 </span>
               </div>

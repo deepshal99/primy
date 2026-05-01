@@ -1,19 +1,30 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { WorkspacePanel } from "@/components/workspace/WorkspacePanel";
 import { NavRail } from "@/components/sidebar/NavRail";
 import { KeyboardShortcuts } from "@/components/shared/KeyboardShortcuts";
 import { SearchDialog } from "@/components/shared/SearchDialog";
-import { WelcomeModal } from "@/components/onboarding/WelcomeModal";
 import { useAppStore } from "@/lib/store";
-import { MessageSquare, PanelRight } from "lucide-react";
+import { MessageSquare, PanelRight, Loader2 } from "lucide-react";
 
 type ViewMode = "chat" | "editor" | "project";
 type MobilePanel = "chat" | "workspace";
 
+// Onboarding-gate query — single source of truth for hasOnboarded in the
+// shell. Reused by usePlanInfo via the same ["user"] key, so cached.
+async function fetchUserForGate(): Promise<{ hasOnboarded: boolean }> {
+  const res = await fetch("/api/user", { cache: "no-store" });
+  if (!res.ok) throw new Error(`Failed to load user (${res.status})`);
+  return res.json();
+}
+
 export function AppShell() {
+  const router = useRouter();
+  const pathname = usePathname();
   const workspaceOpen = useAppStore((s) => s.workspaceOpen);
   const currentEntityId = useAppStore((s) => s.currentEntityId);
   const currentProjectId = useAppStore((s) => s.currentProjectId);
@@ -26,6 +37,23 @@ export function AppShell() {
   const closeTab = useAppStore((s) => s.closeTab);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("chat");
+
+  // ── Onboarding guard ──
+  // If the authenticated user hasn't onboarded yet AND they're not already
+  // on /onboarding, redirect them. We block render until the query
+  // resolves so the rest of the shell (which fetches projects on mount)
+  // doesn't race with the redirect.
+  const userQuery = useQuery({
+    queryKey: ["user"],
+    queryFn: fetchUserForGate,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (userQuery.data && userQuery.data.hasOnboarded === false && pathname !== "/onboarding") {
+      router.replace("/onboarding");
+    }
+  }, [userQuery.data, pathname, router]);
 
   // Derive view mode
   const viewMode: ViewMode = useMemo(() => {
@@ -119,6 +147,18 @@ export function AppShell() {
 
   const showMobileToggle = workspaceOpen && viewMode !== "chat";
 
+  // Block render until onboarding gate resolves — prevents the project
+  // list from auto-flipping hasOnboarded=true via /api/projects before
+  // the user has been redirected to /onboarding.
+  const needsOnboarding = userQuery.data && userQuery.data.hasOnboarded === false;
+  if (userQuery.isLoading || needsOnboarding) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-[#fafaf8]">
+        <Loader2 className="w-5 h-5 animate-spin text-[#ff4a00]" />
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen w-screen flex bg-[#EAEAEA] overflow-hidden">
       {/* Navigation Rail — hidden on mobile */}
@@ -189,7 +229,6 @@ export function AppShell() {
 
       <KeyboardShortcuts />
       <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
-      <WelcomeModal />
     </div>
   );
 }

@@ -44,6 +44,7 @@ import type {
 } from "@/lib/types";
 import { ShareModal } from "@/components/settings/ShareModal";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 
 // ====================================
 // -- Entity type config --
@@ -196,23 +197,39 @@ export function ProjectHome() {
 
   if (isLoadingProject) {
     return (
-      <div className="h-full overflow-y-auto bg-white">
+      <div className="h-full overflow-y-auto bg-white" aria-label="Loading project">
         <div className="max-w-[1100px] mx-auto px-20 py-10">
-          <Skeleton className="h-8 w-[280px] mb-3" />
-          <Skeleton className="h-4 w-[360px] mb-2" />
-          <Skeleton className="h-3 w-[140px] mt-4 mb-10" />
-          <div className="flex gap-2 mb-6">
-            {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="h-8 w-[90px] rounded-full" />
+          {/* Header */}
+          <Skeleton className="h-[32px] w-[280px] mb-3 rounded-md" />
+          <Skeleton className="h-[14px] w-[360px] mb-2 rounded" />
+          <Skeleton className="h-[11px] w-[140px] mt-4 mb-10 rounded" />
+
+          {/* Filter chips */}
+          <div className="flex gap-2 mb-7">
+            {[112, 92, 108, 110].map((w, i) => (
+              <Skeleton
+                key={i}
+                className="h-[28px] rounded-full"
+                style={{ width: w }}
+              />
             ))}
           </div>
+
+          {/* Card grid — matches actual card layout */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="rounded-2xl overflow-hidden">
-                <Skeleton className="h-[100px] rounded-xl mx-3 mt-3" />
+              <div
+                key={i}
+                className="rounded-2xl overflow-hidden border border-[rgba(0,0,0,0.04)]"
+                style={{ animationDelay: `${i * 60}ms` }}
+              >
+                <Skeleton
+                  variant="shimmer"
+                  className="h-[110px] rounded-xl mx-3 mt-3"
+                />
                 <div className="px-4 pt-3.5 pb-4">
-                  <Skeleton className="h-3 w-[80px] mb-2" />
-                  <Skeleton className="h-4 w-[140px]" />
+                  <Skeleton className="h-[10px] w-[80px] mb-2 rounded" />
+                  <Skeleton className="h-[14px] w-[160px] rounded" />
                 </div>
               </div>
             ))}
@@ -409,51 +426,104 @@ export function ProjectHome() {
 
           {/* Content: empty states or card grid */}
           {filteredEntities.length === 0 && searchQuery.trim() ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="w-10 h-10 rounded-full bg-[#f5f4f0] flex items-center justify-center mb-3">
-                <SearchX className="w-5 h-5 text-[#b0ada6]" />
-              </div>
-              <p className="text-[14px] font-medium text-[#6b6b80] mb-1">No results found</p>
-              <p className="text-[13px] text-[#a09d96]">
-                No files matching &ldquo;{searchQuery.trim()}&rdquo;
-              </p>
-            </div>
+            <EmptyState
+              className="py-12"
+              icon={
+                <div className="w-10 h-10 rounded-full bg-[#f5f4f0] flex items-center justify-center">
+                  <SearchX className="w-[18px] h-[18px] text-[#b0ada6]" strokeWidth={1.75} />
+                </div>
+              }
+              heading="No matches"
+              description={`Nothing found for "${searchQuery.trim()}". Try a shorter query or different word.`}
+            />
           ) : filteredEntities.length === 0 && filter !== "all" ? (
-            <div className="py-10 text-center text-[#a09d96] text-[13px]">
-              No {filter === "ku" ? "documents" : filter === "table" ? "spreadsheets" : "presentations"} yet
-            </div>
+            <EmptyState
+              className="py-12"
+              icon={
+                <div className="w-10 h-10 rounded-full bg-[#f5f4f0] flex items-center justify-center">
+                  {filter === "ku" && <FileText className="w-[18px] h-[18px] text-[#4a7aed]" strokeWidth={1.6} />}
+                  {filter === "table" && <Table2 className="w-[18px] h-[18px] text-[#2e9e47]" strokeWidth={1.6} />}
+                  {filter === "deck" && <Presentation className="w-[18px] h-[18px] text-[#d4582a]" strokeWidth={1.6} />}
+                </div>
+              }
+              heading={`No ${filter === "ku" ? "documents" : filter === "table" ? "spreadsheets" : "presentations"} yet`}
+              description="Switch to All files or create a new one."
+              action={
+                <button
+                  onClick={() => handleCreate(filter)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[12.5px] font-medium text-white bg-[#ff4a00] hover:bg-[#e54400] active:scale-[0.98] transition-all duration-150 shadow-[0_2px_8px_rgba(255,74,0,0.25)]"
+                >
+                  <Plus className="w-3.5 h-3.5" strokeWidth={2.25} />
+                  Create {filter === "ku" ? "document" : filter === "table" ? "spreadsheet" : "presentation"}
+                </button>
+              }
+            />
           ) : entities.length === 0 ? (
-            /* Empty state */
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="text-center mb-8">
-                <h3 className="text-[20px] font-semibold text-[#1a1a2e] tracking-[-0.3px] mb-2" style={{ fontFamily: "'Degular', 'Inter', sans-serif" }}>
-                  Start creating
-                </h3>
-                <p className="text-[14px] text-[#8a877f] leading-relaxed">
-                  Create your first file to get started
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 w-full max-w-[400px] stagger-children">
-                {/* Document */}
-                <button onClick={() => handleCreate('ku')} className="group flex items-center gap-3 px-5 py-4 rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] t-normal active:scale-[0.98] animate-fade-in">
-                  <FileText className="w-5 h-5 text-[#4a7aed] transition-transform duration-150 group-hover:scale-110" strokeWidth={1.75} />
-                  <span className="text-[13px] font-medium text-[#2d2e2e]">Document</span>
-                </button>
-
-                {/* Spreadsheet */}
-                <button onClick={() => handleCreate('table')} className="group flex items-center gap-3 px-5 py-4 rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] t-normal active:scale-[0.98] animate-fade-in">
-                  <Table2 className="w-5 h-5 text-[#2e9e47] transition-transform duration-150 group-hover:scale-110" strokeWidth={1.75} />
-                  <span className="text-[13px] font-medium text-[#2d2e2e]">Spreadsheet</span>
-                </button>
-
-                {/* Presentation */}
-                <button onClick={() => handleCreate('deck')} className="group flex items-center gap-3 px-5 py-4 rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] t-normal active:scale-[0.98] animate-fade-in">
-                  <Presentation className="w-5 h-5 text-[#d4582a] transition-transform duration-150 group-hover:scale-110" strokeWidth={1.75} />
-                  <span className="text-[13px] font-medium text-[#2d2e2e]">Presentation</span>
-                </button>
-              </div>
-            </div>
+            /* Empty state — chip-style entity creators */
+            <EmptyState
+              className="py-16"
+              icon={
+                <div
+                  className="relative w-14 h-14 flex items-center justify-center"
+                  aria-hidden
+                >
+                  {/* Layered card stack illustration */}
+                  <div
+                    className="absolute w-10 h-12 rounded-[8px] -rotate-[10deg] -translate-x-3 translate-y-1"
+                    style={{
+                      background: "#fde8dc",
+                      border: "1px solid rgba(212, 88, 42, 0.18)",
+                    }}
+                  />
+                  <div
+                    className="absolute w-10 h-12 rounded-[8px] rotate-[10deg] translate-x-3 translate-y-1"
+                    style={{
+                      background: "#e8f7ea",
+                      border: "1px solid rgba(46, 158, 71, 0.18)",
+                    }}
+                  />
+                  <div
+                    className="relative w-10 h-12 rounded-[8px]"
+                    style={{
+                      background: "#f0f4fd",
+                      border: "1px solid rgba(74, 122, 237, 0.22)",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+                    }}
+                  >
+                    <div className="absolute inset-x-2 top-2.5 h-[2px] rounded-full bg-[rgba(74,122,237,0.35)]" />
+                    <div className="absolute inset-x-2 top-5 h-[2px] w-[60%] rounded-full bg-[rgba(74,122,237,0.22)]" />
+                    <div className="absolute inset-x-2 top-[30px] h-[2px] w-[80%] rounded-full bg-[rgba(74,122,237,0.18)]" />
+                  </div>
+                </div>
+              }
+              heading="Your project's empty"
+              description="Add a document, spreadsheet, or deck — or describe what you want in chat and let AI build it."
+              action={
+                <div className="flex flex-wrap items-center justify-center gap-2 stagger-children">
+                  <button
+                    onClick={() => handleCreate("ku")}
+                    className="group flex items-center gap-2 px-4 py-2 rounded-full border border-[#e8e7e4] bg-white hover:border-[#4a7aed]/40 hover:bg-[#f0f4fd] active:scale-[0.98] t-fast animate-fade-in"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-[#4a7aed]" strokeWidth={2} />
+                    <span className="text-[12.5px] font-medium text-[#2d2e2e]">Add document</span>
+                  </button>
+                  <button
+                    onClick={() => handleCreate("table")}
+                    className="group flex items-center gap-2 px-4 py-2 rounded-full border border-[#e8e7e4] bg-white hover:border-[#2e9e47]/40 hover:bg-[#e8f7ea] active:scale-[0.98] t-fast animate-fade-in"
+                  >
+                    <Table2 className="w-3.5 h-3.5 text-[#2e9e47]" strokeWidth={2} />
+                    <span className="text-[12.5px] font-medium text-[#2d2e2e]">Add sheet</span>
+                  </button>
+                  <button
+                    onClick={() => handleCreate("deck")}
+                    className="group flex items-center gap-2 px-4 py-2 rounded-full border border-[#e8e7e4] bg-white hover:border-[#d4582a]/40 hover:bg-[#fde8dc] active:scale-[0.98] t-fast animate-fade-in"
+                  >
+                    <Presentation className="w-3.5 h-3.5 text-[#d4582a]" strokeWidth={2} />
+                    <span className="text-[12.5px] font-medium text-[#2d2e2e]">Add deck</span>
+                  </button>
+                </div>
+              }
+            />
           ) : (
             /* File cards grid */
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">

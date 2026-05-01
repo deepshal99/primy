@@ -1,16 +1,137 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronUp } from "lucide-react";
+import { ChevronUp, Sparkles } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { MessageBubble, StreamingBubble } from "./MessageBubble";
 import { SuggestionChips } from "./SuggestionChips";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const MESSAGES_PER_PAGE = 50;
+
+const STARTER_SUGGESTIONS = [
+  "/proposal — draft a one-pager for…",
+  "/brief — outline a project brief…",
+  "/deck — pitch deck for…",
+  "/sheet — tracker for…",
+];
+
+function MessageListLoading() {
+  // Skeleton bubbles — alternates assistant (left) / user (right)
+  const rows: Array<{ side: "left" | "right"; widths: number[] }> = [
+    { side: "right", widths: [60] },
+    { side: "left", widths: [88, 72, 50] },
+    { side: "right", widths: [55, 40] },
+    { side: "left", widths: [80, 90, 65] },
+  ];
+  return (
+    <div
+      className="flex flex-col gap-5 px-4 py-4"
+      aria-label="Loading messages"
+    >
+      {rows.map((row, i) => (
+        <div
+          key={i}
+          className={
+            row.side === "right"
+              ? "flex flex-col items-end gap-1.5"
+              : "flex flex-col items-start gap-1.5"
+          }
+        >
+          <div
+            className={
+              row.side === "right"
+                ? "max-w-[78%] bg-[#fff1eb] rounded-2xl rounded-br-md px-3.5 py-2.5"
+                : "max-w-[88%] px-1 py-1"
+            }
+            style={{
+              animationDelay: `${i * 80}ms`,
+            }}
+          >
+            <div className="flex flex-col gap-2">
+              {row.widths.map((w, j) => (
+                <Skeleton
+                  key={j}
+                  className="h-[10px] rounded-[3px]"
+                  style={{
+                    width: `${w * 2.4}px`,
+                    backgroundColor:
+                      row.side === "right"
+                        ? "rgba(255,74,0,0.10)"
+                        : "rgba(0,0,0,0.06)",
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MessageListEmpty({
+  onSelect,
+}: {
+  onSelect?: (prompt: string) => void;
+}) {
+  // Trigger send via global event handled by ChatPanel
+  const handleClick = (text: string) => {
+    if (onSelect) {
+      onSelect(text);
+      return;
+    }
+    window.dispatchEvent(
+      new CustomEvent("drafta:send-message", { detail: { content: text } })
+    );
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center px-6 py-12 text-center animate-fade-in">
+      {/* Spark / chat illustration */}
+      <div
+        className="relative w-12 h-12 mb-4 flex items-center justify-center rounded-2xl bg-[rgba(255,74,0,0.06)] border border-[rgba(255,74,0,0.10)]"
+        aria-hidden
+      >
+        <Sparkles
+          className="w-5 h-5 text-[#ff4a00]"
+          strokeWidth={1.75}
+        />
+        {/* Pulse ring */}
+        <span
+          className="absolute inset-0 rounded-2xl border border-[rgba(255,74,0,0.18)] animate-ping"
+          style={{ animationDuration: "2.4s" }}
+        />
+      </div>
+
+      <h3 className="text-[15px] font-medium text-[#171717] mb-1 font-heading tracking-[-0.01em]">
+        Start a conversation
+      </h3>
+      <p className="text-[12.5px] text-[#737373] leading-relaxed max-w-[280px] mb-5">
+        Ask anything, paste a brief, or use one of the slash commands below.
+      </p>
+
+      <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-[320px] stagger-children">
+        {STARTER_SUGGESTIONS.map((s) => (
+          <button
+            key={s}
+            onClick={() => handleClick(s.replace(/—.*$/, "").trim())}
+            className="px-3 py-1.5 rounded-full border border-[rgba(0,0,0,0.08)] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] active:scale-[0.97] transition-all duration-150 animate-fade-in"
+          >
+            <span className="text-[11.5px] text-[#525252] tabular-nums">
+              {s}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function MessageList() {
   const messages = useAppStore((s) => s.messages);
   const isStreaming = useAppStore((s) => s.isStreaming);
+  const isLoadingProject = useAppStore((s) => s.isLoadingProject);
   const streamingContent = useAppStore((s) => s.streamingContent);
   const suggestions = useAppStore((s) => s.suggestions);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -29,6 +150,16 @@ export function MessageList() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingContent, suggestions]);
+
+  // Loading state — server fetch in progress, no messages yet
+  if (isLoadingProject && messages.length === 0 && !isStreaming) {
+    return <MessageListLoading />;
+  }
+
+  // Empty state — chat opened but no messages yet
+  if (messages.length === 0 && !isStreaming) {
+    return <MessageListEmpty />;
+  }
 
   const lastMessage = messages[messages.length - 1];
   const showSuggestions =
@@ -53,7 +184,7 @@ export function MessageList() {
         </button>
       )}
 
-      {visibleMessages.map((msg, i) => (
+      {visibleMessages.map((msg) => (
         <MessageBubble
           key={msg.id}
           message={msg}

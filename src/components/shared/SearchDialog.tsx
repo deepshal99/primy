@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Search, FileText, Table2, Presentation, CornerDownLeft } from "lucide-react";
+import { Search, FileText, Table2, Presentation, CornerDownLeft, SearchX, Clock } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/cn";
 
@@ -191,14 +191,26 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
         {/* Results */}
         <div ref={listRef} className="max-h-[400px] overflow-y-auto py-2">
           {sections.length === 0 && query.trim() && (
-            <div className="px-5 py-10 text-center">
-              <p className="text-[13px] text-[#95928E]">No results found for &ldquo;{query}&rdquo;</p>
+            <div className="px-6 py-10 text-center animate-fade-in">
+              <div className="w-9 h-9 rounded-full bg-[#f5f4f0] flex items-center justify-center mx-auto mb-3">
+                <SearchX className="w-[16px] h-[16px] text-[#b0ada6]" strokeWidth={1.75} />
+              </div>
+              <p className="text-[13px] font-medium text-[#171717] mb-1 font-heading">No matches</p>
+              <p className="text-[12px] text-[#737373] leading-relaxed max-w-[260px] mx-auto">
+                Nothing for &ldquo;{query}&rdquo;. Try a shorter word or different spelling.
+              </p>
             </div>
           )}
 
           {sections.length === 0 && !query.trim() && (
-            <div className="px-5 py-10 text-center">
-              <p className="text-[13px] text-[#95928E]">No recent files</p>
+            <div className="px-6 py-10 text-center animate-fade-in">
+              <div className="w-9 h-9 rounded-full bg-[#f5f4f0] flex items-center justify-center mx-auto mb-3">
+                <Clock className="w-[16px] h-[16px] text-[#b0ada6]" strokeWidth={1.75} />
+              </div>
+              <p className="text-[13px] font-medium text-[#171717] mb-1 font-heading">No recent files</p>
+              <p className="text-[12px] text-[#737373] leading-relaxed max-w-[240px] mx-auto">
+                Type to search across your projects.
+              </p>
             </div>
           )}
 

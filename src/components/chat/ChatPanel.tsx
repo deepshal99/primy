@@ -501,6 +501,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
   }, [sendMessage]);
 
   const hasMessages = messages.length > 0;
+  const isLoadingProject = useAppStore((s) => s.isLoadingProject);
   const currentProject = currentProjectId ? projects.find((p) => p.id === currentProjectId) : null;
   const [selectedEntityType, setSelectedEntityType] = useState<EntityType | null>(null);
   const selectedEntityTypeRef = useRef<EntityType | null>(null);
@@ -587,7 +588,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           <>
             {/* Content area */}
             <div className="flex-1 overflow-y-auto chat-scroll">
-              {hasMessages ? (
+              {hasMessages || (isLoadingProject && !!currentProjectId) ? (
                 <div className={centered ? "max-w-[680px] mx-auto w-full px-6" : ""}>
                   <MessageList />
                 </div>

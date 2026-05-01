@@ -57,7 +57,24 @@ export async function PATCH(req: Request) {
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const { name, currentPassword, newPassword } = body;
+    const { name, currentPassword, newPassword, hasOnboarded } = body;
+
+    // Onboarding completion — accepts only `true`. We never reset the flag
+    // back to false from this endpoint; that's a deliberate one-way switch.
+    if (hasOnboarded !== undefined) {
+      if (hasOnboarded !== true) {
+        return Response.json(
+          { error: "hasOnboarded can only be set to true" },
+          { status: 400 }
+        );
+      }
+      await db
+        .update(users)
+        .set({ hasOnboarded: true })
+        .where(eq(users.id, session.user.id));
+
+      return Response.json({ success: true, hasOnboarded: true });
+    }
 
     // Name update
     if (name !== undefined) {
