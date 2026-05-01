@@ -6,7 +6,6 @@ import {
   projects,
   knowledgeUnits,
   projectTables,
-  projectDiagrams,
   projectDecks,
 } from "@/db/schema";
 import { eq, desc, sql, inArray } from "drizzle-orm";
@@ -17,8 +16,6 @@ import {
   GETTING_STARTED_DOC_CONTENT,
   TASK_TRACKER_TITLE,
   TASK_TRACKER_SHEETS,
-  WORKFLOW_DIAGRAM_TITLE,
-  WORKFLOW_DIAGRAM_SOURCE,
   WELCOME_DECK_TITLE,
   WELCOME_DECK_SLIDES,
 } from "@/lib/onboarding";
@@ -69,7 +66,7 @@ export async function GET() {
     // Batch-count entities per project using 4 lightweight queries (IDs only)
     const projectIds = userProjects.map((p) => p.id);
 
-    const [kuCounts, tableCounts, diagramCounts, deckCounts] = await Promise.all([
+    const [kuCounts, tableCounts, deckCounts] = await Promise.all([
       db
         .select({ projectId: knowledgeUnits.projectId, count: sql<number>`count(*)::int` })
         .from(knowledgeUnits)
@@ -81,11 +78,6 @@ export async function GET() {
         .where(inArray(projectTables.projectId, projectIds))
         .groupBy(projectTables.projectId),
       db
-        .select({ projectId: projectDiagrams.projectId, count: sql<number>`count(*)::int` })
-        .from(projectDiagrams)
-        .where(inArray(projectDiagrams.projectId, projectIds))
-        .groupBy(projectDiagrams.projectId),
-      db
         .select({ projectId: projectDecks.projectId, count: sql<number>`count(*)::int` })
         .from(projectDecks)
         .where(inArray(projectDecks.projectId, projectIds))
@@ -95,7 +87,6 @@ export async function GET() {
     // Build lookup maps
     const kuCountMap = new Map(kuCounts.map((r) => [r.projectId, r.count]));
     const tableCountMap = new Map(tableCounts.map((r) => [r.projectId, r.count]));
-    const diagramCountMap = new Map(diagramCounts.map((r) => [r.projectId, r.count]));
     const deckCountMap = new Map(deckCounts.map((r) => [r.projectId, r.count]));
 
     const result = userProjects.map((p) => ({
@@ -109,7 +100,6 @@ export async function GET() {
       counts: {
         knowledgeUnits: kuCountMap.get(p.id) || 0,
         tables: tableCountMap.get(p.id) || 0,
-        diagrams: diagramCountMap.get(p.id) || 0,
         decks: deckCountMap.get(p.id) || 0,
       },
     }));
@@ -177,7 +167,6 @@ export async function POST(req: Request) {
       updatedAt: newProject.updatedAt.getTime(),
       knowledgeUnits: [],
       tables: [],
-      diagrams: [],
       decks: [],
       messages: [],
     });
@@ -193,14 +182,13 @@ async function createExampleProject(userId: string) {
   const projectId = nanoid();
   const kuId = nanoid();
   const tableId = nanoid();
-  const diagramId = nanoid();
   const deckId = nanoid();
 
   await db.insert(projects).values({
     id: projectId,
     userId,
     title: "Welcome to Drafta",
-    description: "Your getting-started project with example documents, a spreadsheet, a diagram, and a slide deck.",
+    description: "Your getting-started project with an example document, a spreadsheet, and a slide deck.",
     projectType: "Other",
   });
 
@@ -216,13 +204,6 @@ async function createExampleProject(userId: string) {
       projectId,
       title: TASK_TRACKER_TITLE,
       sheets: TASK_TRACKER_SHEETS,
-    }),
-    db.insert(projectDiagrams).values({
-      id: diagramId,
-      projectId,
-      title: WORKFLOW_DIAGRAM_TITLE,
-      diagramType: "mermaid",
-      source: WORKFLOW_DIAGRAM_SOURCE,
     }),
     db.insert(projectDecks).values({
       id: deckId,

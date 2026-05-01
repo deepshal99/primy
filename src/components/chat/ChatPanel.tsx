@@ -10,7 +10,6 @@ import {
   parseDocOperations,
   parseKuOperations,
   parseTableOperations,
-  parseDiagramOperations,
   parseDeckOperations,
   parseDeckOutlineItems,
   extractDisplayText,
@@ -75,7 +74,6 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         const intentLabels: Record<EntityType, string> = {
           ku: "Create a document:",
           table: "Create a spreadsheet:",
-          diagram: "Create a diagram:",
           deck: "Create a presentation:",
         };
         content = `${intentLabels[entityIntent]} ${content}`;
@@ -95,7 +93,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         // Prepend mention references to content for AI context
         let enrichedContent = content;
         if (mentionedEntities && mentionedEntities.length > 0) {
-          const typeLabels: Record<EntityType, string> = { ku: "document", table: "spreadsheet", diagram: "diagram", deck: "deck" };
+          const typeLabels: Record<EntityType, string> = { ku: "document", table: "spreadsheet", deck: "deck" };
           const refs = mentionedEntities.map((e) => `[User referenced: "${e.title}" (${typeLabels[e.type]})]`).join("\n");
           enrichedContent = refs + "\n\n" + enrichedContent;
         }
@@ -153,7 +151,6 @@ export function ChatPanel({ centered }: ChatPanelProps) {
             );
 
             // Force-include mentioned entities in relevance results
-            let mentionedDiagramContext = "";
             let mentionedDeckContext = "";
             if (mentionedEntities && mentionedEntities.length > 0) {
               for (const mention of mentionedEntities) {
@@ -183,11 +180,6 @@ export function ChatPanel({ centered }: ChatPanelProps) {
                       csv = rows.join("\n");
                     }
                     relevanceResult.relevantTables.push({ id: table.id, title: table.title, csvContent: csv, score: 100 });
-                  }
-                } else if (mention.type === "diagram") {
-                  const diagram = (project.diagrams || []).find((d) => d.id === mention.id);
-                  if (diagram) {
-                    mentionedDiagramContext += `\n<mentioned_diagram id="${diagram.id}" title="${diagram.title}">\n${diagram.source}\n</mentioned_diagram>`;
                   }
                 } else if (mention.type === "deck") {
                   const deck = (project.decks || []).find((d) => d.id === mention.id);
@@ -240,12 +232,6 @@ export function ChatPanel({ centered }: ChatPanelProps) {
                 title: t.title,
                 csvContent: t.csvContent,
               })),
-              diagrams: (project.diagrams || []).map((d) => ({
-                id: d.id,
-                title: d.title,
-                diagramType: d.diagramType,
-              })),
-              mentionedDiagramContext,
               mentionedDeckContext,
             };
           }
@@ -265,10 +251,6 @@ export function ChatPanel({ centered }: ChatPanelProps) {
             } else if (activeEntityType === "table") {
               const tbl = proj.tables.find((t) => t.id === activeEntityId);
               activeEntityTitle = tbl?.title;
-            } else if (activeEntityType === "diagram") {
-              const diag = (proj.diagrams || []).find((d) => d.id === activeEntityId);
-              activeEntityTitle = diag?.title;
-              activeEntityContent = diag?.source;
             } else if (activeEntityType === "deck") {
               const dk = (proj.decks || []).find((d) => d.id === activeEntityId);
               activeEntityTitle = dk?.title;
@@ -434,20 +416,19 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           const docOps = parseDocOperations(fullText);
           const kuOps = parseKuOperations(fullText);
           const tableOps = parseTableOperations(fullText);
-          const diagramOps = parseDiagramOperations(fullText);
           const deckOps = parseDeckOperations(fullText);
           const suggestions = parseSuggestions(fullText);
           const outlineItems = parseDeckOutlineItems(fullText);
-          const hasAnyOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || diagramOps.length > 0 || deckOps.length > 0;
+          const hasAnyOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || deckOps.length > 0;
           if (!hasAnyOps && outlineItems.length === 0) {
-            const hasFences = fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops") || fullText.includes("```diagramops") || fullText.includes("```deckops") || fullText.includes("```deckoutline");
+            const hasFences = fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops") || fullText.includes("```deckops") || fullText.includes("```deckoutline");
             if (hasFences) {
               console.warn("[Drafta] Operation blocks found but none parsed. Raw tail:", fullText.slice(-600));
               toast.error("AI response had formatting issues — some changes may not have been applied. Try again.");
             }
           }
 
-          finishStreaming(fullText, sheetOps, docOps, kuOps, tableOps, diagramOps, deckOps, suggestions);
+          finishStreaming(fullText, sheetOps, docOps, kuOps, tableOps, deckOps, suggestions);
         } catch (applyError) {
           // Operation parsing or store mutation failed — still save the AI text response
           console.error("[Drafta] Failed to apply AI operations:", applyError);
@@ -477,11 +458,10 @@ export function ChatPanel({ centered }: ChatPanelProps) {
               const docOps = parseDocOperations(partial);
               const kuOps = parseKuOperations(partial);
               const tableOps = parseTableOperations(partial);
-              const diagramOps = parseDiagramOperations(partial);
               const deckOps = parseDeckOperations(partial);
-              const hasPartialOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || diagramOps.length > 0 || deckOps.length > 0;
+              const hasPartialOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || deckOps.length > 0;
               if (hasPartialOps) {
-                finishStreaming(extractDisplayText(partial) || partial, sheetOps, docOps, kuOps, tableOps, diagramOps, deckOps);
+                finishStreaming(extractDisplayText(partial) || partial, sheetOps, docOps, kuOps, tableOps, deckOps);
               } else {
                 finishStreaming(extractDisplayText(partial) || partial);
               }
@@ -545,8 +525,6 @@ export function ChatPanel({ centered }: ChatPanelProps) {
       store.createKnowledgeUnit(projectId, "Untitled Document");
     } else if (type === "table") {
       store.createTable(projectId, "Untitled Spreadsheet");
-    } else if (type === "diagram") {
-      store.createDiagram(projectId, "Untitled Diagram");
     } else if (type === "deck") {
       store.createDeck(projectId, "Untitled Presentation");
     }

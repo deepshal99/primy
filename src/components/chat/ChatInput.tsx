@@ -21,14 +21,12 @@ const MAX_INPUT_LENGTH = 50_000; // 50K chars — prevents enormous pastes from 
 const ENTITY_STYLES: Record<EntityType, { text: string; bg: string; dot: string }> = {
   ku: { text: "#4a7aed", bg: "#f0f4fd", dot: "#4a7aed" },
   table: { text: "#2e9e47", bg: "#e8f7ea", dot: "#2e9e47" },
-  diagram: { text: "#7c5cb8", bg: "#ece4f8", dot: "#7c5cb8" },
   deck: { text: "#d4582a", bg: "#fde8dc", dot: "#d4582a" },
 };
 
 const ENTITY_LABELS: Record<EntityType, string> = {
   ku: "Document",
   table: "Sheet",
-  diagram: "Diagram",
   deck: "Deck",
 };
 
@@ -83,9 +81,6 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
     }
     for (const t of project.tables) {
       entities.push({ id: t.id, type: "table", title: t.title });
-    }
-    for (const d of project.diagrams || []) {
-      entities.push({ id: d.id, type: "diagram", title: d.title });
     }
     for (const dk of project.decks || []) {
       entities.push({ id: dk.id, type: "deck", title: dk.title });

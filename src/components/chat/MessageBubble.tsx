@@ -70,7 +70,6 @@ function renderContentWithMentions(
       const ENTITY_COLORS: Record<EntityType, { text: string; bg: string }> = {
         ku: { text: "#4a7aed", bg: "#f0f4fd" },
         table: { text: "#2e9e47", bg: "#e8f7ea" },
-        diagram: { text: "#7c5cb8", bg: "#ece4f8" },
         deck: { text: "#d4582a", bg: "#fde8dc" },
       };
       const colors = ENTITY_COLORS[matchedEntity.type] || ENTITY_COLORS.ku;
@@ -216,16 +215,14 @@ export function StreamingBubble({ content }: StreamingBubbleProps) {
   const hasDocOps = content.includes("```docops");
   const hasKuOps = content.includes("```kuops");
   const hasTableOps = content.includes("```tableops");
-  const hasDiagramOps = content.includes("```diagramops");
   const hasDeckOps = content.includes("```deckops");
-  const hasAnyOps = hasSheetOps || hasDocOps || hasKuOps || hasTableOps || hasDiagramOps || hasDeckOps;
+  const hasAnyOps = hasSheetOps || hasDocOps || hasKuOps || hasTableOps || hasDeckOps;
 
   const displayContent = content
     .replace(/```sheetops\n[\s\S]*?(\n```|$)/g, "")
     .replace(/```docops\n[\s\S]*?(\n```|$)/g, "")
     .replace(/```kuops\n[\s\S]*?(\n```|$)/g, "")
     .replace(/```tableops\n[\s\S]*?(\n```|$)/g, "")
-    .replace(/```diagramops\n[\s\S]*?(\n```|$)/g, "")
     .replace(/```deckops\n[\s\S]*?(\n```|$)/g, "");
 
   const hasVisibleContent = displayContent.trim().length > 0;
@@ -234,7 +231,7 @@ export function StreamingBubble({ content }: StreamingBubbleProps) {
   if (aiPhase === "updating") {
     return (
       <div className="fade-in-up">
-        <UpdateIndicator hasOps={{ hasSheetOps, hasDocOps, hasKuOps, hasTableOps, hasDiagramOps, hasDeckOps }} />
+        <UpdateIndicator hasOps={{ hasSheetOps, hasDocOps, hasKuOps, hasTableOps, hasDeckOps }} />
       </div>
     );
   }
@@ -250,7 +247,7 @@ export function StreamingBubble({ content }: StreamingBubbleProps) {
           </div>
           {hasAnyOps && (
             <OperationIndicator
-              type={hasSheetOps || hasTableOps ? "sheet" : hasDiagramOps ? "diagram" : hasDeckOps ? "deck" : "doc"}
+              type={hasSheetOps || hasTableOps ? "sheet" : hasDeckOps ? "deck" : "doc"}
             />
           )}
         </div>
@@ -298,11 +295,10 @@ function ThinkingIndicator({ readingFiles }: { readingFiles: string[] }) {
 
 /* -- Inline operation indicator (during streaming) -- */
 
-function OperationIndicator({ type }: { type: "sheet" | "doc" | "diagram" | "deck" }) {
+function OperationIndicator({ type }: { type: "sheet" | "doc" | "deck" }) {
   const config = {
     sheet: { icon: Table2, label: "Building spreadsheet", color: "#2e9e47", bg: "#e8f7ea" },
     doc: { icon: PenLine, label: "Writing document", color: "#4a7aed", bg: "#f0f4fd" },
-    diagram: { icon: FileText, label: "Creating diagram", color: "#7c5cb8", bg: "#ece4f8" },
     deck: { icon: FileText, label: "Building presentation", color: "#d4582a", bg: "#fde8dc" },
   }[type];
   const Icon = config.icon;
@@ -333,8 +329,6 @@ function UpdateIndicator({
     entities.push({ label: "Spreadsheet", color: "#2e9e47", bg: "#e8f7ea" });
   if (hasOps.hasDocOps || hasOps.hasKuOps)
     entities.push({ label: "Document", color: "#4a7aed", bg: "#f0f4fd" });
-  if (hasOps.hasDiagramOps)
-    entities.push({ label: "Diagram", color: "#7c5cb8", bg: "#ece4f8" });
   if (hasOps.hasDeckOps)
     entities.push({ label: "Deck", color: "#d4582a", bg: "#fde8dc" });
 

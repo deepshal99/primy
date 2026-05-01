@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   FileText,
   Table2,
-  GitBranch,
   Presentation,
   MoreHorizontal,
   Pencil,
@@ -41,7 +40,6 @@ import { Input } from "@/components/ui/input";
 import type {
   KnowledgeUnit,
   ProjectTable,
-  ProjectDiagram,
   ProjectDeck,
 } from "@/lib/types";
 import { ShareModal } from "@/components/settings/ShareModal";
@@ -85,17 +83,6 @@ const FILE_TYPE_CONFIG = {
     hoverBorder: "#d4582a",
     desc: "Slides and visuals",
   },
-  diagram: {
-    label: "Diagram",
-    icon: GitBranch,
-    cardBg: "#ece4f8",
-    previewBg: "#ffffff",
-    iconColor: "#7c5cb8",
-    accentColor: "#d3c5ec",
-    borderColor: "#ddd2f0",
-    hoverBorder: "#7c5cb8",
-    desc: "Flowcharts and maps",
-  },
 } as const;
 
 type EntityType = keyof typeof FILE_TYPE_CONFIG;
@@ -126,24 +113,19 @@ export function ProjectHome() {
   const projects = useAppStore((s) => s.projects);
   const openKnowledgeUnit = useAppStore((s) => s.openKnowledgeUnit);
   const openTable = useAppStore((s) => s.openTable);
-  const openDiagram = useAppStore((s) => s.openDiagram);
   const openDeck = useAppStore((s) => s.openDeck);
   const createKnowledgeUnit = useAppStore((s) => s.createKnowledgeUnit);
   const createTable = useAppStore((s) => s.createTable);
-  const createDiagram = useAppStore((s) => s.createDiagram);
   const createDeck = useAppStore((s) => s.createDeck);
   const updateProject = useAppStore((s) => s.updateProject);
   const renameKnowledgeUnit = useAppStore((s) => s.renameKnowledgeUnit);
   const renameTable = useAppStore((s) => s.renameTable);
-  const renameDiagram = useAppStore((s) => s.renameDiagram);
   const renameDeck = useAppStore((s) => s.renameDeck);
   const deleteKnowledgeUnit = useAppStore((s) => s.deleteKnowledgeUnit);
   const deleteTable = useAppStore((s) => s.deleteTable);
-  const deleteDiagram = useAppStore((s) => s.deleteDiagram);
   const deleteDeck = useAppStore((s) => s.deleteDeck);
   const duplicateKnowledgeUnit = useAppStore((s) => s.duplicateKnowledgeUnit);
   const duplicateTable = useAppStore((s) => s.duplicateTable);
-  const duplicateDiagram = useAppStore((s) => s.duplicateDiagram);
   const duplicateDeck = useAppStore((s) => s.duplicateDeck);
 
   const isLoadingProject = useAppStore((s) => s.isLoadingProject);
@@ -190,13 +172,6 @@ export function ProjectHome() {
         type: "table" as const,
         updatedAt: t.updatedAt,
         data: t as ProjectTable,
-      })),
-      ...(project.diagrams || []).map((d) => ({
-        id: d.id,
-        title: d.title,
-        type: "diagram" as const,
-        updatedAt: d.updatedAt,
-        data: d as ProjectDiagram,
       })),
       ...(project.decks || []).map((d) => ({
         id: d.id,
@@ -249,13 +224,11 @@ export function ProjectHome() {
 
   const kuCount = project.knowledgeUnits.length;
   const tableCount = project.tables.length;
-  const diagramCount = (project.diagrams || []).length;
   const deckCount = (project.decks || []).length;
-  const totalFiles = kuCount + tableCount + diagramCount + deckCount;
+  const totalFiles = kuCount + tableCount + deckCount;
 
   const handleOpen = (entity: FileEntity) => {
     if (entity.type === "deck") openDeck(entity.id);
-    else if (entity.type === "diagram") openDiagram(entity.id);
     else if (entity.type === "ku") openKnowledgeUnit(entity.id);
     else openTable(entity.id);
   };
@@ -263,13 +236,11 @@ export function ProjectHome() {
   const handleCreate = (type: EntityType) => {
     if (type === "ku") createKnowledgeUnit(project.id, "New Document");
     else if (type === "table") createTable(project.id, "New Table");
-    else if (type === "diagram") createDiagram(project.id, "New Diagram");
     else createDeck(project.id, "New Deck");
   };
 
   const handleRename = (entity: FileEntity, name: string) => {
     if (entity.type === "deck") renameDeck(project.id, entity.id, name);
-    else if (entity.type === "diagram") renameDiagram(project.id, entity.id, name);
     else if (entity.type === "ku") renameKnowledgeUnit(project.id, entity.id, name);
     else renameTable(project.id, entity.id, name);
   };
@@ -277,14 +248,12 @@ export function ProjectHome() {
   const handleDuplicate = (entity: FileEntity) => {
     if (entity.type === "ku") duplicateKnowledgeUnit(project.id, entity.id);
     else if (entity.type === "table") duplicateTable(project.id, entity.id);
-    else if (entity.type === "diagram") duplicateDiagram(project.id, entity.id);
     else if (entity.type === "deck") duplicateDeck(project.id, entity.id);
   };
 
   const handleDelete = (entity: FileEntity) => {
     if (!window.confirm(`Delete "${entity.title}"? This cannot be undone.`)) return;
     if (entity.type === "deck") deleteDeck(project.id, entity.id);
-    else if (entity.type === "diagram") deleteDiagram(project.id, entity.id);
     else if (entity.type === "ku") deleteKnowledgeUnit(project.id, entity.id);
     else deleteTable(project.id, entity.id);
   };
@@ -325,7 +294,6 @@ export function ProjectHome() {
                     { key: "ku" as const, label: "Documents", count: kuCount },
                     { key: "table" as const, label: "Spreadsheets", count: tableCount },
                     { key: "deck" as const, label: "Presentations", count: deckCount },
-                    { key: "diagram" as const, label: "Diagrams", count: diagramCount },
                   ]).map((tab) => {
                     const isActive = filter === tab.key;
                     return (
@@ -452,7 +420,7 @@ export function ProjectHome() {
             </div>
           ) : filteredEntities.length === 0 && filter !== "all" ? (
             <div className="py-10 text-center text-[#a09d96] text-[13px]">
-              No {filter === "ku" ? "documents" : filter === "table" ? "spreadsheets" : filter === "deck" ? "presentations" : "diagrams"} yet
+              No {filter === "ku" ? "documents" : filter === "table" ? "spreadsheets" : "presentations"} yet
             </div>
           ) : entities.length === 0 ? (
             /* Empty state */
@@ -477,12 +445,6 @@ export function ProjectHome() {
                 <button onClick={() => handleCreate('table')} className="group flex items-center gap-3 px-5 py-4 rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] t-normal active:scale-[0.98] animate-fade-in">
                   <Table2 className="w-5 h-5 text-[#2e9e47] transition-transform duration-150 group-hover:scale-110" strokeWidth={1.75} />
                   <span className="text-[13px] font-medium text-[#2d2e2e]">Spreadsheet</span>
-                </button>
-
-                {/* Diagram */}
-                <button onClick={() => handleCreate('diagram')} className="group flex items-center gap-3 px-5 py-4 rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] t-normal active:scale-[0.98] animate-fade-in">
-                  <GitBranch className="w-5 h-5 text-[#7c5cb8] transition-transform duration-150 group-hover:scale-110" strokeWidth={1.75} />
-                  <span className="text-[13px] font-medium text-[#2d2e2e]">Diagram</span>
                 </button>
 
                 {/* Presentation */}
@@ -569,7 +531,6 @@ export function ProjectHome() {
                       <div className="h-[100px] overflow-hidden select-none pointer-events-none">
                         {entity.type === "ku" && <DocPreviewContent accent={config.accentColor} iconColor={config.iconColor} />}
                         {entity.type === "table" && <TablePreviewContent accent={config.accentColor} iconColor={config.iconColor} />}
-                        {entity.type === "diagram" && <DiagramPreviewContent accent={config.accentColor} iconColor={config.iconColor} />}
                         {entity.type === "deck" && <DeckPreviewContent accent={config.accentColor} iconColor={config.iconColor} />}
                       </div>
                     </div>
@@ -661,7 +622,7 @@ export function ProjectHome() {
               onClick={() => setFabOpen(false)}
             />
             <div className="relative z-50 flex flex-col items-end gap-1.5 mb-2">
-              {(["ku", "table", "diagram", "deck"] as const).map((type, i) => {
+              {(["ku", "table", "deck"] as const).map((type, i) => {
                 const config = FILE_TYPE_CONFIG[type];
                 const IconComp = config.icon;
                 return (
@@ -1018,24 +979,6 @@ function DeckPreviewContent({ accent }: { accent: string; iconColor: string }) {
   );
 }
 
-function DiagramPreviewContent({ accent }: { accent: string; iconColor: string }) {
-  return (
-    <div className="flex items-center justify-center p-3.5 h-full">
-      <svg width="100%" height="85" viewBox="0 0 140 85">
-        <line x1="70" y1="20" x2="35" y2="46" stroke={accent} strokeWidth="1.5" opacity="0.5" />
-        <line x1="70" y1="20" x2="105" y2="46" stroke={accent} strokeWidth="1.5" opacity="0.5" />
-        <line x1="35" y1="54" x2="35" y2="68" stroke={accent} strokeWidth="1.5" opacity="0.35" />
-        <line x1="105" y1="54" x2="105" y2="68" stroke={accent} strokeWidth="1.5" opacity="0.35" />
-        <rect x="52" y="6" width="36" height="20" rx="5" fill={accent} opacity="0.55" />
-        <rect x="17" y="40" width="36" height="18" rx="5" fill={accent} opacity="0.35" />
-        <rect x="87" y="40" width="36" height="18" rx="5" fill={accent} opacity="0.35" />
-        <rect x="19" y="64" width="32" height="14" rx="4" fill={accent} opacity="0.2" />
-        <rect x="89" y="64" width="32" height="14" rx="4" fill={accent} opacity="0.2" />
-      </svg>
-    </div>
-  );
-}
-
 // ====================================
 // -- Types --
 // ====================================
@@ -1045,5 +988,5 @@ interface FileEntity {
   title: string;
   type: EntityType;
   updatedAt: number;
-  data: KnowledgeUnit | ProjectTable | ProjectDiagram | ProjectDeck;
+  data: KnowledgeUnit | ProjectTable | ProjectDeck;
 }

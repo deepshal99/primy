@@ -44,3 +44,6 @@ src/extra/
 
 # QA testing artifacts
 .gstack/
+
+# Diagram migration archives
+.archive/

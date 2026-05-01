@@ -1,11 +1,11 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { knowledgeUnits, projectTables, projectDiagrams, projectDecks, projects } from "@/db/schema";
+import { knowledgeUnits, projectTables, projectDecks, projects } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 /**
- * POST /api/files/[id]/share — Generate share token for a KU, table, or diagram
+ * POST /api/files/[id]/share — Generate share token for a KU, table, or deck
  * DELETE /api/files/[id]/share — Remove share token (unshare)
  */
 
@@ -48,26 +48,6 @@ async function verifyOwnership(fileId: string, userId: string) {
       .where(and(eq(projects.id, table.projectId), eq(projects.userId, userId)))
       .limit(1);
     if (proj) return { type: "table" as const, entity: table };
-  }
-
-  // Check if it's a diagram
-  const [diagram] = await db
-    .select({
-      id: projectDiagrams.id,
-      projectId: projectDiagrams.projectId,
-      shareToken: projectDiagrams.shareToken,
-    })
-    .from(projectDiagrams)
-    .where(eq(projectDiagrams.id, fileId))
-    .limit(1);
-
-  if (diagram) {
-    const [proj] = await db
-      .select({ id: projects.id })
-      .from(projects)
-      .where(and(eq(projects.id, diagram.projectId), eq(projects.userId, userId)))
-      .limit(1);
-    if (proj) return { type: "diagram" as const, entity: diagram };
   }
 
   // Check if it's a deck
@@ -120,8 +100,6 @@ export async function POST(
       await db.update(knowledgeUnits).set({ shareToken: token, updatedAt: new Date() }).where(eq(knowledgeUnits.id, id));
     } else if (result.type === "table") {
       await db.update(projectTables).set({ shareToken: token, updatedAt: new Date() }).where(eq(projectTables.id, id));
-    } else if (result.type === "diagram") {
-      await db.update(projectDiagrams).set({ shareToken: token, updatedAt: new Date() }).where(eq(projectDiagrams.id, id));
     } else if (result.type === "deck") {
       await db.update(projectDecks).set({ shareToken: token, updatedAt: new Date() }).where(eq(projectDecks.id, id));
     }
@@ -154,8 +132,6 @@ export async function DELETE(
       await db.update(knowledgeUnits).set({ shareToken: null, updatedAt: new Date() }).where(eq(knowledgeUnits.id, id));
     } else if (result.type === "table") {
       await db.update(projectTables).set({ shareToken: null, updatedAt: new Date() }).where(eq(projectTables.id, id));
-    } else if (result.type === "diagram") {
-      await db.update(projectDiagrams).set({ shareToken: null, updatedAt: new Date() }).where(eq(projectDiagrams.id, id));
     } else if (result.type === "deck") {
       await db.update(projectDecks).set({ shareToken: null, updatedAt: new Date() }).where(eq(projectDecks.id, id));
     }

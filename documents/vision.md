@@ -1,49 +1,47 @@
 # Drafta AI — Vision & Roadmap
 
 ## Vision
-Drafta AI is the AI-native workspace that replaces the Google Suite for individuals and small teams. Instead of switching between Docs, Sheets, Slides, and ChatGPT, users work in a single chat-driven environment where AI understands their full context and creates the right artifact in the right format.
+Drafta is the AI workspace for docs, sheets, and decks. Drag in any file, get artifacts generated and edited with full project memory, never copy-paste from ChatGPT again.
 
 ## Core Thesis
-- The office suite is overdue for an AI-native rebuild
-- Chat is the universal interface — users describe what they want, AI produces it
-- Context is the moat — the more you use Drafta, the better it understands your work
-- Multi-format output from single input is the killer feature
+- Knowledge work is scattered. AI tools forget your project. Files live in 8 places.
+- Project memory is the moat — the more you use Drafta, the better it understands your work
+- Multi-format output from a single chat is the killer feature
+- Solo operators with project-based work are the wedge
 
 ## Current State (v1)
 - Documents (Plate.js rich text)
-- Spreadsheets (Fortune Sheet)
-- Diagrams (Mermaid + Excalidraw)
-- Presentation Decks (custom slide system)
+- Spreadsheets (Univer)
+- Presentation Decks (HTML slide engine)
 - AI chat with full project context injection
 - Project-based organization
 
 ## Planned Milestones
 
-### v1.1 — Polish & Stability
-- [ ] Spreadsheet migration: Fortune Sheet → Univer
-- [ ] Export improvements: server-side PDF via Puppeteer
-- [ ] Mobile responsive pass
-- [ ] Performance optimization for large projects
+### v1.0 — Public Launch (Weeks 1-5, see strategy spec for full sequence)
+- [ ] Phase 1: Cut & clean (diagrams entity, simplify AI provider routing)
+- [ ] Phase 2: Pricing system (built gateway-agnostic, hidden until launch)
+- [ ] Phase 3: UI polish to OpenAI-grade
+- [ ] Phase 4: Launch features (slash commands, branded shares, snapshot history)
+- [ ] Phase 5: Soft launch with 50 beta users
+- [ ] Phase 6: Public launch (Product Hunt + IndieHackers + LinkedIn)
 
-### v1.2 — Collaboration
+### v1.1 — First 60 days post-launch
+- [ ] Brand voice profile per workspace
+- [ ] Visual brand profile per workspace (auto-extract colors/fonts)
+- [ ] Recurring deliverables
+
+### v1.2+ — Later
+- [ ] Workspace inbox (per-workspace email)
 - [ ] Real-time collaboration (Yjs + PartyKit)
-- [ ] Sharing & permissions (view/edit/comment)
-- [ ] Comments and annotations on all entity types
-
-### v1.3 — Intelligence
-- [ ] Semantic search across all project content
-- [ ] Cross-entity references (link a chart to a sheet range)
-- [ ] AI memory across sessions (project-level learning)
-- [ ] Template library (decks, docs, sheets)
-
-### v2.0 — Platform
-- [ ] Plugin/extension system
-- [ ] API for programmatic access
-- [ ] Team workspaces with admin controls
-- [ ] Custom AI model selection (bring your own key)
+- [ ] Custom domains for share links
+- [ ] Team workspaces with shared memory
+- [ ] Templates marketplace
 
 ## Non-Goals (for now)
-- Enterprise/large team features (SSO, audit logs)
-- Offline-first architecture
-- Native mobile apps (web-first)
-- Real-time database/Airtable replacement
+- Enterprise features (SSO, audit logs, SOC 2)
+- Native mobile apps (web-first; banner instructs desktop)
+- Localization
+- Real-time database / Airtable replacement
+- New entity types (no whiteboards, no databases, no forms)
+- Mobile responsive polish

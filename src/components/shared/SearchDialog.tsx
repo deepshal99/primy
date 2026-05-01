@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Search, FileText, Table2, GitBranch, Presentation, CornerDownLeft } from "lucide-react";
+import { Search, FileText, Table2, Presentation, CornerDownLeft } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/cn";
 
 interface SearchResult {
   id: string;
   title: string;
-  type: "ku" | "table" | "diagram" | "deck";
+  type: "ku" | "table" | "deck";
   projectId: string;
   projectTitle: string;
 }
@@ -16,7 +16,6 @@ interface SearchResult {
 const ENTITY_CONFIG: Record<SearchResult["type"], { label: string; section: string; color: string; Icon: typeof FileText }> = {
   ku:      { label: "Document",     section: "Documents",      color: "#4a7aed", Icon: FileText },
   table:   { label: "Spreadsheet",  section: "Spreadsheets",   color: "#2e9e47", Icon: Table2 },
-  diagram: { label: "Diagram",      section: "Diagrams",       color: "#7c5cb8", Icon: GitBranch },
   deck:    { label: "Presentation", section: "Presentations",  color: "#d4582a", Icon: Presentation },
 };
 
@@ -31,7 +30,6 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
   const currentProjectId = useAppStore((s) => s.currentProjectId);
   const openKnowledgeUnit = useAppStore((s) => s.openKnowledgeUnit);
   const openTable = useAppStore((s) => s.openTable);
-  const openDiagram = useAppStore((s) => s.openDiagram);
   const openDeck = useAppStore((s) => s.openDeck);
   const switchProject = useAppStore((s) => s.switchProject);
 
@@ -42,7 +40,6 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
     const allEntities = [
       ...project.knowledgeUnits.map((ku) => ({ id: ku.id, title: ku.title, type: "ku" as const, projectId: project.id, projectTitle: project.title, _updatedAt: ku.updatedAt })),
       ...project.tables.map((t) => ({ id: t.id, title: t.title, type: "table" as const, projectId: project.id, projectTitle: project.title, _updatedAt: t.updatedAt })),
-      ...(project.diagrams || []).map((d) => ({ id: d.id, title: d.title, type: "diagram" as const, projectId: project.id, projectTitle: project.title, _updatedAt: d.updatedAt })),
       ...(project.decks || []).map((d) => ({ id: d.id, title: d.title, type: "deck" as const, projectId: project.id, projectTitle: project.title, _updatedAt: d.updatedAt })),
     ];
     allEntities.sort((a, b) => (b._updatedAt || 0) - (a._updatedAt || 0));
@@ -80,11 +77,6 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
           found.push({ id: table.id, title: table.title, type: "table", projectId: project.id, projectTitle: project.title });
         }
       }
-      for (const diagram of (project.diagrams || [])) {
-        if (diagram.title.toLowerCase().includes(lower) || diagram.source.toLowerCase().includes(lower)) {
-          found.push({ id: diagram.id, title: diagram.title, type: "diagram", projectId: project.id, projectTitle: project.title });
-        }
-      }
       for (const deck of (project.decks || [])) {
         if (deck.title.toLowerCase().includes(lower)) {
           found.push({ id: deck.id, title: deck.title, type: "deck", projectId: project.id, projectTitle: project.title });
@@ -102,7 +94,7 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
     }
     if (searchResults.length === 0) return [];
 
-    const order: SearchResult["type"][] = ["ku", "table", "diagram", "deck"];
+    const order: SearchResult["type"][] = ["ku", "table", "deck"];
     const sections: { section: string; items: SearchResult[] }[] = [];
     for (const type of order) {
       const items = searchResults.filter((r) => r.type === type);
@@ -123,7 +115,6 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
     }
     if (result.type === "ku") openKnowledgeUnit(result.id);
     else if (result.type === "table") openTable(result.id);
-    else if (result.type === "diagram") openDiagram(result.id);
     else if (result.type === "deck") openDeck(result.id);
     if (!state.workspaceOpen) {
       useAppStore.setState({ workspaceOpen: true });

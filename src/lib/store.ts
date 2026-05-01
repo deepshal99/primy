@@ -8,7 +8,6 @@ import {
   DocOperation,
   KuOperation,
   TableOperation,
-  DiagramOperation,
   DeckOperation,
   DeckSlide,
   DeckTheme,
@@ -21,7 +20,6 @@ import {
   Project,
   KnowledgeUnit,
   ProjectTable,
-  ProjectDiagram,
   ProjectDeck,
   EntityType,
   ThemeConfig,
@@ -113,7 +111,6 @@ function saveProjectsToStorage(projects: Project[]) {
       ...p,
       knowledgeUnits: p.knowledgeUnits.map(({ embedding, ...rest }) => rest),
       tables: p.tables.map(({ embedding, ...rest }) => rest),
-      diagrams: (p.diagrams || []).map(({ embedding, ...rest }) => rest),
       decks: (p.decks || []).map(({ embedding, ...rest }) => rest),
     }));
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(stripped));
@@ -148,9 +145,6 @@ function generateEntityEmbedding(entityId: string, projectId: string, text: stri
           tables: p.tables.map((t) =>
             t.id === entityId ? { ...t, embedding } : t
           ),
-          diagrams: (p.diagrams || []).map((d) =>
-            d.id === entityId ? { ...d, embedding } : d
-          ),
           decks: (p.decks || []).map((d) =>
             d.id === entityId ? { ...d, embedding } : d
           ),
@@ -180,14 +174,6 @@ function findTable(projects: Project[], tableId: string): { project: Project; ta
   return null;
 }
 
-function findDiagram(projects: Project[], diagramId: string): { project: Project; diagram: ProjectDiagram } | null {
-  for (const project of projects) {
-    const diagram = (project.diagrams || []).find((d) => d.id === diagramId);
-    if (diagram) return { project, diagram };
-  }
-  return null;
-}
-
 function findDeck(projects: Project[], deckId: string): { project: Project; deck: ProjectDeck } | null {
   for (const project of projects) {
     const deck = (project.decks || []).find((d) => d.id === deckId);
@@ -206,9 +192,6 @@ export const useAppStore = create<AppState>()(
   sheetVersion: 0,
   docContent: "",
   docVersion: 0,
-  diagramSource: "",
-  diagramType: "mermaid" as const,
-  diagramVersion: 0,
   deckSlides: [] as (DeckSlide | HtmlDeckSlide)[],
   deckTheme: "light" as const,
   deckVersion: 0,
@@ -281,7 +264,6 @@ export const useAppStore = create<AppState>()(
     docOperations?: DocOperation[],
     kuOperations?: KuOperation[],
     tableOperations?: TableOperation[],
-    diagramOperations?: DiagramOperation[],
     deckOperations?: DeckOperation[],
     suggestions?: string[]
   ) => {
@@ -298,12 +280,11 @@ export const useAppStore = create<AppState>()(
     const hasDocOps = docOperations && docOperations.length > 0;
     const hasKuOps = kuOperations && kuOperations.length > 0;
     const hasTableOps = tableOperations && tableOperations.length > 0;
-    const hasDiagramOps = diagramOperations && diagramOperations.length > 0;
     const hasDeckOps = deckOperations && deckOperations.length > 0;
 
     // Snapshot current state before applying AI operations (for undo)
     // New AI operations clear the redo stack (standard editor behavior)
-    const hasAnyOps = hasSheetOps || hasDocOps || hasDiagramOps || hasDeckOps || hasKuOps || hasTableOps;
+    const hasAnyOps = hasSheetOps || hasDocOps || hasDeckOps || hasKuOps || hasTableOps;
     let newUndoStack = state.undoStack;
     if (hasAnyOps) {
       const labelParts: string[] = [];
@@ -311,17 +292,14 @@ export const useAppStore = create<AppState>()(
       if (hasDocOps) labelParts.push("doc");
       if (hasKuOps) labelParts.push("doc");
       if (hasTableOps) labelParts.push("sheet");
-      if (hasDiagramOps) labelParts.push("diagram");
       if (hasDeckOps) labelParts.push("deck");
       const entityType: UndoSnapshot["entityType"] = labelParts.length > 1 ? "mixed"
-        : hasDeckOps ? "deck" : hasDiagramOps ? "diagram" : (hasSheetOps || hasTableOps) ? "table" : "ku";
+        : hasDeckOps ? "deck" : (hasSheetOps || hasTableOps) ? "table" : "ku";
       try {
         const snapshot: UndoSnapshot = {
           entityType,
           sheets: JSON.parse(JSON.stringify(state.sheets)),
           docContent: state.docContent,
-          diagramSource: state.diagramSource,
-          diagramType: state.diagramType,
           deckSlides: JSON.parse(JSON.stringify(state.deckSlides)),
           deckTheme: state.deckTheme,
           label: `AI ${[...new Set(labelParts)].join(" & ")} changes`,
@@ -368,12 +346,7 @@ export const useAppStore = create<AppState>()(
     if (hasDocOps) newActiveTab = "doc";
     if (hasSheetOps) newActiveTab = "sheet";
 
-    const shouldOpen = hasSheetOps || hasDocOps || hasKuOps || hasTableOps || hasDiagramOps || hasDeckOps;
-
-    // Diagram flat fields
-    let newDiagramSource = state.diagramSource;
-    let newDiagramType = state.diagramType;
-    let newDiagramVersion = state.diagramVersion;
+    const shouldOpen = hasSheetOps || hasDocOps || hasKuOps || hasTableOps || hasDeckOps;
 
     // Deck flat fields
     let newDeckSlides = state.deckSlides;
@@ -390,7 +363,7 @@ export const useAppStore = create<AppState>()(
     const aiModifiedIds: string[] = [];
 
     let entityOpsApplied = false;
-    if (hasKuOps || hasTableOps || hasDiagramOps || hasDeckOps) {
+    if (hasKuOps || hasTableOps || hasDeckOps) {
       if (!state.currentProjectId) {
         console.error("[Drafta] Entity operations received but no currentProjectId");
         toast.error("No active project — AI changes could not be applied. Please try again.");
@@ -607,82 +580,6 @@ export const useAppStore = create<AppState>()(
           }
         }
 
-        // Apply Diagram operations
-        if (hasDiagramOps) {
-          project.diagrams = [...(project.diagrams || [])];
-          for (const op of diagramOperations) {
-            switch (op.type) {
-              case "CREATE": {
-                const newDiagram: ProjectDiagram = {
-                  id: nanoid(),
-                  projectId: project.id,
-                  title: op.title,
-                  diagramType: op.diagramType || "mermaid",
-                  source: op.source || "",
-                  createdAt: Date.now(),
-                  updatedAt: Date.now(),
-                };
-                project.diagrams.push(newDiagram);
-                // Auto-open the newly created diagram
-                newCurrentEntityId = newDiagram.id;
-                newCurrentEntityType = "diagram";
-                newDiagramSource = newDiagram.source;
-                newDiagramType = newDiagram.diagramType;
-                newDiagramVersion = state.diagramVersion + 1;
-                // Add to open tabs
-                if (!newOpenTabs.some((t) => t.id === newDiagram.id)) {
-                  newOpenTabs = [...newOpenTabs, { id: newDiagram.id, type: "diagram" as const, title: newDiagram.title }];
-                }
-                break;
-              }
-              case "UPDATE": {
-                const idx = (project.diagrams || []).findIndex((d) => d.id === op.diagramId);
-                if (idx >= 0) {
-                  project.diagrams[idx] = {
-                    ...project.diagrams[idx],
-                    source: op.source,
-                    updatedAt: Date.now(),
-                  };
-                  if (state.currentEntityId === op.diagramId) {
-                    newDiagramSource = op.source;
-                    newDiagramVersion = state.diagramVersion + 1;
-                  }
-                  // Auto-open tab for updated diagram
-                  if (!newOpenTabs.some((t) => t.id === op.diagramId)) {
-                    const entity = project.diagrams[idx];
-                    newOpenTabs = [...newOpenTabs, { id: entity.id, type: "diagram" as const, title: entity.title }];
-                  }
-                  aiModifiedIds.push(op.diagramId);
-                }
-                break;
-              }
-              case "DELETE": {
-                project.diagrams = (project.diagrams || []).filter((d) => d.id !== op.diagramId);
-                newOpenTabs = newOpenTabs.filter((t) => t.id !== op.diagramId);
-                if (newCurrentEntityId === op.diagramId) {
-                  newCurrentEntityId = null;
-                  newCurrentEntityType = null;
-                  newDiagramSource = "";
-                  newDiagramVersion = state.diagramVersion + 1;
-                }
-                break;
-              }
-              case "RENAME": {
-                const idx = (project.diagrams || []).findIndex((d) => d.id === op.diagramId);
-                if (idx >= 0) {
-                  project.diagrams[idx] = {
-                    ...project.diagrams[idx],
-                    title: op.title,
-                    updatedAt: Date.now(),
-                  };
-                  newOpenTabs = newOpenTabs.map((t) => t.id === op.diagramId ? { ...t, title: op.title } : t);
-                }
-                break;
-              }
-            }
-          }
-        }
-
         // Handle deck operations
         if (hasDeckOps) {
           if (!project.decks) project.decks = [];
@@ -819,9 +716,6 @@ export const useAppStore = create<AppState>()(
       pendingSheetImages: newPendingImages,
       docContent: newDocContent,
       docVersion: newDocVersion,
-      diagramSource: newDiagramSource,
-      diagramType: newDiagramType,
-      diagramVersion: newDiagramVersion,
       deckSlides: newDeckSlides,
       deckTheme: newDeckTheme,
       deckVersion: newDeckVersion,
@@ -851,7 +745,6 @@ export const useAppStore = create<AppState>()(
     // Collect deleted entity IDs for server sync
     const deletedKuIds: string[] = [];
     const deletedTableIds: string[] = [];
-    const deletedDiagramIds: string[] = [];
     const deletedDeckIds: string[] = [];
 
     if (hasKuOps && entityOpsApplied) {
@@ -865,13 +758,6 @@ export const useAppStore = create<AppState>()(
       for (const op of tableOperations) {
         if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
         else if (op.type === "DELETE") deletedTableIds.push(op.tableId);
-      }
-    }
-    if (hasDiagramOps && entityOpsApplied) {
-      for (const op of diagramOperations) {
-        if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
-        else if (op.type === "DELETE") deletedDiagramIds.push(op.diagramId);
-        else if (op.type === "RENAME") toast.success("Diagram renamed");
       }
     }
     if (hasDeckOps && entityOpsApplied) {
@@ -888,7 +774,6 @@ export const useAppStore = create<AppState>()(
       const deletePayload: Record<string, string[]> = {};
       if (deletedKuIds.length > 0) deletePayload.deletedKnowledgeUnitIds = deletedKuIds;
       if (deletedTableIds.length > 0) deletePayload.deletedTableIds = deletedTableIds;
-      if (deletedDiagramIds.length > 0) deletePayload.deletedDiagramIds = deletedDiagramIds;
       if (deletedDeckIds.length > 0) deletePayload.deletedDeckIds = deletedDeckIds;
       if (Object.keys(deletePayload).length > 0) {
         const projectId = state.currentProjectId;
@@ -1057,8 +942,6 @@ export const useAppStore = create<AppState>()(
       entityType: snapshot.entityType,
       sheets: JSON.parse(JSON.stringify(state.sheets)),
       docContent: state.docContent,
-      diagramSource: state.diagramSource,
-      diagramType: state.diagramType,
       deckSlides: JSON.parse(JSON.stringify(state.deckSlides)),
       deckTheme: state.deckTheme,
       label: snapshot.label,
@@ -1070,9 +953,6 @@ export const useAppStore = create<AppState>()(
       sheetVersion: state.sheetVersion + 1,
       docContent: snapshot.docContent,
       docVersion: state.docVersion + 1,
-      diagramSource: snapshot.diagramSource,
-      diagramType: snapshot.diagramType,
-      diagramVersion: state.diagramVersion + 1,
       deckSlides: snapshot.deckSlides,
       deckTheme: snapshot.deckTheme,
       deckVersion: state.deckVersion + 1,
@@ -1102,8 +982,6 @@ export const useAppStore = create<AppState>()(
       entityType: snapshot.entityType,
       sheets: JSON.parse(JSON.stringify(state.sheets)),
       docContent: state.docContent,
-      diagramSource: state.diagramSource,
-      diagramType: state.diagramType,
       deckSlides: JSON.parse(JSON.stringify(state.deckSlides)),
       deckTheme: state.deckTheme,
       label: snapshot.label,
@@ -1115,9 +993,6 @@ export const useAppStore = create<AppState>()(
       sheetVersion: state.sheetVersion + 1,
       docContent: snapshot.docContent,
       docVersion: state.docVersion + 1,
-      diagramSource: snapshot.diagramSource,
-      diagramType: snapshot.diagramType,
-      diagramVersion: state.diagramVersion + 1,
       deckSlides: snapshot.deckSlides,
       deckTheme: snapshot.deckTheme,
       deckVersion: state.deckVersion + 1,
@@ -1177,7 +1052,6 @@ export const useAppStore = create<AppState>()(
       projectType: "Content",
       knowledgeUnits: [],
       tables: [],
-      diagrams: [],
       decks: [],
       messages: [],
       memory: {},
@@ -1204,9 +1078,6 @@ export const useAppStore = create<AppState>()(
       sheetVersion: state.sheetVersion + 1,
       docContent: "",
       docVersion: state.docVersion + 1,
-      diagramSource: "",
-      diagramType: "mermaid",
-      diagramVersion: state.diagramVersion + 1,
       deckSlides: [],
       deckTheme: "light" as const,
       deckVersion: state.deckVersion + 1,
@@ -1246,9 +1117,6 @@ export const useAppStore = create<AppState>()(
             sheetVersion: state.sheetVersion + 1,
             docContent: "",
             docVersion: state.docVersion + 1,
-            diagramSource: "",
-            diagramType: "mermaid",
-            diagramVersion: state.diagramVersion + 1,
             deckSlides: [],
             deckTheme: "light" as const,
             deckVersion: state.deckVersion + 1,
@@ -1315,9 +1183,6 @@ export const useAppStore = create<AppState>()(
       sheetVersion: state.sheetVersion + 1,
       docContent: "",
       docVersion: state.docVersion + 1,
-      diagramSource: "",
-      diagramType: "mermaid",
-      diagramVersion: state.diagramVersion + 1,
       deckSlides: [],
       deckTheme: "light" as const,
       deckVersion: state.deckVersion + 1,
@@ -1724,182 +1589,6 @@ export const useAppStore = create<AppState>()(
   },
 
   // ══════════════════════════════════
-  // ── Diagram CRUD ──
-  // ══════════════════════════════════
-
-  createDiagram: (projectId: string, title: string, diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow" = "mermaid", source: string = "") => {
-    // Save current entity first, then re-read state to avoid stale projects
-    if (get().currentEntityId) {
-      get().saveCurrentEntity();
-    }
-
-    const now = Date.now();
-    const newDiagram: ProjectDiagram = {
-      id: nanoid(),
-      projectId,
-      title,
-      diagramType,
-      source: source || (diagramType === "mermaid" ? "graph TD\n    A[Start] --> B[End]" : '{"chartType":"bar","data":[],"xKey":"name","yKeys":["value"],"colors":["#6B8FA3"]}'),
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    const state = get();
-    const newProjects = state.projects.map((p) => {
-      if (p.id === projectId) {
-        return { ...p, diagrams: [...(p.diagrams || []), newDiagram], updatedAt: now };
-      }
-      return p;
-    });
-
-    set({ projects: newProjects });
-    saveProjectsToStorage(newProjects);
-    get().openDiagram(newDiagram.id);
-    return newDiagram;
-  },
-
-  duplicateDiagram: (projectId: string, diagramId: string) => {
-    const project = get().projects.find((p) => p.id === projectId);
-    if (!project) return null;
-    const original = (project.diagrams || []).find((d) => d.id === diagramId);
-    if (!original) return null;
-
-    const now = Date.now();
-    const diagram: ProjectDiagram = {
-      id: nanoid(),
-      projectId,
-      title: `${original.title} (copy)`,
-      diagramType: original.diagramType,
-      source: original.source,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    // Save current entity first, then re-read state to avoid stale projects
-    if (get().currentEntityId) {
-      get().saveCurrentEntity();
-    }
-    const state = get();
-
-    const updated = state.projects.map((p) =>
-      p.id === projectId
-        ? { ...p, diagrams: [...(p.diagrams || []), diagram], updatedAt: now }
-        : p
-    );
-
-    set({
-      projects: updated,
-      currentEntityId: diagram.id,
-      currentEntityType: "diagram",
-      diagramSource: diagram.source,
-      diagramType: diagram.diagramType,
-      diagramVersion: state.diagramVersion + 1,
-      workspaceOpen: true,
-      openTabs: [...state.openTabs.filter((t) => t.id !== diagram.id), { id: diagram.id, type: "diagram" as const, title: diagram.title }],
-    });
-    saveProjectsToStorage(updated);
-
-    updateProjectOnServer(projectId, {
-      diagrams: [{ id: diagram.id, title: diagram.title, diagramType: diagram.diagramType, source: diagram.source }],
-    }).catch(() => {});
-
-    toast.success(`Duplicated "${original.title}"`);
-    return diagram;
-  },
-
-  deleteDiagram: (projectId: string, diagramId: string) => {
-    const state = get();
-    const newProjects = state.projects.map((p) => {
-      if (p.id === projectId) {
-        return { ...p, diagrams: (p.diagrams || []).filter((d) => d.id !== diagramId), updatedAt: Date.now() };
-      }
-      return p;
-    });
-
-    // Close tab if open
-    const newTabs = state.openTabs.filter((t) => t.id !== diagramId);
-    const isCurrent = state.currentEntityId === diagramId;
-    set({
-      projects: newProjects,
-      openTabs: newTabs,
-      ...(isCurrent
-        ? {
-            currentEntityId: null,
-            currentEntityType: null,
-            diagramSource: "",
-            diagramVersion: state.diagramVersion + 1,
-            workspaceOpen: false,
-          }
-        : {}),
-    });
-    saveProjectsToStorage(newProjects);
-
-    // Background sync: delete diagram on server
-    updateProjectOnServer(projectId, {
-      deletedDiagramIds: [diagramId],
-    }).catch(() => {});
-  },
-
-  renameDiagram: (projectId: string, diagramId: string, title: string) => {
-    const state = get();
-    const newProjects = state.projects.map((p) => {
-      if (p.id === projectId) {
-        return {
-          ...p,
-          diagrams: (p.diagrams || []).map((d) => d.id === diagramId ? { ...d, title, updatedAt: Date.now() } : d),
-          updatedAt: Date.now(),
-        };
-      }
-      return p;
-    });
-
-    const newTabs = state.openTabs.map((t) => t.id === diagramId ? { ...t, title } : t);
-    set({ projects: newProjects, openTabs: newTabs });
-    saveProjectsToStorage(newProjects);
-
-    // Background sync to Neon
-    updateProjectOnServer(projectId, {
-      diagrams: [{ id: diagramId, title }],
-    }).catch(() => {});
-  },
-
-  openDiagram: (diagramId: string) => {
-    // Save current entity first, then re-read state for fresh projects
-    if (get().currentEntityId) {
-      get().saveCurrentEntity();
-    }
-    const state = get();
-
-    const found = findDiagram(state.projects, diagramId);
-    if (!found) return;
-
-    const newTabs = state.openTabs.some((t) => t.id === diagramId)
-      ? state.openTabs
-      : [...state.openTabs, { id: diagramId, type: "diagram" as const, title: found.diagram.title }];
-
-    set({
-      currentEntityId: found.diagram.id,
-      currentEntityType: "diagram",
-      diagramSource: found.diagram.source,
-      diagramType: found.diagram.diagramType,
-      diagramVersion: state.diagramVersion + 1,
-      workspaceOpen: true,
-      openTabs: newTabs,
-    });
-  },
-
-  updateDiagramSource: (source: string) => {
-    set({ diagramSource: source });
-    // Debounced auto-save (800ms)
-    if (typeof window !== "undefined") {
-      if ((window as any).__diagramSaveTimer) clearTimeout((window as any).__diagramSaveTimer);
-      (window as any).__diagramSaveTimer = setTimeout(() => {
-        get().saveCurrentEntity();
-      }, 800);
-    }
-  },
-
-  // ══════════════════════════════════
   // ── Deck CRUD ──
   // ══════════════════════════════════
 
@@ -2143,13 +1832,6 @@ export const useAppStore = create<AppState>()(
         updates.sheetVersion = state.sheetVersion + 1;
         updates.activeTab = "sheet";
       }
-    } else if (nextTab.type === "diagram") {
-      const found = findDiagram(state.projects, nextTab.id);
-      if (found) {
-        updates.diagramSource = found.diagram.source;
-        updates.diagramType = found.diagram.diagramType;
-        updates.diagramVersion = state.diagramVersion + 1;
-      }
     } else if (nextTab.type === "deck") {
       const found = findDeck(state.projects, nextTab.id);
       if (found) {
@@ -2202,12 +1884,6 @@ export const useAppStore = create<AppState>()(
           ? { ...t, sheets: sanitizedSheets, updatedAt: Date.now() }
           : t
       );
-    } else if (state.currentEntityId && state.currentEntityType === "diagram") {
-      project.diagrams = (project.diagrams || []).map((d) =>
-        d.id === state.currentEntityId
-          ? { ...d, source: state.diagramSource, diagramType: state.diagramType, updatedAt: Date.now() }
-          : d
-      );
     } else if (state.currentEntityId && state.currentEntityType === "deck") {
       project.decks = (project.decks || []).map((d) =>
         d.id === state.currentEntityId
@@ -2257,12 +1933,6 @@ export const useAppStore = create<AppState>()(
         id: t.id,
         title: t.title,
         sheets: t.sheets,
-      })),
-      diagrams: (project.diagrams || []).map((d) => ({
-        id: d.id,
-        title: d.title,
-        diagramType: d.diagramType,
-        source: d.source,
       })),
       decks: (project.decks || []).map((d) => ({
         id: d.id,
@@ -2336,7 +2006,6 @@ export const useAppStore = create<AppState>()(
             counts: item.counts,
             knowledgeUnits: existing?.knowledgeUnits || [],
             tables: existing?.tables || [],
-            diagrams: existing?.diagrams || [],
             decks: existing?.decks || [],
             messages: existing?.messages || [],
             memory: existing?.memory || {},
@@ -2476,7 +2145,6 @@ export const useAppStore = create<AppState>()(
         title: conv.title,
         knowledgeUnits: kus,
         tables,
-        diagrams: [],
         decks: [],
         messages: conv.messages,
         memory: conv.memory || {},

@@ -2,19 +2,18 @@
 
 ## 1. Overview
 
-Drafta AI is an AI-powered workspace where users create and manage four types of entities (documents, spreadsheets, diagrams, and presentations) within projects, all connected through a chat-based AI assistant powered by OpenAI (gpt-5.4) or Google Gemini. The platform emphasizes cross-entity collaboration, where data and content flow between documents, sheets, diagrams, and decks.
+Drafta AI is an AI-powered workspace where users create and manage three types of entities (documents, spreadsheets, and presentations) within projects, all connected through a chat-based AI assistant powered by OpenAI for chat and Google Gemini for deck generation. The platform emphasizes cross-entity collaboration, where data and content flow between documents, sheets, and decks.
 
 ## 2. Core Architecture
 
 ### Entity System
 
-Four entity types live inside a **Project**:
+Three entity types live inside a **Project**:
 
 | Entity Type | Type Key | Storage | Content Format |
 |---|---|---|---|
 | Document (Knowledge Unit) | `ku` | `knowledgeUnits` table | Plate.js HTML with Markdown support |
-| Spreadsheet (Project Table) | `table` | `projectTables` table | Fortune Sheet `celldata[]` (JSON sparse array) |
-| Diagram | `diagram` | `projectDiagrams` table | Mermaid source, Recharts JSON, Excalidraw JSON, or React Flow JSON |
+| Spreadsheet (Project Table) | `table` | `projectTables` table | Univer `celldata[]` (JSON sparse array) |
 | Presentation Deck | `deck` | `projectDecks` table | Array of DeckSlide objects with theme configuration |
 
 ### State Management
@@ -28,7 +27,7 @@ Four entity types live inside a **Project**:
 
 1. User sends message to `/api/chat` with context injection (sheet CSV, doc content, project memory, file attachments)
 2. AI model streams response with JSON operations inside fenced blocks
-3. Operations are parsed and typed (`sheetops`, `docops`, `kuops`, `tableops`, `diagramops`, `deckops`)
+3. Operations are parsed and typed (`sheetops`, `docops`, `kuops`, `tableops`, `deckops`)
 4. Client applies operations, opens new entity tabs, saves to server
 5. UI updates reactively from Zustand store
 
@@ -66,7 +65,7 @@ Four entity types live inside a **Project**:
 - **Main panels**:
   - NavRail: Collapsible left sidebar with project access, settings, logout
   - ChatPanel: Right chat interface with message history
-  - WorkspacePanel: Center editor for documents, sheets, diagrams, decks
+  - WorkspacePanel: Center editor for documents, sheets, decks
 
 ### View Modes
 
@@ -111,7 +110,7 @@ Four entity types live inside a **Project**:
 
 **User Messages**:
 - Text content with optional attachments
-- Optional @mentions of entities (documents, tables, diagrams, decks)
+- Optional @mentions of entities (documents, tables, decks)
 - File attachments (PDFs, images, DOCX, XLSX, CSV, TXT, MD, JSON, ZIP)
 - Maximum 100MB per file, 10 files per message
 
@@ -188,7 +187,7 @@ Four entity types live inside a **Project**:
 ### Entity Link Chips
 
 - **Syntax**: `[Title](entity://type/id)`
-- **Supported types**: ku (document), table, diagram, deck
+- **Supported types**: ku (document), table, deck
 - **Rendering**: Colored inline chips with entity icons
 - **Interaction**: Clickable, navigates to entity in same project
 
@@ -250,44 +249,7 @@ Four entity types live inside a **Project**:
 - **Formats**: CSV, Excel (.xlsx), PDF
 - **Location**: Top-right corner of sheet
 
-## 8. Diagram Editor
-
-### DiagramView Component
-
-- **Path**: `src/components/diagram/DiagramView.tsx`
-- **Supported diagram types**:
-  - **Mermaid**: Flowcharts, state diagrams, sequence diagrams, entity diagrams
-  - **Chart**: Bar, Line, Area, Pie, Scatter (via Recharts)
-  - **Excalidraw**: Hand-drawn style diagrams with shapes, arrows, text
-  - **React Flow**: Node-link diagrams with custom nodes
-
-### MermaidRenderer
-
-- Real-time rendering with sanitization
-- Error handling with user-friendly messages
-- Zoom and pan controls
-- SVG export capability
-- Theming with custom colors
-
-### ChartRenderer
-
-- **Data format**: Recharts JSON with data points and series
-- **Chart types**: Bar, Line, Area, Pie, Scatter
-- **Features**: Legend, tooltips, axis labels, responsive sizing
-
-### ExcalidrawEditor
-
-- Collaborative drawing surface with shapes, arrows, text, images
-- Saves as JSON to diagramSource
-- Dynamically loaded (non-SSR)
-
-### DiagramToolbar
-
-- Diagram type selector (Mermaid/Chart/Excalidraw/ReactFlow)
-- Source code editor toggle
-- Full-screen view
-
-## 9. Presentation Deck Builder
+## 8. Presentation Deck Builder
 
 ### DeckBuilder Component
 
@@ -337,16 +299,16 @@ Four entity types live inside a **Project**:
 - Speaker notes visible to presenter
 - Slide counter: current / total
 
-## 10. Project Management
+## 9. Project Management
 
 ### ProjectHome Component
 
 - **Path**: `src/components/workspace/ProjectHome.tsx`
-- **Display**: Grid of entity cards by type (Documents, Tables, Diagrams, Decks)
+- **Display**: Grid of entity cards by type (Documents, Tables, Decks)
 - **Card features**:
   - Entity title and type badge
   - Truncated preview (documents show content snippet)
-  - Entity color coding (doc=blue, sheet=green, diagram=purple, deck=orange)
+  - Entity color coding (doc=blue, sheet=green, deck=orange)
   - Hover menu with rename, duplicate, delete, share
   - Right-click context menu
 
@@ -366,7 +328,7 @@ Four entity types live inside a **Project**:
 - **Duplicate**: Creates copy with "(Copy)" suffix, separate ID
 - **Delete**: Context menu, closes tab if open, debounced save
 
-## 11. Sharing & Public Views
+## 10. Sharing & Public Views
 
 ### Share Functionality
 
@@ -380,10 +342,9 @@ Four entity types live inside a **Project**:
 
 - **DocViewReadOnly**: Markdown rendering with remark-gfm
 - **SheetViewReadOnly**: View-only sheet display
-- **DiagramViewReadOnly**: Mermaid/Chart/Excalidraw rendering
 - **DeckViewReadOnly**: Slide carousel, presentation mode available
 
-## 12. AI Capabilities
+## 11. AI Capabilities
 
 ### System Prompt Architecture
 
@@ -396,23 +357,24 @@ Four entity types live inside a **Project**:
   - `<relevant_table>`: CSV of semantically relevant table
   - `<project_memory>`: User preferences (tone, audience, goals, custom instructions)
   - `<uploaded_file>`: Extracted file content
-  - `<mentioned_diagram>`: Diagram source for context
   - `<deck_phase>`: Current deck generation phase
 
 ### Routing Rules
 
 - **Text content**: Create `kuops` (documents) for long responses
 - **Data organization**: Use `tableops` (spreadsheets)
-- **Visuals**: Use `diagramops` (flowcharts, charts)
 - **Presentations**: Use `deckops` (slide decks)
 - **Entity editing**: Use entity-specific ops (docops, sheetops)
 
 ### AI Model Selection
 
-- **Chat**: gpt-5.4 (frontier, best instruction-following, 1M context)
-- **Deck generation**: gpt-5.4 with 65K output
-- **Summarize/Title/WebSearch**: gpt-5-mini (fast, cheap)
-- **Embeddings**: text-embedding-3-small
+- **Chat (small context)**: openai/gpt-4.1-mini (8K output)
+- **Chat (>30KB context)**: openai/gpt-4.1 (16K output)
+- **Deck generation**: google/gemini-3.1-pro-preview (65K output, with thinking + grounded search)
+- **Deck editing**: google/gemini-3.1-pro-preview (32K output)
+- **Title / Web search**: openai/gpt-4.1-mini
+- **Summarize**: openai/gpt-4.1
+- **Embeddings**: openai/text-embedding-3-small
 
 ### Web Search Integration
 
@@ -426,7 +388,7 @@ Four entity types live inside a **Project**:
 - 1-4 contextual follow-up actions after every AI response
 - Examples: "Draft the blog post", "Create a summary document", "Add a budget tab"
 
-## 13. Keyboard Shortcuts
+## 12. Keyboard Shortcuts
 
 | Shortcut | Action |
 |---|---|
@@ -442,7 +404,7 @@ Four entity types live inside a **Project**:
 | Enter | Send message |
 | Shift+Enter | New line in message |
 
-## 14. Undo/Redo System
+## 13. Undo/Redo System
 
 - **Storage**: UndoSnapshot[] and RedoStack[] in Zustand
 - **Trigger**: After AI operations complete
@@ -451,7 +413,7 @@ Four entity types live inside a **Project**:
 - **Redo**: Cmd+Shift+Z, reverse operation
 - **Toast feedback**: "Undid operation" / "Redid operation"
 
-## 15. Settings & Preferences
+## 14. Settings & Preferences
 
 ### Project Settings
 
@@ -466,7 +428,7 @@ Four entity types live inside a **Project**:
 - **Goals**: Free-form project description
 - **Custom Instructions**: AI-specific rules for this project
 
-## 16. API Routes
+## 15. API Routes
 
 ### Public Routes
 
@@ -492,7 +454,7 @@ Four entity types live inside a **Project**:
 - `POST /api/unsplash` — Search Unsplash for deck images
 - `GET /api/user` — Current user profile
 
-## 17. Database Schema
+## 16. Database Schema
 
 ### Core Tables
 
@@ -500,20 +462,19 @@ Four entity types live inside a **Project**:
 - **Projects**: id, userId, title, description, projectType, shareToken, createdAt, updatedAt
 - **KnowledgeUnits**: id, projectId, title, content, shareToken, createdAt, updatedAt, embedding
 - **ProjectTables**: id, projectId, title, sheets (JSONB), shareToken, createdAt, updatedAt, embedding
-- **ProjectDiagrams**: id, projectId, title, diagramType, source, shareToken, createdAt, updatedAt, embedding
 - **ProjectDecks**: id, projectId, title, theme, style (JSONB), slides (JSONB), shareToken, createdAt, updatedAt, embedding
 - **Messages**: id, projectId, role, content, timestamp, attachments (JSONB), groundingSources (JSONB)
 
-## 18. Error Handling & Feedback
+## 17. Error Handling & Feedback
 
 - **Toast notifications**: Sonner (success, error, info, loading), auto-dismiss 3-5s
 - **Error boundaries**: DocView, SheetView, app-level error.tsx
 - **User confirmations**: Delete dialogs, inline rename, undo toast for destructive actions
 
-## 19. Performance Optimizations
+## 18. Performance Optimizations
 
 - **React.memo**: MessageBubble
-- **useMemo**: MessageList (grouping), DiagramView (colors)
+- **useMemo**: MessageList (grouping)
 - **Dynamic imports**: Excalidraw, ReactFlow (non-SSR)
 - **Pagination**: Messages loaded in chunks
 - **Debouncing**: Sheet save 800ms, project save 2000ms

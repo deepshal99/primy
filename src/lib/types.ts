@@ -214,18 +214,6 @@ export interface ProjectTable {
   embedding?: number[];
 }
 
-export interface ProjectDiagram {
-  id: string;
-  projectId: string;
-  title: string;
-  diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow";
-  source: string;              // mermaid code, recharts JSON, or React Flow JSON
-  shareToken?: string | null;
-  createdAt: number;
-  updatedAt: number;
-  embedding?: number[];
-}
-
 export interface Project {
   id: string;
   title: string;
@@ -233,7 +221,6 @@ export interface Project {
   projectType?: string;       // "Marketing", "Content", "Research", "Engineering", "Design", "Other"
   knowledgeUnits: KnowledgeUnit[];
   tables: ProjectTable[];
-  diagrams: ProjectDiagram[];
   decks: ProjectDeck[];
   messages: Message[];       // Chat history scoped to project
   memory: ProjectMemory;
@@ -248,7 +235,6 @@ export interface Project {
 export interface ProjectEntityCounts {
   knowledgeUnits: number;
   tables: number;
-  diagrams: number;
   decks: number;
 }
 
@@ -264,7 +250,7 @@ export interface ProjectListItem {
   counts: ProjectEntityCounts;
 }
 
-export type EntityType = "ku" | "table" | "diagram" | "deck";
+export type EntityType = "ku" | "table" | "deck";
 
 export type AIPhase = 'idle' | 'thinking' | 'streaming' | 'updating' | 'done';
 
@@ -431,31 +417,12 @@ export type TableOperation =
     }
   | { type: "DELETE"; tableId: string };
 
-// ═══ Diagram Operations (AI fence: ```diagramops) ═══
-
-export type DiagramOperation =
-  | {
-      type: "CREATE";
-      title: string;
-      diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow";
-      source: string;
-    }
-  | {
-      type: "UPDATE";
-      diagramId: string;
-      source: string;
-    }
-  | { type: "DELETE"; diagramId: string }
-  | { type: "RENAME"; diagramId: string; title: string };
-
 // ═══ Undo History ═══
 
 export interface UndoSnapshot {
-  entityType: "ku" | "table" | "diagram" | "deck" | "mixed";
+  entityType: "ku" | "table" | "deck" | "mixed";
   sheets: SheetData[];
   docContent: string;
-  diagramSource: string;
-  diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow";
   deckSlides: (DeckSlide | HtmlDeckSlide)[];
   deckTheme: DeckTheme;
   label: string;
@@ -473,9 +440,6 @@ export interface AppState {
   sheetVersion: number;
   docContent: string;
   docVersion: number;
-  diagramSource: string;
-  diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow";
-  diagramVersion: number;
   deckSlides: (DeckSlide | HtmlDeckSlide)[];
   deckTheme: DeckTheme;
   deckVersion: number;
@@ -528,7 +492,6 @@ export interface AppState {
     docOperations?: DocOperation[],
     kuOperations?: KuOperation[],
     tableOperations?: TableOperation[],
-    diagramOperations?: DiagramOperation[],
     deckOperations?: DeckOperation[],
     suggestions?: string[]
   ) => void;
@@ -576,14 +539,6 @@ export interface AppState {
   deleteTable: (projectId: string, tableId: string) => void;
   renameTable: (projectId: string, tableId: string, title: string) => void;
   openTable: (tableId: string) => void;
-
-  // Diagram CRUD
-  createDiagram: (projectId: string, title: string, diagramType?: "mermaid" | "chart" | "excalidraw" | "reactflow", source?: string) => ProjectDiagram;
-  duplicateDiagram: (projectId: string, diagramId: string) => ProjectDiagram | null;
-  deleteDiagram: (projectId: string, diagramId: string) => void;
-  renameDiagram: (projectId: string, diagramId: string, title: string) => void;
-  openDiagram: (diagramId: string) => void;
-  updateDiagramSource: (source: string) => void;
 
   // Deck CRUD
   createDeck: (projectId: string, title: string, theme?: DeckTheme, slides?: (DeckSlide | HtmlDeckSlide)[]) => ProjectDeck;

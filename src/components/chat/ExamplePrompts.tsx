@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Table2, GitBranch, Presentation } from "lucide-react";
+import { FileText, Table2, Presentation } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useAppStore } from "@/lib/store";
 import type { EntityType } from "@/lib/types";
@@ -36,15 +36,6 @@ const ENTITY_PILLS: EntityPill[] = [
     bg: "#e8f7ea",
     border: "#2e9e47",
     placeholder: "Describe your spreadsheet...",
-  },
-  {
-    type: "diagram",
-    label: "Diagram",
-    icon: GitBranch,
-    color: "#7c5cb8",
-    bg: "#f3eefa",
-    border: "#7c5cb8",
-    placeholder: "Describe your diagram...",
   },
   {
     type: "deck",
@@ -85,16 +76,6 @@ const ENTITY_CONFIG: Record<
       "Find patterns in the data",
     ],
   },
-  diagram: {
-    emptySuggestions: [
-      "Draw a user signup flow",
-      "Map out an API architecture",
-    ],
-    populatedSuggestions: [
-      "Explain this step by step",
-      "Add more detail to the flow",
-    ],
-  },
   deck: {
     emptySuggestions: [
       "Create a pitch deck about...",
@@ -127,7 +108,6 @@ export function ExamplePrompts({
   const currentEntityType = useAppStore((s) => s.currentEntityType);
   const docContent = useAppStore((s) => s.docContent);
   const sheets = useAppStore((s) => s.sheets);
-  const diagramSource = useAppStore((s) => s.diagramSource);
   const deckSlides = useAppStore((s) => s.deckSlides);
   const projects = useAppStore((s) => s.projects);
   const currentProjectId = useAppStore((s) => s.currentProjectId);
@@ -139,7 +119,6 @@ export function ExamplePrompts({
       ? {
           ku: !docContent || docContent.trim().length === 0,
           table: !sheets?.[0]?.celldata || sheets[0].celldata.length === 0,
-          diagram: !diagramSource || diagramSource.trim().length === 0,
           deck: !deckSlides || deckSlides.length === 0,
         }[currentEntityType]
       : null;
@@ -149,7 +128,6 @@ export function ExamplePrompts({
     const projectEntityCount = project
       ? project.knowledgeUnits.length +
         project.tables.length +
-        (project.diagrams || []).length +
         (project.decks || []).length
       : 0;
 

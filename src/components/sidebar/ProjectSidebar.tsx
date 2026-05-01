@@ -55,7 +55,7 @@ export function ProjectSidebar() {
       const existing = useAppStore.getState().projects;
       const merged = serverProjects.map((sp) => {
         const full = existing.find((p) => p.id === sp.id);
-        return full || { ...sp, knowledgeUnits: [], tables: [], diagrams: [], decks: [], messages: [], memory: {} } as any;
+        return full || { ...sp, knowledgeUnits: [], tables: [], decks: [], messages: [], memory: {} } as any;
       });
       useAppStore.setState({ projects: merged });
     }

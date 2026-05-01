@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { cn } from "@/lib/cn";
-import { FileText, Table2, GitBranch, Presentation, FolderOpen, Loader2, AlertCircle, Pen, ExternalLink } from "lucide-react";
+import { FileText, Table2, Presentation, FolderOpen, Loader2, AlertCircle, Pen, ExternalLink } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const DocViewReadOnly = dynamic(
@@ -14,10 +14,6 @@ const SheetViewReadOnly = dynamic(
   () => import("@/components/sheet/SheetViewReadOnly").then((m) => m.SheetViewReadOnly),
   { ssr: false }
 );
-const DiagramViewReadOnly = dynamic(
-  () => import("@/components/diagram/DiagramViewReadOnly").then((m) => m.DiagramViewReadOnly),
-  { ssr: false }
-);
 const DeckViewReadOnly = dynamic(
   () => import("@/components/deck/DeckViewReadOnly").then((m) => m.DeckViewReadOnly),
   { ssr: false }
@@ -26,9 +22,8 @@ const DeckViewReadOnly = dynamic(
 type ShareData =
   | { type: "document"; title: string; content: string; projectTitle: string }
   | { type: "table"; title: string; sheets: any[]; projectTitle: string }
-  | { type: "diagram"; title: string; diagramType: "mermaid" | "chart" | "excalidraw" | "reactflow"; source: string; projectTitle: string }
   | { type: "deck"; title: string; slides: any[]; theme: string; style?: any; projectTitle: string }
-  | { type: "project"; title: string; description?: string; documents: any[]; tables: any[]; diagrams?: any[]; decks?: any[] };
+  | { type: "project"; title: string; description?: string; documents: any[]; tables: any[]; decks?: any[] };
 
 export default function SharePage() {
   const params = useParams();
@@ -38,7 +33,7 @@ export default function SharePage() {
   const [error, setError] = useState("");
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState<"document" | "table" | "diagram" | "deck" | null>(null);
+  const [selectedType, setSelectedType] = useState<"document" | "table" | "deck" | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -56,9 +51,6 @@ export default function SharePage() {
           } else if (d.tables?.length > 0) {
             setSelectedId(d.tables[0].id);
             setSelectedType("table");
-          } else if (d.diagrams?.length > 0) {
-            setSelectedId(d.diagrams[0].id);
-            setSelectedType("diagram");
           } else if (d.decks?.length > 0) {
             setSelectedId(d.decks[0].id);
             setSelectedType("deck");
@@ -130,18 +122,6 @@ export default function SharePage() {
     );
   }
 
-  // Single diagram
-  if (data.type === "diagram") {
-    return (
-      <div className="h-screen flex flex-col bg-background animate-in fade-in duration-300">
-        <ShareHeader title={data.title} subtitle={data.projectTitle} icon={<GitBranch className="w-4 h-4 text-[#7c5cb8]" />} />
-        <div className="flex-1 overflow-hidden">
-          <DiagramViewReadOnly source={data.source} diagramType={data.diagramType} />
-        </div>
-      </div>
-    );
-  }
-
   // Single deck
   if (data.type === "deck") {
     return (
@@ -157,7 +137,6 @@ export default function SharePage() {
   // Project view
   const selectedDoc = data.documents?.find((d: any) => d.id === selectedId);
   const selectedTable = data.tables?.find((t: any) => t.id === selectedId);
-  const selectedDiagram = data.diagrams?.find((d: any) => d.id === selectedId);
   const selectedDeck = data.decks?.find((d: any) => d.id === selectedId);
 
   return (
@@ -197,19 +176,6 @@ export default function SharePage() {
                 ))}
               </SidebarSection>
             )}
-            {data.diagrams && data.diagrams.length > 0 && (
-              <SidebarSection title="Diagrams">
-                {data.diagrams.map((diagram: any) => (
-                  <SidebarItem
-                    key={diagram.id}
-                    icon={<GitBranch className="w-3.5 h-3.5 text-[#7c5cb8]" strokeWidth={1.8} />}
-                    label={diagram.title}
-                    isActive={selectedId === diagram.id}
-                    onClick={() => { setSelectedId(diagram.id); setSelectedType("diagram"); }}
-                  />
-                ))}
-              </SidebarSection>
-            )}
             {data.decks && data.decks.length > 0 && (
               <SidebarSection title="Decks">
                 {data.decks.map((deck: any) => (
@@ -233,9 +199,6 @@ export default function SharePage() {
           )}
           {selectedType === "table" && selectedTable && (
             <SheetViewReadOnly sheets={selectedTable.sheets || []} />
-          )}
-          {selectedType === "diagram" && selectedDiagram && (
-            <DiagramViewReadOnly source={selectedDiagram.source} diagramType={selectedDiagram.diagramType} />
           )}
           {selectedType === "deck" && selectedDeck && (
             <DeckViewReadOnly slides={selectedDeck.slides} theme={selectedDeck.theme} style={selectedDeck.style} />

@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import {
   FileText,
   Table2,
-  GitBranch,
   Presentation,
   Sparkles,
   PenLine,
@@ -27,7 +26,6 @@ import type { EntityType } from "@/lib/types";
 const ICON_RULES: { keywords: string[]; icon: LucideIcon }[] = [
   // Entity-specific (check first — most distinctive)
   { keywords: ["slide", "deck", "presentation"], icon: Presentation },
-  { keywords: ["diagram", "flow", "node", "flowchart"], icon: GitBranch },
   { keywords: ["table", "spreadsheet", "row", "column", "sort"], icon: Table2 },
   { keywords: ["document", "doc", "page", "section"], icon: FileText },
   // Content actions
@@ -65,10 +63,6 @@ const DEFAULT_SUGGESTIONS: Record<string, string[]> = {
   table: [
     "Visualize this data as a chart",
     "Find patterns and outliers",
-  ],
-  diagram: [
-    "Explain this step by step",
-    "Add more detail",
   ],
   deck: [
     "Add a new slide",

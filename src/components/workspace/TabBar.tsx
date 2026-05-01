@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Table2, FileText, GitBranch, Presentation, Share2, Loader2, Undo2, Redo2, Cloud, CloudOff } from "lucide-react";
+import { Table2, FileText, Presentation, Share2, Loader2, Undo2, Redo2, Cloud, CloudOff } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/cn";
 import { ShareModal } from "@/components/settings/ShareModal";
@@ -11,14 +11,12 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 const ENTITY_COLORS: Record<string, string> = {
   ku: "#2a6dfb",
   table: "#42c366",
-  diagram: "#9061ff",
   deck: "#fa5d19",
 };
 
 const ENTITY_ICONS: Record<string, React.ElementType> = {
   ku: FileText,
   table: Table2,
-  diagram: GitBranch,
   deck: Presentation,
 };
 
@@ -44,7 +42,6 @@ export function TabBar({ exportAction }: { exportAction?: React.ReactNode }) {
   const openTabs = useAppStore((s) => s.openTabs);
   const openKnowledgeUnit = useAppStore((s) => s.openKnowledgeUnit);
   const openTable = useAppStore((s) => s.openTable);
-  const openDiagram = useAppStore((s) => s.openDiagram);
   const openDeck = useAppStore((s) => s.openDeck);
   const closeTab = useAppStore((s) => s.closeTab);
   const projects = useAppStore((s) => s.projects);
@@ -83,9 +80,6 @@ export function TabBar({ exportAction }: { exportAction?: React.ReactNode }) {
     } else if (currentEntityType === "table") {
       const table = project.tables?.find((t) => t.id === currentEntityId);
       setShareToken(table?.shareToken || null);
-    } else if (currentEntityType === "diagram") {
-      const diagram = (project.diagrams || []).find((d) => d.id === currentEntityId);
-      setShareToken(diagram?.shareToken || null);
     } else if (currentEntityType === "deck") {
       const deck = (project.decks || []).find((d) => d.id === currentEntityId);
       setShareToken(deck?.shareToken || null);
@@ -114,7 +108,6 @@ export function TabBar({ exportAction }: { exportAction?: React.ReactNode }) {
   const handleTabClick = (tab: { id: string; type: string }) => {
     if (tab.id === currentEntityId) return;
     if (tab.type === "deck") openDeck(tab.id);
-    else if (tab.type === "diagram") openDiagram(tab.id);
     else if (tab.type === "ku") openKnowledgeUnit(tab.id);
     else openTable(tab.id);
   };
@@ -322,10 +315,6 @@ export function TabBar({ exportAction }: { exportAction?: React.ReactNode }) {
                 } else if (currentEntityType === "table") {
                   updated.tables = p.tables.map((t) =>
                     t.id === currentEntityId ? { ...t, shareToken: token } : t
-                  );
-                } else if (currentEntityType === "diagram") {
-                  updated.diagrams = (p.diagrams || []).map((d) =>
-                    d.id === currentEntityId ? { ...d, shareToken: token } : d
                   );
                 } else if (currentEntityType === "deck") {
                   updated.decks = (p.decks || []).map((d) =>

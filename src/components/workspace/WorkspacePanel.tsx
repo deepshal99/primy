@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useAppStore } from "@/lib/store";
 import { TabBar } from "./TabBar";
 import { ProjectHome } from "./ProjectHome";
 import { ExportMenu } from "@/components/sheet/ExportMenu";
 import { DocExportMenu } from "@/components/doc/DocExportMenu";
-import { DiagramExport, DiagramToolbar, DeckExport } from "./EntityActions";
+import { DeckExport } from "./EntityActions";
 import { EditorErrorBoundary } from "./EditorErrorBoundary";
 
 const SheetPanel = dynamic(
@@ -16,10 +15,6 @@ const SheetPanel = dynamic(
 );
 const DocPanel = dynamic(
   () => import("@/components/doc/DocPanel").then((m) => ({ default: m.DocPanel })),
-  { ssr: false, loading: () => <PanelSkeleton /> }
-);
-const DiagramPanel = dynamic(
-  () => import("@/components/diagram/DiagramPanel").then((m) => ({ default: m.DiagramPanel })),
   { ssr: false, loading: () => <PanelSkeleton /> }
 );
 const DeckBuilder = dynamic(
@@ -48,10 +43,6 @@ export function WorkspacePanel() {
   const currentEntityType = useAppStore((s) => s.currentEntityType);
   const openTabs = useAppStore((s) => s.openTabs);
 
-  // Diagram state lifted from DiagramPanel
-  const [diagramShowSource, setDiagramShowSource] = useState(false);
-  const [diagramFullscreen, setDiagramFullscreen] = useState(false);
-
   // Home tab is always first; entity tabs follow. First tab active = home or first entity tab
   const isHomeActive = !currentEntityId;
   const isFirstTabActive = isHomeActive || openTabs.findIndex((t) => t.id === currentEntityId) === 0;
@@ -79,39 +70,22 @@ export function WorkspacePanel() {
     );
   }
 
-  const isDiagram = currentEntityType === "diagram";
   const isTable = currentEntityType === "table";
   const isDeck = currentEntityType === "deck";
 
   const renderPanel = () => {
     if (isDeck) return <EditorErrorBoundary entityType="presentation"><DeckBuilder /></EditorErrorBoundary>;
-    if (isDiagram) return <EditorErrorBoundary entityType="diagram"><DiagramPanel showSource={diagramShowSource} fullscreen={diagramFullscreen} /></EditorErrorBoundary>;
     if (isTable) return <EditorErrorBoundary entityType="spreadsheet"><SheetPanel /></EditorErrorBoundary>;
     return <EditorErrorBoundary entityType="document"><DocPanel /></EditorErrorBoundary>;
   };
 
   const renderExportAction = () => {
     if (isDeck) return <DeckExport />;
-    if (isDiagram) return <DiagramExport />;
     if (isTable) return <ExportMenu />;
     return <DocExportMenu />;
   };
 
-  const renderToolbarActions = () => {
-    if (isDiagram) {
-      return (
-        <DiagramToolbar
-          showSource={diagramShowSource}
-          onToggleSource={() => setDiagramShowSource((v) => !v)}
-          fullscreen={diagramFullscreen}
-          onToggleFullscreen={() => setDiagramFullscreen((v) => !v)}
-        />
-      );
-    }
-    return null;
-  };
-
-  const toolbarActions = renderToolbarActions();
+  const toolbarActions = null;
 
   // Content area border-radius: when home (first tab) is active, top-left is flush (0)
   const contentRadius = isHomeActive

@@ -91,7 +91,7 @@ export default function ForgotPasswordPage() {
             for everything.
           </h2>
           <p className="text-white/60 text-[14px] leading-relaxed">
-            Docs, sheets, diagrams, decks — all in one place.
+            Docs, sheets, decks — all in one place.
           </p>
         </div>
       </div>

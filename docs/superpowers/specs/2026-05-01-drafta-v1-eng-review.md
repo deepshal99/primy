@@ -211,8 +211,8 @@ export type PlanLimit = typeof PLAN_LIMITS[Plan];
 const MODEL_REGISTRY: Record<Task, ModelConfig> = {
   'chat': { provider: 'openai', model: 'gpt-4.1-mini', maxOutput: 8192 },
   'chat-large': { provider: 'openai', model: 'gpt-4.1', maxOutput: 16384 },
-  'deck-generate': { provider: 'google', model: 'gemini-2.5-pro', maxOutput: 65536 },
-  'deck-edit': { provider: 'google', model: 'gemini-2.5-pro', maxOutput: 32768 },
+  'deck-generate': { provider: 'google', model: 'gemini-3.1-pro-preview', maxOutput: 65536 },
+  'deck-edit': { provider: 'google', model: 'gemini-3.1-pro-preview', maxOutput: 32768 },
   'title': { provider: 'openai', model: 'gpt-4.1-mini', maxOutput: 256 },
   'summarize': { provider: 'openai', model: 'gpt-4.1', maxOutput: 4096 },
   'embedding': { provider: 'openai', model: 'text-embedding-3-small' },

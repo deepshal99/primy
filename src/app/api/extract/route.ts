@@ -2,17 +2,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { generateText } from "ai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createOpenAI } from "@ai-sdk/openai";
-import { getModelForTask, getProvider } from "@/lib/ai/modelRouter";
+import { getModel } from "@/lib/ai/modelRouter";
 import "@/lib/env";
 
-const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY! });
-const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-
 function getSummarizeModel() {
-  const { model: modelId } = getModelForTask("summarize");
-  return getProvider() === "openai" ? openai(modelId) : google(modelId);
+  return getModel("summarize");
 }
 
 async function parsePdfBuffer(buffer: Buffer): Promise<string> {

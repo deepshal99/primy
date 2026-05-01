@@ -11,7 +11,7 @@ export const GETTING_STARTED_DOC_TITLE = "Getting Started";
 
 export const GETTING_STARTED_DOC_CONTENT = `# Welcome to Drafta AI
 
-Drafta is your AI-powered workspace for creating and managing documents, spreadsheets, diagrams, and presentations — all in one place.
+Drafta is your AI-powered workspace for creating and managing documents, spreadsheets, and presentations — all in one place.
 
 ## How it works
 
@@ -20,7 +20,6 @@ Everything starts with a conversation. Type a message in the chat panel on the l
 **Try saying:**
 - "Create a table comparing React, Vue, and Angular"
 - "Write a project brief for a mobile app"
-- "Draw a flowchart for user onboarding"
 - "Make a 5-slide pitch deck for my startup"
 
 ## Keyboard shortcuts
@@ -109,27 +108,6 @@ export const TASK_TRACKER_SHEETS: SheetData[] = [
   },
 ];
 
-// ── Project Workflow Diagram ──
-
-export const WORKFLOW_DIAGRAM_TITLE = "Project Workflow";
-
-export const WORKFLOW_DIAGRAM_SOURCE = `graph TD
-    A[Idea] --> B[Research]
-    B --> C{Feasible?}
-    C -->|Yes| D[Design]
-    C -->|No| A
-    D --> E[Build]
-    E --> F[Test]
-    F --> G{Passes?}
-    G -->|Yes| H[Ship]
-    G -->|No| E
-    H --> I[Measure & Iterate]
-    I --> A
-
-    style A fill:#4a7aed,color:#fff
-    style H fill:#2e9e47,color:#fff
-    style I fill:#7c5cb8,color:#fff`;
-
 // ── Welcome Deck ──
 
 export const WELCOME_DECK_TITLE = "Welcome Deck";
@@ -139,7 +117,7 @@ export const WELCOME_DECK_SLIDES: DeckSlide[] = [
     id: "slide-1",
     layout: "title",
     title: "Welcome to Drafta AI",
-    subtitle: "Your AI-powered workspace for docs, sheets, diagrams, and decks.",
+    subtitle: "Your AI-powered workspace for docs, sheets, and decks.",
   },
   {
     id: "slide-2",
@@ -148,7 +126,6 @@ export const WELCOME_DECK_SLIDES: DeckSlide[] = [
     bullets: [
       "Write and format documents with AI assistance",
       "Build spreadsheets from natural language",
-      "Generate diagrams and flowcharts instantly",
       "Create presentation decks in seconds",
       "Upload files for AI analysis",
     ],
@@ -157,6 +134,6 @@ export const WELCOME_DECK_SLIDES: DeckSlide[] = [
     id: "slide-3",
     layout: "titleContent",
     title: "Get started",
-    content: "Open the chat panel and describe what you want to create. The AI will generate documents, tables, diagrams, or slides — and you can refine them with follow-up messages.\n\nEverything saves automatically. Happy building!",
+    content: "Open the chat panel and describe what you want to create. The AI will generate documents, tables, or slides — and you can refine them with follow-up messages.\n\nEverything saves automatically. Happy building!",
   },
 ];

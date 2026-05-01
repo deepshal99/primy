@@ -1,75 +1,98 @@
-export type AITask = "chat" | "chat-heavy" | "deck-generate" | "deck-edit" | "title" | "web-search" | "embedding" | "summarize";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
+
+/**
+ * Task-keyed model registry.
+ *
+ * Phase 1 cleanup: Drafta uses OpenAI for all chat-related tasks and Google
+ * (Gemini 3.1 Pro) for deck generation/editing where it performs better.
+ * Provider is selected per-task, not via a global env var.
+ */
+
+export type AITask =
+  | "chat"          // small context (<30KB)
+  | "chat-heavy"    // large context (>30KB)
+  | "deck-generate" // deck generation
+  | "deck-edit"     // deck editing
+  | "title"         // auto-generate project title
+  | "web-search"    // web search calls
+  | "summarize"     // summarization
+  | "embedding";    // embeddings
 
 export interface ModelConfig {
+  provider: "openai" | "google";
   model: string;
   maxOutputTokens: number;
 }
 
-const provider = process.env.AI_PROVIDER || "google";
-
-// Context size threshold for routing to Pro model (30KB)
+// Context size threshold for routing chat to a heavier model (30KB)
 const HEAVY_CONTEXT_THRESHOLD = 30 * 1024;
 
-function getGoogleModel(task: AITask, contextSizeBytes?: number): ModelConfig {
-  switch (task) {
-    case "chat":
-      if (contextSizeBytes && contextSizeBytes > HEAVY_CONTEXT_THRESHOLD) {
-        return { model: "gemini-2.5-pro", maxOutputTokens: 16384 };
-      }
-      return { model: "gemini-2.5-flash", maxOutputTokens: 8192 };
-    case "chat-heavy":
-      return { model: "gemini-2.5-pro", maxOutputTokens: 16384 };
-    case "deck-generate":
-      return { model: "gemini-2.5-pro", maxOutputTokens: 65536 };
-    case "deck-edit":
-      return { model: "gemini-2.5-pro", maxOutputTokens: 32768 };
-    case "title":
-      return { model: "gemini-2.5-flash", maxOutputTokens: 256 };
-    case "web-search":
-      return { model: "gemini-2.5-flash", maxOutputTokens: 8192 };
-    case "embedding":
-      return { model: "text-embedding-004", maxOutputTokens: 0 };
-    case "summarize":
-      return { model: "gemini-2.5-pro", maxOutputTokens: 4096 };
+const MODEL_REGISTRY: Record<AITask, ModelConfig> = {
+  "chat":          { provider: "openai", model: "gpt-4.1-mini",          maxOutputTokens: 8192   },
+  "chat-heavy":    { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 16384  },
+  "deck-generate": { provider: "google", model: "gemini-3.1-pro-preview", maxOutputTokens: 65536 },
+  "deck-edit":     { provider: "google", model: "gemini-3.1-pro-preview", maxOutputTokens: 32768 },
+  "title":         { provider: "openai", model: "gpt-4.1-mini",          maxOutputTokens: 256    },
+  "web-search":    { provider: "openai", model: "gpt-4.1-mini",          maxOutputTokens: 8192   },
+  "summarize":     { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 4096   },
+  "embedding":     { provider: "openai", model: "text-embedding-3-small", maxOutputTokens: 0     },
+};
+
+/**
+ * Resolve a task to its concrete ModelConfig.
+ *
+ * For "chat", an optional `contextSizeBytes` upgrades to "chat-heavy" when
+ * the injected context exceeds the heavy-context threshold.
+ */
+export function getModelConfig(task: AITask, contextSizeBytes?: number): ModelConfig {
+  if (task === "chat" && contextSizeBytes && contextSizeBytes > HEAVY_CONTEXT_THRESHOLD) {
+    return MODEL_REGISTRY["chat-heavy"];
   }
+  return MODEL_REGISTRY[task];
 }
 
-function getOpenAIModel(task: AITask, contextSizeBytes?: number): ModelConfig {
-  switch (task) {
-    case "chat":
-      if (contextSizeBytes && contextSizeBytes > HEAVY_CONTEXT_THRESHOLD) {
-        return { model: "gpt-4.1", maxOutputTokens: 16384 };
-      }
-      return { model: "gpt-4.1-mini", maxOutputTokens: 8192 };
-    case "chat-heavy":
-      return { model: "gpt-4.1", maxOutputTokens: 16384 };
-    case "deck-generate":
-      return { model: "gpt-4.1", maxOutputTokens: 65536 };
-    case "deck-edit":
-      return { model: "gpt-4.1", maxOutputTokens: 32768 };
-    case "title":
-      return { model: "gpt-4.1-mini", maxOutputTokens: 256 };
-    case "web-search":
-      return { model: "gpt-4.1-mini", maxOutputTokens: 8192 };
-    case "embedding":
-      return { model: "text-embedding-3-small", maxOutputTokens: 0 };
-    case "summarize":
-      return { model: "gpt-4.1", maxOutputTokens: 4096 };
-  }
+/**
+ * Backwards-compatible alias used by existing callers.
+ * @deprecated Prefer {@link getModelConfig}.
+ */
+export const getModelForTask = getModelConfig;
+
+// Lazy provider clients — instantiated on first use.
+let _openai: ReturnType<typeof createOpenAI> | null = null;
+let _google: ReturnType<typeof createGoogleGenerativeAI> | null = null;
+
+function openaiClient() {
+  if (!_openai) _openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+  return _openai;
 }
 
-export function getModelForTask(task: AITask, contextSizeBytes?: number): ModelConfig {
-  if (provider === "openai") {
-    return getOpenAIModel(task, contextSizeBytes);
-  }
-  return getGoogleModel(task, contextSizeBytes);
+function googleClient() {
+  if (!_google) _google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY! });
+  return _google;
 }
 
-export function getProvider(): string {
-  return provider;
+/**
+ * Resolve a task directly to a language model instance ready for `streamText`
+ * / `generateText`. Use {@link getModelConfig} when you also need maxOutputTokens.
+ */
+export function getModel(task: AITask, contextSizeBytes?: number) {
+  const config = getModelConfig(task, contextSizeBytes);
+  if (config.provider === "google") return googleClient()(config.model);
+  return openaiClient()(config.model);
 }
 
-// Helper to estimate context size in bytes from request body
+/** Embedding-model variant — needed for `embed` / `embedMany` calls. */
+export function getEmbeddingModel(task: AITask = "embedding") {
+  const config = getModelConfig(task);
+  if (config.provider === "google") return googleClient().textEmbeddingModel(config.model);
+  return openaiClient().textEmbeddingModel(config.model);
+}
+
+/**
+ * Estimate the byte size of injected chat context, used to decide whether to
+ * route a chat request to "chat-heavy".
+ */
 export function estimateContextSize(body: {
   sheetData?: any[];
   docContent?: string;
@@ -80,7 +103,6 @@ export function estimateContextSize(body: {
   if (body.docContent) size += body.docContent.length;
   if (body.sheetData) size += JSON.stringify(body.sheetData).length;
   if (body.projectContext) size += JSON.stringify(body.projectContext).length;
-  // Rough estimate for message history
   if (body.messages) {
     for (const m of body.messages) {
       size += (m.content?.length || 0);

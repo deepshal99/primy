@@ -87,27 +87,6 @@ export const projectTables = pgTable(
   ]
 );
 
-// ── Project Diagrams ──
-export const projectDiagrams = pgTable(
-  "project_diagrams",
-  {
-    id: text("id").primaryKey(), // client-provided nanoid
-    projectId: text("project_id")
-      .notNull()
-      .references(() => projects.id, { onDelete: "cascade" }),
-    title: varchar("title", { length: 500 }).notNull().default("Untitled Diagram"),
-    diagramType: varchar("diagram_type", { length: 20 }).notNull().default("mermaid"), // "mermaid" | "chart"
-    source: text("source").notNull().default(""),
-    shareToken: varchar("share_token", { length: 32 }).unique(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
-  (table) => [
-    index("pd_project_id_idx").on(table.projectId),
-    index("pd_share_token_idx").on(table.shareToken),
-  ]
-);
-
 // ── Project Decks (Presentations) ──
 export const projectDecks = pgTable(
   "project_decks",

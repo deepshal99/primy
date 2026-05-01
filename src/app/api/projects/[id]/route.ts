@@ -4,7 +4,6 @@ import {
   projects,
   knowledgeUnits,
   projectTables,
-  projectDiagrams,
   projectDecks,
   messages,
 } from "@/db/schema";
@@ -60,7 +59,7 @@ export async function GET(
     }
 
     // Fetch all entities + last N+1 messages in parallel
-    const [allKUs, allTables, allDiagrams, allDecks, recentMessages, totalMessageCount] =
+    const [allKUs, allTables, allDecks, recentMessages, totalMessageCount] =
       await Promise.all([
         db
           .select()
@@ -72,11 +71,6 @@ export async function GET(
           .from(projectTables)
           .where(eq(projectTables.projectId, id))
           .orderBy(desc(projectTables.updatedAt)),
-        db
-          .select()
-          .from(projectDiagrams)
-          .where(eq(projectDiagrams.projectId, id))
-          .orderBy(desc(projectDiagrams.updatedAt)),
         db
           .select()
           .from(projectDecks)
@@ -125,16 +119,6 @@ export async function GET(
         shareToken: t.shareToken || null,
         createdAt: t.createdAt.getTime(),
         updatedAt: t.updatedAt.getTime(),
-      })),
-      diagrams: allDiagrams.map((d) => ({
-        id: d.id,
-        projectId: d.projectId,
-        title: d.title,
-        diagramType: d.diagramType,
-        source: d.source,
-        shareToken: d.shareToken || null,
-        createdAt: d.createdAt.getTime(),
-        updatedAt: d.updatedAt.getTime(),
       })),
       decks: allDecks.map((d) => ({
         id: d.id,
@@ -269,37 +253,6 @@ export async function PUT(
         );
     }
 
-    // Handle diagram upserts
-    if (body.diagrams) {
-      for (const diagram of body.diagrams) {
-        const [existingDiagram] = await db
-          .select()
-          .from(projectDiagrams)
-          .where(and(eq(projectDiagrams.id, diagram.id), eq(projectDiagrams.projectId, id)))
-          .limit(1);
-
-        if (existingDiagram) {
-          await db
-            .update(projectDiagrams)
-            .set({
-              title: diagram.title,
-              diagramType: diagram.diagramType,
-              source: diagram.source,
-              updatedAt: new Date(),
-            })
-            .where(and(eq(projectDiagrams.id, diagram.id), eq(projectDiagrams.projectId, id)));
-        } else {
-          await db.insert(projectDiagrams).values({
-            id: diagram.id,
-            projectId: id,
-            title: diagram.title,
-            diagramType: diagram.diagramType || "mermaid",
-            source: diagram.source || "",
-          });
-        }
-      }
-    }
-
     // Handle deleted tables
     if (body.deletedTableIds?.length > 0) {
       await db
@@ -308,18 +261,6 @@ export async function PUT(
           and(
             eq(projectTables.projectId, id),
             inArray(projectTables.id, body.deletedTableIds)
-          )
-        );
-    }
-
-    // Handle deleted diagrams
-    if (body.deletedDiagramIds?.length > 0) {
-      await db
-        .delete(projectDiagrams)
-        .where(
-          and(
-            eq(projectDiagrams.projectId, id),
-            inArray(projectDiagrams.id, body.deletedDiagramIds)
           )
         );
     }

@@ -1,11 +1,11 @@
 import { db } from "@/db";
-import { projects, knowledgeUnits, projectTables, projectDiagrams, projectDecks } from "@/db/schema";
+import { projects, knowledgeUnits, projectTables, projectDecks } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { checkRateLimit } from "@/lib/rateLimit";
 
 /**
  * GET /api/share/[token] — Public endpoint (no auth).
- * Looks up the share token across projects, KUs, tables, and diagrams.
+ * Looks up the share token across projects, KUs, tables, and decks.
  */
 
 export async function GET(
@@ -38,7 +38,7 @@ export async function GET(
       .limit(1);
 
     if (project) {
-      const [kus, tables, diagrams, decks] = await Promise.all([
+      const [kus, tables, decks] = await Promise.all([
         db
           .select({
             id: knowledgeUnits.id,
@@ -61,17 +61,6 @@ export async function GET(
           .where(eq(projectTables.projectId, project.id)),
         db
           .select({
-            id: projectDiagrams.id,
-            title: projectDiagrams.title,
-            diagramType: projectDiagrams.diagramType,
-            source: projectDiagrams.source,
-            createdAt: projectDiagrams.createdAt,
-            updatedAt: projectDiagrams.updatedAt,
-          })
-          .from(projectDiagrams)
-          .where(eq(projectDiagrams.projectId, project.id)),
-        db
-          .select({
             id: projectDecks.id,
             title: projectDecks.title,
             theme: projectDecks.theme,
@@ -90,7 +79,6 @@ export async function GET(
         description: project.description,
         documents: kus,
         tables,
-        diagrams,
         decks,
       });
     }
@@ -153,38 +141,7 @@ export async function GET(
       });
     }
 
-    // 4. Check diagrams
-    const [diagram] = await db
-      .select({
-        id: projectDiagrams.id,
-        title: projectDiagrams.title,
-        diagramType: projectDiagrams.diagramType,
-        source: projectDiagrams.source,
-        projectId: projectDiagrams.projectId,
-        createdAt: projectDiagrams.createdAt,
-        updatedAt: projectDiagrams.updatedAt,
-      })
-      .from(projectDiagrams)
-      .where(eq(projectDiagrams.shareToken, token))
-      .limit(1);
-
-    if (diagram) {
-      const [proj] = await db
-        .select({ title: projects.title })
-        .from(projects)
-        .where(eq(projects.id, diagram.projectId))
-        .limit(1);
-
-      return Response.json({
-        type: "diagram",
-        title: diagram.title,
-        diagramType: diagram.diagramType,
-        source: diagram.source,
-        projectTitle: proj?.title || "",
-      });
-    }
-
-    // 5. Check decks
+    // 4. Check decks
     const [deck] = await db
       .select({
         id: projectDecks.id,

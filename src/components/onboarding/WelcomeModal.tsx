@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { FileText, Table2, GitBranch, Presentation } from "lucide-react";
+import { FileText, Table2, Presentation } from "lucide-react";
 
 const LS_KEY = "drafta_welcomed";
 
@@ -17,12 +17,6 @@ const features = [
     label: "Spreadsheets",
     color: "#2e9e47",
     bg: "rgba(46, 158, 71, 0.08)",
-  },
-  {
-    icon: GitBranch,
-    label: "Diagrams",
-    color: "#7c5cb8",
-    bg: "rgba(124, 92, 184, 0.08)",
   },
   {
     icon: Presentation,
@@ -73,8 +67,8 @@ export function WelcomeModal() {
             Welcome to Drafta AI
           </h2>
           <p className="mt-2.5 text-[15px] leading-relaxed text-[#6b6b80]">
-            Your AI-powered workspace for documents, spreadsheets, diagrams,
-            and presentations. Everything you create is connected through a
+            Your AI-powered workspace for documents, spreadsheets, and
+            presentations. Everything you create is connected through a
             smart AI assistant.
           </p>
 

@@ -4,7 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Drafta AI is an AI-powered workspace where users create and manage documents, spreadsheets, diagrams, and presentation decks — all connected through a chat-based AI assistant. The AI provider is configurable (OpenAI or Google Gemini) via the `AI_PROVIDER` env var; currently set to **OpenAI**.
+Drafta AI is an AI-powered workspace where users create and manage documents, spreadsheets, and presentation decks — all connected through a chat-based AI assistant. OpenAI is the primary provider for chat. Google (Gemini) is used only for deck generation/editing where it performs better. Both are required.
+
+## Strategy & Positioning
+
+**Hero:** "The AI workspace for docs, sheets, and decks."
+**Sub:** "Chat to create and edit them all. Drag in any file. Project memory keeps everything connected — so you never copy-paste from ChatGPT again."
+
+See `docs/superpowers/specs/2026-05-01-drafta-v1-strategy.md` for full strategic context, ICPs, and execution roadmap. See `docs/superpowers/specs/2026-05-01-drafta-v1-eng-review.md` for engineering decisions.
 
 ## Commands
 
@@ -26,54 +33,45 @@ No test framework is configured. There are no unit tests.
 - **State**: Zustand v5 + Immer (client-side, debounced sync to server)
 - **Server state**: TanStack Query v5
 - **AI**: Vercel AI SDK 6 (`ai` + `@ai-sdk/openai` + `@ai-sdk/google`) — dual-provider support, currently using OpenAI
-- **Sheets**: Fortune Sheet (migration to Univer planned)
+- **Sheets**: Univer (Fortune Sheet migration complete)
 - **Docs**: Plate.js v52 (Slate-based rich text)
-- **Diagrams**: Mermaid + Excalidraw + Recharts + React Flow
+- **Inline Mermaid**: Plate.js fenced-code rendering
 - **Decks**: Custom slide system with pptxgenjs export + Puppeteer PDF
 
 ## Architecture
 
 ### Entity System
 
-Four entity types live inside a **Project**:
+Three entity types live inside a **Project**:
 
 | Entity | Type Key | DB Table | Content Format |
 |--------|----------|----------|----------------|
 | Document | `ku` (KnowledgeUnit) | `knowledgeUnits` | Plate.js JSON / Markdown |
-| Spreadsheet | `table` | `projectTables` | Fortune Sheet `celldata[]` (jsonb) |
-| Diagram | `diagram` | `projectDiagrams` | Mermaid source, Recharts JSON, Excalidraw JSON, or React Flow JSON |
+| Spreadsheet | `table` | `projectTables` | Univer `celldata[]` (jsonb) |
 | Deck | `deck` | `projectDecks` | `DeckSlide[]` with ThemeConfig (jsonb) |
 
 ### AI Provider & Model Routing
 
-The AI provider is set via `AI_PROVIDER` env var (`openai` or `google`). Model selection is handled by `modelRouter.ts`:
+Model selection is task-keyed (registry in `src/lib/ai/modelRouter.ts`). Each task is hard-mapped to the best provider for that workload — there is no global `AI_PROVIDER` switch:
 
-**OpenAI models (current)**:
-| Task | Model | Max Output |
-|------|-------|------------|
-| Chat (small context) | gpt-4.1-mini | 8,192 |
-| Chat (>30KB context) | gpt-4.1 | 16,384 |
-| Deck generate | gpt-4.1 | 65,536 |
-| Deck edit | gpt-4.1 | 32,768 |
-| Title / Web search | gpt-4.1-mini | 256 / 8,192 |
-| Summarize | gpt-4.1 | 4,096 |
-| Embedding | text-embedding-3-small | — |
+| Task | Provider | Model | Max Output |
+|------|----------|-------|------------|
+| Chat (small context, <30KB) | openai | gpt-4.1-mini | 8,192 |
+| Chat (>30KB context) | openai | gpt-4.1 | 16,384 |
+| Deck generate | google | gemini-3.1-pro-preview | 65,536 |
+| Deck edit | google | gemini-3.1-pro-preview | 32,768 |
+| Title / Web search | openai | gpt-4.1-mini | 256 / 8,192 |
+| Summarize | openai | gpt-4.1 | 4,096 |
+| Embedding | openai | text-embedding-3-small | — |
 
-**Google models (alternate)**:
-| Task | Model | Max Output |
-|------|-------|------------|
-| Chat (small context) | gemini-2.5-flash | 8,192 |
-| Chat (>30KB context) | gemini-2.5-pro | 16,384 |
-| Deck generate | gemini-2.5-pro | 65,536 |
-| Title / Web search | gemini-2.5-flash | 256 / 8,192 |
-| Embedding | text-embedding-004 | — |
+Both `OPENAI_API_KEY` and `GEMINI_API_KEY` are required.
 
 ### AI Operation Flow
 
 1. User sends message → `POST /api/chat` with context injection (sheet CSV, doc content, project memory)
-2. `modelRouter.ts` selects model based on `AI_PROVIDER` and context size (>30KB routes to heavier model)
+2. `modelRouter.ts` selects model by task and context size (>30KB routes to heavier model for chat)
 3. AI streams response with JSON operations inside fenced blocks
-4. `parseAIResponse.ts` extracts operations from block types: `sheetops`, `docops`, `kuops`, `tableops`, `diagramops`, `deckops`
+4. `parseAIResponse.ts` extracts operations from block types: `sheetops`, `docops`, `kuops`, `tableops`, `deckops`
 5. `finishStreaming()` in the store applies operations, opens new entity tabs, triggers debounced save
 
 ### Context Injection
@@ -86,7 +84,7 @@ This is the largest file (~78KB). All client-side state lives in a single Zustan
 - **Debounced save**: Projects save after 2000ms of inactivity, sheets after 800ms
 - **Version tracking**: `sheetVersion` counter forces Fortune Sheet remount after AI operations
 - **Undo/redo**: Snapshot-based, stored in Zustand state
-- **Entity CRUD**: `addKnowledgeUnit()`, `addTable()`, `addDiagram()`, `addDeck()` + corresponding update/delete
+- **Entity CRUD**: `addKnowledgeUnit()`, `addTable()`, `addDeck()` + corresponding update/delete
 
 ### Key Files
 
@@ -123,7 +121,7 @@ Based on Firecrawl's design system (v3). CSS variables in `globals.css`. Tokens 
 
 - **Brand (Heat)**: `#fa5d19` — opacity-based scale (heat.4 through heat.100). Always white text on heat backgrounds. **NEVER use dark text on orange.**
 - **Fonts**: Inter (UI/body, weights 400/450/500/600/700 — headings use 500), Geist Mono (code)
-- **Entity colors**: doc `#2a6dfb` (bluetron), sheet `#42c366` (forest), diagram `#9061ff` (amethyst), deck `#fa5d19` (heat)
+- **Entity colors**: doc `#2a6dfb` (bluetron), sheet `#42c366` (forest), deck `#fa5d19` (heat)
 - **Surfaces**: white (#ffffff) base, #fafafa lighter, alpha-based borders throughout
 - **Borders**: `rgba(0,0,0,0.04)` faint, `rgba(0,0,0,0.08)` muted (default), `rgba(0,0,0,0.16)` loud — NOT hex colors
 - **Text hierarchy**: `#171717` (primary) / `#525252` (secondary) / `#737373` (tertiary) / `#a3a3a3` (muted)
@@ -138,9 +136,8 @@ Required in `.env.local`:
 - `DATABASE_URL` — Neon PostgreSQL connection string
 - `NEXTAUTH_SECRET` — JWT signing secret
 - `NEXTAUTH_URL` — App URL (e.g. `http://localhost:3000`)
-- `AI_PROVIDER` — `openai` or `google` (defaults to `google` if unset)
-- `OPENAI_API_KEY` — OpenAI API key (required when AI_PROVIDER=openai)
-- `GEMINI_API_KEY` — Google AI API key (required when AI_PROVIDER=google)
+- `OPENAI_API_KEY` — OpenAI API key (required — primary provider for chat, title, summarize, embeddings)
+- `GEMINI_API_KEY` — Google AI API key (required — used for deck generate/edit only)
 
 ## Conventions
 
@@ -167,14 +164,13 @@ When building features, always check these docs for context. When making decisio
 ## Active Migration Plan
 
 Several module upgrades are planned (see `.claude/plans/`):
-- Fortune Sheet → Univer (sheets)
-- jsPDF → Puppeteer server-side PDF (export)
-- Yjs + PartyKit (real-time collaboration)
+- jsPDF → Puppeteer server-side PDF (export) — resolved (Puppeteer is now in deps)
+- Yjs + PartyKit (real-time collaboration) — Deferred to v1.2+
 
 ## Design Context
 
 ### Users
-Solo founders, marketers, SMB operators, and students who need to create documents, spreadsheets, diagrams, and decks without switching between 5 different tools. They range from semi-technical to non-technical. They value speed and simplicity over power-user features. Their context: busy, often working alone, need professional output without professional design skills.
+Solo founders, marketers, SMB operators, and students who need to create documents, spreadsheets, and decks without switching between 5 different tools. They range from semi-technical to non-technical. They value speed and simplicity over power-user features. Their context: busy, often working alone, need professional output without professional design skills.
 
 ### Brand Personality
 **Clean, Smart, Approachable.** The interface should feel like a sharp tool that doesn't require a manual. Warm but not playful. Professional but not corporate. The orange brand color (`#ff4a00`) provides energy without aggression.
@@ -195,4 +191,4 @@ Solo founders, marketers, SMB operators, and students who need to create documen
 2. **One glance, one action** — Users should understand what to do without reading instructions. Clear hierarchy, obvious affordances, no hidden menus for primary actions.
 3. **Warm precision** — Combine the sharpness of Linear with the warmth of Pitch. Clean geometry + warm orange + soft shadows = approachable professionalism.
 4. **AI as collaborator, not wizard** — AI interactions should feel like working with a smart colleague, not invoking magic. Show the process, celebrate the result, keep the user in control.
-5. **Consistent entity language** — Each entity type (doc/sheet/diagram/deck) has its own color and personality. Use these consistently across tabs, icons, badges, and backgrounds to build spatial memory.
+5. **Consistent entity language** — Each entity type (doc/sheet/deck) has its own color and personality. Use these consistently across tabs, icons, badges, and backgrounds to build spatial memory.

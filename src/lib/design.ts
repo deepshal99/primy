@@ -43,8 +43,6 @@ export const design = {
       docBg: "var(--color-entity-doc-bg, #f0f4fd)",
       sheet: "var(--color-entity-sheet, #2e9e47)",
       sheetBg: "var(--color-entity-sheet-bg, #e8f7ea)",
-      diagram: "var(--color-entity-diagram, #7c5cb8)",
-      diagramBg: "var(--color-entity-diagram-bg, #ece4f8)",
       deck: "var(--color-entity-deck, #d4582a)",
       deckBg: "var(--color-entity-deck-bg, #fde8dc)",
     },

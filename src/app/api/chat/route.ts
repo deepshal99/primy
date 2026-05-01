@@ -1,8 +1,7 @@
 import { streamText, convertToModelMessages, type UIMessage } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createOpenAI } from "@ai-sdk/openai";
 import { SYSTEM_PROMPT } from "@/lib/ai/systemPrompt";
-import { getModelForTask, getProvider, estimateContextSize, type AITask } from "@/lib/ai/modelRouter";
+import { getModelConfig, getModel, estimateContextSize, type AITask } from "@/lib/ai/modelRouter";
 import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import "@/lib/env";
@@ -10,8 +9,8 @@ import "@/lib/env";
 // Allow longer processing for deck generation and file-heavy requests
 export const maxDuration = 300;
 
+// Used for Google Search tool wiring on deck tasks (Gemini-only feature).
 const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY! });
-const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
 /** Strip context-injection tags from user input to prevent prompt injection. */
 function sanitizeUserContent(text: string): string {
@@ -23,7 +22,6 @@ function sanitizeUserContent(text: string): string {
     .replace(/<\/?current_doc_content[^>]*>/g, "")
     .replace(/<\/?project_memory[^>]*>/g, "")
     .replace(/<\/?uploaded_file[^>]*>/g, "")
-    .replace(/<\/?mentioned_diagram[^>]*>/g, "")
     .replace(/<\/?mentioned_deck[^>]*>/g, "")
     .replace(/<\/?active_entity[^>]*>/g, "")
     .replace(/<\/?deck_phase[^>]*>/g, "");
@@ -107,7 +105,8 @@ export async function POST(req: Request) {
     if (taskType === "chat" && contextSize && contextSize > 30 * 1024) {
       taskType = "chat-heavy";
     }
-    const { model: modelId, maxOutputTokens } = getModelForTask(taskType, contextSize);
+    const modelConfig = getModelConfig(taskType, contextSize);
+    const { model: modelId, maxOutputTokens, provider: modelProvider } = modelConfig;
     const isProModel = modelId.includes("pro");
 
     // Build the last user message with context injection
@@ -169,7 +168,6 @@ export async function POST(req: Request) {
       const entityTypeLabels: Record<string, string> = {
         ku: "document",
         table: "sheet",
-        diagram: "diagram",
         deck: "deck",
       };
       const typeLabel = entityTypeLabels[activeEntityType] || activeEntityType;
@@ -207,10 +205,7 @@ export async function POST(req: Request) {
         }
       }
 
-      // Inject mentioned diagram/deck context
-      if (projectContext.mentionedDiagramContext) {
-        textContent += projectContext.mentionedDiagramContext;
-      }
+      // Inject mentioned deck context
       if (projectContext.mentionedDeckContext) {
         textContent += projectContext.mentionedDeckContext;
       }
@@ -286,20 +281,11 @@ export async function POST(req: Request) {
     // Convert UIMessages to model messages for streamText
     const modelMessages = await convertToModelMessages(aiMessages);
 
-    const aiProvider = getProvider();
     let result;
     try {
-      if (aiProvider === "openai") {
+      if (modelProvider === "google") {
         result = streamText({
-          model: openai(modelId),
-          system: SYSTEM_PROMPT,
-          messages: modelMessages,
-          maxOutputTokens,
-          abortSignal: req.signal,
-        });
-      } else {
-        result = streamText({
-          model: google(modelId),
+          model: getModel(taskType, contextSize),
           system: SYSTEM_PROMPT,
           messages: modelMessages,
           maxOutputTokens,
@@ -309,6 +295,14 @@ export async function POST(req: Request) {
           tools: {
             googleSearch: google.tools.googleSearch({}),
           },
+          abortSignal: req.signal,
+        });
+      } else {
+        result = streamText({
+          model: getModel(taskType, contextSize),
+          system: SYSTEM_PROMPT,
+          messages: modelMessages,
+          maxOutputTokens,
           abortSignal: req.signal,
         });
       }

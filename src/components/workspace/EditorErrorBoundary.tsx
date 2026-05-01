@@ -4,7 +4,7 @@ import React from "react";
 
 interface EditorErrorBoundaryProps {
   children: React.ReactNode;
-  entityType: "document" | "spreadsheet" | "diagram" | "presentation";
+  entityType: "document" | "spreadsheet" | "presentation";
 }
 
 interface EditorErrorBoundaryState {
@@ -13,7 +13,7 @@ interface EditorErrorBoundaryState {
 }
 
 /**
- * Error boundary that wraps individual editor panels (doc, sheet, diagram, deck).
+ * Error boundary that wraps individual editor panels (doc, sheet, deck).
  * Catches rendering errors in the editor area without affecting the chat panel,
  * tab bar, or other workspace chrome.
  *

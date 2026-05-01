@@ -1,19 +1,7 @@
 import { embed, embedMany } from "ai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createOpenAI } from "@ai-sdk/openai";
-import { getModelForTask, getProvider } from "./modelRouter";
+import { getEmbeddingModel } from "./modelRouter";
 
 const MAX_TEXT_LENGTH = 2048;
-
-function getEmbeddingModel() {
-  const { model: modelId } = getModelForTask("embedding");
-  if (getProvider() === "openai") {
-    const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-    return openai.textEmbeddingModel(modelId);
-  }
-  const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY! });
-  return google.textEmbeddingModel(modelId);
-}
 
 function truncate(text: string): string {
   return text.length > MAX_TEXT_LENGTH ? text.slice(0, MAX_TEXT_LENGTH) : text;
