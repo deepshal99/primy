@@ -11,7 +11,8 @@
     "test:run": "vitest run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "migrate:grace": "tsx scripts/grant-founding-member-grace.ts"
+    "migrate:grace": "tsx scripts/grant-founding-member-grace.ts",
+    "dev:admin": "tsx scripts/ensure-dev-admin.ts"
   },
   "keywords": [],
   "author": "",

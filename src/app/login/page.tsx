@@ -80,6 +80,29 @@ export default function LoginPage() {
     }
   };
 
+  // Dev-only quick sign-in. Gated by NODE_ENV — Next inlines this at
+  // build time, so the button + handler are stripped from production
+  // bundles entirely. Credentials are seeded by `npm run dev:admin`.
+  const isDev = process.env.NODE_ENV !== "production";
+  const handleDevSignIn = async () => {
+    setError("");
+    setLoading(true);
+    const result = await signIn("credentials", {
+      email: "admin@drafta.local",
+      password: "admin",
+      mode: "signin",
+      redirect: false,
+    });
+    setLoading(false);
+    if (result?.error) {
+      setError(
+        "Dev admin not found. Run `npm run dev:admin` to seed the local admin user."
+      );
+    } else if (result?.ok) {
+      window.location.href = "/app";
+    }
+  };
+
   return (
     <div className="min-h-screen flex bg-[#fafaf8]">
       {/* Left brand panel */}
@@ -275,6 +298,44 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          {/* Dev-only quick sign-in. Stripped from production bundle. */}
+          {isDev && (
+            <div className="mt-6 pt-5 border-t border-dashed border-[#e8e7e4]">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <span className="text-[10.5px] uppercase tracking-wider text-[#a3a3a3] font-medium">
+                  Local development
+                </span>
+                <span className="text-[10.5px] text-[#a3a3a3] font-mono">
+                  NODE_ENV=development
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleDevSignIn}
+                disabled={loading}
+                className={cn(
+                  "w-full h-10 rounded-lg text-[13px] font-medium flex items-center justify-center gap-2 transition-all duration-200 border",
+                  loading
+                    ? "bg-[#fafaf8] text-[#a3a3a3] border-[#e8e7e4] cursor-wait"
+                    : "bg-white text-[#171717] border-[#d4d2cd] hover:bg-[#fafaf8] hover:border-[#a3a3a3] active:scale-[0.99] cursor-pointer"
+                )}
+              >
+                {loading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <>
+                    Sign in as admin (dev)
+                    <ArrowRight className="w-3 h-3" />
+                  </>
+                )}
+              </button>
+              <p className="text-[10.5px] text-center mt-2 text-[#b0ada6]">
+                <span className="font-mono">admin@drafta.local</span> · seeded via{" "}
+                <span className="font-mono">npm run dev:admin</span>
+              </p>
+            </div>
+          )}
 
           {/* Footer */}
           <p className="text-[12px] text-center mt-8 text-[#b0ada6]">
