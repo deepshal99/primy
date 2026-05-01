@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { effectivePlan, isOnGracePeriod } from "@/lib/billing";
 
 export async function GET() {
   try {
@@ -17,6 +18,9 @@ export async function GET() {
         name: users.name,
         email: users.email,
         createdAt: users.createdAt,
+        hasOnboarded: users.hasOnboarded,
+        plan: users.plan,
+        proUntil: users.proUntil,
       })
       .from(users)
       .where(eq(users.id, session.user.id))
@@ -26,7 +30,13 @@ export async function GET() {
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
-    return Response.json(user);
+    const planInput = { plan: user.plan, proUntil: user.proUntil ?? null };
+
+    return Response.json({
+      ...user,
+      effectivePlan: effectivePlan(planInput),
+      isOnGracePeriod: isOnGracePeriod(planInput),
+    });
   } catch (error) {
     console.error("[API] GET /api/user error:", error);
     return Response.json({ error: "Internal server error" }, { status: 500 });

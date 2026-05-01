@@ -74,20 +74,43 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: "/login",
   },
   callbacks: {
+    // The JWT now carries plan + proUntil so client-side reads (e.g. plan
+    // badge in the header) don't require a /api/user round-trip on every
+    // navigation. NOTE: this is purely a client-side optimization. Server
+    // enforcement in withPlanLimit still re-reads the users row each
+    // request — JWT can be stale up to a session refresh, so the DB
+    // remains the source of truth for billing decisions. We accept that
+    // trade-off for now; once gateway webhooks land and refresh on
+    // subscription events, withPlanLimit could be optimized to read from
+    // the session directly.
     async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;
         token.name = user.name;
+        // Fetch plan + proUntil on initial sign-in so the token carries
+        // them from the start.
+        const [dbUser] = await db
+          .select({ plan: users.plan, proUntil: users.proUntil })
+          .from(users)
+          .where(eq(users.id, user.id as string))
+          .limit(1);
+        if (dbUser) {
+          token.plan = dbUser.plan;
+          token.proUntil = dbUser.proUntil ? dbUser.proUntil.toISOString() : null;
+        }
       }
-      // When client calls update() after name change, refresh from DB
+      // When client calls update() after name change (or plan upgrade),
+      // refresh from DB so the session reflects the new state.
       if (trigger === "update" && token.id) {
         const [dbUser] = await db
-          .select({ name: users.name })
+          .select({ name: users.name, plan: users.plan, proUntil: users.proUntil })
           .from(users)
           .where(eq(users.id, token.id as string))
           .limit(1);
         if (dbUser) {
           token.name = dbUser.name;
+          token.plan = dbUser.plan;
+          token.proUntil = dbUser.proUntil ? dbUser.proUntil.toISOString() : null;
         }
       }
       return token;
@@ -96,6 +119,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.name = token.name as string;
+        session.user.plan = token.plan as string | undefined;
+        session.user.proUntil = token.proUntil as string | null | undefined;
       }
       return session;
     },

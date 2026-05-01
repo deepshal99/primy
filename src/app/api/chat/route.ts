@@ -1,8 +1,9 @@
 import { streamText, convertToModelMessages, type UIMessage } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import type { NextRequest } from "next/server";
 import { SYSTEM_PROMPT } from "@/lib/ai/systemPrompt";
 import { getModelConfig, getModel, estimateContextSize, type AITask } from "@/lib/ai/modelRouter";
-import { auth } from "@/lib/auth";
+import { withPlanLimit, type PlanCtx } from "@/lib/billing";
 import { checkRateLimit } from "@/lib/rateLimit";
 import "@/lib/env";
 
@@ -27,17 +28,13 @@ function sanitizeUserContent(text: string): string {
     .replace(/<\/?deck_phase[^>]*>/g, "");
 }
 
-export async function POST(req: Request) {
+// Note: withPlanLimit handles auth (returns 401 if no session) and meters
+// the aiMessages counter atomically before invoking this handler. We rely
+// on ctx.userId rather than calling auth() again — single source of truth,
+// no defense-in-depth duplication.
+const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    const rateLimit = checkRateLimit(`${session.user.id}:chat`, 30, 60_000);
+    const rateLimit = checkRateLimit(`${ctx.userId}:chat`, 30, 60_000);
     if (!rateLimit.allowed) {
       return Response.json(
         { error: "Too many requests. Please try again later." },
@@ -435,4 +432,6 @@ export async function POST(req: Request) {
       headers: { "Content-Type": "application/json" },
     });
   }
-}
+};
+
+export const POST = withPlanLimit(handler, { resource: "aiMessages" });

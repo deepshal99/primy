@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { incrementUsage } from "@/lib/billing";
 import { generateText } from "ai";
 import { getModel } from "@/lib/ai/modelRouter";
 import "@/lib/env";
@@ -50,7 +51,7 @@ function shouldSkip(filepath: string): boolean {
   return false;
 }
 
-async function extractZipContents(buffer: Buffer): Promise<string> {
+async function extractZipContents(buffer: Buffer): Promise<{ text: string; entryCount: number }> {
   const JSZip = (await import("jszip")).default;
   const zip = await JSZip.loadAsync(buffer);
 
@@ -119,7 +120,7 @@ async function extractZipContents(buffer: Buffer): Promise<string> {
     }
   }
 
-  return parts.join("");
+  return { text: parts.join(""), entryCount: entries.length };
 }
 
 const SUMMARY_THRESHOLD = 50000; // Only summarize files > 50K chars
@@ -183,6 +184,10 @@ export async function POST(req: Request) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     let text = "";
+    // For ZIPs, we increment fileUploads by the number of internal entries
+    // (matches the user-facing "files uploaded" count). For all other
+    // single-file requests, this stays at 1.
+    let fileUploadsToCount = 1;
 
     if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
       try {
@@ -238,7 +243,11 @@ export async function POST(req: Request) {
       file.name.endsWith(".zip")
     ) {
       try {
-        text = await extractZipContents(buffer);
+        const zipResult = await extractZipContents(buffer);
+        text = zipResult.text;
+        // Count internal ZIP entries as separate file uploads. Fall back
+        // to 1 if the ZIP was empty so we still record the request.
+        fileUploadsToCount = Math.max(1, zipResult.entryCount);
       } catch (err) {
         console.error("[Extract API] ZIP parse error:", err);
         return NextResponse.json(
@@ -255,6 +264,17 @@ export async function POST(req: Request) {
 
     // Truncate to 200k chars
     text = text.slice(0, 200000);
+
+    // Increment fileUploads counter for billing/usage tracking. ZIPs count
+    // each internal entry; non-ZIP requests count as 1. Storage cap will
+    // be enforced on the dedicated upload path in v1.1 once blob upload
+    // is wired to the files table.
+    try {
+      await incrementUsage(session.user.id, "fileUploads", fileUploadsToCount);
+    } catch (err) {
+      // Telemetry failure must not block the user-facing extraction.
+      console.error("[Extract API] usage increment error:", err);
+    }
 
     // AI summarization for large documents
     if (text.length > SUMMARY_THRESHOLD) {
