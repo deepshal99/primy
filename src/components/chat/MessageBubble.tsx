@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Message, EntityType } from "@/lib/types";
 import { useAppStore } from "@/lib/store";
+import { DotmCircular15 } from "@/components/ui/dotm-circular-15";
 import { MessageAttachments } from "./MessageAttachments";
 import {
   Tooltip,
@@ -281,11 +282,13 @@ function ThinkingIndicator({ readingFiles }: { readingFiles: string[] }) {
 
   return (
     <div className="flex items-center gap-2.5 py-1">
-      <div className="w-4 h-4 flex flex-col items-start justify-center gap-[2.5px] flex-shrink-0">
-        <div className="h-[1.5px] rounded-full bg-[#ff4a00]/60 content-loader-line" style={{ width: "100%" }} />
-        <div className="h-[1.5px] rounded-full bg-[#ff4a00]/40 content-loader-line" style={{ width: "75%" }} />
-        <div className="h-[1.5px] rounded-full bg-[#ff4a00]/25 content-loader-line" style={{ width: "90%" }} />
-      </div>
+      <DotmCircular15
+        size={20}
+        dotSize={3}
+        speed={1.65}
+        color="#ff4a00"
+        ariaLabel="AI is working"
+      />
       <span className="text-[13px] font-medium shimmer-text text-muted-foreground">
         {label}...
       </span>
