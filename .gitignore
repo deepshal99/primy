@@ -47,3 +47,4 @@ src/extra/
 
 # Diagram migration archives
 .archive/
+coverage/
