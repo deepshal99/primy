@@ -17,7 +17,7 @@
  * fallbacks are included so the entrance still works if motion.css is absent.
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import type { Project } from "@/lib/types";
@@ -72,6 +72,20 @@ export function GlobalHome() {
   const switchProject = useAppStore((s) => s.switchProject);
   const createProject = useAppStore((s) => s.createProject);
 
+  // Lock once a navigation starts so a rapid second click can't mis-fire before
+  // the view swaps to the project (guards ISSUE-002 — interaction during load).
+  const [busy, setBusy] = useState(false);
+  const openProject = (id: string) => {
+    if (busy) return;
+    setBusy(true);
+    switchProject(id);
+  };
+  const handleNew = () => {
+    if (busy) return;
+    setBusy(true);
+    createProject("Untitled project");
+  };
+
   // Recent activity from real data: most-recently-updated projects.
   const recent = useMemo(
     () =>
@@ -80,10 +94,6 @@ export function GlobalHome() {
         .slice(0, 4),
     [projects]
   );
-
-  const handleNewProject = () => {
-    createProject("Untitled project");
-  };
 
   const isEmpty = projects.length === 0;
 
@@ -139,8 +149,9 @@ export function GlobalHome() {
             </p>
           </div>
           <button
-            onClick={handleNewProject}
-            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[12.5px] font-medium text-white transition-transform active:scale-[0.97] motion-reduce:transition-none flex-shrink-0"
+            onClick={handleNew}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[12.5px] font-medium text-white transition-transform active:scale-[0.97] motion-reduce:transition-none flex-shrink-0 disabled:opacity-60"
             style={{ background: HEAT }}
           >
             <Plus size={14} /> New project
@@ -148,22 +159,22 @@ export function GlobalHome() {
         </div>
 
         {isEmpty ? (
-          <EmptyState onCreate={handleNewProject} />
+          <EmptyState onCreate={handleNew} />
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className={`grid grid-cols-1 lg:grid-cols-2 gap-4 ${busy ? "pointer-events-none opacity-70" : ""}`}>
             {projects.map((p, i) => {
               const accent = accentFor(p.id);
               const count = fileCountFor(p);
               return (
                 <div
                   key={p.id}
-                  onClick={() => switchProject(p.id)}
+                  onClick={() => openProject(p.id)}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      switchProject(p.id);
+                      openProject(p.id);
                     }
                   }}
                   className="gh-card rounded-2xl bg-white p-4 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#ff4a00]/30"
@@ -230,8 +241,9 @@ export function GlobalHome() {
               {recent.map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => switchProject(p.id)}
-                  className="flex items-center gap-3 text-[13px] w-full text-left rounded-lg px-1 py-0.5 hover:bg-[#f5f5f3] transition-colors"
+                  onClick={() => openProject(p.id)}
+                  disabled={busy}
+                  className="flex items-center gap-3 text-[13px] w-full text-left rounded-lg px-1 py-0.5 hover:bg-[#f5f5f3] transition-colors disabled:opacity-70"
                 >
                   <div
                     className="flex items-center justify-center rounded-full text-white text-[9px] font-semibold flex-shrink-0"

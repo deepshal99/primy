@@ -180,7 +180,45 @@ export function ExamplePrompts({
     );
   }
 
-  // Centered mode: entity type selector pills (hero screen)
+  // Sidebar mode, no project yet: balanced, vertically-centered empty state.
+  // Full-width stacked entity cards read better in the narrow chat column than
+  // wrapping horizontal pills, and they sit centered instead of pinned to the top.
+  if (!centered) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center px-5 text-center">
+        <div className="flex flex-col items-center gap-1 mb-5 animate-fade-in-up">
+          <h2 className="font-heading text-[16px] font-semibold text-foreground tracking-[-0.02em]">
+            Start something new
+          </h2>
+          <p className="text-[12.5px] text-[#95928E] leading-relaxed max-w-[240px]">
+            Describe what you want below, or pick a format to begin.
+          </p>
+        </div>
+        <div className="flex flex-col items-stretch gap-2 w-full max-w-[230px]">
+          {ENTITY_PILLS.map((pill, i) => (
+            <button
+              key={pill.type}
+              onClick={() => onEntityTypeSelect?.(pill.type)}
+              style={{ animationDelay: `${60 + i * 45}ms` }}
+              className="group animate-fade-in-up flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-[#ebeae7] bg-white text-[13px] font-medium text-[#525252] hover:text-[#1a1a1a] t-fast active:scale-[0.98] cursor-pointer hover:shadow-[0_1px_3px_rgba(0,0,0,0.05)]"
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = `${pill.color}55`)}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#ebeae7")}
+            >
+              <span
+                className="flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0 t-fast"
+                style={{ backgroundColor: pill.bg }}
+              >
+                <pill.icon className="w-4 h-4" strokeWidth={1.7} style={{ color: pill.color }} />
+              </span>
+              {pill.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Centered mode: entity type selector pills (full-screen hero)
   return (
     <div className="flex flex-col items-center gap-2.5">
       <span className="text-[12px] text-[#b0ada6] tracking-wide">or start from scratch</span>

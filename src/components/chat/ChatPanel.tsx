@@ -597,6 +597,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
                 <ExamplePrompts
                   onSelect={sendMessage}
                   hasProject={!!currentProjectId}
+                  onEntityTypeSelect={handleEntityPillClick}
                 />
               )}
             </div>
