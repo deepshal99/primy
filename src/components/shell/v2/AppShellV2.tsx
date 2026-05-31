@@ -13,14 +13,14 @@
  * Gated by useShellV2(); the legacy AppShell stays available via /app?shell=v1.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   Inbox, PenLine, Search, ChevronRight, Plus, FileText, Table2, Presentation,
   LayoutTemplate, MoreHorizontal, LayoutGrid, CalendarDays,
   PanelRightOpen, Sun, Moon, ArrowLeft, Settings, CircleHelp, Check,
-  Folder as FolderIcon, FolderPlus, Home, Trash2,
+  Folder as FolderIcon, FolderPlus, Home, Trash2, Pencil, FolderInput,
   Rocket, Sparkles, Compass, Layers, Target, Box, Hexagon, Flame,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
@@ -133,6 +133,41 @@ async function fetchUserForGate(): Promise<{ hasOnboarded: boolean }> {
   return res.json();
 }
 
+/** Reveal the scrollbar only while the element is scrolling, hide ~800ms after. */
+function useScrollReveal<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let t: ReturnType<typeof setTimeout>;
+    const on = () => {
+      el.classList.add("is-scrolling");
+      clearTimeout(t);
+      t = setTimeout(() => el.classList.remove("is-scrolling"), 800);
+    };
+    el.addEventListener("scroll", on, { passive: true });
+    return () => { el.removeEventListener("scroll", on); clearTimeout(t); };
+  }, []);
+  return ref;
+}
+
+function renameEntity(projectId: string, item: Item, title: string) {
+  const t = title.trim();
+  if (!t || t === item.title) return;
+  const s = useAppStore.getState();
+  if (item.type === "ku") s.renameKnowledgeUnit(projectId, item.id, t);
+  else if (item.type === "table") s.renameTable(projectId, item.id, t);
+  else if (item.type === "deck") s.renameDeck(projectId, item.id, t);
+  else s.renamePage(projectId, item.id, t);
+}
+function deleteEntity(projectId: string, item: Item) {
+  const s = useAppStore.getState();
+  if (item.type === "ku") s.deleteKnowledgeUnit(projectId, item.id);
+  else if (item.type === "table") s.deleteTable(projectId, item.id);
+  else if (item.type === "deck") s.deleteDeck(projectId, item.id);
+  else s.deletePage(projectId, item.id);
+}
+
 /* ───────────────────────── shell ───────────────────────── */
 
 export function AppShellV2() {
@@ -155,6 +190,9 @@ export function AppShellV2() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [wsMenu, setWsMenu] = useState<{ id: string; title: string; x: number; y: number } | null>(null);
+  const [renamingWs, setRenamingWs] = useState<string | null>(null);
+  const sidebarScroll = useScrollReveal<HTMLDivElement>();
+  const bodyScroll = useScrollReveal<HTMLDivElement>();
 
   const project = projects.find((p) => p.id === currentProjectId);
 
@@ -218,7 +256,7 @@ export function AppShellV2() {
           <NavRow icon={<Search size={16} />} label="Search" hint="⌘K" onClick={() => setSearchOpen(true)} />
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 pt-1 min-h-0 chat-scroll">
+        <div ref={sidebarScroll} className="flex-1 overflow-y-auto px-4 pt-1 min-h-0 v2-scroll">
           <div className="flex items-center justify-between px-2 mb-2">
             <span className="text-[12.5px] font-medium" style={{ color: "var(--ink-3)" }}>Workspaces</span>
             <button onClick={() => createProject("Untitled project")}
@@ -237,16 +275,27 @@ export function AppShellV2() {
             const isOpen = !!expanded[p.id];
             return (
               <div key={p.id} className="mb-[5px]">
-                <TreeRow
-                  leading={<WorkspaceBadge id={p.id} />}
-                  label={p.title || "Untitled"}
-                  active={isActive && !currentEntityId}
-                  caret={items.length > 0}
-                  open={isOpen}
-                  onCaret={() => setExpanded((e) => ({ ...e, [p.id]: !e[p.id] }))}
-                  onClick={() => { if (p.id !== currentProjectId) switchProject(p.id); setExpanded((e) => ({ ...e, [p.id]: true })); }}
-                  onContextMenu={(ev) => { ev.preventDefault(); setWsMenu({ id: p.id, title: p.title || "Untitled", x: ev.clientX, y: ev.clientY }); }}
-                />
+                {renamingWs === p.id ? (
+                  <div className="flex items-center w-full h-[34px] rounded-[9px]" style={{ background: "var(--sidebar-accent)" }}>
+                    <span className="w-6 flex-shrink-0" />
+                    <WorkspaceBadge id={p.id} />
+                    <input autoFocus defaultValue={p.title || "Untitled"}
+                      onBlur={(e) => { setRenamingWs(null); const v = e.target.value.trim(); if (v && v !== p.title) useAppStore.getState().renameProject(p.id, v); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setRenamingWs(null); }}
+                      className="flex-1 min-w-0 ml-2.5 mr-2.5 bg-transparent outline-none text-[12.5px] font-medium" style={{ color: "var(--ink)" }} />
+                  </div>
+                ) : (
+                  <TreeRow
+                    leading={<WorkspaceBadge id={p.id} />}
+                    label={p.title || "Untitled"}
+                    active={isActive && !currentEntityId}
+                    caret={items.length > 0}
+                    open={isOpen}
+                    onCaret={() => setExpanded((e) => ({ ...e, [p.id]: !e[p.id] }))}
+                    onClick={() => { if (p.id !== currentProjectId) switchProject(p.id); setExpanded((e) => ({ ...e, [p.id]: true })); }}
+                    onContextMenu={(ev) => { ev.preventDefault(); setWsMenu({ id: p.id, title: p.title || "Untitled", x: ev.clientX, y: ev.clientY }); }}
+                  />
+                )}
                 {isOpen && (() => {
                   const pFolders = (p.folders || []).slice().sort((a, b) => a.position - b.position);
                   const inFolder = (fid: string) => items.filter((it) => it.folderId === fid);
@@ -345,7 +394,7 @@ export function AppShellV2() {
           </header>
 
           {/* body */}
-          <div className={`flex-1 min-h-0 ${currentProjectId && currentEntityId ? "overflow-hidden" : "overflow-y-auto"}`}>
+          <div ref={bodyScroll} className={`flex-1 min-h-0 v2-scroll ${currentProjectId && currentEntityId ? "overflow-hidden" : "overflow-y-auto"}`}>
             {currentProjectId && currentEntityId ? (
               <div className="h-full p-4 pt-0 pr-3">
                 <div className="h-full overflow-hidden rounded-[14px]" style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
@@ -384,6 +433,10 @@ export function AppShellV2() {
             <button onClick={() => { switchProject(wsMenu.id); setWsMenu(null); }}
               className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
               <ArrowLeft size={13} className="rotate-180" /> Open
+            </button>
+            <button onClick={() => { setRenamingWs(wsMenu.id); setWsMenu(null); }}
+              className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
+              <Pencil size={13} /> Rename
             </button>
             <div className="my-1 h-px" style={{ background: "var(--border)" }} />
             <button onClick={() => { if (confirm(`Delete workspace "${wsMenu.title}"? This removes all its files.`)) { useAppStore.getState().deleteProject(wsMenu.id); } setWsMenu(null); }}
@@ -424,11 +477,57 @@ function ProjectBody({ project, view }: { project: Project | undefined; view: Vi
   const items = useMemo(() => projectItems(project), [project]);
   if (!project) return null;
   const folders = (project.folders || []).slice().sort((a, b) => a.position - b.position);
-  if (items.length === 0 && folders.length === 0) return <EmptyProject projectId={project.id} />;
-  if (view === "timeline") return <TimelineView projectId={project.id} items={items} folders={folders} />;
-  // Board: group by folder when the project has any; else by entity type.
-  if (folders.length > 0) return <FolderBoardView projectId={project.id} items={items} folders={folders} />;
-  return <BoardView projectId={project.id} items={items} folders={folders} />;
+  const empty = items.length === 0 && folders.length === 0;
+  return (
+    <>
+      <ProjectHeader project={project} />
+      {empty ? <EmptyProject projectId={project.id} />
+        : view === "timeline" ? <TimelineView projectId={project.id} items={items} folders={folders} />
+        : folders.length > 0 ? <FolderBoardView projectId={project.id} items={items} folders={folders} />
+        : <BoardView projectId={project.id} items={items} folders={folders} />}
+    </>
+  );
+}
+
+/**
+ * Editable workspace header. Shows the project description as "context" — this
+ * is what `autoGenerateTitle` populates after the first chat exchange, and the
+ * user can click to edit it. Falls back to a hint when empty.
+ */
+function ProjectHeader({ project }: { project: Project }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(project.description ?? "");
+  useEffect(() => { setVal(project.description ?? ""); }, [project.id, project.description]);
+  const save = () => {
+    setEditing(false);
+    const v = val.trim();
+    if (v !== (project.description ?? "")) useAppStore.getState().updateProject(project.id, { description: v });
+  };
+  return (
+    <div className="px-8 pt-7 pb-5 max-w-[860px]">
+      <div className="flex items-center gap-2.5 mb-1.5">
+        <h1 className="text-[22px] font-semibold tracking-[-0.025em]" style={{ color: "var(--ink)" }}>{project.title || "Untitled"}</h1>
+        {project.projectType && (
+          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--accent-soft)", color: "var(--ink-3)" }}>{project.projectType}</span>
+        )}
+      </div>
+      {editing ? (
+        <textarea autoFocus value={val} onChange={(e) => setVal(e.target.value)} onBlur={save}
+          onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) (e.target as HTMLTextAreaElement).blur(); if (e.key === "Escape") { setVal(project.description ?? ""); setEditing(false); } }}
+          placeholder="Describe this workspace…"
+          rows={2}
+          className="w-full resize-none bg-transparent outline-none text-[14px] leading-[1.55] rounded-[8px] px-2 -mx-2 py-1"
+          style={{ color: "var(--ink-2)", boxShadow: "inset 0 0 0 1px var(--border-strong)" }} />
+      ) : (
+        <button onClick={() => setEditing(true)} className="group/desc flex items-start gap-2 text-left -mx-2 px-2 py-1 rounded-[8px] hover-row">
+          <p className="text-[14px] leading-[1.55]" style={{ color: project.description ? "var(--ink-2)" : "var(--ink-4)" }}>
+            {project.description || "Add a short description — or just chat, and Drafta fills this in after your first message."}
+          </p>
+          <Pencil size={13} className="mt-1 flex-shrink-0 opacity-0 group-hover/desc:opacity-100 transition-opacity" style={{ color: "var(--ink-4)" }} />
+        </button>
+      )}
+    </div>
+  );
 }
 
 function FolderBoardView({ projectId, items, folders }: { projectId: string; items: Item[]; folders: Folder[] }) {
@@ -448,6 +547,7 @@ function FolderBoardView({ projectId, items, folders }: { projectId: string; ite
 
 function FolderSection({ projectId, folder, list, folders }: { projectId: string; folder: Folder | null; list: Item[]; folders: Folder[] }) {
   const [renaming, setRenaming] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [name, setName] = useState(folder?.name ?? "");
   const color = folder?.color ?? "#9A968D";
   return (
@@ -469,10 +569,29 @@ function FolderSection({ projectId, folder, list, folders }: { projectId: string
         <span className="text-[12px] tabular-nums" style={{ color: "var(--ink-4)" }}>{list.length}</span>
         <div className="flex-1" />
         {folder && (
-          <button onClick={() => { if (confirm(`Delete folder "${folder.name}"? Its files move to Unfiled.`)) useAppStore.getState().deleteFolder(projectId, folder.id); }}
-            className="flex items-center justify-center w-6 h-6 rounded-[6px] press opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--ink-4)" }} title="Delete folder">
-            <MoreHorizontal size={16} />
-          </button>
+          <div className="relative">
+            <button onClick={() => setMenuOpen((v) => !v)}
+              className="flex items-center justify-center w-6 h-6 rounded-[6px] press hover-row opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--ink-4)" }} title="Folder options">
+              <MoreHorizontal size={16} />
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 top-7 z-50 w-44 rounded-[10px] py-1.5"
+                  style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
+                  <button onClick={() => { setMenuOpen(false); setRenaming(true); }}
+                    className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
+                    <Pencil size={13} /> Rename
+                  </button>
+                  <div className="my-1 h-px" style={{ background: "var(--border)" }} />
+                  <button onClick={() => { setMenuOpen(false); if (confirm(`Delete folder "${folder.name}"? Its files move to Unfiled.`)) useAppStore.getState().deleteFolder(projectId, folder.id); }}
+                    className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "#d4183d" }}>
+                    <Trash2 size={13} /> Delete folder
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         )}
         <button onClick={() => createInFolder(projectId, "ku", folder?.id ?? null)}
           className="flex items-center justify-center w-6 h-6 rounded-[6px] press opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--icon)" }} title="New doc here">
@@ -575,15 +694,27 @@ function TimelineView({ projectId, items, folders }: { projectId: string; items:
 function EntityCard({ item, projectId, folders }: { item: Item; projectId?: string; folders?: Folder[] }) {
   const e = ENTITY[item.type];
   const [menuOpen, setMenuOpen] = useState(false);
-  const canMove = !!projectId && !!folders;
+  const [renaming, setRenaming] = useState(false);
+  const [title, setTitle] = useState(item.title);
+  useEffect(() => { setTitle(item.title); }, [item.title]);
+  const canManage = !!projectId && !!folders;
+  const saveTitle = () => { setRenaming(false); if (projectId) renameEntity(projectId, item, title); else setTitle(item.title); };
   return (
     <div className="relative">
-      <button onClick={() => openItem(item)}
-        className="text-left rounded-[12px] px-4 py-4 lift flex flex-col relative overflow-hidden group w-full"
+      <div role="button" tabIndex={0}
+        onClick={() => { if (!renaming) openItem(item); }}
+        onKeyDown={(ev) => { if ((ev.key === "Enter" || ev.key === " ") && !renaming && ev.target === ev.currentTarget) { ev.preventDefault(); openItem(item); } }}
+        className="text-left rounded-[12px] px-4 py-4 lift flex flex-col relative overflow-hidden group w-full cursor-pointer"
         style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)", height: CARD_H }}>
         <div className="flex items-start gap-3 mb-3 flex-shrink-0">
-          <div className="text-[15px] font-semibold tracking-[-0.02em] leading-snug flex-1 line-clamp-2" style={{ color: "var(--ink)" }}>{item.title}</div>
-          {canMove && (
+          {renaming ? (
+            <input autoFocus value={title} onChange={(ev) => setTitle(ev.target.value)} onClick={(ev) => ev.stopPropagation()} onBlur={saveTitle}
+              onKeyDown={(ev) => { ev.stopPropagation(); if (ev.key === "Enter") (ev.target as HTMLInputElement).blur(); if (ev.key === "Escape") { setTitle(item.title); setRenaming(false); } }}
+              className="flex-1 min-w-0 text-[15px] font-semibold tracking-[-0.02em] bg-transparent outline-none border-b pb-0.5" style={{ color: "var(--ink)", borderColor: e.color }} />
+          ) : (
+            <div className="text-[15px] font-semibold tracking-[-0.02em] leading-snug flex-1 line-clamp-2" style={{ color: "var(--ink)" }}>{item.title}</div>
+          )}
+          {canManage && (
             <span role="button" tabIndex={0}
               onClick={(ev) => { ev.stopPropagation(); setMenuOpen((v) => !v); }}
               onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.stopPropagation(); setMenuOpen((v) => !v); } }}
@@ -599,22 +730,28 @@ function EntityCard({ item, projectId, folders }: { item: Item; projectId?: stri
           </span>
           <span className="ml-auto text-[11px] tabular-nums" style={{ color: "var(--ink-4)" }}>{relTime(item.updatedAt)}</span>
         </div>
-      </button>
-      {menuOpen && canMove && (
-        <MoveMenu item={item} projectId={projectId!} folders={folders!} onClose={() => setMenuOpen(false)} />
+      </div>
+      {menuOpen && canManage && (
+        <CardMenu item={item} projectId={projectId!} folders={folders!}
+          onRename={() => { setMenuOpen(false); setRenaming(true); }}
+          onClose={() => setMenuOpen(false)} />
       )}
     </div>
   );
 }
 
-function MoveMenu({ item, projectId, folders, onClose }: { item: Item; projectId: string; folders: Folder[]; onClose: () => void }) {
+function CardMenu({ item, projectId, folders, onRename, onClose }: { item: Item; projectId: string; folders: Folder[]; onRename: () => void; onClose: () => void }) {
   const move = (folderId: string | null) => { useAppStore.getState().moveEntityToFolder(projectId, item.id, item.type, folderId); onClose(); };
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div className="absolute right-3 top-11 z-50 w-52 rounded-[10px] py-1.5 overflow-hidden"
         style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
-        <div className="px-3 py-1 text-[11px] font-medium" style={{ color: "var(--ink-4)" }}>Move to</div>
+        <button onClick={onRename} className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
+          <Pencil size={13} /> Rename
+        </button>
+        <div className="my-1 h-px" style={{ background: "var(--border)" }} />
+        <div className="px-3 py-1 text-[11px] font-medium flex items-center gap-1.5" style={{ color: "var(--ink-4)" }}><FolderInput size={12} /> Move to</div>
         <button onClick={() => move(null)} className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: item.folderId ? "var(--ink-2)" : "var(--ink)" }}>
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--ink-4)" }} /> Unfiled
           {!item.folderId && <Check size={13} className="ml-auto" style={{ color: "var(--accent-amber)" }} />}
@@ -625,10 +762,14 @@ function MoveMenu({ item, projectId, folders, onClose }: { item: Item; projectId
             {item.folderId === f.id && <Check size={13} className="ml-auto flex-shrink-0" style={{ color: "var(--accent-amber)" }} />}
           </button>
         ))}
-        <div className="my-1 h-px" style={{ background: "var(--border)" }} />
         <button onClick={() => { const f = useAppStore.getState().createFolder(projectId); useAppStore.getState().moveEntityToFolder(projectId, item.id, item.type, f.id); onClose(); }}
-          className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
+          className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "var(--ink-3)" }}>
           <Plus size={13} /> New folder
+        </button>
+        <div className="my-1 h-px" style={{ background: "var(--border)" }} />
+        <button onClick={() => { if (confirm(`Delete "${item.title}"?`)) deleteEntity(projectId, item); onClose(); }}
+          className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "#d4183d" }}>
+          <Trash2 size={13} /> Delete
         </button>
       </div>
     </>
