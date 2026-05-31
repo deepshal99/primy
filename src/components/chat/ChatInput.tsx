@@ -50,9 +50,11 @@ interface ChatInputProps {
   centered?: boolean;
   onStop?: () => void;
   placeholder?: string;
+  /** Compact single-line pill style (branded V2 docked chat). */
+  pill?: boolean;
 }
 
-export function ChatInput({ onSend, disabled, centered, onStop, placeholder: placeholderProp }: ChatInputProps) {
+export function ChatInput({ onSend, disabled, centered, onStop, placeholder: placeholderProp, pill }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
@@ -438,12 +440,16 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
   const showMentionPopover = mentionQuery !== null && filteredEntities.length > 0;
 
   return (
-    <div className={cn("px-3 pb-4 pt-2", centered && "px-0")}>
+    <div className={cn("px-3 pb-4 pt-2", centered && "px-0", pill && "px-4 pb-4 pt-1")}>
       <div
         className={cn(
-          "relative rounded-[20px] border border-[#e8e8ed] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)] t-normal",
-          isDragOver && "border-[#FFB43F] shadow-[0_0_0_2px_rgba(255,180,63,0.12)]",
-          !isDragOver && !disabled && "focus-within:border-[#FFB43F]/40 focus-within:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+          "relative t-normal",
+          !pill && "rounded-[20px] border border-[#e8e8ed] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)]",
+          !pill && isDragOver && "border-[#FFB43F] shadow-[0_0_0_2px_rgba(255,180,63,0.12)]",
+          !pill && !isDragOver && !disabled && "focus-within:border-[#FFB43F]/40 focus-within:shadow-[0_2px_8px_rgba(0,0,0,0.04)]",
+          pill && "rounded-[24px] bg-[var(--input-background,#F0EFEC)]",
+          pill && isDragOver && "ring-2 ring-[#FFB43F]/30",
+          pill && !isDragOver && !disabled && "focus-within:ring-2 focus-within:ring-[rgba(24,24,22,0.06)]"
         )}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
@@ -557,11 +563,14 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
           onChange={handleInput}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder={placeholderProp || "Ask anything... (type @ to mention)"}
+          placeholder={placeholderProp || (pill ? "Ask anything..." : "Ask anything... (type @ to mention)")}
           rows={1}
           aria-label="Chat message"
-          className="w-full bg-transparent resize-none outline-none px-5 pt-4 pb-14 text-[14px] text-foreground tracking-[-0.01em] placeholder:text-[#a3a3a3]"
-          style={{ minHeight: 100, maxHeight: 180 }}
+          className={cn(
+            "w-full bg-transparent resize-none outline-none text-foreground tracking-[-0.01em] placeholder:text-[#a3a3a3]",
+            pill ? "pl-[46px] pr-[46px] py-[14px] text-[14px] leading-[1.4]" : "px-5 pt-4 pb-14 text-[14px]"
+          )}
+          style={pill ? { minHeight: 24, maxHeight: 140 } : { minHeight: 100, maxHeight: 180 }}
         />
 
         {/* Hidden file input */}
@@ -579,18 +588,26 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
         <button
           onClick={handleFileClick}
           disabled={disabled}
-          className="absolute bottom-3 left-3.5 w-8 h-8 rounded-full border border-[#e8e8ed] bg-white flex items-center justify-center text-[#737373] hover:text-[#1a1a1a] hover:border-[#dddfe3] hover:bg-[#f5f5f3] active:scale-[0.95] t-fast disabled:opacity-40 cursor-pointer"
+          className={cn(
+            "absolute flex items-center justify-center active:scale-[0.95] t-fast disabled:opacity-40 cursor-pointer",
+            pill
+              ? "left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full text-[#6E6E73] hover:text-[#1a1a1a] hover:bg-[rgba(24,24,22,0.05)]"
+              : "bottom-3 left-3.5 w-8 h-8 rounded-full border border-[#e8e8ed] bg-white text-[#737373] hover:text-[#1a1a1a] hover:border-[#dddfe3] hover:bg-[#f5f5f3]"
+          )}
           title="Attach files"
           aria-label="Attach files"
         >
-          <Plus className="w-4 h-4" strokeWidth={1.8} />
+          <Plus className="w-[18px] h-[18px]" strokeWidth={1.9} />
         </button>
 
         {/* Send / Stop button -- bottom right */}
         {disabled && onStop ? (
           <button
             onClick={onStop}
-            className="absolute bottom-3 right-3.5 w-8 h-8 rounded-full bg-[#1a1a2e] text-white flex items-center justify-center hover:bg-[#2d2d42] active:scale-[0.95] t-fast cursor-pointer"
+            className={cn(
+              "absolute rounded-full bg-[#1A1815] text-white flex items-center justify-center hover:bg-black active:scale-[0.95] t-fast cursor-pointer",
+              pill ? "right-2 top-1/2 -translate-y-1/2 w-9 h-9" : "bottom-3 right-3.5 w-8 h-8"
+            )}
             title="Stop generating"
             aria-label="Stop generating"
           >
@@ -602,13 +619,14 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
             disabled={!canSend}
             aria-label="Send message"
             className={cn(
-              "absolute bottom-3 right-3.5 w-8 h-8 rounded-full flex items-center justify-center t-fast",
+              "absolute rounded-full flex items-center justify-center t-fast",
+              pill ? "right-2 top-1/2 -translate-y-1/2 w-9 h-9" : "bottom-3 right-3.5 w-8 h-8",
               canSend
-                ? "bg-[#1A1815] text-white cursor-pointer hover:bg-black active:scale-[0.95] shadow-[0_2px_6px_rgba(24,24,22,0.25)]"
-                : "bg-[#f0f0ee] text-[#a3a3a3] cursor-not-allowed"
+                ? "bg-[#1A1815] text-white cursor-pointer hover:bg-black active:scale-[0.95] shadow-[0_2px_6px_rgba(24,24,22,0.20)]"
+                : "bg-[rgba(24,24,22,0.06)] text-[#a3a3a3] cursor-not-allowed"
             )}
           >
-            <ArrowUp className="w-3.5 h-3.5" strokeWidth={2.5} />
+            <ArrowUp className="w-[17px] h-[17px]" strokeWidth={2.4} />
           </button>
         )}
       </div>

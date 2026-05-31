@@ -21,6 +21,7 @@ import {
   LayoutTemplate, MoreHorizontal, LayoutGrid, CalendarDays,
   PanelRightClose, PanelRightOpen, Sun, Moon, ArrowLeft, Settings, CircleHelp, Check,
   Folder as FolderIcon, FolderPlus, Home,
+  Rocket, Sparkles, Compass, Layers, Target, Box, Hexagon, Flame,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useDarkMode } from "@/lib/useShellV2";
@@ -38,6 +39,7 @@ import type { EntityType, Project, Folder } from "@/lib/types";
 /* ───────────────────────── shared meta ───────────────────────── */
 
 const FONT = "Inter, system-ui, sans-serif";
+const CARD_H = 196; // consistent board card height
 const ENTITY: Record<EntityType, { Icon: typeof FileText; label: string; color: string; tint: string; chipBg: string; chipText: string }> = {
   ku:    { Icon: FileText,       label: "Doc",   color: "#4285F4", tint: "rgba(66,133,244,0.14)",  chipBg: "#EDF4FF", chipText: "#3F79E0" },
   table: { Icon: Table2,         label: "Sheet", color: "#42C366", tint: "rgba(66,195,102,0.16)",  chipBg: "#E7F7ED", chipText: "#2E9E47" },
@@ -45,10 +47,17 @@ const ENTITY: Record<EntityType, { Icon: typeof FileText; label: string; color: 
   page:  { Icon: LayoutTemplate, label: "Page",  color: "#8757D7", tint: "rgba(135,87,215,0.14)",  chipBg: "#F3ECFF", chipText: "#8051CC" },
 };
 const CANDY = ["#FFB43F", "#4285F4", "#8757D7", "#67CEC8", "#F073A7", "#42c366", "#ecb730"];
-function accentFor(id: string): string {
+const WORKSPACE_ICONS = [Rocket, Sparkles, Compass, Layers, Target, Box, Hexagon, Flame];
+function hashOf(id: string): number {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return CANDY[h % CANDY.length];
+  return h;
+}
+function accentFor(id: string): string {
+  return CANDY[hashOf(id) % CANDY.length];
+}
+function iconFor(id: string): typeof Rocket {
+  return WORKSPACE_ICONS[hashOf(id) % WORKSPACE_ICONS.length];
 }
 function relTime(ts: number): string {
   const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));
@@ -145,6 +154,7 @@ export function AppShellV2() {
   const [dark, toggleDark] = useDarkMode();
   const [view, setView] = useState<ViewMode>("board");
   const [chatOpen, setChatOpen] = useState(true);
+  const [chatExpanded, setChatExpanded] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -231,7 +241,7 @@ export function AppShellV2() {
             return (
               <div key={p.id}>
                 <TreeRow
-                  leading={<WorkspaceBadge color={accentFor(p.id)} label={p.title || "U"} />}
+                  leading={<WorkspaceBadge id={p.id} />}
                   label={p.title || "Untitled"}
                   active={isActive && !currentEntityId}
                   caret={items.length > 0}
@@ -352,9 +362,15 @@ export function AppShellV2() {
 
         {/* chat */}
         {chatOpen && (
-          <section data-chat-panel className="hidden md:flex flex-col flex-shrink-0 m-4 ml-2 rounded-[14px] overflow-hidden"
-            style={{ width: 430, background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
-            <ChatPanel centered={!currentProjectId} branded />
+          <section data-chat-panel className="hidden md:flex flex-col flex-shrink-0 m-4 ml-2 rounded-[14px] overflow-hidden t-slow"
+            style={{ width: chatExpanded ? 760 : 430, background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
+            <ChatPanel
+              centered={!currentProjectId}
+              branded
+              expanded={chatExpanded}
+              onToggleExpand={() => setChatExpanded((v) => !v)}
+              onCollapse={() => { setChatExpanded(false); setChatOpen(false); }}
+            />
           </section>
         )}
       </div>
@@ -414,11 +430,13 @@ function FolderBoardView({ projectId, items, folders }: { projectId: string; ite
 function FolderSection({ projectId, folder, list, folders }: { projectId: string; folder: Folder | null; list: Item[]; folders: Folder[] }) {
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(folder?.name ?? "");
-  const color = folder?.color ?? "var(--ink-4)";
+  const color = folder?.color ?? "#9A968D";
   return (
     <section style={{ borderTop: "1px solid var(--border)" }}>
-      <div className="flex items-center gap-4 h-[72px] group px-8">
-        <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: color }} />
+      <div className="flex items-center gap-3 h-[72px] group px-8">
+        <span className="flex items-center justify-center w-6 h-6 rounded-[7px] flex-shrink-0" style={{ background: `color-mix(in srgb, ${color} 15%, transparent)`, color }}>
+          {folder ? <FolderIcon size={14} /> : <Inbox size={14} />}
+        </span>
         {folder && renaming ? (
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)}
             onBlur={() => { setRenaming(false); if (name.trim() && name !== folder.name) useAppStore.getState().renameFolder(projectId, folder.id, name.trim()); }}
@@ -442,14 +460,10 @@ function FolderSection({ projectId, folder, list, folders }: { projectId: string
           <Plus size={17} />
         </button>
       </div>
-      {list.length > 0 && (
-        <div className="grid gap-4 px-9 pb-9" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(216px, 1fr))" }}>
-          {list.map((it) => <EntityCard key={it.id} item={it} projectId={projectId} folders={folders} />)}
-        </div>
-      )}
-      {list.length === 0 && (
-        <div className="px-9 pb-8 text-[12.5px]" style={{ color: "var(--ink-4)" }}>Empty — drop files here from the ⋯ menu, or create one.</div>
-      )}
+      <div className="grid gap-4 px-9 pb-9" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(216px, 1fr))" }}>
+        <NewCard label="Doc" onClick={() => createInFolder(projectId, "ku", folder?.id ?? null)} />
+        {list.map((it) => <EntityCard key={it.id} item={it} projectId={projectId} folders={folders} />)}
+      </div>
     </section>
   );
 }
@@ -481,10 +495,11 @@ function BoardView({ projectId, items, folders }: { projectId: string; items: It
       {TYPE_ORDER.map((t) => {
         const list = items.filter((i) => i.type === t.type);
         if (list.length === 0) return null;
+        const TIcon = ENTITY[t.type].Icon;
         return (
           <section key={t.type} style={{ borderTop: "1px solid var(--border)" }}>
-            <div className="flex items-center gap-4 h-[72px] group px-8">
-              <span className="w-3 h-3 rounded-full" style={{ background: t.color }} />
+            <div className="flex items-center gap-3 h-[72px] group px-8">
+              <span className="flex items-center justify-center w-6 h-6 rounded-[7px]" style={{ background: `color-mix(in srgb, ${t.color} 15%, transparent)`, color: t.color }}><TIcon size={14} /></span>
               <span className="text-[15px] font-semibold tracking-[-0.005em]" style={{ color: "var(--ink)" }}>{t.label}</span>
               <span className="text-[12px] tabular-nums" style={{ color: "var(--ink-4)" }}>{list.length}</span>
               <div className="flex-1" />
@@ -542,28 +557,35 @@ function EntityCard({ item, projectId, folders }: { item: Item; projectId?: stri
   const e = ENTITY[item.type];
   const [menuOpen, setMenuOpen] = useState(false);
   const canMove = !!projectId && !!folders;
+  const folder = item.folderId ? folders?.find((f) => f.id === item.folderId) : undefined;
   return (
     <div className="relative">
       <button onClick={() => openItem(item)}
         className="text-left rounded-[12px] px-4 py-4 lift flex flex-col relative overflow-hidden group w-full"
-        style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)", minHeight: 168 }}>
-        <div className="flex items-start gap-3 mb-3">
-          <div className="text-[15.5px] font-semibold tracking-[-0.02em] leading-snug flex-1" style={{ color: "var(--ink)" }}>{item.title}</div>
+        style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)", height: CARD_H }}>
+        <div className="flex items-start gap-3 mb-3 flex-shrink-0">
+          <div className="text-[15px] font-semibold tracking-[-0.02em] leading-snug flex-1 line-clamp-2" style={{ color: "var(--ink)" }}>{item.title}</div>
           {canMove && (
             <span role="button" tabIndex={0}
               onClick={(ev) => { ev.stopPropagation(); setMenuOpen((v) => !v); }}
               onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.stopPropagation(); setMenuOpen((v) => !v); } }}
-              className="flex items-center justify-center w-6 h-6 -mr-1 -mt-0.5 rounded-[6px] press hover-row cursor-pointer" style={{ color: "var(--ink-3)" }}>
+              className="flex items-center justify-center w-6 h-6 -mr-1 -mt-0.5 rounded-[6px] press hover-row cursor-pointer flex-shrink-0" style={{ color: "var(--ink-3)" }}>
               <MoreHorizontal size={15} />
             </span>
           )}
         </div>
-        <EntityPreview item={item} />
-        <div className="flex items-center gap-2.5 mt-4 relative z-10">
-          <span className="inline-flex items-center gap-1.5 h-[22px] px-2.5 rounded-full text-[11px] font-medium" style={{ background: e.chipBg, color: e.chipText }}>
-            <e.Icon size={12} /> {e.label}
-          </span>
-          <span className="ml-auto text-[11px] tabular-nums" style={{ color: "var(--ink-4)" }}>{relTime(item.updatedAt)}</span>
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col"><EntityPreview item={item} /></div>
+        <div className="flex items-center gap-2 mt-3.5 flex-shrink-0 relative z-10">
+          <e.Icon size={13} style={{ color: "var(--ink-3)" }} />
+          <span className="text-[11.5px]" style={{ color: "var(--ink-3)" }}>{e.label}</span>
+          {folder ? (
+            <span className="ml-auto inline-flex items-center h-[20px] px-2 rounded-full text-[10.5px] font-medium truncate max-w-[110px]"
+              style={{ background: `color-mix(in srgb, ${folder.color} 16%, transparent)`, color: `color-mix(in srgb, ${folder.color} 78%, #111)` }}>
+              {folder.name}
+            </span>
+          ) : (
+            <span className="ml-auto text-[11px] tabular-nums" style={{ color: "var(--ink-4)" }}>{relTime(item.updatedAt)}</span>
+          )}
         </div>
       </button>
       {menuOpen && canMove && (
@@ -664,8 +686,8 @@ function EntityPreview({ item }: { item: Item }) {
 function NewCard({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button onClick={onClick}
-      className="relative overflow-hidden flex flex-col items-center justify-center gap-2.5 rounded-[12px] press"
-      style={{ border: "1px solid var(--border-strong)", color: "var(--ink)", minHeight: 168, background: "linear-gradient(145deg, #FFFDFB 0%, #EEF7FF 100%)" }}>
+      className="relative overflow-hidden flex flex-col items-center justify-center gap-2.5 rounded-[12px] press lift"
+      style={{ border: "1px solid var(--border-strong)", color: "var(--ink)", height: CARD_H, background: "linear-gradient(155deg, #FFFDFB 0%, #EEF4FF 100%)" }}>
       <span className="flex items-center justify-center w-14 h-14 rounded-full bg-white" style={{ boxShadow: "var(--shadow-card)" }}>
         <Plus size={26} strokeWidth={1.8} style={{ color: "var(--ink-2)" }} />
       </span>
@@ -703,9 +725,11 @@ function AllProjects({ projects, onOpen, onNew }: { projects: Project[]; onOpen:
             <button key={p.id} onClick={() => onOpen(p.id)} className="text-left rounded-[12px] p-4 lift"
               style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)" }}>
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-[9px] flex items-center justify-center text-[15px] font-semibold text-white" style={{ background: accentFor(p.id) }}>
-                  {(p.title || "•").charAt(0).toUpperCase()}
-                </div>
+                {(() => { const Icon = iconFor(p.id); const color = accentFor(p.id); return (
+                  <div className="w-9 h-9 rounded-[9px] flex items-center justify-center flex-shrink-0" style={{ background: `color-mix(in srgb, ${color} 16%, transparent)`, color }}>
+                    <Icon size={18} strokeWidth={2} />
+                  </div>
+                ); })()}
                 <div className="min-w-0">
                   <div className="text-[14px] font-semibold truncate" style={{ color: "var(--ink)" }}>{p.title || "Untitled"}</div>
                   {p.projectType && <div className="text-[11.5px]" style={{ color: "var(--ink-4)" }}>{p.projectType}</div>}
@@ -734,10 +758,12 @@ function LogoMark() {
   );
 }
 
-function WorkspaceBadge({ color, label }: { color: string; label: string }) {
+function WorkspaceBadge({ id }: { id: string }) {
+  const color = accentFor(id);
+  const Icon = iconFor(id);
   return (
-    <span className="flex items-center justify-center w-[18px] h-[18px] rounded-[6px] text-[10px] font-semibold text-white flex-shrink-0" style={{ background: color }}>
-      {(label || "•").charAt(0).toUpperCase()}
+    <span className="flex items-center justify-center w-[20px] h-[20px] rounded-[6px] flex-shrink-0" style={{ background: `color-mix(in srgb, ${color} 16%, transparent)`, color }}>
+      <Icon size={13} strokeWidth={2} />
     </span>
   );
 }

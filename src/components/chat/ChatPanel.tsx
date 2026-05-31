@@ -17,6 +17,7 @@ import {
   parseSuggestions,
 } from "@/lib/ai/parseAIResponse";
 import { scoreRelevance } from "@/lib/ai/contextRelevance";
+import { Maximize2, Minimize2, PanelRightClose } from "lucide-react";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 import { ExamplePrompts, ENTITY_PILLS } from "./ExamplePrompts";
@@ -26,9 +27,13 @@ interface ChatPanelProps {
   centered?: boolean;
   /** V2 shell: branded header + hero landscape + warmer empty state. */
   branded?: boolean;
+  /** V2 shell: header controls. */
+  onCollapse?: () => void;
+  onToggleExpand?: () => void;
+  expanded?: boolean;
 }
 
-export function ChatPanel({ centered, branded }: ChatPanelProps) {
+export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expanded }: ChatPanelProps) {
   const currentProjectId = useAppStore((s) => s.currentProjectId);
   const projects = useAppStore((s) => s.projects);
   const messages = useAppStore((s) => s.messages);
@@ -561,6 +566,19 @@ export function ChatPanel({ centered, branded }: ChatPanelProps) {
             <ChatLogoMark />
             <span className="font-semibold text-[15px] tracking-[-0.02em]" style={{ color: "var(--ink, #171716)" }}>Drafta AI</span>
             <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--accent-soft, #F1F0ED)", color: "var(--ink-3, #706E68)" }}>Beta</span>
+            <div className="flex-1" />
+            {onToggleExpand && (
+              <button onClick={onToggleExpand} title={expanded ? "Restore" : "Expand chat"}
+                className="flex items-center justify-center w-7 h-7 rounded-[7px] press" style={{ color: "var(--icon, #585753)" }}>
+                {expanded ? <Minimize2 size={15} /> : <Maximize2 size={14} />}
+              </button>
+            )}
+            {onCollapse && (
+              <button onClick={onCollapse} title="Hide chat"
+                className="flex items-center justify-center w-7 h-7 rounded-[7px] press" style={{ color: "var(--icon, #585753)" }}>
+                <PanelRightClose size={15} />
+              </button>
+            )}
           </div>
         ) : (
           <div className="flex items-center gap-2 px-4 h-[42px] flex-shrink-0 border-b border-[rgba(0,0,0,0.05)]">
@@ -590,7 +608,7 @@ export function ChatPanel({ centered, branded }: ChatPanelProps) {
               </div>
             </div>
             <div>
-              <ChatInput onSend={sendMessage} disabled={isStreaming} centered={centered} onStop={stopStreaming} />
+              <ChatInput onSend={sendMessage} disabled={isStreaming} centered={centered} onStop={stopStreaming} pill />
             </div>
           </>
         ) : showHeroLayout ? (
@@ -645,6 +663,7 @@ export function ChatPanel({ centered, branded }: ChatPanelProps) {
                 disabled={isStreaming}
                 centered={centered}
                 onStop={stopStreaming}
+                pill={brandedDocked}
               />
             </div>
           </>
@@ -665,22 +684,19 @@ function ChatLogoMark() {
   );
 }
 
-/* Lively hero illustration for the chat empty state (Strut landscape). */
+/* Lively hero illustration for the chat empty state (pastel-hills landscape). */
 function HeroLandscape() {
   return (
-    <div className="relative h-[180px] overflow-hidden flex-shrink-0" style={{ background: "#FFFDF7" }} aria-hidden>
-      <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 34% 12%, rgba(255,255,255,0.98), transparent 42%), linear-gradient(180deg, #fffef9 0%, #fff8ee 100%)" }} />
-      <div className="absolute left-[-44px] bottom-[-70px] w-[245px] h-[170px] rounded-[55%_45%_0_0]" style={{ background: "linear-gradient(120deg, #5BA1F4 4%, #2E7DDB 45%, #39C4A0 100%)" }} />
-      <div className="absolute right-[-16px] bottom-[30px] w-[310px] h-[84px] rounded-[100%_0_0_0]" style={{ background: "linear-gradient(100deg, rgba(244,124,181,0.70), rgba(255,203,54,0.88) 50%, rgba(255,122,69,0.82))", transform: "skewY(-11deg)" }} />
-      <div className="absolute right-[-30px] bottom-[-52px] w-[340px] h-[125px] rounded-[70%_0_0_0]" style={{ background: "linear-gradient(105deg, #75E0BE, #2EA3DF 57%, #2F72C7)" }} />
-      <div className="absolute left-[132px] bottom-[-11px] w-[190px] h-[68px] rounded-[50%] bg-[#FFF8C7] rotate-[-20deg]" />
-      <div className="absolute left-[52px] bottom-[47px] w-[2px] h-[60px] bg-black" />
-      <div className="absolute left-[22px] bottom-[100px] w-[60px] h-[60px] rounded-full border-t-[2px] border-l-[2px] border-black rotate-[18deg]" />
-      <div className="absolute left-[51px] bottom-[98px] w-[40px] h-[40px] rounded-full border-t-[2px] border-r-[2px] border-black rotate-[-35deg]" />
-      {[0, 1, 2].map((i) => (
-        <span key={i} className="absolute rounded-full bg-black" style={{ width: 8 - i, height: 8 - i, right: 72 - i * 22, bottom: 70 + i * 4 }} />
-      ))}
-      <div className="absolute inset-x-0 bottom-0 h-10" style={{ background: "linear-gradient(to bottom, transparent, var(--card, #FFFDF8))" }} />
+    <div className="relative h-[188px] overflow-hidden flex-shrink-0" aria-hidden>
+      <img
+        src="/chat-hero.png"
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ objectPosition: "center 38%" }}
+        draggable={false}
+      />
+      {/* soft fade into the chat surface */}
+      <div className="absolute inset-x-0 bottom-0 h-16" style={{ background: "linear-gradient(to bottom, transparent, var(--card, #FFFDF8))" }} />
     </div>
   );
 }
