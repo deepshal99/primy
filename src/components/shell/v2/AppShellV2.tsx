@@ -353,8 +353,8 @@ export function AppShellV2() {
         {/* chat */}
         {chatOpen && (
           <section data-chat-panel className="hidden md:flex flex-col flex-shrink-0 m-4 ml-2 rounded-[14px] overflow-hidden"
-            style={{ width: 420, background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
-            <ChatPanel centered={!currentProjectId} />
+            style={{ width: 430, background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
+            <ChatPanel centered={!currentProjectId} branded />
           </section>
         )}
       </div>
@@ -636,12 +636,13 @@ function EntityPreview({ item }: { item: Item }) {
         <div className="h-6 px-2.5 flex items-center gap-1.5" style={{ borderBottom: `1px solid ${e.tint}`, background: "#FAF7FF" }}>
           {["#FF7D6E", "#F7C853", "#67CEC8"].map((c) => <span key={c} className="w-2 h-2 rounded-full" style={{ background: c }} />)}
         </div>
-        <div className="p-2.5">
-          {item.excerpt ? (
-            <p className="text-[11px] leading-[1.45] line-clamp-3" style={{ color: "var(--ink-3)" }}>{item.excerpt}</p>
-          ) : (
-            <div className="space-y-1.5"><div className="h-2.5 w-20 rounded-full" style={{ background: e.tint }} /><div className="h-7 rounded-[6px]" style={{ background: "linear-gradient(90deg, #F3ECFF, #EEF7FF)" }} /></div>
-          )}
+        <div className="p-2.5 space-y-1.5">
+          <div className="h-2 w-2/3 rounded-full" style={{ background: "rgba(135,87,215,0.28)" }} />
+          <div className="flex gap-1.5">
+            <div className="h-9 flex-1 rounded-[5px]" style={{ background: "rgba(66,133,244,0.16)" }} />
+            <div className="h-9 w-9 rounded-[5px]" style={{ background: "rgba(255,173,69,0.22)" }} />
+          </div>
+          <div className="h-2 w-1/2 rounded-full" style={{ background: "var(--accent-soft)" }} />
         </div>
       </div>
     );
