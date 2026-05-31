@@ -18,6 +18,7 @@ import {
   Conversation,
   UndoSnapshot,
   Project,
+  Folder,
   KnowledgeUnit,
   ProjectTable,
   ProjectDeck,
@@ -1442,6 +1443,91 @@ export const useAppStore = create<AppState>()(
   },
 
   // ══════════════════════════════════
+  // ── Folder CRUD (in-project grouping) ──
+  // ══════════════════════════════════
+
+  createFolder: (projectId: string, name = "New Folder", color = "#FFB43F") => {
+    const now = Date.now();
+    const state = get();
+    const project = state.projects.find((p) => p.id === projectId);
+    const position = project?.folders?.length ?? 0;
+    const folder: Folder = { id: nanoid(), projectId, name, color, position, createdAt: now, updatedAt: now };
+    const updated = state.projects.map((p) =>
+      p.id === projectId ? { ...p, folders: [...(p.folders || []), folder] } : p
+    );
+    set({ projects: updated });
+    saveProjectsToStorage(updated);
+    updateProjectOnServer(projectId, {
+      folders: [{ id: folder.id, name: folder.name, color: folder.color, position: folder.position }],
+    }).catch(() => {});
+    return folder;
+  },
+
+  renameFolder: (projectId: string, folderId: string, name: string) => {
+    const updated = get().projects.map((p) =>
+      p.id === projectId
+        ? { ...p, folders: (p.folders || []).map((f) => (f.id === folderId ? { ...f, name } : f)) }
+        : p
+    );
+    set({ projects: updated });
+    saveProjectsToStorage(updated);
+    const f = updated.find((p) => p.id === projectId)?.folders?.find((x) => x.id === folderId);
+    if (f) updateProjectOnServer(projectId, { folders: [{ id: f.id, name: f.name, color: f.color, position: f.position }] }).catch(() => {});
+  },
+
+  recolorFolder: (projectId: string, folderId: string, color: string) => {
+    const updated = get().projects.map((p) =>
+      p.id === projectId
+        ? { ...p, folders: (p.folders || []).map((f) => (f.id === folderId ? { ...f, color } : f)) }
+        : p
+    );
+    set({ projects: updated });
+    saveProjectsToStorage(updated);
+    const f = updated.find((p) => p.id === projectId)?.folders?.find((x) => x.id === folderId);
+    if (f) updateProjectOnServer(projectId, { folders: [{ id: f.id, name: f.name, color: f.color, position: f.position }] }).catch(() => {});
+  },
+
+  deleteFolder: (projectId: string, folderId: string) => {
+    const clearFolder = <T extends { folderId?: string | null }>(arr: T[]) =>
+      arr.map((e) => (e.folderId === folderId ? { ...e, folderId: null } : e));
+    const updated = get().projects.map((p) =>
+      p.id === projectId
+        ? {
+            ...p,
+            folders: (p.folders || []).filter((f) => f.id !== folderId),
+            knowledgeUnits: clearFolder(p.knowledgeUnits),
+            tables: clearFolder(p.tables),
+            decks: clearFolder(p.decks),
+            pages: clearFolder(p.pages),
+          }
+        : p
+    );
+    set({ projects: updated });
+    saveProjectsToStorage(updated);
+    updateProjectOnServer(projectId, { deletedFolderIds: [folderId] }).catch(() => {});
+  },
+
+  moveEntityToFolder: (projectId: string, entityId: string, entityType: EntityType, folderId: string | null) => {
+    const apply = <T extends { id: string; folderId?: string | null }>(arr: T[]) =>
+      arr.map((e) => (e.id === entityId ? { ...e, folderId } : e));
+    const updated = get().projects.map((p) => {
+      if (p.id !== projectId) return p;
+      return {
+        ...p,
+        knowledgeUnits: entityType === "ku" ? apply(p.knowledgeUnits) : p.knowledgeUnits,
+        tables: entityType === "table" ? apply(p.tables) : p.tables,
+        decks: entityType === "deck" ? apply(p.decks) : p.decks,
+        pages: entityType === "page" ? apply(p.pages) : p.pages,
+      };
+    });
+    set({ projects: updated });
+    saveProjectsToStorage(updated);
+    updateProjectOnServer(projectId, {
+      entityFolderMoves: [{ id: entityId, entityType, folderId }],
+    }).catch(() => {});
+  },
+
+  // ══════════════════════════════════
   // ── Knowledge Unit CRUD ──
   // ══════════════════════════════════
 
@@ -2416,6 +2502,7 @@ export const useAppStore = create<AppState>()(
             createdAt: item.createdAt,
             updatedAt: item.updatedAt,
             counts: item.counts,
+            folders: existing?.folders || [],
             knowledgeUnits: existing?.knowledgeUnits || [],
             tables: existing?.tables || [],
             decks: existing?.decks || [],

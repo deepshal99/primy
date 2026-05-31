@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import {
   projects,
+  folders,
   knowledgeUnits,
   projectTables,
   projectDecks,
@@ -74,9 +75,14 @@ export async function GET(
       return Response.json({ error: "Not found" }, { status: 404 });
     }
 
-    // Fetch all entities + last N+1 messages in parallel
-    const [allKUs, allTables, allDecks, allPages, recentMessages, totalMessageCount] =
+    // Fetch all entities + folders + last N+1 messages in parallel
+    const [allFolders, allKUs, allTables, allDecks, allPages, recentMessages, totalMessageCount] =
       await Promise.all([
+        db
+          .select()
+          .from(folders)
+          .where(eq(folders.projectId, id))
+          .orderBy(folders.position),
         db
           .select()
           .from(knowledgeUnits)
@@ -123,9 +129,19 @@ export async function GET(
       shareToken: project.shareToken || null,
       createdAt: project.createdAt.getTime(),
       updatedAt: project.updatedAt.getTime(),
+      folders: allFolders.map((f) => ({
+        id: f.id,
+        projectId: f.projectId,
+        name: f.name,
+        color: f.color,
+        position: f.position,
+        createdAt: f.createdAt.getTime(),
+        updatedAt: f.updatedAt.getTime(),
+      })),
       knowledgeUnits: allKUs.map((k) => ({
         id: k.id,
         projectId: k.projectId,
+        folderId: k.folderId || null,
         title: k.title,
         content: k.content,
         shareToken: k.shareToken || null,
@@ -135,6 +151,7 @@ export async function GET(
       tables: allTables.map((t) => ({
         id: t.id,
         projectId: t.projectId,
+        folderId: t.folderId || null,
         title: t.title,
         sheets: t.sheets,
         shareToken: t.shareToken || null,
@@ -144,6 +161,7 @@ export async function GET(
       decks: allDecks.map((d) => ({
         id: d.id,
         projectId: d.projectId,
+        folderId: d.folderId || null,
         title: d.title,
         theme: d.theme,
         style: d.style || null,
@@ -155,6 +173,7 @@ export async function GET(
       pages: allPages.map((pg) => ({
         id: pg.id,
         projectId: pg.projectId,
+        folderId: pg.folderId || null,
         title: pg.title,
         html: pg.html,
         editableFields: pg.editableFields || [],
@@ -224,6 +243,57 @@ export async function PUT(
     if (body.description !== undefined) updates.description = body.description;
     if (body.projectType !== undefined) updates.projectType = body.projectType;
     if (body.memory !== undefined) updates.memory = body.memory;
+
+    // Folder upserts (in-project grouping)
+    if (body.folders) {
+      for (const f of body.folders) {
+        const [existingFolder] = await db
+          .select({ id: folders.id })
+          .from(folders)
+          .where(and(eq(folders.id, f.id), eq(folders.projectId, id)))
+          .limit(1);
+        if (existingFolder) {
+          await db
+            .update(folders)
+            .set({ name: f.name, color: f.color, position: f.position ?? 0, updatedAt: new Date() })
+            .where(and(eq(folders.id, f.id), eq(folders.projectId, id)));
+        } else {
+          await db.insert(folders).values({
+            id: f.id,
+            projectId: id,
+            name: f.name || "New Folder",
+            color: f.color || "#FFB43F",
+            position: f.position ?? 0,
+          });
+        }
+      }
+    }
+
+    // Deleted folders (entities' folder_id → null via ON DELETE SET NULL)
+    if (body.deletedFolderIds?.length > 0) {
+      await db
+        .delete(folders)
+        .where(and(eq(folders.projectId, id), inArray(folders.id, body.deletedFolderIds)));
+    }
+
+    // Entity → folder moves (dedicated path, so general upserts never touch
+    // folder_id and can't null it on rename/save). folderId null = Unfiled.
+    if (body.entityFolderMoves?.length > 0) {
+      const tableFor: Record<string, typeof knowledgeUnits | typeof projectTables | typeof projectDecks | typeof projectPages> = {
+        ku: knowledgeUnits,
+        table: projectTables,
+        deck: projectDecks,
+        page: projectPages,
+      };
+      for (const mv of body.entityFolderMoves) {
+        const tbl = tableFor[mv.entityType as string];
+        if (!tbl) continue;
+        await db
+          .update(tbl)
+          .set({ folderId: mv.folderId ?? null, updatedAt: new Date() })
+          .where(and(eq(tbl.id, mv.id), eq(tbl.projectId, id)));
+      }
+    }
 
     // Handle knowledge unit upserts (with ownership check via projectId)
     if (body.knowledgeUnits) {

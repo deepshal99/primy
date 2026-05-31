@@ -192,9 +192,21 @@ export interface Conversation {
 
 // ═══ Project System ═══
 
+/** In-project grouping for the Workspaces tree + board (one level deep). */
+export interface Folder {
+  id: string;
+  projectId: string;
+  name: string;
+  color: string;
+  position: number;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
 export interface KnowledgeUnit {
   id: string;
   projectId: string;
+  folderId?: string | null;
   title: string;
   content: string;          // Tiptap HTML or markdown
   shareToken?: string | null;
@@ -206,6 +218,7 @@ export interface KnowledgeUnit {
 export interface ProjectTable {
   id: string;
   projectId: string;
+  folderId?: string | null;
   title: string;
   sheets: SheetData[];      // Fortune Sheet format
   shareToken?: string | null;
@@ -229,6 +242,7 @@ export interface PageEditableField {
 export interface ProjectPage {
   id: string;
   projectId: string;
+  folderId?: string | null;
   title: string;
   html: string;                       // full standalone HTML/CSS
   editableFields?: PageEditableField[];
@@ -244,6 +258,7 @@ export interface Project {
   title: string;
   description?: string;
   projectType?: string;       // "Marketing", "Content", "Research", "Engineering", "Design", "Other"
+  folders?: Folder[];
   knowledgeUnits: KnowledgeUnit[];
   tables: ProjectTable[];
   decks: ProjectDeck[];
@@ -383,6 +398,7 @@ export function isHtmlSlide(slide: DeckSlide | HtmlDeckSlide): slide is HtmlDeck
 export interface ProjectDeck {
   id: string;
   projectId: string;
+  folderId?: string | null;
   title: string;
   theme: DeckTheme;
   style?: ThemeConfig | null;
@@ -579,6 +595,13 @@ export interface AppState {
   switchProject: (id: string) => void;
   goToProjectsHome: () => void;
   goToProjectHome: () => void;
+
+  // Folder CRUD (in-project grouping)
+  createFolder: (projectId: string, name?: string, color?: string) => Folder;
+  renameFolder: (projectId: string, folderId: string, name: string) => void;
+  recolorFolder: (projectId: string, folderId: string, color: string) => void;
+  deleteFolder: (projectId: string, folderId: string) => void;
+  moveEntityToFolder: (projectId: string, entityId: string, entityType: EntityType, folderId: string | null) => void;
 
   // Knowledge Unit CRUD
   createKnowledgeUnit: (projectId: string, title: string, content?: string) => KnowledgeUnit;

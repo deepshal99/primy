@@ -28,7 +28,7 @@ import { WorkspacePanel } from "@/components/workspace/WorkspacePanel";
 import { SearchDialog } from "@/components/shared/SearchDialog";
 import { KeyboardShortcuts } from "@/components/shared/KeyboardShortcuts";
 import { SettingsModal } from "@/components/settings/SettingsModal";
-import type { EntityType, Project } from "@/lib/types";
+import type { EntityType, Project, Folder } from "@/lib/types";
 
 /* ───────────────────────── shared meta ───────────────────────── */
 
@@ -57,7 +57,7 @@ function relTime(ts: number): string {
 }
 
 type ViewMode = "board" | "kanban" | "timeline";
-type Item = { id: string; type: EntityType; title: string; updatedAt: number };
+type Item = { id: string; type: EntityType; title: string; updatedAt: number; folderId?: string | null };
 
 const TYPE_ORDER: { type: EntityType; label: string; color: string }[] = [
   { type: "ku", label: "Docs", color: ENTITY.ku.color },
@@ -68,14 +68,24 @@ const TYPE_ORDER: { type: EntityType; label: string; color: string }[] = [
 
 function projectItems(p: Project | undefined): Item[] {
   if (!p) return [];
-  const map = (arr: { id: string; title: string; updatedAt: number }[], type: EntityType) =>
-    arr.map((e) => ({ id: e.id, type, title: e.title, updatedAt: e.updatedAt }));
+  const map = (arr: { id: string; title: string; updatedAt: number; folderId?: string | null }[], type: EntityType) =>
+    arr.map((e) => ({ id: e.id, type, title: e.title, updatedAt: e.updatedAt, folderId: e.folderId ?? null }));
   return [
     ...map(p.knowledgeUnits, "ku"),
     ...map(p.tables, "table"),
     ...map(p.decks, "deck"),
     ...map(p.pages, "page"),
   ];
+}
+
+function createInFolder(projectId: string, type: EntityType, folderId: string | null) {
+  const s = useAppStore.getState();
+  let id: string;
+  if (type === "ku") { const e = s.createKnowledgeUnit(projectId, "New Document"); id = e.id; s.openKnowledgeUnit(e.id); }
+  else if (type === "table") { const e = s.createTable(projectId, "New Table"); id = e.id; s.openTable(e.id); }
+  else if (type === "deck") { const e = s.createDeck(projectId, "New Deck"); id = e.id; s.openDeck(e.id); }
+  else { const e = s.createPage(projectId, "New Page"); id = e.id; s.openPage(e.id); }
+  if (folderId) s.moveEntityToFolder(projectId, id, type, folderId);
 }
 
 async function fetchUserForGate(): Promise<{ hasOnboarded: boolean }> {
@@ -194,18 +204,33 @@ export function AppShellV2() {
                   onCaret={() => setExpanded((e) => ({ ...e, [p.id]: !e[p.id] }))}
                   onClick={() => { if (p.id !== currentProjectId) switchProject(p.id); setExpanded((e) => ({ ...e, [p.id]: true })); }}
                 />
-                {isOpen && items.map((it) => {
-                  const e = ENTITY[it.type];
+                {isOpen && (() => {
+                  const pFolders = (p.folders || []).slice().sort((a, b) => a.position - b.position);
+                  const inFolder = (fid: string) => items.filter((it) => it.folderId === fid);
+                  const unfiled = items.filter((it) => !it.folderId || !pFolders.some((f) => f.id === it.folderId));
+                  const openEntity = (it: Item) => { if (p.id !== currentProjectId) switchProject(p.id); openItem(it); };
                   return (
-                    <Leaf key={it.id} icon={<e.Icon size={14} />} label={it.title}
-                      active={currentEntityId === it.id}
-                      onClick={() => { if (p.id !== currentProjectId) switchProject(p.id); openItem(it); }} />
+                    <>
+                      {pFolders.map((f) => (
+                        <div key={f.id}>
+                          <Leaf folder icon={<span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: f.color }} />} label={f.name} count={inFolder(f.id).length} onClick={() => {}} />
+                          {inFolder(f.id).map((it) => {
+                            const e = ENTITY[it.type];
+                            return <Leaf key={it.id} indent icon={<e.Icon size={13} />} label={it.title} active={currentEntityId === it.id} onClick={() => openEntity(it)} />;
+                          })}
+                        </div>
+                      ))}
+                      {unfiled.map((it) => {
+                        const e = ENTITY[it.type];
+                        return <Leaf key={it.id} icon={<e.Icon size={14} />} label={it.title} active={currentEntityId === it.id} onClick={() => openEntity(it)} />;
+                      })}
+                      <Leaf muted icon={<Plus size={14} />} label="New doc"
+                        onClick={() => { if (p.id !== currentProjectId) switchProject(p.id); createInFolder(p.id, "ku", null); }} />
+                      <Leaf muted icon={<Plus size={14} />} label="New folder"
+                        onClick={() => { if (p.id !== currentProjectId) switchProject(p.id); useAppStore.getState().createFolder(p.id); }} />
+                    </>
                   );
-                })}
-                {isOpen && (
-                  <Leaf muted icon={<Plus size={14} />} label="New doc"
-                    onClick={() => { if (p.id !== currentProjectId) switchProject(p.id); createInProject(p.id, "ku"); }} />
-                )}
+                })()}
               </div>
             );
           })}
@@ -312,10 +337,83 @@ function createInProject(projectId: string, type: EntityType) {
 function ProjectBody({ project, view }: { project: Project | undefined; view: ViewMode }) {
   const items = useMemo(() => projectItems(project), [project]);
   if (!project) return null;
-  if (items.length === 0) return <EmptyProject projectId={project.id} />;
+  const folders = (project.folders || []).slice().sort((a, b) => a.position - b.position);
+  if (items.length === 0 && folders.length === 0) return <EmptyProject projectId={project.id} />;
   if (view === "kanban") return <KanbanView projectId={project.id} items={items} />;
-  if (view === "timeline") return <TimelineView items={items} />;
-  return <BoardView projectId={project.id} items={items} />;
+  if (view === "timeline") return <TimelineView projectId={project.id} items={items} folders={folders} />;
+  // Board: group by folder when the project has any; else by entity type.
+  if (folders.length > 0) return <FolderBoardView projectId={project.id} items={items} folders={folders} />;
+  return <BoardView projectId={project.id} items={items} folders={folders} />;
+}
+
+function FolderBoardView({ projectId, items, folders }: { projectId: string; items: Item[]; folders: Folder[] }) {
+  const unfiled = items.filter((i) => !i.folderId || !folders.some((f) => f.id === i.folderId));
+  return (
+    <div>
+      <BoardHeader projectId={projectId} />
+      {folders.map((f) => {
+        const list = items.filter((i) => i.folderId === f.id);
+        return <FolderSection key={f.id} projectId={projectId} folder={f} list={list} folders={folders} />;
+      })}
+      {unfiled.length > 0 && (
+        <FolderSection projectId={projectId} folder={null} list={unfiled} folders={folders} />
+      )}
+    </div>
+  );
+}
+
+function BoardHeader({ projectId }: { projectId: string }) {
+  return (
+    <div className="flex items-center justify-end px-8 pt-5 pb-1">
+      <button onClick={() => useAppStore.getState().createFolder(projectId)}
+        className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[7px] text-[12px] font-medium press hover-row" style={{ color: "var(--ink-2)" }}>
+        <Plus size={14} /> New folder
+      </button>
+    </div>
+  );
+}
+
+function FolderSection({ projectId, folder, list, folders }: { projectId: string; folder: Folder | null; list: Item[]; folders: Folder[] }) {
+  const [renaming, setRenaming] = useState(false);
+  const [name, setName] = useState(folder?.name ?? "");
+  const color = folder?.color ?? "var(--ink-4)";
+  return (
+    <section style={{ borderTop: "1px solid var(--border)" }}>
+      <div className="flex items-center gap-4 h-[72px] group px-8">
+        <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: color }} />
+        {folder && renaming ? (
+          <input autoFocus value={name} onChange={(e) => setName(e.target.value)}
+            onBlur={() => { setRenaming(false); if (name.trim() && name !== folder.name) useAppStore.getState().renameFolder(projectId, folder.id, name.trim()); }}
+            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { setName(folder.name); setRenaming(false); } }}
+            className="text-[15px] font-semibold tracking-[-0.005em] bg-transparent outline-none border-b" style={{ color: "var(--ink)", borderColor: color }} />
+        ) : (
+          <button onDoubleClick={() => folder && setRenaming(true)} className="text-[15px] font-semibold tracking-[-0.005em]" style={{ color: "var(--ink)" }}>
+            {folder ? folder.name : "Unfiled"}
+          </button>
+        )}
+        <span className="text-[12px] tabular-nums" style={{ color: "var(--ink-4)" }}>{list.length}</span>
+        <div className="flex-1" />
+        {folder && (
+          <button onClick={() => { if (confirm(`Delete folder "${folder.name}"? Its files move to Unfiled.`)) useAppStore.getState().deleteFolder(projectId, folder.id); }}
+            className="flex items-center justify-center w-6 h-6 rounded-[6px] press opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--ink-4)" }} title="Delete folder">
+            <MoreHorizontal size={16} />
+          </button>
+        )}
+        <button onClick={() => createInFolder(projectId, "ku", folder?.id ?? null)}
+          className="flex items-center justify-center w-6 h-6 rounded-[6px] press opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--icon)" }} title="New doc here">
+          <Plus size={17} />
+        </button>
+      </div>
+      {list.length > 0 && (
+        <div className="grid gap-4 px-9 pb-9" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(216px, 1fr))" }}>
+          {list.map((it) => <EntityCard key={it.id} item={it} projectId={projectId} folders={folders} />)}
+        </div>
+      )}
+      {list.length === 0 && (
+        <div className="px-9 pb-8 text-[12.5px]" style={{ color: "var(--ink-4)" }}>Empty — drop files here from the ⋯ menu, or create one.</div>
+      )}
+    </section>
+  );
 }
 
 function EmptyProject({ projectId }: { projectId: string }) {
@@ -339,9 +437,10 @@ function EmptyProject({ projectId }: { projectId: string }) {
   );
 }
 
-function BoardView({ projectId, items }: { projectId: string; items: Item[] }) {
+function BoardView({ projectId, items, folders }: { projectId: string; items: Item[]; folders: Folder[] }) {
   return (
     <div>
+      <BoardHeader projectId={projectId} />
       {TYPE_ORDER.map((t) => {
         const list = items.filter((i) => i.type === t.type);
         if (list.length === 0) return null;
@@ -359,7 +458,7 @@ function BoardView({ projectId, items }: { projectId: string; items: Item[] }) {
             </div>
             <div className="grid gap-4 px-9 pb-9" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(216px, 1fr))" }}>
               <NewCard label={ENTITY[t.type].label} onClick={() => createInProject(projectId, t.type)} />
-              {list.map((it) => <EntityCard key={it.id} item={it} />)}
+              {list.map((it) => <EntityCard key={it.id} item={it} projectId={projectId} folders={folders} />)}
             </div>
           </section>
         );
@@ -409,7 +508,7 @@ function KanbanView({ projectId, items }: { projectId: string; items: Item[] }) 
   );
 }
 
-function TimelineView({ items }: { items: Item[] }) {
+function TimelineView({ projectId, items, folders }: { projectId: string; items: Item[]; folders: Folder[] }) {
   const sorted = [...items].sort((a, b) => b.updatedAt - a.updatedAt);
   const dayMs = 86400000;
   const buckets: { key: string; label: string; list: Item[] }[] = [
@@ -433,7 +532,7 @@ function TimelineView({ items }: { items: Item[] }) {
             <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
           </div>
           <div className="grid gap-3.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(216px, 1fr))" }}>
-            {b.list.map((it) => <EntityCard key={it.id} item={it} />)}
+            {b.list.map((it) => <EntityCard key={it.id} item={it} projectId={projectId} folders={folders} />)}
           </div>
         </section>
       ))}
@@ -443,26 +542,67 @@ function TimelineView({ items }: { items: Item[] }) {
 
 /* ───────────────────────── cards ───────────────────────── */
 
-function EntityCard({ item }: { item: Item }) {
+function EntityCard({ item, projectId, folders }: { item: Item; projectId?: string; folders?: Folder[] }) {
   const e = ENTITY[item.type];
+  const [menuOpen, setMenuOpen] = useState(false);
+  const canMove = !!projectId && !!folders;
   return (
-    <button onClick={() => openItem(item)}
-      className="text-left rounded-[12px] px-4 py-4 lift flex flex-col relative overflow-hidden group"
-      style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)", minHeight: 168 }}>
-      {/* color accent rail */}
-      <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: e.color, opacity: 0.85 }} />
-      <div className="flex items-start gap-3 mb-3">
-        <div className="text-[15.5px] font-semibold tracking-[-0.02em] leading-snug flex-1" style={{ color: "var(--ink)" }}>{item.title}</div>
-        <MoreHorizontal size={15} style={{ color: "var(--ink-3)" }} />
+    <div className="relative">
+      <button onClick={() => openItem(item)}
+        className="text-left rounded-[12px] px-4 py-4 lift flex flex-col relative overflow-hidden group w-full"
+        style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)", minHeight: 168 }}>
+        <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: e.color, opacity: 0.85 }} />
+        <div className="flex items-start gap-3 mb-3">
+          <div className="text-[15.5px] font-semibold tracking-[-0.02em] leading-snug flex-1" style={{ color: "var(--ink)" }}>{item.title}</div>
+          {canMove && (
+            <span role="button" tabIndex={0}
+              onClick={(ev) => { ev.stopPropagation(); setMenuOpen((v) => !v); }}
+              onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.stopPropagation(); setMenuOpen((v) => !v); } }}
+              className="flex items-center justify-center w-6 h-6 -mr-1 -mt-0.5 rounded-[6px] press hover-row cursor-pointer" style={{ color: "var(--ink-3)" }}>
+              <MoreHorizontal size={15} />
+            </span>
+          )}
+        </div>
+        <EntityPreview type={item.type} />
+        <div className="flex items-center gap-2.5 mt-4 relative z-10">
+          <span className="inline-flex items-center gap-1.5 h-[22px] px-2.5 rounded-full text-[11px] font-medium" style={{ background: e.chipBg, color: e.chipText }}>
+            <e.Icon size={12} /> {e.label}
+          </span>
+          <span className="ml-auto text-[11px] tabular-nums" style={{ color: "var(--ink-4)" }}>{relTime(item.updatedAt)}</span>
+        </div>
+      </button>
+      {menuOpen && canMove && (
+        <MoveMenu item={item} projectId={projectId!} folders={folders!} onClose={() => setMenuOpen(false)} />
+      )}
+    </div>
+  );
+}
+
+function MoveMenu({ item, projectId, folders, onClose }: { item: Item; projectId: string; folders: Folder[]; onClose: () => void }) {
+  const move = (folderId: string | null) => { useAppStore.getState().moveEntityToFolder(projectId, item.id, item.type, folderId); onClose(); };
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="absolute right-3 top-11 z-50 w-52 rounded-[10px] py-1.5 overflow-hidden"
+        style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
+        <div className="px-3 py-1 text-[11px] font-medium" style={{ color: "var(--ink-4)" }}>Move to</div>
+        <button onClick={() => move(null)} className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: item.folderId ? "var(--ink-2)" : "var(--ink)" }}>
+          <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--ink-4)" }} /> Unfiled
+          {!item.folderId && <Check size={13} className="ml-auto" style={{ color: "var(--accent-amber)" }} />}
+        </button>
+        {folders.map((f) => (
+          <button key={f.id} onClick={() => move(f.id)} className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: f.color }} /> <span className="truncate">{f.name}</span>
+            {item.folderId === f.id && <Check size={13} className="ml-auto flex-shrink-0" style={{ color: "var(--accent-amber)" }} />}
+          </button>
+        ))}
+        <div className="my-1 h-px" style={{ background: "var(--border)" }} />
+        <button onClick={() => { const f = useAppStore.getState().createFolder(projectId); useAppStore.getState().moveEntityToFolder(projectId, item.id, item.type, f.id); onClose(); }}
+          className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
+          <Plus size={13} /> New folder
+        </button>
       </div>
-      <EntityPreview type={item.type} />
-      <div className="flex items-center gap-2.5 mt-4 relative z-10">
-        <span className="inline-flex items-center gap-1.5 h-[22px] px-2.5 rounded-full text-[11px] font-medium" style={{ background: e.chipBg, color: e.chipText }}>
-          <e.Icon size={12} /> {e.label}
-        </span>
-        <span className="ml-auto text-[11px] tabular-nums" style={{ color: "var(--ink-4)" }}>{relTime(item.updatedAt)}</span>
-      </div>
-    </button>
+    </>
   );
 }
 
@@ -613,15 +753,17 @@ function TreeRow({ leading, label, active, caret, open, onCaret, onClick }: {
   );
 }
 
-function Leaf({ icon, label, active, muted, onClick }: { icon: React.ReactNode; label: string; active?: boolean; muted?: boolean; onClick: () => void }) {
+function Leaf({ icon, label, active, muted, folder, indent, count, onClick }: { icon: React.ReactNode; label: string; active?: boolean; muted?: boolean; folder?: boolean; indent?: boolean; count?: number; onClick: () => void }) {
   return (
     <button onClick={onClick} className="flex items-center gap-2 w-full h-[28px] rounded-[8px] text-[12px] press hover-row" style={{
-      paddingLeft: 30, paddingRight: 10,
+      paddingLeft: indent ? 44 : folder ? 24 : 30, paddingRight: 10,
       background: active ? "var(--sidebar-accent)" : "transparent",
-      color: muted ? "var(--ink-4)" : active ? "var(--ink)" : "var(--ink-2)", fontWeight: active ? 500 : 400,
+      color: muted ? "var(--ink-4)" : folder ? "var(--ink-2)" : active ? "var(--ink)" : "var(--ink-2)",
+      fontWeight: active || folder ? 500 : 400,
     }}>
       <span className="flex-shrink-0" style={{ color: muted ? "var(--ink-4)" : "var(--icon)" }}>{icon}</span>
       <span className="flex-1 text-left truncate">{label}</span>
+      {count != null && <span className="text-[10.5px] tabular-nums" style={{ color: "var(--ink-4)" }}>{count}</span>}
     </button>
   );
 }
