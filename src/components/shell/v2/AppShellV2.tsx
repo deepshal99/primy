@@ -19,8 +19,8 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Inbox, PenLine, Search, ChevronRight, Plus, FileText, Table2, Presentation,
   LayoutTemplate, MoreHorizontal, LayoutGrid, CalendarDays,
-  PanelRightClose, PanelRightOpen, Sun, Moon, ArrowLeft, Settings, CircleHelp, Check,
-  Folder as FolderIcon, FolderPlus, Home,
+  PanelRightOpen, Sun, Moon, ArrowLeft, Settings, CircleHelp, Check,
+  Folder as FolderIcon, FolderPlus, Home, Trash2,
   Rocket, Sparkles, Compass, Layers, Target, Box, Hexagon, Flame,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
@@ -39,22 +39,18 @@ import type { EntityType, Project, Folder } from "@/lib/types";
 /* ───────────────────────── shared meta ───────────────────────── */
 
 const FONT = "Inter, system-ui, sans-serif";
-const CARD_H = 196; // consistent board card height
+const CARD_H = 224; // consistent board card height
 const ENTITY: Record<EntityType, { Icon: typeof FileText; label: string; color: string; tint: string; chipBg: string; chipText: string }> = {
   ku:    { Icon: FileText,       label: "Doc",   color: "#4285F4", tint: "rgba(66,133,244,0.14)",  chipBg: "#EDF4FF", chipText: "#3F79E0" },
   table: { Icon: Table2,         label: "Sheet", color: "#42C366", tint: "rgba(66,195,102,0.16)",  chipBg: "#E7F7ED", chipText: "#2E9E47" },
   deck:  { Icon: Presentation,   label: "Deck",  color: "#FFAD45", tint: "rgba(255,173,69,0.18)",  chipBg: "#FFF1DF", chipText: "#B87426" },
   page:  { Icon: LayoutTemplate, label: "Page",  color: "#8757D7", tint: "rgba(135,87,215,0.14)",  chipBg: "#F3ECFF", chipText: "#8051CC" },
 };
-const CANDY = ["#FFB43F", "#4285F4", "#8757D7", "#67CEC8", "#F073A7", "#42c366", "#ecb730"];
 const WORKSPACE_ICONS = [Rocket, Sparkles, Compass, Layers, Target, Box, Hexagon, Flame];
 function hashOf(id: string): number {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
   return h;
-}
-function accentFor(id: string): string {
-  return CANDY[hashOf(id) % CANDY.length];
 }
 function iconFor(id: string): typeof Rocket {
   return WORKSPACE_ICONS[hashOf(id) % WORKSPACE_ICONS.length];
@@ -158,6 +154,7 @@ export function AppShellV2() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [wsMenu, setWsMenu] = useState<{ id: string; title: string; x: number; y: number } | null>(null);
 
   const project = projects.find((p) => p.id === currentProjectId);
 
@@ -239,7 +236,7 @@ export function AppShellV2() {
             const isActive = p.id === currentProjectId;
             const isOpen = !!expanded[p.id];
             return (
-              <div key={p.id}>
+              <div key={p.id} className="mb-[5px]">
                 <TreeRow
                   leading={<WorkspaceBadge id={p.id} />}
                   label={p.title || "Untitled"}
@@ -248,6 +245,7 @@ export function AppShellV2() {
                   open={isOpen}
                   onCaret={() => setExpanded((e) => ({ ...e, [p.id]: !e[p.id] }))}
                   onClick={() => { if (p.id !== currentProjectId) switchProject(p.id); setExpanded((e) => ({ ...e, [p.id]: true })); }}
+                  onContextMenu={(ev) => { ev.preventDefault(); setWsMenu({ id: p.id, title: p.title || "Untitled", x: ev.clientX, y: ev.clientY }); }}
                 />
                 {isOpen && (() => {
                   const pFolders = (p.folders || []).slice().sort((a, b) => a.position - b.position);
@@ -338,10 +336,12 @@ export function AppShellV2() {
               </>
             )}
 
-            <button onClick={() => setChatOpen((v) => !v)} title={chatOpen ? "Hide chat" : "Show chat"}
-              className="flex items-center justify-center w-8 h-8 rounded-[8px] press" style={{ color: "var(--icon)" }}>
-              {chatOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
-            </button>
+            {!chatOpen && (
+              <button onClick={() => setChatOpen(true)} title="Show chat"
+                className="flex items-center justify-center w-8 h-8 rounded-[8px] press" style={{ color: "var(--icon)" }}>
+                <PanelRightOpen size={16} />
+              </button>
+            )}
           </header>
 
           {/* body */}
@@ -355,7 +355,8 @@ export function AppShellV2() {
             ) : currentProjectId ? (
               <ProjectBody project={project} view={view} />
             ) : (
-              <AllProjects projects={projects} onOpen={switchProject} onNew={() => createProject("Untitled project")} />
+              <AllProjects projects={projects} onOpen={switchProject} onNew={() => createProject("Untitled project")}
+                onContext={(id, title, ev) => { ev.preventDefault(); setWsMenu({ id, title, x: ev.clientX, y: ev.clientY }); }} />
             )}
           </div>
         </div>
@@ -374,6 +375,24 @@ export function AppShellV2() {
           </section>
         )}
       </div>
+
+      {wsMenu && (
+        <>
+          <div className="fixed inset-0 z-[60]" onClick={() => setWsMenu(null)} onContextMenu={(e) => { e.preventDefault(); setWsMenu(null); }} />
+          <div className="fixed z-[61] w-48 rounded-[10px] py-1.5"
+            style={{ left: Math.min(wsMenu.x, window.innerWidth - 200), top: Math.min(wsMenu.y, window.innerHeight - 120), background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
+            <button onClick={() => { switchProject(wsMenu.id); setWsMenu(null); }}
+              className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
+              <ArrowLeft size={13} className="rotate-180" /> Open
+            </button>
+            <div className="my-1 h-px" style={{ background: "var(--border)" }} />
+            <button onClick={() => { if (confirm(`Delete workspace "${wsMenu.title}"? This removes all its files.`)) { useAppStore.getState().deleteProject(wsMenu.id); } setWsMenu(null); }}
+              className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "#d4183d" }}>
+              <Trash2 size={13} /> Delete workspace
+            </button>
+          </div>
+        </>
+      )}
 
       <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
       {settingsOpen && <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />}
@@ -433,9 +452,9 @@ function FolderSection({ projectId, folder, list, folders }: { projectId: string
   const color = folder?.color ?? "#9A968D";
   return (
     <section style={{ borderTop: "1px solid var(--border)" }}>
-      <div className="flex items-center gap-3 h-[72px] group px-8">
-        <span className="flex items-center justify-center w-6 h-6 rounded-[7px] flex-shrink-0" style={{ background: `color-mix(in srgb, ${color} 15%, transparent)`, color }}>
-          {folder ? <FolderIcon size={14} /> : <Inbox size={14} />}
+      <div className="flex items-center gap-2.5 h-[72px] group px-8">
+        <span className="flex-shrink-0" style={{ color }}>
+          {folder ? <FolderIcon size={16} /> : <Inbox size={16} />}
         </span>
         {folder && renaming ? (
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)}
@@ -498,8 +517,8 @@ function BoardView({ projectId, items, folders }: { projectId: string; items: It
         const TIcon = ENTITY[t.type].Icon;
         return (
           <section key={t.type} style={{ borderTop: "1px solid var(--border)" }}>
-            <div className="flex items-center gap-3 h-[72px] group px-8">
-              <span className="flex items-center justify-center w-6 h-6 rounded-[7px]" style={{ background: `color-mix(in srgb, ${t.color} 15%, transparent)`, color: t.color }}><TIcon size={14} /></span>
+            <div className="flex items-center gap-2.5 h-[72px] group px-8">
+              <TIcon size={16} style={{ color: t.color }} />
               <span className="text-[15px] font-semibold tracking-[-0.005em]" style={{ color: "var(--ink)" }}>{t.label}</span>
               <span className="text-[12px] tabular-nums" style={{ color: "var(--ink-4)" }}>{list.length}</span>
               <div className="flex-1" />
@@ -557,7 +576,6 @@ function EntityCard({ item, projectId, folders }: { item: Item; projectId?: stri
   const e = ENTITY[item.type];
   const [menuOpen, setMenuOpen] = useState(false);
   const canMove = !!projectId && !!folders;
-  const folder = item.folderId ? folders?.find((f) => f.id === item.folderId) : undefined;
   return (
     <div className="relative">
       <button onClick={() => openItem(item)}
@@ -575,17 +593,11 @@ function EntityCard({ item, projectId, folders }: { item: Item; projectId?: stri
           )}
         </div>
         <div className="flex-1 min-h-0 overflow-hidden flex flex-col"><EntityPreview item={item} /></div>
-        <div className="flex items-center gap-2 mt-3.5 flex-shrink-0 relative z-10">
-          <e.Icon size={13} style={{ color: "var(--ink-3)" }} />
-          <span className="text-[11.5px]" style={{ color: "var(--ink-3)" }}>{e.label}</span>
-          {folder ? (
-            <span className="ml-auto inline-flex items-center h-[20px] px-2 rounded-full text-[10.5px] font-medium truncate max-w-[110px]"
-              style={{ background: `color-mix(in srgb, ${folder.color} 16%, transparent)`, color: `color-mix(in srgb, ${folder.color} 78%, #111)` }}>
-              {folder.name}
-            </span>
-          ) : (
-            <span className="ml-auto text-[11px] tabular-nums" style={{ color: "var(--ink-4)" }}>{relTime(item.updatedAt)}</span>
-          )}
+        <div className="flex items-center gap-2.5 mt-3.5 flex-shrink-0 relative z-10">
+          <span className="inline-flex items-center gap-1.5 h-[22px] px-2.5 rounded-full text-[11px] font-medium" style={{ background: e.chipBg, color: e.chipText }}>
+            <e.Icon size={12} /> {e.label}
+          </span>
+          <span className="ml-auto text-[11px] tabular-nums" style={{ color: "var(--ink-4)" }}>{relTime(item.updatedAt)}</span>
         </div>
       </button>
       {menuOpen && canMove && (
@@ -699,7 +711,7 @@ function NewCard({ label, onClick }: { label: string; onClick: () => void }) {
 
 /* ───────────────────────── all-projects home ───────────────────────── */
 
-function AllProjects({ projects, onOpen, onNew }: { projects: Project[]; onOpen: (id: string) => void; onNew: () => void }) {
+function AllProjects({ projects, onOpen, onNew, onContext }: { projects: Project[]; onOpen: (id: string) => void; onNew: () => void; onContext: (id: string, title: string, e: React.MouseEvent) => void }) {
   return (
     <div className="max-w-[1100px] mx-auto px-9 py-9">
       <div className="flex items-end justify-between mb-7">
@@ -722,12 +734,12 @@ function AllProjects({ projects, onOpen, onNew }: { projects: Project[]; onOpen:
             ? p.counts.knowledgeUnits + p.counts.tables + p.counts.decks + p.counts.pages
             : p.knowledgeUnits.length + p.tables.length + p.decks.length + p.pages.length;
           return (
-            <button key={p.id} onClick={() => onOpen(p.id)} className="text-left rounded-[12px] p-4 lift"
+            <button key={p.id} onClick={() => onOpen(p.id)} onContextMenu={(e) => onContext(p.id, p.title || "Untitled", e)} className="text-left rounded-[12px] p-4 lift"
               style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)" }}>
               <div className="flex items-center gap-3 mb-3">
-                {(() => { const Icon = iconFor(p.id); const color = accentFor(p.id); return (
-                  <div className="w-9 h-9 rounded-[9px] flex items-center justify-center flex-shrink-0" style={{ background: `color-mix(in srgb, ${color} 16%, transparent)`, color }}>
-                    <Icon size={18} strokeWidth={2} />
+                {(() => { const Icon = iconFor(p.id); return (
+                  <div className="w-9 h-9 rounded-[9px] flex items-center justify-center flex-shrink-0" style={{ background: "var(--accent-soft)", color: "var(--icon)" }}>
+                    <Icon size={18} strokeWidth={1.9} />
                   </div>
                 ); })()}
                 <div className="min-w-0">
@@ -759,13 +771,8 @@ function LogoMark() {
 }
 
 function WorkspaceBadge({ id }: { id: string }) {
-  const color = accentFor(id);
   const Icon = iconFor(id);
-  return (
-    <span className="flex items-center justify-center w-[20px] h-[20px] rounded-[6px] flex-shrink-0" style={{ background: `color-mix(in srgb, ${color} 16%, transparent)`, color }}>
-      <Icon size={13} strokeWidth={2} />
-    </span>
-  );
+  return <Icon size={15} strokeWidth={1.9} className="flex-shrink-0" style={{ color: "var(--icon)" }} />;
 }
 
 function NavRow({ icon, label, hint, onClick }: { icon: React.ReactNode; label: string; hint?: string; onClick: () => void }) {
@@ -778,17 +785,17 @@ function NavRow({ icon, label, hint, onClick }: { icon: React.ReactNode; label: 
   );
 }
 
-function TreeRow({ leading, label, active, caret, open, onCaret, onClick }: {
-  leading: React.ReactNode; label: string; active?: boolean; caret?: boolean; open?: boolean; onCaret: () => void; onClick: () => void;
+function TreeRow({ leading, label, active, caret, open, onCaret, onClick, onContextMenu }: {
+  leading: React.ReactNode; label: string; active?: boolean; caret?: boolean; open?: boolean; onCaret: () => void; onClick: () => void; onContextMenu?: (e: React.MouseEvent) => void;
 }) {
   return (
-    <div className="flex items-center w-full h-[34px] rounded-[9px] press group"
+    <div className="flex items-center w-full h-[34px] rounded-[9px] press group" onContextMenu={onContextMenu}
       style={{ background: active ? "var(--sidebar-accent)" : "transparent", color: active ? "var(--ink)" : "var(--ink-2)" }}>
       <button onClick={(e) => { e.stopPropagation(); onCaret(); }}
         className="flex items-center justify-center w-6 h-full flex-shrink-0" style={{ color: "var(--ink-4)" }}>
         {caret ? <ChevronRight size={13} style={{ transform: open ? "rotate(90deg)" : undefined, transition: "transform 120ms" }} /> : <span className="w-[13px]" />}
       </button>
-      <button onClick={onClick} className="flex items-center gap-2.5 flex-1 min-w-0 pr-2.5 h-full text-left" style={{ fontWeight: active ? 500 : 400 }}>
+      <button onClick={onClick} className="flex items-center gap-2.5 flex-1 min-w-0 pr-2.5 h-full text-left text-[12.5px]" style={{ fontWeight: active ? 500 : 400 }}>
         {leading}
         <span className="flex-1 truncate">{label}</span>
       </button>

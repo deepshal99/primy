@@ -689,7 +689,7 @@ function HeroLandscape() {
   return (
     <div className="relative h-[188px] overflow-hidden flex-shrink-0" aria-hidden>
       <img
-        src="/chat-hero.png"
+        src="/chat-hero.jpg"
         alt=""
         className="absolute inset-0 w-full h-full object-cover"
         style={{ objectPosition: "center 38%" }}
