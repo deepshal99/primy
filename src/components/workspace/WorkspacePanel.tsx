@@ -54,7 +54,7 @@ function PanelSkeleton() {
  * Undo/redo/save/share now live in the TopBar — only export and version
  * history remain here, scoped to the active editor.
  */
-export function WorkspacePanel() {
+export function WorkspacePanel({ hideActions = false }: { hideActions?: boolean } = {}) {
   const currentEntityId = useAppStore((s) => s.currentEntityId);
   const currentEntityType = useAppStore((s) => s.currentEntityType);
 
@@ -82,6 +82,11 @@ export function WorkspacePanel() {
   // and export for non-page entities (pages own Preview/HTML/Present inside
   // PagePanel, so they only get Share here).
   const exportEl = isDeck ? <DeckExport /> : isTable ? <ExportMenu /> : <DocExportMenu />;
+
+  // V2 hoists history/share/export into the app top bar — render just the editor.
+  if (hideActions) {
+    return <div className="h-full overflow-hidden relative">{renderPanel()}</div>;
+  }
 
   return (
     <div className="h-full flex flex-col overflow-hidden">

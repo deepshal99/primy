@@ -18,13 +18,18 @@ import { useRouter, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   Inbox, PenLine, Search, ChevronRight, Plus, FileText, Table2, Presentation,
-  LayoutTemplate, MoreHorizontal, LayoutGrid, Columns3, CalendarDays,
+  LayoutTemplate, MoreHorizontal, LayoutGrid, CalendarDays,
   PanelRightClose, PanelRightOpen, Sun, Moon, ArrowLeft, Settings, CircleHelp, Check,
+  Folder as FolderIcon, FolderPlus, Home,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useDarkMode } from "@/lib/useShellV2";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { WorkspacePanel } from "@/components/workspace/WorkspacePanel";
+import { EntityShareButton, DeckExport } from "@/components/workspace/EntityActions";
+import { ArtifactHistoryButton } from "@/components/snapshots/ArtifactHistoryButton";
+import { ExportMenu } from "@/components/sheet/ExportMenu";
+import { DocExportMenu } from "@/components/doc/DocExportMenu";
 import { SearchDialog } from "@/components/shared/SearchDialog";
 import { KeyboardShortcuts } from "@/components/shared/KeyboardShortcuts";
 import { SettingsModal } from "@/components/settings/SettingsModal";
@@ -56,8 +61,39 @@ function relTime(ts: number): string {
   return `${d}d ago`;
 }
 
-type ViewMode = "board" | "kanban" | "timeline";
-type Item = { id: string; type: EntityType; title: string; updatedAt: number; folderId?: string | null };
+type ViewMode = "board" | "timeline";
+type Item = {
+  id: string; type: EntityType; title: string; updatedAt: number; folderId?: string | null;
+  excerpt?: string;        // doc / page: plain-text preview
+  cells?: string[][];      // sheet: top-left sample
+  slideCount?: number;     // deck
+};
+
+function stripText(s: string): string {
+  return (s || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/[#>*_`~]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function sheetSample(sheets: { celldata?: { r: number; c: number; v: unknown }[] }[] | undefined): string[][] {
+  const cd = sheets?.[0]?.celldata;
+  if (!Array.isArray(cd)) return [];
+  const grid: string[][] = [[], [], []];
+  let any = false;
+  for (const c of cd) {
+    if (c.r < 3 && c.c < 3) {
+      const cv = c.v as { v?: unknown; m?: unknown } | null;
+      const val = cv && typeof cv === "object" ? (cv.m ?? cv.v ?? "") : (cv ?? "");
+      grid[c.r][c.c] = String(val ?? "");
+      if (grid[c.r][c.c]) any = true;
+    }
+  }
+  return any ? grid : [];
+}
 
 const TYPE_ORDER: { type: EntityType; label: string; color: string }[] = [
   { type: "ku", label: "Docs", color: ENTITY.ku.color },
@@ -68,14 +104,12 @@ const TYPE_ORDER: { type: EntityType; label: string; color: string }[] = [
 
 function projectItems(p: Project | undefined): Item[] {
   if (!p) return [];
-  const map = (arr: { id: string; title: string; updatedAt: number; folderId?: string | null }[], type: EntityType) =>
-    arr.map((e) => ({ id: e.id, type, title: e.title, updatedAt: e.updatedAt, folderId: e.folderId ?? null }));
-  return [
-    ...map(p.knowledgeUnits, "ku"),
-    ...map(p.tables, "table"),
-    ...map(p.decks, "deck"),
-    ...map(p.pages, "page"),
-  ];
+  const items: Item[] = [];
+  for (const k of p.knowledgeUnits) items.push({ id: k.id, type: "ku", title: k.title, updatedAt: k.updatedAt, folderId: k.folderId ?? null, excerpt: stripText(k.content).slice(0, 220) });
+  for (const t of p.tables) items.push({ id: t.id, type: "table", title: t.title, updatedAt: t.updatedAt, folderId: t.folderId ?? null, cells: sheetSample(t.sheets) });
+  for (const d of p.decks) items.push({ id: d.id, type: "deck", title: d.title, updatedAt: d.updatedAt, folderId: d.folderId ?? null, slideCount: d.slides?.length ?? 0 });
+  for (const pg of p.pages) items.push({ id: pg.id, type: "page", title: pg.title, updatedAt: pg.updatedAt, folderId: pg.folderId ?? null, excerpt: stripText(pg.html).slice(0, 160) });
+  return items;
 }
 
 function createInFolder(projectId: string, type: EntityType, folderId: string | null) {
@@ -102,6 +136,7 @@ export function AppShellV2() {
   const projects = useAppStore((s) => s.projects);
   const currentProjectId = useAppStore((s) => s.currentProjectId);
   const currentEntityId = useAppStore((s) => s.currentEntityId);
+  const currentEntityType = useAppStore((s) => s.currentEntityType);
   const loadProjects = useAppStore((s) => s.loadProjects);
   const switchProject = useAppStore((s) => s.switchProject);
   const goToProjectsHome = useAppStore((s) => s.goToProjectsHome);
@@ -196,7 +231,7 @@ export function AppShellV2() {
             return (
               <div key={p.id}>
                 <TreeRow
-                  leading={<WorkspaceDot color={accentFor(p.id)} />}
+                  leading={<WorkspaceBadge color={accentFor(p.id)} label={p.title || "U"} />}
                   label={p.title || "Untitled"}
                   active={isActive && !currentEntityId}
                   caret={items.length > 0}
@@ -213,7 +248,7 @@ export function AppShellV2() {
                     <>
                       {pFolders.map((f) => (
                         <div key={f.id}>
-                          <Leaf folder icon={<span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: f.color }} />} label={f.name} count={inFolder(f.id).length} onClick={() => {}} />
+                          <Leaf folder icon={<FolderIcon size={14} style={{ color: f.color }} />} label={f.name} count={inFolder(f.id).length} onClick={() => {}} />
                           {inFolder(f.id).map((it) => {
                             const e = ENTITY[it.type];
                             return <Leaf key={it.id} indent icon={<e.Icon size={13} />} label={it.title} active={currentEntityId === it.id} onClick={() => openEntity(it)} />;
@@ -224,10 +259,6 @@ export function AppShellV2() {
                         const e = ENTITY[it.type];
                         return <Leaf key={it.id} icon={<e.Icon size={14} />} label={it.title} active={currentEntityId === it.id} onClick={() => openEntity(it)} />;
                       })}
-                      <Leaf muted icon={<Plus size={14} />} label="New doc"
-                        onClick={() => { if (p.id !== currentProjectId) switchProject(p.id); createInFolder(p.id, "ku", null); }} />
-                      <Leaf muted icon={<Plus size={14} />} label="New folder"
-                        onClick={() => { if (p.id !== currentProjectId) switchProject(p.id); useAppStore.getState().createFolder(p.id); }} />
                     </>
                   );
                 })()}
@@ -254,8 +285,10 @@ export function AppShellV2() {
               </button>
             ) : currentProjectId ? (
               <div className="flex items-center gap-2 min-w-0">
-                <button onClick={goToProjectsHome} className="press text-[13px] truncate" style={{ color: "var(--ink-3)" }}>Workspaces</button>
-                <ChevronRight size={13} style={{ color: "var(--ink-4)" }} />
+                <button onClick={goToProjectsHome} title="All workspaces"
+                  className="flex items-center justify-center w-8 h-8 -ml-1 rounded-[8px] press hover-row flex-shrink-0" style={{ color: "var(--icon)" }}>
+                  <Home size={16} />
+                </button>
                 <span className="font-semibold text-[15px] tracking-[-0.005em] truncate" style={{ color: "var(--ink)" }}>{project?.title}</span>
               </div>
             ) : (
@@ -264,19 +297,35 @@ export function AppShellV2() {
 
             <div className="flex-1" />
 
-            {currentProjectId && !currentEntityId && (
-              <div className="inline-flex items-center rounded-full p-1 mr-1" style={{ background: "var(--accent-soft)" }}>
-                {([["board", LayoutGrid], ["kanban", Columns3], ["timeline", CalendarDays]] as const).map(([m, Ic]) => {
-                  const on = view === m;
-                  return (
-                    <button key={m} onClick={() => setView(m)}
-                      className="flex items-center justify-center w-8 h-8 rounded-full press"
-                      style={{ background: on ? "var(--card)" : "transparent", color: on ? "var(--accent-blue)" : "var(--icon)", boxShadow: on ? "0 1px 6px rgba(24,24,22,0.10)" : undefined }}>
-                      <Ic size={16} />
-                    </button>
-                  );
-                })}
+            {/* Entity open → editor actions hoisted from WorkspacePanel */}
+            {currentProjectId && currentEntityId && currentEntityType && (
+              <div className="flex items-center gap-0.5 mr-1">
+                {currentEntityType !== "page" && <ArtifactHistoryButton />}
+                <EntityShareButton />
+                {currentEntityType === "deck" ? <DeckExport /> : currentEntityType === "table" ? <ExportMenu /> : currentEntityType !== "page" ? <DocExportMenu /> : null}
               </div>
+            )}
+
+            {/* Project board → view toggle + New folder */}
+            {currentProjectId && !currentEntityId && (
+              <>
+                <button onClick={() => useAppStore.getState().createFolder(currentProjectId)}
+                  className="inline-flex items-center gap-1.5 h-8 px-2.5 mr-1 rounded-[8px] text-[12.5px] font-medium press hover-row" style={{ color: "var(--ink-2)" }}>
+                  <FolderPlus size={15} /> New folder
+                </button>
+                <div className="inline-flex items-center rounded-full p-1 mr-1" style={{ background: "var(--accent-soft)" }}>
+                  {([["board", LayoutGrid], ["timeline", CalendarDays]] as const).map(([m, Ic]) => {
+                    const on = view === m;
+                    return (
+                      <button key={m} onClick={() => setView(m)}
+                        className="flex items-center justify-center w-8 h-8 rounded-full press"
+                        style={{ background: on ? "var(--card)" : "transparent", color: on ? "var(--accent-blue)" : "var(--icon)", boxShadow: on ? "0 1px 6px rgba(24,24,22,0.10)" : undefined }}>
+                        <Ic size={16} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
             )}
 
             <button onClick={() => setChatOpen((v) => !v)} title={chatOpen ? "Hide chat" : "Show chat"}
@@ -286,10 +335,12 @@ export function AppShellV2() {
           </header>
 
           {/* body */}
-          <div className="flex-1 overflow-y-auto min-h-0">
+          <div className={`flex-1 min-h-0 ${currentProjectId && currentEntityId ? "overflow-hidden" : "overflow-y-auto"}`}>
             {currentProjectId && currentEntityId ? (
-              <div className="h-full overflow-hidden rounded-tl-[14px]" style={{ background: "var(--card)", borderTop: "1px solid var(--border)", borderLeft: "1px solid var(--border)" }}>
-                <WorkspacePanel />
+              <div className="h-full p-4 pt-0 pr-3">
+                <div className="h-full overflow-hidden rounded-[14px]" style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
+                  <WorkspacePanel hideActions />
+                </div>
               </div>
             ) : currentProjectId ? (
               <ProjectBody project={project} view={view} />
@@ -339,7 +390,6 @@ function ProjectBody({ project, view }: { project: Project | undefined; view: Vi
   if (!project) return null;
   const folders = (project.folders || []).slice().sort((a, b) => a.position - b.position);
   if (items.length === 0 && folders.length === 0) return <EmptyProject projectId={project.id} />;
-  if (view === "kanban") return <KanbanView projectId={project.id} items={items} />;
   if (view === "timeline") return <TimelineView projectId={project.id} items={items} folders={folders} />;
   // Board: group by folder when the project has any; else by entity type.
   if (folders.length > 0) return <FolderBoardView projectId={project.id} items={items} folders={folders} />;
@@ -350,7 +400,6 @@ function FolderBoardView({ projectId, items, folders }: { projectId: string; ite
   const unfiled = items.filter((i) => !i.folderId || !folders.some((f) => f.id === i.folderId));
   return (
     <div>
-      <BoardHeader projectId={projectId} />
       {folders.map((f) => {
         const list = items.filter((i) => i.folderId === f.id);
         return <FolderSection key={f.id} projectId={projectId} folder={f} list={list} folders={folders} />;
@@ -358,17 +407,6 @@ function FolderBoardView({ projectId, items, folders }: { projectId: string; ite
       {unfiled.length > 0 && (
         <FolderSection projectId={projectId} folder={null} list={unfiled} folders={folders} />
       )}
-    </div>
-  );
-}
-
-function BoardHeader({ projectId }: { projectId: string }) {
-  return (
-    <div className="flex items-center justify-end px-8 pt-5 pb-1">
-      <button onClick={() => useAppStore.getState().createFolder(projectId)}
-        className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-[7px] text-[12px] font-medium press hover-row" style={{ color: "var(--ink-2)" }}>
-        <Plus size={14} /> New folder
-      </button>
     </div>
   );
 }
@@ -440,7 +478,6 @@ function EmptyProject({ projectId }: { projectId: string }) {
 function BoardView({ projectId, items, folders }: { projectId: string; items: Item[]; folders: Folder[] }) {
   return (
     <div>
-      <BoardHeader projectId={projectId} />
       {TYPE_ORDER.map((t) => {
         const list = items.filter((i) => i.type === t.type);
         if (list.length === 0) return null;
@@ -463,47 +500,6 @@ function BoardView({ projectId, items, folders }: { projectId: string; items: It
           </section>
         );
       })}
-    </div>
-  );
-}
-
-function KanbanView({ projectId, items }: { projectId: string; items: Item[] }) {
-  return (
-    <div className="h-full overflow-y-auto overflow-x-hidden px-8 py-8">
-      <div className="grid gap-5 h-full" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
-        {TYPE_ORDER.map((t) => {
-          const list = items.filter((i) => i.type === t.type);
-          return (
-            <div key={t.type} className="flex flex-col min-w-0">
-              <div className="flex items-center gap-2 mb-3 px-1">
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: t.color }} />
-                <span className="text-[13px] font-semibold" style={{ color: "var(--ink)" }}>{t.label}</span>
-                <span className="text-[11.5px] tabular-nums" style={{ color: "var(--ink-4)" }}>{list.length}</span>
-                <div className="flex-1" />
-                <button onClick={() => createInProject(projectId, t.type)} className="press" style={{ color: "var(--ink-4)" }}><Plus size={14} /></button>
-              </div>
-              <div className="flex flex-col gap-2.5">
-                {list.map((it) => {
-                  const e = ENTITY[it.type];
-                  return (
-                    <button key={it.id} onClick={() => openItem(it)} className="text-left rounded-[10px] p-3 lift min-w-0 relative overflow-hidden"
-                      style={{ background: "var(--card)", border: "1px solid var(--border)", boxShadow: "var(--shadow-card)" }}>
-                      <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: e.color, opacity: 0.85 }} />
-                      <div className="mb-1.5">
-                        <span className="inline-flex items-center gap-1 h-[18px] px-2 rounded-full text-[10px] font-medium" style={{ background: e.chipBg, color: e.chipText }}>
-                          <e.Icon size={11} /> {e.label}
-                        </span>
-                      </div>
-                      <div className="text-[13px] font-semibold tracking-[-0.01em] mb-1 line-clamp-2" style={{ color: "var(--ink)" }}>{it.title}</div>
-                      <div className="text-[11px]" style={{ color: "var(--ink-4)" }}>{relTime(it.updatedAt)}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -551,7 +547,6 @@ function EntityCard({ item, projectId, folders }: { item: Item; projectId?: stri
       <button onClick={() => openItem(item)}
         className="text-left rounded-[12px] px-4 py-4 lift flex flex-col relative overflow-hidden group w-full"
         style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)", minHeight: 168 }}>
-        <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: e.color, opacity: 0.85 }} />
         <div className="flex items-start gap-3 mb-3">
           <div className="text-[15.5px] font-semibold tracking-[-0.02em] leading-snug flex-1" style={{ color: "var(--ink)" }}>{item.title}</div>
           {canMove && (
@@ -563,7 +558,7 @@ function EntityCard({ item, projectId, folders }: { item: Item; projectId?: stri
             </span>
           )}
         </div>
-        <EntityPreview type={item.type} />
+        <EntityPreview item={item} />
         <div className="flex items-center gap-2.5 mt-4 relative z-10">
           <span className="inline-flex items-center gap-1.5 h-[22px] px-2.5 rounded-full text-[11px] font-medium" style={{ background: e.chipBg, color: e.chipText }}>
             <e.Icon size={12} /> {e.label}
@@ -606,39 +601,56 @@ function MoveMenu({ item, projectId, folders, onClose }: { item: Item; projectId
   );
 }
 
-function EntityPreview({ type }: { type: EntityType }) {
-  const e = ENTITY[type];
-  if (type === "table") {
+function EntityPreview({ item }: { item: Item }) {
+  const e = ENTITY[item.type];
+
+  if (item.type === "table") {
+    const grid = item.cells && item.cells.length ? item.cells : null;
     return (
-      <div className="flex-1 rounded-[9px] overflow-hidden" style={{ border: `1px solid ${e.tint}` }}>
-        <div className="grid grid-cols-3 text-[10px] font-medium" style={{ color: e.chipText, background: e.chipBg }}>
-          {["A", "B", "C"].map((h) => <div key={h} className="px-2 py-1.5">{h}</div>)}
+      <div className="flex-1 rounded-[9px] overflow-hidden text-[10.5px]" style={{ border: `1px solid ${e.tint}` }}>
+        <div className="grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", color: e.chipText, background: e.chipBg, fontWeight: 600 }}>
+          {(grid ? grid[0] : ["A", "B", "C"]).slice(0, 3).map((h, i) => <div key={i} className="px-2 py-1.5 truncate">{h || ""}</div>)}
         </div>
-        {[0, 1].map((r) => (
-          <div key={r} className="grid grid-cols-3 text-[10.5px]" style={{ color: "var(--ink-3)", borderTop: `1px solid ${e.tint}` }}>
-            {[0, 1, 2].map((c) => <div key={c} className="px-2 py-1.5">·</div>)}
+        {[1, 2].map((r) => (
+          <div key={r} className="grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", color: "var(--ink-3)", borderTop: `1px solid ${e.tint}` }}>
+            {[0, 1, 2].map((c) => <div key={c} className="px-2 py-1.5 truncate">{grid?.[r]?.[c] || ""}</div>)}
           </div>
         ))}
       </div>
     );
   }
-  if (type === "deck") {
-    return <div className="flex-1 rounded-[10px]" style={{ background: "linear-gradient(135deg, #FFF4DE, #FFBE70 52%, #8AC7EA)", minHeight: 60 }} />;
+
+  if (item.type === "deck") {
+    return (
+      <div className="flex-1 rounded-[10px] relative overflow-hidden flex items-end p-2.5" style={{ background: "linear-gradient(135deg, #FFF4DE, #FFBE70 52%, #8AC7EA)", minHeight: 64 }}>
+        <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.75)", color: "#7a5a1f" }}>
+          {item.slideCount ?? 0} slide{item.slideCount === 1 ? "" : "s"}
+        </span>
+      </div>
+    );
   }
-  if (type === "page") {
+
+  if (item.type === "page") {
     return (
       <div className="flex-1 rounded-[10px] overflow-hidden" style={{ border: `1px solid ${e.tint}` }}>
-        <div className="h-7 px-2.5 flex items-center gap-1.5" style={{ borderBottom: `1px solid ${e.tint}`, background: "#FAF7FF" }}>
+        <div className="h-6 px-2.5 flex items-center gap-1.5" style={{ borderBottom: `1px solid ${e.tint}`, background: "#FAF7FF" }}>
           {["#FF7D6E", "#F7C853", "#67CEC8"].map((c) => <span key={c} className="w-2 h-2 rounded-full" style={{ background: c }} />)}
         </div>
-        <div className="p-2.5 space-y-1.5">
-          <div className="h-2.5 w-20 rounded-full" style={{ background: e.tint }} />
-          <div className="h-7 rounded-[6px]" style={{ background: "linear-gradient(90deg, #F3ECFF, #EEF7FF)" }} />
+        <div className="p-2.5">
+          {item.excerpt ? (
+            <p className="text-[11px] leading-[1.45] line-clamp-3" style={{ color: "var(--ink-3)" }}>{item.excerpt}</p>
+          ) : (
+            <div className="space-y-1.5"><div className="h-2.5 w-20 rounded-full" style={{ background: e.tint }} /><div className="h-7 rounded-[6px]" style={{ background: "linear-gradient(90deg, #F3ECFF, #EEF7FF)" }} /></div>
+          )}
         </div>
       </div>
     );
   }
-  // doc — tinted prose lines, last line accented
+
+  // doc — real text excerpt, falls back to tinted lines when empty
+  if (item.excerpt) {
+    return <p className="flex-1 text-[11.5px] leading-[1.5] line-clamp-4" style={{ color: "var(--ink-3)" }}>{item.excerpt}</p>;
+  }
   return (
     <div className="flex-1 space-y-1.5">
       {[90, 70, 80, 55].map((w, i) => (
@@ -721,8 +733,12 @@ function LogoMark() {
   );
 }
 
-function WorkspaceDot({ color }: { color: string }) {
-  return <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />;
+function WorkspaceBadge({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="flex items-center justify-center w-[18px] h-[18px] rounded-[6px] text-[10px] font-semibold text-white flex-shrink-0" style={{ background: color }}>
+      {(label || "•").charAt(0).toUpperCase()}
+    </span>
+  );
 }
 
 function NavRow({ icon, label, hint, onClick }: { icon: React.ReactNode; label: string; hint?: string; onClick: () => void }) {
