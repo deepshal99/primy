@@ -71,6 +71,7 @@ function renderContentWithMentions(
         ku: { text: "#4a7aed", bg: "#f0f4fd" },
         table: { text: "#2e9e47", bg: "#e8f7ea" },
         deck: { text: "#d4582a", bg: "#fde8dc" },
+        page: { text: "#9061ff", bg: "#f3eeff" },
       };
       const colors = ENTITY_COLORS[matchedEntity.type] || ENTITY_COLORS.ku;
       parts.push(

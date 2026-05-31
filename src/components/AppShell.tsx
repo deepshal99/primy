@@ -1,18 +1,23 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { WorkspacePanel } from "@/components/workspace/WorkspacePanel";
-import { NavRail } from "@/components/sidebar/NavRail";
+import { GlobalHome } from "@/components/shell/GlobalHome";
+import { TopBar } from "@/components/shell/TopBar";
+import { Sidebar } from "@/components/shell/Sidebar";
 import { KeyboardShortcuts } from "@/components/shared/KeyboardShortcuts";
 import { SearchDialog } from "@/components/shared/SearchDialog";
 import { useAppStore } from "@/lib/store";
 import { MessageSquare, PanelRight, Loader2 } from "lucide-react";
 
-type ViewMode = "chat" | "editor" | "project";
 type MobilePanel = "chat" | "workspace";
+
+const CANVAS = "#ecebe6";
+const CARD_SHADOW = "0 1px 2px rgba(0,0,0,0.04), 0 12px 32px rgba(0,0,0,0.06)";
+const BORDER_FAINT = "rgba(0,0,0,0.05)";
 
 // Onboarding-gate query — single source of truth for hasOnboarded in the
 // shell. Reused by usePlanInfo via the same ["user"] key, so cached.
@@ -25,10 +30,8 @@ async function fetchUserForGate(): Promise<{ hasOnboarded: boolean }> {
 export function AppShell() {
   const router = useRouter();
   const pathname = usePathname();
-  const workspaceOpen = useAppStore((s) => s.workspaceOpen);
   const currentEntityId = useAppStore((s) => s.currentEntityId);
   const currentProjectId = useAppStore((s) => s.currentProjectId);
-  const createProject = useAppStore((s) => s.createProject);
   const resetAll = useAppStore((s) => s.resetAll);
   const undo = useAppStore((s) => s.undo);
   const redo = useAppStore((s) => s.redo);
@@ -55,19 +58,10 @@ export function AppShell() {
     }
   }, [userQuery.data, pathname, router]);
 
-  // Derive view mode
-  const viewMode: ViewMode = useMemo(() => {
-    if (currentEntityId && workspaceOpen) return "editor";
-    if (currentProjectId && workspaceOpen) return "project";
-    return "chat";
-  }, [currentEntityId, currentProjectId, workspaceOpen]);
-
-  // When workspace opens (e.g. AI creates an entity), switch mobile to workspace
+  // When an entity opens (e.g. AI creates one), flip mobile to the work pane.
   useEffect(() => {
-    if (workspaceOpen && currentEntityId) {
-      setMobilePanel("workspace");
-    }
-  }, [workspaceOpen, currentEntityId]);
+    if (currentEntityId) setMobilePanel("workspace");
+  }, [currentEntityId]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -138,14 +132,16 @@ export function AppShell() {
     return () => window.removeEventListener("keydown", handler);
   }, [resetAll, undo, redo, canUndo, canRedo, closeTab]);
 
-  // Listen for search open event from NavRail
+  // Listen for search open event from the Sidebar.
   useEffect(() => {
     const handler = () => setSearchOpen(true);
     window.addEventListener("drafta:open-search", handler);
     return () => window.removeEventListener("drafta:open-search", handler);
   }, []);
 
-  const showMobileToggle = workspaceOpen && viewMode !== "chat";
+  // The work pane and chat are both always present. On mobile a single panel
+  // shows at a time; the floating toggle switches between them.
+  const showMobileToggle = true;
 
   // Block render until onboarding gate resolves — prevents the project
   // list from auto-flipping hasOnboarded=true via /api/projects before
@@ -153,79 +149,83 @@ export function AppShell() {
   const needsOnboarding = userQuery.data && userQuery.data.hasOnboarded === false;
   if (userQuery.isLoading || needsOnboarding) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-[#fafaf8]">
+      <div className="h-screen w-screen flex items-center justify-center" style={{ background: CANVAS }}>
         <Loader2 className="w-5 h-5 animate-spin text-[#ff4a00]" />
       </div>
     );
   }
 
   return (
-    <div className="h-screen w-screen flex bg-[#EAEAEA] overflow-hidden">
-      {/* Navigation Rail — hidden on mobile */}
-      <div className="hidden md:flex">
-        <NavRail />
+    <div
+      className="h-screen w-screen flex flex-col overflow-hidden text-[#171717]"
+      style={{ background: CANVAS, fontFamily: "Inter, system-ui, sans-serif" }}
+    >
+      {/* ZONE 1 — Top bar (transparent, on the canvas) */}
+      <TopBar />
+
+      {/* Row: sidebar (canvas) · chat (card) · work pane (card) */}
+      <div className="flex flex-1 min-h-0" style={{ gap: 10, padding: "0 10px 10px 10px" }}>
+        {/* ZONE 2 — Sidebar ON the canvas (hidden on mobile) */}
+        <div className="hidden md:flex flex-shrink-0">
+          <Sidebar />
+        </div>
+
+        {/* ZONE 3 — Chat (floating card) */}
+        <section
+          data-chat-panel
+          className={`flex flex-col flex-shrink-0 bg-white overflow-hidden w-full md:w-[27vw] md:min-w-[360px] md:max-w-[460px] ${
+            mobilePanel === "workspace" && showMobileToggle ? "hidden md:flex" : "flex"
+          }`}
+          style={{
+            borderRadius: 16,
+            boxShadow: CARD_SHADOW,
+            border: `1px solid ${BORDER_FAINT}`,
+          }}
+        >
+          <ChatPanel centered={false} />
+        </section>
+
+        {/* ZONE 4 — Work pane (floating card) */}
+        <main
+          data-workspace-panel
+          className={`flex-1 min-w-0 flex flex-col bg-white overflow-hidden ${
+            mobilePanel === "chat" && showMobileToggle ? "hidden md:flex" : "flex"
+          }`}
+          style={{
+            borderRadius: 16,
+            boxShadow: CARD_SHADOW,
+            border: `1px solid ${BORDER_FAINT}`,
+          }}
+        >
+          {currentProjectId ? <WorkspacePanel /> : <GlobalHome />}
+        </main>
       </div>
 
-      {/* Main content area with floating panels */}
-      <div className="flex-1 flex gap-0 md:gap-2 p-0 md:p-2 md:pl-0 min-w-0 overflow-hidden">
-        {/* Chat Panel — floating pane; on mobile, full-width or hidden when workspace is showing */}
-        <div
-          data-chat-panel
-          className={`flex-shrink-0 overflow-hidden bg-white md:rounded-xl shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_2px_6px_rgba(0,0,0,0.03)] transition-[flex,width,min-width,max-width,margin] duration-[320ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
-            mobilePanel === "workspace" && showMobileToggle
-              ? "hidden md:block"
-              : ""
-          } ${
-            viewMode === "chat"
-              ? "flex-1"
-              : "w-full md:w-[25vw] md:min-w-[300px] md:max-w-[420px]"
+      {/* Mobile panel toggle */}
+      <div className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex gap-1 bg-white/90 backdrop-blur-md rounded-full p-1 shadow-[0_2px_12px_rgba(0,0,0,0.12),0_0_0_1px_rgba(0,0,0,0.06)]">
+        <button
+          onClick={() => setMobilePanel("chat")}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] motion-reduce:transition-none ${
+            mobilePanel === "chat"
+              ? "bg-[#ff4a00] text-white shadow-sm"
+              : "text-[#737373] hover:text-[#171717]"
           }`}
         >
-          <ChatPanel centered={viewMode === "chat"} />
-        </div>
-
-        {/* Workspace Panel — on mobile, full-width or hidden when chat is showing */}
-        {workspaceOpen && (
-          <div
-            data-workspace-panel
-            className={`flex-1 flex flex-col overflow-hidden animate-fade-in min-w-0 ${
-              mobilePanel === "chat" && showMobileToggle
-                ? "hidden md:flex"
-                : ""
-            }`}
-          >
-            <WorkspacePanel />
-          </div>
-        )}
+          <MessageSquare className="w-3.5 h-3.5" />
+          Chat
+        </button>
+        <button
+          onClick={() => setMobilePanel("workspace")}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] motion-reduce:transition-none ${
+            mobilePanel === "workspace"
+              ? "bg-[#ff4a00] text-white shadow-sm"
+              : "text-[#737373] hover:text-[#171717]"
+          }`}
+        >
+          <PanelRight className="w-3.5 h-3.5" />
+          Workspace
+        </button>
       </div>
-
-      {/* Mobile panel toggle — only visible when both panels exist */}
-      {showMobileToggle && (
-        <div className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex gap-1 bg-white/90 backdrop-blur-md rounded-full p-1 shadow-[0_2px_12px_rgba(0,0,0,0.12),0_0_0_1px_rgba(0,0,0,0.06)]">
-          <button
-            onClick={() => setMobilePanel("chat")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium transition-all ${
-              mobilePanel === "chat"
-                ? "bg-[#ff4a00] text-white shadow-sm"
-                : "text-[#737373] hover:text-[#171717]"
-            }`}
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-            Chat
-          </button>
-          <button
-            onClick={() => setMobilePanel("workspace")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium transition-all ${
-              mobilePanel === "workspace"
-                ? "bg-[#ff4a00] text-white shadow-sm"
-                : "text-[#737373] hover:text-[#171717]"
-            }`}
-          >
-            <PanelRight className="w-3.5 h-3.5" />
-            Workspace
-          </button>
-        </div>
-      )}
 
       <KeyboardShortcuts />
       <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />

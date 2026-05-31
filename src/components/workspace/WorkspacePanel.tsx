@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic";
 import { useAppStore } from "@/lib/store";
-import { TabBar } from "./TabBar";
 import { ProjectHome } from "./ProjectHome";
 import { ExportMenu } from "@/components/sheet/ExportMenu";
 import { DocExportMenu } from "@/components/doc/DocExportMenu";
@@ -22,6 +21,10 @@ const DeckBuilder = dynamic(
   () => import("@/components/deck/DeckBuilder").then((m) => ({ default: m.DeckBuilder })),
   { ssr: false, loading: () => <PanelSkeleton /> }
 );
+const PagePanel = dynamic(
+  () => import("@/components/page/PagePanel").then((m) => ({ default: m.PagePanel })),
+  { ssr: false, loading: () => <PanelSkeleton /> }
+);
 
 function PanelSkeleton() {
   return (
@@ -39,82 +42,57 @@ function PanelSkeleton() {
   );
 }
 
+/**
+ * WorkspacePanel — the work-pane interior for a project that's open.
+ *
+ * The tab row is gone (the TopBar breadcrumb's `File ▾` replaces it). This
+ * renders inside the floating work-pane card created by AppShell:
+ *   - no entity open  → the project home (overview + files grid)
+ *   - entity open     → a slim entity toolbar (export + history; pages carry
+ *                       their own Preview/HTML/Present toolbar) + the editor.
+ *
+ * Undo/redo/save/share now live in the TopBar — only export and version
+ * history remain here, scoped to the active editor.
+ */
 export function WorkspacePanel() {
   const currentEntityId = useAppStore((s) => s.currentEntityId);
   const currentEntityType = useAppStore((s) => s.currentEntityType);
-  const openTabs = useAppStore((s) => s.openTabs);
 
-  // Home tab is always first; entity tabs follow. First tab active = home or first entity tab
-  const isHomeActive = !currentEntityId;
-  const isFirstTabActive = isHomeActive || openTabs.findIndex((t) => t.id === currentEntityId) === 0;
-
+  // No entity open → the project's home view (overview + files grid).
   if (!currentEntityId) {
-    // No open tabs: clean white card, no tab bar
-    if (openTabs.length === 0) {
-      return (
-        <div className="flex-1 overflow-hidden bg-white rounded-xl shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_2px_6px_rgba(0,0,0,0.03)]">
-          <ProjectHome />
-        </div>
-      );
-    }
-    // Has open tabs: show tab bar with home tab active
     return (
-      <div className="flex flex-col h-full">
-        <TabBar exportAction={null} />
-        <div
-          className="flex-1 overflow-hidden bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_2px_6px_rgba(0,0,0,0.03)]"
-          style={{ borderRadius: "0 12px 12px 12px" }}
-        >
-          <ProjectHome />
-        </div>
+      <div className="h-full overflow-hidden">
+        <ProjectHome />
       </div>
     );
   }
 
   const isTable = currentEntityType === "table";
   const isDeck = currentEntityType === "deck";
+  const isPage = currentEntityType === "page";
 
   const renderPanel = () => {
     if (isDeck) return <EditorErrorBoundary entityType="presentation"><DeckBuilder /></EditorErrorBoundary>;
     if (isTable) return <EditorErrorBoundary entityType="spreadsheet"><SheetPanel /></EditorErrorBoundary>;
+    if (isPage) return <EditorErrorBoundary entityType="document"><PagePanel /></EditorErrorBoundary>;
     return <EditorErrorBoundary entityType="document"><DocPanel /></EditorErrorBoundary>;
   };
 
-  const renderExportAction = () => {
-    const exportEl = isDeck ? <DeckExport /> : isTable ? <ExportMenu /> : <DocExportMenu />;
-    return (
-      <div className="flex items-center gap-0.5">
-        <ArtifactHistoryButton />
-        {exportEl}
-      </div>
-    );
-  };
-
-  const toolbarActions = null;
-
-  // Content area border-radius: when home (first tab) is active, top-left is flush (0)
-  const contentRadius = isHomeActive
-    ? "0 12px 12px 12px"
-    : "12px";
+  // Pages own their toolbar (Preview/HTML/Present) inside PagePanel — no slim
+  // toolbar above them. Other entities get a slim export + history toolbar.
+  const exportEl = isDeck ? <DeckExport /> : isTable ? <ExportMenu /> : <DocExportMenu />;
+  const showToolbar = !isPage;
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Tab bar — sits in the beige background area */}
-      <TabBar exportAction={renderExportAction()} />
-
-      {/* Content — white card that merges with active tab */}
-      <div
-        className="flex-1 flex flex-col overflow-hidden bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.04),0_2px_6px_rgba(0,0,0,0.03)]"
-        style={{ borderRadius: contentRadius }}
-      >
-        {toolbarActions && (
-          <div className="flex items-center gap-1 px-3 h-[40px] border-b border-[#f0efec] bg-white flex-shrink-0">
-            {toolbarActions}
-          </div>
-        )}
-        <div className="flex-1 overflow-hidden relative">
-          {renderPanel()}
+    <div className="h-full flex flex-col overflow-hidden">
+      {showToolbar && (
+        <div className="flex items-center justify-end gap-0.5 px-2.5 h-[40px] border-b border-[#f0efec] bg-white flex-shrink-0">
+          <ArtifactHistoryButton />
+          {exportEl}
         </div>
+      )}
+      <div className="flex-1 overflow-hidden relative">
+        {renderPanel()}
       </div>
     </div>
   );

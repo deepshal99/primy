@@ -12,6 +12,8 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "migrate:grace": "tsx scripts/grant-founding-member-grace.ts",
+    "migrate:ssot": "tsx scripts/apply-team-ssot-schema.ts",
+    "seed:demo": "tsx scripts/seed-demo-data.ts",
     "dev:admin": "tsx scripts/ensure-dev-admin.ts"
   },
   "keywords": [],

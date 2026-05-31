@@ -1,8 +1,9 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { requireProjectAccess, accessErrorResponse } from "@/lib/projectAccess";
 
 /**
  * POST /api/projects/[id]/share — Generate share token for a project
@@ -21,11 +22,19 @@ export async function POST(
 
     const { id } = await params;
 
-    // Verify ownership
+    // Authorize: editor+ may create share links.
+    try {
+      await requireProjectAccess(id, session.user.id, "editor");
+    } catch (e) {
+      const res = accessErrorResponse(e);
+      if (res) return res;
+      throw e;
+    }
+
     const [project] = await db
       .select({ id: projects.id, shareToken: projects.shareToken })
       .from(projects)
-      .where(and(eq(projects.id, id), eq(projects.userId, session.user.id)))
+      .where(eq(projects.id, id))
       .limit(1);
 
     if (!project) {
@@ -63,15 +72,13 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Verify ownership
-    const [project] = await db
-      .select({ id: projects.id })
-      .from(projects)
-      .where(and(eq(projects.id, id), eq(projects.userId, session.user.id)))
-      .limit(1);
-
-    if (!project) {
-      return Response.json({ error: "Not found" }, { status: 404 });
+    // Authorize: editor+ may revoke share links.
+    try {
+      await requireProjectAccess(id, session.user.id, "editor");
+    } catch (e) {
+      const res = accessErrorResponse(e);
+      if (res) return res;
+      throw e;
     }
 
     await db

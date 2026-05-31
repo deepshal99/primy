@@ -5,22 +5,29 @@ import {
   knowledgeUnits,
   projectTables,
   projectDecks,
+  projectPages,
   messages,
 } from "@/db/schema";
 import { eq, and, inArray, desc, sql } from "drizzle-orm";
 import { ensureUserExists } from "@/lib/db/ensureUser";
+import {
+  requireProjectAccess,
+  accessErrorResponse,
+  addProjectOwner,
+} from "@/lib/projectAccess";
 
 const MESSAGES_PER_PAGE = 50;
 
 /**
  * Ensure project row exists. Handles race condition where PUT arrives
- * before the background POST that creates the project row.
+ * before the background POST that creates the project row. New rows get an
+ * owner membership so the project is access-correct from birth.
  */
 async function ensureProjectExists(id: string, userId: string, body: Record<string, any>) {
   const [existing] = await db
     .select({ id: projects.id })
     .from(projects)
-    .where(and(eq(projects.id, id), eq(projects.userId, userId)))
+    .where(eq(projects.id, id))
     .limit(1);
 
   if (!existing) {
@@ -31,6 +38,7 @@ async function ensureProjectExists(id: string, userId: string, body: Record<stri
       description: body.description,
       projectType: body.projectType,
     }).onConflictDoNothing();
+    await addProjectOwner(id, userId);
   }
 }
 
@@ -47,11 +55,19 @@ export async function GET(
 
     const { id } = await params;
 
-    // Fetch project with ownership check
+    // Authorize: any member (viewer+) may read.
+    try {
+      await requireProjectAccess(id, session.user.id, "viewer");
+    } catch (e) {
+      const res = accessErrorResponse(e);
+      if (res) return res;
+      throw e;
+    }
+
     const [project] = await db
       .select()
       .from(projects)
-      .where(and(eq(projects.id, id), eq(projects.userId, session.user.id)))
+      .where(eq(projects.id, id))
       .limit(1);
 
     if (!project) {
@@ -59,7 +75,7 @@ export async function GET(
     }
 
     // Fetch all entities + last N+1 messages in parallel
-    const [allKUs, allTables, allDecks, recentMessages, totalMessageCount] =
+    const [allKUs, allTables, allDecks, allPages, recentMessages, totalMessageCount] =
       await Promise.all([
         db
           .select()
@@ -76,6 +92,11 @@ export async function GET(
           .from(projectDecks)
           .where(eq(projectDecks.projectId, id))
           .orderBy(desc(projectDecks.updatedAt)),
+        db
+          .select()
+          .from(projectPages)
+          .where(eq(projectPages.projectId, id))
+          .orderBy(desc(projectPages.updatedAt)),
         db
           .select()
           .from(messages)
@@ -131,6 +152,17 @@ export async function GET(
         createdAt: d.createdAt.getTime(),
         updatedAt: d.updatedAt.getTime(),
       })),
+      pages: allPages.map((pg) => ({
+        id: pg.id,
+        projectId: pg.projectId,
+        title: pg.title,
+        html: pg.html,
+        editableFields: pg.editableFields || [],
+        sourceKuId: pg.sourceKuId || null,
+        shareToken: pg.shareToken || null,
+        createdAt: pg.createdAt.getTime(),
+        updatedAt: pg.updatedAt.getTime(),
+      })),
       messages: chronologicalMessages.map((m) => ({
         id: m.id,
         role: m.role,
@@ -174,8 +206,18 @@ export async function PUT(
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    // Ensure project exists (handles race with background POST)
+    // Ensure project exists (handles race with background POST). This makes
+    // the caller an owner if the project is being created here.
     await ensureProjectExists(id, session.user.id, body);
+
+    // Authorize: editor+ may write.
+    try {
+      await requireProjectAccess(id, session.user.id, "editor");
+    } catch (e) {
+      const res = accessErrorResponse(e);
+      if (res) return res;
+      throw e;
+    }
 
     const updates: Record<string, any> = { updatedAt: new Date() };
     if (body.title !== undefined) updates.title = body.title;
@@ -310,6 +352,50 @@ export async function PUT(
         );
     }
 
+    // Handle page upserts (HTML visual documents)
+    if (body.pages) {
+      for (const page of body.pages) {
+        const [existingPage] = await db
+          .select({ id: projectPages.id })
+          .from(projectPages)
+          .where(and(eq(projectPages.id, page.id), eq(projectPages.projectId, id)))
+          .limit(1);
+
+        if (existingPage) {
+          const pageUpdates: Record<string, any> = { updatedAt: new Date() };
+          if (page.title !== undefined) pageUpdates.title = page.title;
+          if (page.html !== undefined) pageUpdates.html = page.html;
+          if (page.editableFields !== undefined) pageUpdates.editableFields = page.editableFields;
+          if (page.sourceKuId !== undefined) pageUpdates.sourceKuId = page.sourceKuId;
+          await db
+            .update(projectPages)
+            .set(pageUpdates)
+            .where(and(eq(projectPages.id, page.id), eq(projectPages.projectId, id)));
+        } else {
+          await db.insert(projectPages).values({
+            id: page.id,
+            projectId: id,
+            title: page.title || "Untitled Page",
+            html: page.html || "",
+            editableFields: page.editableFields || [],
+            sourceKuId: page.sourceKuId || null,
+          });
+        }
+      }
+    }
+
+    // Handle deleted pages
+    if (body.deletedPageIds?.length > 0) {
+      await db
+        .delete(projectPages)
+        .where(
+          and(
+            eq(projectPages.projectId, id),
+            inArray(projectPages.id, body.deletedPageIds)
+          )
+        );
+    }
+
     // Handle new messages (append-only, skip duplicates)
     if (body.newMessages?.length > 0) {
       for (const m of body.newMessages) {
@@ -334,7 +420,7 @@ export async function PUT(
     const [updated] = await db
       .update(projects)
       .set(updates)
-      .where(and(eq(projects.id, id), eq(projects.userId, session.user.id)))
+      .where(eq(projects.id, id))
       .returning();
 
     return Response.json({ success: true, project: updated });
@@ -357,15 +443,13 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Verify ownership
-    const [existing] = await db
-      .select()
-      .from(projects)
-      .where(and(eq(projects.id, id), eq(projects.userId, session.user.id)))
-      .limit(1);
-
-    if (!existing) {
-      return Response.json({ error: "Not found" }, { status: 404 });
+    // Authorize: owner only.
+    try {
+      await requireProjectAccess(id, session.user.id, "owner");
+    } catch (e) {
+      const res = accessErrorResponse(e);
+      if (res) return res;
+      throw e;
     }
 
     await db.delete(projects).where(eq(projects.id, id));

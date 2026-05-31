@@ -1,4 +1,4 @@
-import { SheetOperation, DocOperation, KuOperation, TableOperation, DeckOperation, DeckOutlineItem, ThemeConfig } from "@/lib/types";
+import { SheetOperation, DocOperation, KuOperation, TableOperation, DeckOperation, PageOperation, DeckOutlineItem, ThemeConfig } from "@/lib/types";
 
 /**
  * Extract content between ```tag and ``` fences.
@@ -85,7 +85,7 @@ function robustJsonParse(jsonStr: string): any {
         }
       }
 
-      // Last resort: try to extract the JSON object/array from surrounding text
+      // Try to extract the JSON object/array from surrounding text
       const jsonMatch = cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
       if (jsonMatch) {
         try {
@@ -95,13 +95,72 @@ function robustJsonParse(jsonStr: string): any {
           try {
             return JSON.parse(fixedExtracted);
           } catch {
-            return null;
+            // fall through to truncation repair
           }
+        }
+      }
+
+      // Last resort: the response was likely truncated at the model's output
+      // token cap (common for large tableops). Salvage the complete prefix by
+      // trimming to the last whole array element and re-closing the brackets.
+      const repaired = repairTruncatedJson(fixUnescapedNewlinesInJson(cleaned));
+      if (repaired) {
+        try {
+          return JSON.parse(repaired);
+        } catch {
+          return null;
         }
       }
       return null;
     }
   }
+}
+
+/**
+ * Repair JSON that was cut off mid-stream (model hit its output token limit).
+ * Walks the string tracking string/bracket state, finds the end of the last
+ * COMPLETE array element, trims there, and appends the closing brackets needed
+ * to balance. Returns null if the JSON is already balanced or unsalvageable.
+ * This lets a truncated `tableops`/`sheetops` block still yield a partial sheet
+ * instead of being dropped entirely.
+ */
+function repairTruncatedJson(jsonStr: string): string | null {
+  let inString = false;
+  let escape = false;
+  const stack: string[] = [];
+  let cutIdx = -1;
+  let cutStack: string[] | null = null;
+
+  for (let i = 0; i < jsonStr.length; i++) {
+    const ch = jsonStr[i];
+    if (inString) {
+      if (escape) escape = false;
+      else if (ch === "\\") escape = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+    } else if (ch === "{" || ch === "[") {
+      stack.push(ch);
+    } else if (ch === "}" || ch === "]") {
+      stack.pop();
+      // Just closed a value that sits directly inside an array → safe cut point.
+      if (stack.length > 0 && stack[stack.length - 1] === "[") {
+        cutIdx = i + 1;
+        cutStack = [...stack];
+      }
+    }
+  }
+
+  if (stack.length === 0) return null; // already balanced — not truncated
+  if (cutIdx < 0 || !cutStack) return null; // nothing complete to salvage
+
+  let repaired = jsonStr.slice(0, cutIdx).replace(/,\s*$/, "");
+  for (let k = cutStack.length - 1; k >= 0; k--) {
+    repaired += cutStack[k] === "[" ? "]" : "}";
+  }
+  return repaired;
 }
 
 /**
@@ -303,6 +362,30 @@ export function parseTableOperations(fullText: string): TableOperation[] {
       }
     } else {
       if (process.env.NODE_ENV !== "production") console.warn("[Drafta] Failed to parse tableops block:", block.slice(0, 200));
+    }
+  }
+
+  return operations;
+}
+
+// ── HTML Page Operations Parser ──
+
+export function parsePageOperations(fullText: string): PageOperation[] {
+  const blocks = extractFencedBlocks(fullText, "pageops");
+  const operations: PageOperation[] = [];
+
+  for (const block of blocks) {
+    const ops = parseOpsFromBlock<PageOperation>(block);
+    if (ops.length > 0) {
+      for (const op of ops) {
+        if ((op.type === "CREATE" || op.type === "UPDATE") && typeof op.html !== "string") {
+          if (process.env.NODE_ENV !== "production") console.warn("[Drafta] pageops op missing html, skipping:", op.type);
+          continue;
+        }
+        operations.push(op);
+      }
+    } else {
+      if (process.env.NODE_ENV !== "production") console.warn("[Drafta] Failed to parse pageops block:", block.slice(0, 200));
     }
   }
 

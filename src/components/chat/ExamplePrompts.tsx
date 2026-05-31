@@ -86,6 +86,16 @@ const ENTITY_CONFIG: Record<
       "Generate speaker notes",
     ],
   },
+  page: {
+    emptySuggestions: [
+      "Turn a document into a visual page...",
+      "Design an interactive one-pager for...",
+    ],
+    populatedSuggestions: [
+      "Make it more visual and scannable",
+      "Add a stats section and callouts",
+    ],
+  },
 };
 
 // -- Component --
@@ -120,6 +130,7 @@ export function ExamplePrompts({
           ku: !docContent || docContent.trim().length === 0,
           table: !sheets?.[0]?.celldata || sheets[0].celldata.length === 0,
           deck: !deckSlides || deckSlides.length === 0,
+          page: !useAppStore.getState().pageHtml || useAppStore.getState().pageHtml.trim().length === 0,
         }[currentEntityType]
       : null;
 

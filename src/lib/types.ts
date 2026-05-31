@@ -214,6 +214,31 @@ export interface ProjectTable {
   embedding?: number[];
 }
 
+/** Editable region declared by the AI inside an HTML page */
+export interface PageEditableField {
+  id: string;
+  selector: string;
+  type: "text" | "heading" | "image" | "list";
+  currentValue: string;
+}
+
+/**
+ * HTML page — a visual, designed, interactive document. AI-generated full
+ * markup that stays fully editable. Often a richer rendering of a Document.
+ */
+export interface ProjectPage {
+  id: string;
+  projectId: string;
+  title: string;
+  html: string;                       // full standalone HTML/CSS
+  editableFields?: PageEditableField[];
+  sourceKuId?: string | null;         // the doc this page visualizes, if any
+  shareToken?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  embedding?: number[];
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -222,6 +247,7 @@ export interface Project {
   knowledgeUnits: KnowledgeUnit[];
   tables: ProjectTable[];
   decks: ProjectDeck[];
+  pages: ProjectPage[];
   messages: Message[];       // Chat history scoped to project
   memory: ProjectMemory;
   shareToken?: string | null;
@@ -236,6 +262,7 @@ export interface ProjectEntityCounts {
   knowledgeUnits: number;
   tables: number;
   decks: number;
+  pages: number;
 }
 
 /** Lightweight project metadata returned by GET /api/projects (list) */
@@ -250,7 +277,26 @@ export interface ProjectListItem {
   counts: ProjectEntityCounts;
 }
 
-export type EntityType = "ku" | "table" | "deck";
+export type EntityType = "ku" | "table" | "deck" | "page";
+
+// ═══ Page Operations (AI fence: ```pageops) ═══
+
+export type PageOperation =
+  | {
+      type: "CREATE";
+      title: string;
+      html: string;
+      editableFields?: PageEditableField[];
+      sourceKuId?: string;
+    }
+  | {
+      type: "UPDATE";
+      pageId: string;
+      html: string;
+      editableFields?: PageEditableField[];
+    }
+  | { type: "RENAME"; pageId: string; title: string }
+  | { type: "DELETE"; pageId: string };
 
 export type AIPhase = 'idle' | 'thinking' | 'streaming' | 'updating' | 'done';
 
@@ -420,11 +466,12 @@ export type TableOperation =
 // ═══ Undo History ═══
 
 export interface UndoSnapshot {
-  entityType: "ku" | "table" | "deck" | "mixed";
+  entityType: "ku" | "table" | "deck" | "page" | "mixed";
   sheets: SheetData[];
   docContent: string;
   deckSlides: (DeckSlide | HtmlDeckSlide)[];
   deckTheme: DeckTheme;
+  pageHtml: string;
   label: string;
   timestamp: number;
 }
@@ -445,6 +492,9 @@ export interface AppState {
   deckVersion: number;
   deckPhase: DeckPhase;
   deckStyle: ThemeConfig | null;
+  pageHtml: string;
+  pageEditableFields: PageEditableField[];
+  pageVersion: number;
   activeTab: WorkspaceTab;
   workspaceOpen: boolean;
   pendingAttachments: FileAttachment[];
@@ -493,6 +543,7 @@ export interface AppState {
     kuOperations?: KuOperation[],
     tableOperations?: TableOperation[],
     deckOperations?: DeckOperation[],
+    pageOperations?: PageOperation[],
     suggestions?: string[]
   ) => void;
   abortStreaming: () => void;
@@ -551,6 +602,15 @@ export interface AppState {
   setDeckPhase: (phase: DeckPhase) => void;
   updateDeckStyle: (style: ThemeConfig | null) => void;
   resetDeckBuilder: () => void;
+
+  // HTML Page CRUD
+  createPage: (projectId: string, title: string, html?: string, opts?: { editableFields?: PageEditableField[]; sourceKuId?: string }) => ProjectPage;
+  duplicatePage: (projectId: string, pageId: string) => ProjectPage | null;
+  deletePage: (projectId: string, pageId: string) => void;
+  renamePage: (projectId: string, pageId: string, title: string) => void;
+  openPage: (pageId: string) => void;
+  updatePageHtml: (html: string) => void;
+  applyPageOperations: (operations: PageOperation[]) => void;
 
   // Tab management
   closeTab: (id: string) => void;

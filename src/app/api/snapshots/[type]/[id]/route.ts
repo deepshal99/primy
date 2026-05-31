@@ -25,29 +25,37 @@ import {
   knowledgeUnits,
   projectTables,
   projectDecks,
-  projects,
   users,
 } from "@/db/schema";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { PLAN_LIMITS } from "@/lib/plans";
 import { effectivePlan } from "@/lib/billing/effectivePlan";
+import { getProjectAccess, type ProjectRole } from "@/lib/projectAccess";
 
 type ArtifactType = "ku" | "table" | "deck";
+
+const ROLE_RANK: Record<ProjectRole, number> = {
+  viewer: 0,
+  commenter: 1,
+  editor: 2,
+  owner: 3,
+};
 
 function isValidType(t: string): t is ArtifactType {
   return t === "ku" || t === "table" || t === "deck";
 }
 
 /**
- * Verify the session user owns the artifact identified by (type, id).
- * Returns true iff the artifact's project belongs to userId.
- * Treats any failure as "not owned" so callers always 404 on miss.
+ * Verify the session user may access the artifact identified by (type, id)
+ * at `minRole` via its parent project's membership. Returns false on any miss
+ * so callers always 404 (no existence leak).
  */
-async function ownsArtifact(
+async function canAccessArtifact(
   userId: string,
   type: ArtifactType,
-  artifactId: string
+  artifactId: string,
+  minRole: ProjectRole
 ): Promise<boolean> {
   try {
     const tableMap = {
@@ -65,13 +73,8 @@ async function ownsArtifact(
 
     if (!row) return false;
 
-    const [proj] = await db
-      .select({ userId: projects.userId })
-      .from(projects)
-      .where(and(eq(projects.id, row.projectId), eq(projects.userId, userId)))
-      .limit(1);
-
-    return !!proj;
+    const access = await getProjectAccess(row.projectId, userId);
+    return !!access && ROLE_RANK[access.role] >= ROLE_RANK[minRole];
   } catch {
     return false;
   }
@@ -91,8 +94,8 @@ export async function GET(
       return Response.json({ error: "Not found" }, { status: 404 });
     }
 
-    const owned = await ownsArtifact(session.user.id, type, id);
-    if (!owned) {
+    const allowed = await canAccessArtifact(session.user.id, type, id, "viewer");
+    if (!allowed) {
       return Response.json({ error: "Not found" }, { status: 404 });
     }
 
@@ -151,8 +154,8 @@ export async function POST(
       return Response.json({ error: "Missing content" }, { status: 400 });
     }
 
-    const owned = await ownsArtifact(userId, type, id);
-    if (!owned) {
+    const allowed = await canAccessArtifact(userId, type, id, "editor");
+    if (!allowed) {
       return Response.json({ error: "Not found" }, { status: 404 });
     }
 

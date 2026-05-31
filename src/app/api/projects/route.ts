@@ -7,9 +7,11 @@ import {
   knowledgeUnits,
   projectTables,
   projectDecks,
+  projectPages,
 } from "@/db/schema";
 import { eq, desc, sql, inArray } from "drizzle-orm";
 import { ensureUserExists } from "@/lib/db/ensureUser";
+import { addProjectOwner, listAccessibleProjectIds } from "@/lib/projectAccess";
 import { nanoid } from "nanoid";
 import {
   GETTING_STARTED_DOC_TITLE,
@@ -53,10 +55,17 @@ export async function GET() {
         .where(eq(users.id, session.user.id));
     }
 
+    // Membership-aware: owned projects + projects the user is a member of.
+    const accessibleIds = await listAccessibleProjectIds(session.user.id);
+
+    if (accessibleIds.length === 0) {
+      return Response.json([]);
+    }
+
     const userProjects = await db
       .select()
       .from(projects)
-      .where(eq(projects.userId, session.user.id))
+      .where(inArray(projects.id, accessibleIds))
       .orderBy(desc(projects.updatedAt));
 
     if (userProjects.length === 0) {
@@ -66,7 +75,7 @@ export async function GET() {
     // Batch-count entities per project using 4 lightweight queries (IDs only)
     const projectIds = userProjects.map((p) => p.id);
 
-    const [kuCounts, tableCounts, deckCounts] = await Promise.all([
+    const [kuCounts, tableCounts, deckCounts, pageCounts] = await Promise.all([
       db
         .select({ projectId: knowledgeUnits.projectId, count: sql<number>`count(*)::int` })
         .from(knowledgeUnits)
@@ -82,12 +91,18 @@ export async function GET() {
         .from(projectDecks)
         .where(inArray(projectDecks.projectId, projectIds))
         .groupBy(projectDecks.projectId),
+      db
+        .select({ projectId: projectPages.projectId, count: sql<number>`count(*)::int` })
+        .from(projectPages)
+        .where(inArray(projectPages.projectId, projectIds))
+        .groupBy(projectPages.projectId),
     ]);
 
     // Build lookup maps
     const kuCountMap = new Map(kuCounts.map((r) => [r.projectId, r.count]));
     const tableCountMap = new Map(tableCounts.map((r) => [r.projectId, r.count]));
     const deckCountMap = new Map(deckCounts.map((r) => [r.projectId, r.count]));
+    const pageCountMap = new Map(pageCounts.map((r) => [r.projectId, r.count]));
 
     const result = userProjects.map((p) => ({
       id: p.id,
@@ -101,6 +116,7 @@ export async function GET() {
         knowledgeUnits: kuCountMap.get(p.id) || 0,
         tables: tableCountMap.get(p.id) || 0,
         decks: deckCountMap.get(p.id) || 0,
+        pages: pageCountMap.get(p.id) || 0,
       },
     }));
 
@@ -157,6 +173,8 @@ export async function POST(req: Request) {
       })
       .returning();
 
+    await addProjectOwner(id, session.user.id);
+
     return Response.json({
       id: newProject.id,
       title: newProject.title,
@@ -191,6 +209,8 @@ async function createExampleProject(userId: string) {
     description: "Your getting-started project with an example document, a spreadsheet, and a slide deck.",
     projectType: "Other",
   });
+
+  await addProjectOwner(projectId, userId);
 
   await Promise.all([
     db.insert(knowledgeUnits).values({

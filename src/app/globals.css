@@ -3,6 +3,7 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "../styles/motion.css";
 
 /* ═══════════════════════════════════════
    Design Tokens — Warm Orange + Clean White
@@ -819,9 +820,9 @@ input:-webkit-autofill:active {
    Doc Focus Mode — distraction-free writing
    ═══════════════════════════════════════ */
 
-.doc-focus-mode [data-nav-rail],
-.doc-focus-mode [data-chat-panel],
-.doc-focus-mode [data-tab-bar] {
+.doc-focus-mode [data-top-bar],
+.doc-focus-mode [data-sidebar],
+.doc-focus-mode [data-chat-panel] {
   display: none !important;
 }
 

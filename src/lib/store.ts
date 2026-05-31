@@ -21,9 +21,14 @@ import {
   KnowledgeUnit,
   ProjectTable,
   ProjectDeck,
+  ProjectPage,
+  PageOperation,
+  PageEditableField,
   EntityType,
   ThemeConfig,
 } from "@/lib/types";
+import { applyPageOps } from "@/lib/ai/pageOperations";
+import { promoteOrphanOps } from "@/lib/ai/opPromotion";
 import { createEmptySheet } from "@/lib/sheet/defaultData";
 import { applyOperations, normalizeCells } from "@/lib/ai/sheetOperations";
 import { applyDocOps } from "@/lib/ai/docOperations";
@@ -183,6 +188,14 @@ function findDeck(projects: Project[], deckId: string): { project: Project; deck
   return null;
 }
 
+function findPage(projects: Project[], pageId: string): { project: Project; page: ProjectPage } | null {
+  for (const project of projects) {
+    const page = (project.pages || []).find((p) => p.id === pageId);
+    if (page) return { project, page };
+  }
+  return null;
+}
+
 export const useAppStore = create<AppState>()(
   immer((set, get) => ({
   // Active view (flat fields synced to current entity)
@@ -198,6 +211,9 @@ export const useAppStore = create<AppState>()(
   deckVersion: 0,
   deckPhase: "idle" as DeckPhase,
   deckStyle: null as ThemeConfig | null,
+  pageHtml: "",
+  pageEditableFields: [] as PageEditableField[],
+  pageVersion: 0,
   activeTab: "sheet",
   workspaceOpen: false,
   pendingAttachments: [],
@@ -261,11 +277,12 @@ export const useAppStore = create<AppState>()(
 
   finishStreaming: (
     fullContent: string,
-    sheetOperations?: SheetOperation[],
-    docOperations?: DocOperation[],
-    kuOperations?: KuOperation[],
-    tableOperations?: TableOperation[],
+    sheetOperationsArg?: SheetOperation[],
+    docOperationsArg?: DocOperation[],
+    kuOperationsArg?: KuOperation[],
+    tableOperationsArg?: TableOperation[],
     deckOperations?: DeckOperation[],
+    pageOperations?: PageOperation[],
     suggestions?: string[]
   ) => {
     const state = get();
@@ -277,15 +294,30 @@ export const useAppStore = create<AppState>()(
       timestamp: Date.now(),
     };
 
+    // Guarantee creation actually happens: if the model used edit-ops to
+    // "create" with no matching entity open, promote them to CREATE ops so a
+    // real, visible entity is made (root-cause fix for "the AI did nothing").
+    const _hasOpenTable = state.currentEntityType === "table" && !!state.currentEntityId;
+    const _hasOpenDoc = state.currentEntityType === "ku" && !!state.currentEntityId;
+    const _promoted = promoteOrphanOps(
+      { sheetOps: sheetOperationsArg, docOps: docOperationsArg, kuOps: kuOperationsArg, tableOps: tableOperationsArg },
+      { hasOpenTable: _hasOpenTable, hasOpenDoc: _hasOpenDoc }
+    );
+    const sheetOperations = _promoted.sheetOps;
+    const docOperations = _promoted.docOps;
+    const kuOperations = _promoted.kuOps;
+    const tableOperations = _promoted.tableOps;
+
     const hasSheetOps = sheetOperations && sheetOperations.length > 0;
     const hasDocOps = docOperations && docOperations.length > 0;
     const hasKuOps = kuOperations && kuOperations.length > 0;
     const hasTableOps = tableOperations && tableOperations.length > 0;
     const hasDeckOps = deckOperations && deckOperations.length > 0;
+    const hasPageOps = pageOperations && pageOperations.length > 0;
 
     // Snapshot current state before applying AI operations (for undo)
     // New AI operations clear the redo stack (standard editor behavior)
-    const hasAnyOps = hasSheetOps || hasDocOps || hasDeckOps || hasKuOps || hasTableOps;
+    const hasAnyOps = hasSheetOps || hasDocOps || hasDeckOps || hasKuOps || hasTableOps || hasPageOps;
     let newUndoStack = state.undoStack;
     if (hasAnyOps) {
       const labelParts: string[] = [];
@@ -294,8 +326,9 @@ export const useAppStore = create<AppState>()(
       if (hasKuOps) labelParts.push("doc");
       if (hasTableOps) labelParts.push("sheet");
       if (hasDeckOps) labelParts.push("deck");
+      if (hasPageOps) labelParts.push("page");
       const entityType: UndoSnapshot["entityType"] = labelParts.length > 1 ? "mixed"
-        : hasDeckOps ? "deck" : (hasSheetOps || hasTableOps) ? "table" : "ku";
+        : hasDeckOps ? "deck" : hasPageOps ? "page" : (hasSheetOps || hasTableOps) ? "table" : "ku";
       try {
         const snapshot: UndoSnapshot = {
           entityType,
@@ -303,6 +336,7 @@ export const useAppStore = create<AppState>()(
           docContent: state.docContent,
           deckSlides: JSON.parse(JSON.stringify(state.deckSlides)),
           deckTheme: state.deckTheme,
+          pageHtml: state.pageHtml,
           label: `AI ${[...new Set(labelParts)].join(" & ")} changes`,
           timestamp: Date.now(),
         };
@@ -347,7 +381,7 @@ export const useAppStore = create<AppState>()(
     if (hasDocOps) newActiveTab = "doc";
     if (hasSheetOps) newActiveTab = "sheet";
 
-    const shouldOpen = hasSheetOps || hasDocOps || hasKuOps || hasTableOps || hasDeckOps;
+    const shouldOpen = hasSheetOps || hasDocOps || hasKuOps || hasTableOps || hasDeckOps || hasPageOps;
 
     // Deck flat fields
     let newDeckSlides = state.deckSlides;
@@ -355,6 +389,11 @@ export const useAppStore = create<AppState>()(
     let newDeckVersion = state.deckVersion;
     let newDeckPhase = state.deckPhase;
     let newDeckStyle = state.deckStyle;
+
+    // Page flat fields
+    let newPageHtml = state.pageHtml;
+    let newPageEditableFields = state.pageEditableFields;
+    let newPageVersion = state.pageVersion;
 
     // Apply project-level KU and Table operations
     let newProjects = state.projects;
@@ -364,7 +403,7 @@ export const useAppStore = create<AppState>()(
     const aiModifiedIds: string[] = [];
 
     let entityOpsApplied = false;
-    if (hasKuOps || hasTableOps || hasDeckOps) {
+    if (hasKuOps || hasTableOps || hasDeckOps || hasPageOps) {
       if (!state.currentProjectId) {
         console.error("[Drafta] Entity operations received but no currentProjectId");
         toast.error("No active project — AI changes could not be applied. Please try again.");
@@ -699,6 +738,79 @@ export const useAppStore = create<AppState>()(
           }
         }
 
+        // Handle HTML page operations
+        if (hasPageOps) {
+          if (!project.pages) project.pages = [];
+          for (const op of pageOperations) {
+            switch (op.type) {
+              case "CREATE": {
+                const newPage: ProjectPage = {
+                  id: nanoid(),
+                  projectId: project.id,
+                  title: op.title,
+                  html: op.html,
+                  editableFields: op.editableFields || [],
+                  sourceKuId: op.sourceKuId || null,
+                  createdAt: Date.now(),
+                  updatedAt: Date.now(),
+                };
+                project.pages.push(newPage);
+                newCurrentEntityId = newPage.id;
+                newCurrentEntityType = "page";
+                newPageHtml = newPage.html;
+                newPageEditableFields = newPage.editableFields || [];
+                newPageVersion = state.pageVersion + 1;
+                if (!newOpenTabs.some((t) => t.id === newPage.id)) {
+                  newOpenTabs = [...newOpenTabs, { id: newPage.id, type: "page" as const, title: newPage.title }];
+                }
+                break;
+              }
+              case "UPDATE": {
+                const idx = (project.pages || []).findIndex((pg) => pg.id === op.pageId);
+                if (idx >= 0) {
+                  project.pages[idx] = {
+                    ...project.pages[idx],
+                    html: op.html,
+                    ...(op.editableFields ? { editableFields: op.editableFields } : {}),
+                    updatedAt: Date.now(),
+                  };
+                  if (state.currentEntityId === op.pageId) {
+                    newPageHtml = op.html;
+                    if (op.editableFields) newPageEditableFields = op.editableFields;
+                    newPageVersion = state.pageVersion + 1;
+                  }
+                  if (!newOpenTabs.some((t) => t.id === op.pageId)) {
+                    const entity = project.pages[idx];
+                    newOpenTabs = [...newOpenTabs, { id: entity.id, type: "page" as const, title: entity.title }];
+                  }
+                  aiModifiedIds.push(op.pageId);
+                }
+                break;
+              }
+              case "RENAME": {
+                const idx = (project.pages || []).findIndex((pg) => pg.id === op.pageId);
+                if (idx >= 0) {
+                  project.pages[idx] = { ...project.pages[idx], title: op.title, updatedAt: Date.now() };
+                  newOpenTabs = newOpenTabs.map((t) => t.id === op.pageId ? { ...t, title: op.title } : t);
+                }
+                break;
+              }
+              case "DELETE": {
+                project.pages = (project.pages || []).filter((pg) => pg.id !== op.pageId);
+                newOpenTabs = newOpenTabs.filter((t) => t.id !== op.pageId);
+                if (newCurrentEntityId === op.pageId) {
+                  newCurrentEntityId = null;
+                  newCurrentEntityType = null;
+                  newPageHtml = "";
+                  newPageEditableFields = [];
+                  newPageVersion = state.pageVersion + 1;
+                }
+                break;
+              }
+            }
+          }
+        }
+
         project.updatedAt = Date.now();
         newProjects[projIdx] = project;
         entityOpsApplied = true;
@@ -722,6 +834,9 @@ export const useAppStore = create<AppState>()(
       deckVersion: newDeckVersion,
       deckPhase: newDeckPhase,
       deckStyle: newDeckStyle,
+      pageHtml: newPageHtml,
+      pageEditableFields: newPageEditableFields,
+      pageVersion: newPageVersion,
       activeTab: newActiveTab,
       workspaceOpen: state.workspaceOpen || !!shouldOpen,
       suggestions: suggestions || [],
@@ -747,6 +862,7 @@ export const useAppStore = create<AppState>()(
     const deletedKuIds: string[] = [];
     const deletedTableIds: string[] = [];
     const deletedDeckIds: string[] = [];
+    const deletedPageIds: string[] = [];
 
     if (hasKuOps && entityOpsApplied) {
       for (const op of kuOperations) {
@@ -768,6 +884,13 @@ export const useAppStore = create<AppState>()(
         else if (op.type === "RENAME") toast.success("Deck renamed");
       }
     }
+    if (hasPageOps && entityOpsApplied) {
+      for (const op of pageOperations) {
+        if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
+        else if (op.type === "DELETE") deletedPageIds.push(op.pageId);
+        else if (op.type === "RENAME") toast.success("Page renamed");
+      }
+    }
 
     // Immediately sync deletions to server (debounced save won't include deletedXxxIds)
     // Uses retry with backoff since delete ops are not included in the regular save payload
@@ -776,6 +899,7 @@ export const useAppStore = create<AppState>()(
       if (deletedKuIds.length > 0) deletePayload.deletedKnowledgeUnitIds = deletedKuIds;
       if (deletedTableIds.length > 0) deletePayload.deletedTableIds = deletedTableIds;
       if (deletedDeckIds.length > 0) deletePayload.deletedDeckIds = deletedDeckIds;
+      if (deletedPageIds.length > 0) deletePayload.deletedPageIds = deletedPageIds;
       if (Object.keys(deletePayload).length > 0) {
         const projectId = state.currentProjectId;
         updateProjectOnServer(projectId, deletePayload).catch(() => {
@@ -971,6 +1095,7 @@ export const useAppStore = create<AppState>()(
       docContent: state.docContent,
       deckSlides: JSON.parse(JSON.stringify(state.deckSlides)),
       deckTheme: state.deckTheme,
+      pageHtml: state.pageHtml,
       label: snapshot.label,
       timestamp: Date.now(),
     };
@@ -983,6 +1108,8 @@ export const useAppStore = create<AppState>()(
       deckSlides: snapshot.deckSlides,
       deckTheme: snapshot.deckTheme,
       deckVersion: state.deckVersion + 1,
+      pageHtml: snapshot.pageHtml,
+      pageVersion: state.pageVersion + 1,
       undoStack: newStack,
       canUndo: newStack.length > 0,
       redoStack: [...state.redoStack, redoSnapshot],
@@ -1011,6 +1138,7 @@ export const useAppStore = create<AppState>()(
       docContent: state.docContent,
       deckSlides: JSON.parse(JSON.stringify(state.deckSlides)),
       deckTheme: state.deckTheme,
+      pageHtml: state.pageHtml,
       label: snapshot.label,
       timestamp: Date.now(),
     };
@@ -1023,6 +1151,8 @@ export const useAppStore = create<AppState>()(
       deckSlides: snapshot.deckSlides,
       deckTheme: snapshot.deckTheme,
       deckVersion: state.deckVersion + 1,
+      pageHtml: snapshot.pageHtml,
+      pageVersion: state.pageVersion + 1,
       undoStack: [...state.undoStack, undoSnapshot],
       canUndo: true,
       redoStack: newRedoStack,
@@ -1080,6 +1210,7 @@ export const useAppStore = create<AppState>()(
       knowledgeUnits: [],
       tables: [],
       decks: [],
+      pages: [],
       messages: [],
       memory: {},
       createdAt: now,
@@ -1805,6 +1936,179 @@ export const useAppStore = create<AppState>()(
   }),
 
   // ══════════════════════════════════
+  // ── HTML Page CRUD ──
+  // ══════════════════════════════════
+
+  createPage: (projectId, title, html = "", opts) => {
+    if (get().currentEntityId) {
+      get().saveCurrentEntity();
+    }
+    const now = Date.now();
+    const newPage: ProjectPage = {
+      id: nanoid(),
+      projectId,
+      title,
+      html,
+      editableFields: opts?.editableFields || [],
+      sourceKuId: opts?.sourceKuId || null,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const state = get();
+    const newProjects = state.projects.map((p) =>
+      p.id === projectId
+        ? { ...p, pages: [...(p.pages || []), newPage], updatedAt: now }
+        : p
+    );
+
+    set({
+      projects: newProjects,
+      currentEntityId: newPage.id,
+      currentEntityType: "page",
+      pageHtml: newPage.html,
+      pageEditableFields: newPage.editableFields || [],
+      pageVersion: state.pageVersion + 1,
+      workspaceOpen: true,
+      openTabs: [...state.openTabs.filter((t) => t.id !== newPage.id), { id: newPage.id, type: "page" as const, title: newPage.title }],
+    });
+    saveProjectsToStorage(newProjects);
+
+    updateProjectOnServer(projectId, {
+      pages: [{ id: newPage.id, title: newPage.title, html: newPage.html, editableFields: newPage.editableFields, sourceKuId: newPage.sourceKuId }],
+    }).catch(() => {});
+
+    if (html.trim()) {
+      generateEntityEmbedding(newPage.id, projectId, `${title}\n${html.replace(/<[^>]+>/g, " ").slice(0, 4000)}`);
+    }
+    return newPage;
+  },
+
+  duplicatePage: (projectId, pageId) => {
+    const project = get().projects.find((p) => p.id === projectId);
+    if (!project) return null;
+    const original = (project.pages || []).find((p) => p.id === pageId);
+    if (!original) return null;
+
+    const now = Date.now();
+    const page: ProjectPage = {
+      id: nanoid(),
+      projectId,
+      title: `${original.title} (copy)`,
+      html: original.html,
+      editableFields: original.editableFields ? JSON.parse(JSON.stringify(original.editableFields)) : [],
+      sourceKuId: original.sourceKuId || null,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    if (get().currentEntityId) {
+      get().saveCurrentEntity();
+    }
+    const state = get();
+    const updated = state.projects.map((p) =>
+      p.id === projectId
+        ? { ...p, pages: [...(p.pages || []), page], updatedAt: now }
+        : p
+    );
+
+    set({
+      projects: updated,
+      currentEntityId: page.id,
+      currentEntityType: "page",
+      pageHtml: page.html,
+      pageEditableFields: page.editableFields || [],
+      pageVersion: state.pageVersion + 1,
+      workspaceOpen: true,
+      openTabs: [...state.openTabs.filter((t) => t.id !== page.id), { id: page.id, type: "page" as const, title: page.title }],
+    });
+    saveProjectsToStorage(updated);
+    updateProjectOnServer(projectId, {
+      pages: [{ id: page.id, title: page.title, html: page.html, editableFields: page.editableFields, sourceKuId: page.sourceKuId }],
+    }).catch(() => {});
+    toast.success(`Duplicated "${original.title}"`);
+    return page;
+  },
+
+  deletePage: (projectId, pageId) => {
+    const state = get();
+    const newProjects = state.projects.map((p) =>
+      p.id === projectId
+        ? { ...p, pages: (p.pages || []).filter((pg) => pg.id !== pageId), updatedAt: Date.now() }
+        : p
+    );
+    const newTabs = state.openTabs.filter((t) => t.id !== pageId);
+    const isCurrent = state.currentEntityId === pageId;
+    set({
+      projects: newProjects,
+      openTabs: newTabs,
+      ...(isCurrent
+        ? {
+            currentEntityId: null,
+            currentEntityType: null,
+            pageHtml: "",
+            pageEditableFields: [],
+            pageVersion: state.pageVersion + 1,
+            workspaceOpen: false,
+          }
+        : {}),
+    });
+    saveProjectsToStorage(newProjects);
+    updateProjectOnServer(projectId, { deletedPageIds: [pageId] }).catch(() => {});
+  },
+
+  renamePage: (projectId, pageId, title) => {
+    const state = get();
+    const newProjects = state.projects.map((p) =>
+      p.id === projectId
+        ? {
+            ...p,
+            pages: (p.pages || []).map((pg) => pg.id === pageId ? { ...pg, title, updatedAt: Date.now() } : pg),
+            updatedAt: Date.now(),
+          }
+        : p
+    );
+    const newTabs = state.openTabs.map((t) => t.id === pageId ? { ...t, title } : t);
+    set({ projects: newProjects, openTabs: newTabs });
+    saveProjectsToStorage(newProjects);
+    updateProjectOnServer(projectId, { pages: [{ id: pageId, title }] }).catch(() => {});
+  },
+
+  openPage: (pageId) => {
+    if (get().currentEntityId) {
+      get().saveCurrentEntity();
+    }
+    const state = get();
+    const found = findPage(state.projects, pageId);
+    if (!found) return;
+
+    const newTabs = state.openTabs.some((t) => t.id === pageId)
+      ? state.openTabs
+      : [...state.openTabs, { id: pageId, type: "page" as const, title: found.page.title }];
+
+    set({
+      currentEntityId: found.page.id,
+      currentEntityType: "page",
+      pageHtml: found.page.html,
+      pageEditableFields: found.page.editableFields || [],
+      pageVersion: state.pageVersion + 1,
+      workspaceOpen: true,
+      openTabs: newTabs,
+    });
+  },
+
+  updatePageHtml: (html) => {
+    set({ pageHtml: html });
+    scheduleDebouncedSave();
+  },
+
+  applyPageOperations: (operations) => {
+    const state = get();
+    set({ pageHtml: applyPageOps(state.pageHtml, operations), pageVersion: state.pageVersion + 1 });
+    scheduleDebouncedSave();
+  },
+
+  // ══════════════════════════════════
   // ── Tab Management ──
   // ══════════════════════════════════
 
@@ -1917,6 +2221,12 @@ export const useAppStore = create<AppState>()(
           ? { ...d, slides: state.deckSlides, theme: state.deckTheme, style: state.deckStyle, updatedAt: Date.now() }
           : d
       );
+    } else if (state.currentEntityId && state.currentEntityType === "page") {
+      project.pages = (project.pages || []).map((pg) =>
+        pg.id === state.currentEntityId
+          ? { ...pg, html: state.pageHtml, editableFields: state.pageEditableFields, updatedAt: Date.now() }
+          : pg
+      );
     }
 
     project.updatedAt = Date.now();
@@ -1967,6 +2277,13 @@ export const useAppStore = create<AppState>()(
         theme: d.theme,
         style: d.style || null,
         slides: d.slides,
+      })),
+      pages: (project.pages || []).map((pg) => ({
+        id: pg.id,
+        title: pg.title,
+        html: pg.html,
+        editableFields: pg.editableFields || [],
+        sourceKuId: pg.sourceKuId || null,
       })),
       newMessages: project.messages.slice(-2).map((m) => ({
         id: m.id,
@@ -2034,6 +2351,7 @@ export const useAppStore = create<AppState>()(
             knowledgeUnits: existing?.knowledgeUnits || [],
             tables: existing?.tables || [],
             decks: existing?.decks || [],
+            pages: existing?.pages || [],
             messages: existing?.messages || [],
             memory: existing?.memory || {},
           };
@@ -2173,6 +2491,7 @@ export const useAppStore = create<AppState>()(
         knowledgeUnits: kus,
         tables,
         decks: [],
+        pages: [],
         messages: conv.messages,
         memory: conv.memory || {},
         createdAt: conv.createdAt,

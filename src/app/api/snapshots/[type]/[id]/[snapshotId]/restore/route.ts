@@ -24,7 +24,6 @@ import {
   knowledgeUnits,
   projectTables,
   projectDecks,
-  projects,
 } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
@@ -32,17 +31,26 @@ import { PLAN_LIMITS } from "@/lib/plans";
 import { effectivePlan } from "@/lib/billing/effectivePlan";
 import { users as usersTable } from "@/db/schema";
 import { desc, inArray } from "drizzle-orm";
+import { getProjectAccess, type ProjectRole } from "@/lib/projectAccess";
 
 type ArtifactType = "ku" | "table" | "deck";
+
+const ROLE_RANK: Record<ProjectRole, number> = {
+  viewer: 0,
+  commenter: 1,
+  editor: 2,
+  owner: 3,
+};
 
 function isValidType(t: string): t is ArtifactType {
   return t === "ku" || t === "table" || t === "deck";
 }
 
-async function ownsArtifact(
+async function canAccessArtifact(
   userId: string,
   type: ArtifactType,
-  artifactId: string
+  artifactId: string,
+  minRole: ProjectRole
 ): Promise<boolean> {
   try {
     const tableMap = {
@@ -57,12 +65,8 @@ async function ownsArtifact(
       .where(eq(t.id, artifactId))
       .limit(1);
     if (!row) return false;
-    const [proj] = await db
-      .select({ userId: projects.userId })
-      .from(projects)
-      .where(and(eq(projects.id, row.projectId), eq(projects.userId, userId)))
-      .limit(1);
-    return !!proj;
+    const access = await getProjectAccess(row.projectId, userId);
+    return !!access && ROLE_RANK[access.role] >= ROLE_RANK[minRole];
   } catch {
     return false;
   }
@@ -175,8 +179,8 @@ export async function POST(
       return Response.json({ error: "Not found" }, { status: 404 });
     }
 
-    const owned = await ownsArtifact(userId, type, id);
-    if (!owned) {
+    const allowed = await canAccessArtifact(userId, type, id, "editor");
+    if (!allowed) {
       return Response.json({ error: "Not found" }, { status: 404 });
     }
 

@@ -4,18 +4,20 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
+import { DEV_AUTH_BYPASS } from "@/components/providers/DevAutoLogin";
 
 export default function AppHome() {
   const { status } = useSession();
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "unauthenticated") {
+    // In dev bypass mode, DevAutoLogin signs us in instead of redirecting.
+    if (status === "unauthenticated" && !DEV_AUTH_BYPASS) {
       router.push("/login");
     }
   }, [status, router]);
 
-  if (status === "loading") {
+  if (status === "loading" || (status === "unauthenticated" && DEV_AUTH_BYPASS)) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-5 animate-fade-in">

@@ -8,6 +8,7 @@ import {
   bigint,
   integer,
   index,
+  uniqueIndex,
   primaryKey,
 } from "drizzle-orm/pg-core";
 
@@ -50,6 +51,16 @@ export const projects = pgTable(
       goals?: string;
       customInstructions?: string;
     }>().default({}),
+    // ── Project context (front matter) — the ONE source the home header,
+    // the Brain, and Settings → Context-for-AI all read from. Do not fork
+    // this into separate stores (PRD §9.3 coherence rule).
+    purpose: text("purpose"), // 1–2 sentence "what this project is + its goal"
+    audience: text("audience"),
+    voice: text("voice"), // voice / tone for the AI
+    keyFacts: text("key_facts"),
+    client: varchar("client", { length: 255 }), // agency projects
+    timeline: varchar("timeline", { length: 255 }), // due date / timeframe (free text)
+    status: varchar("status", { length: 20 }).notNull().default("active"), // active | archived
     shareToken: varchar("share_token", { length: 32 }).unique(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -119,6 +130,34 @@ export const projectDecks = pgTable(
   (table) => [
     index("pdk_project_id_idx").on(table.projectId),
     index("pdk_share_token_idx").on(table.shareToken),
+  ]
+);
+
+// ── Project Pages (HTML visual documents) ──
+//
+// A first-class entity (mirrors decks/sheets) for AI-generated, fully
+// editable HTML documents — a doc turned into a visual, well-organized,
+// interactive page. `html` is the full standalone markup; `editableFields`
+// declares the regions the AI marked editable; `sourceKuId` links back to
+// the document this page was visualized from (nullable).
+export const projectPages = pgTable(
+  "project_pages",
+  {
+    id: text("id").primaryKey(), // client-provided nanoid
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    title: varchar("title", { length: 500 }).notNull().default("Untitled Page"),
+    html: text("html").notNull().default(""),
+    editableFields: jsonb("editable_fields").$type<unknown[]>().default([]),
+    sourceKuId: text("source_ku_id"), // optional: the doc this was visualized from
+    shareToken: varchar("share_token", { length: 32 }).unique(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("pp_project_id_idx").on(table.projectId),
+    index("pp_share_token_idx").on(table.shareToken),
   ]
 );
 
@@ -233,6 +272,82 @@ export const artifactSnapshots = pgTable(
     index("snap_artifact_idx").on(table.artifactType, table.artifactId, table.createdAt),
     index("snap_user_idx").on(table.userId, table.createdAt),
   ]
+);
+
+// ── Project Members (team access control — the backbone) ──
+//
+// Replaces the implicit single-owner model. Every project read/write
+// authorizes against this table (see src/lib/auth/projectAccess.ts).
+// The legacy projects.userId pointer is kept as the creator reference and
+// is treated as an implicit "owner" until backfill creates explicit rows.
+// roles: owner | editor | commenter | viewer (ranked in projectAccess.ts).
+export const projectMembers = pgTable(
+  "project_members",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: varchar("role", { length: 20 }).notNull().default("editor"),
+    invitedBy: text("invited_by").references(() => users.id, { onDelete: "set null" }),
+    status: varchar("status", { length: 20 }).notNull().default("active"), // active | pending | removed
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("project_members_project_user_idx").on(table.projectId, table.userId),
+    index("project_members_user_idx").on(table.userId),
+    index("project_members_project_idx").on(table.projectId),
+  ]
+);
+
+// ── Share Links (view/edit convenience layer atop membership) ──
+//
+// Generalizes the legacy projects.shareToken into named, scoped, expirable
+// links. entityId null = whole-project link. permission view | edit.
+export const shareLinks = pgTable(
+  "share_links",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    entityId: text("entity_id"), // null = whole-project link
+    entityType: varchar("entity_type", { length: 20 }), // ku | table | deck | page
+    token: varchar("token", { length: 32 }).notNull().unique(),
+    permission: varchar("permission", { length: 10 }).notNull().default("view"), // view | edit
+    createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
+    expiresAt: timestamp("expires_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("share_links_token_idx").on(table.token),
+    index("share_links_project_idx").on(table.projectId),
+  ]
+);
+
+// ── Activity Events (project activity feed) ──
+//
+// Append-only stream powering the project-home recent-activity strip and
+// team accountability. verb: created | edited | deleted | invited |
+// shared | commented | joined ... entity* nullable for project-level events.
+export const activityEvents = pgTable(
+  "activity_events",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    actorId: text("actor_id").references(() => users.id, { onDelete: "set null" }),
+    verb: varchar("verb", { length: 40 }).notNull(),
+    entityId: text("entity_id"),
+    entityType: varchar("entity_type", { length: 20 }),
+    meta: jsonb("meta").$type<Record<string, unknown>>().default({}),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("activity_project_idx").on(table.projectId, table.createdAt)]
 );
 
 // ── Migration Logs (audit trail for one-off scripts) ──

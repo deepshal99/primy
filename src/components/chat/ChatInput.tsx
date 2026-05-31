@@ -25,12 +25,14 @@ const ENTITY_STYLES: Record<EntityType, { text: string; bg: string; dot: string 
   ku: { text: "#4a7aed", bg: "#f0f4fd", dot: "#4a7aed" },
   table: { text: "#2e9e47", bg: "#e8f7ea", dot: "#2e9e47" },
   deck: { text: "#d4582a", bg: "#fde8dc", dot: "#d4582a" },
+  page: { text: "#9061ff", bg: "#f3eeff", dot: "#9061ff" },
 };
 
 const ENTITY_LABELS: Record<EntityType, string> = {
   ku: "Document",
   table: "Sheet",
   deck: "Deck",
+  page: "Page",
 };
 
 interface MentionEntity {

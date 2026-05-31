@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { projects, messages } from "@/db/schema";
-import { eq, and, desc, lt, sql } from "drizzle-orm";
+import { messages } from "@/db/schema";
+import { eq, and, desc, lt } from "drizzle-orm";
+import { requireProjectAccess, accessErrorResponse } from "@/lib/projectAccess";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -20,15 +21,13 @@ export async function GET(
 
     const { id } = await params;
 
-    // Verify ownership
-    const [project] = await db
-      .select({ id: projects.id })
-      .from(projects)
-      .where(and(eq(projects.id, id), eq(projects.userId, session.user.id)))
-      .limit(1);
-
-    if (!project) {
-      return Response.json({ error: "Not found" }, { status: 404 });
+    // Authorize: any member (viewer+) may read messages.
+    try {
+      await requireProjectAccess(id, session.user.id, "viewer");
+    } catch (e) {
+      const res = accessErrorResponse(e);
+      if (res) return res;
+      throw e;
     }
 
     const url = new URL(req.url);

@@ -2,7 +2,7 @@ import { streamText, convertToModelMessages, type UIMessage } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { NextRequest } from "next/server";
 import { SYSTEM_PROMPT } from "@/lib/ai/systemPrompt";
-import { getModelConfig, getModel, estimateContextSize, type AITask } from "@/lib/ai/modelRouter";
+import { getModelConfig, getModelCandidates, estimateContextSize, type AITask } from "@/lib/ai/modelRouter";
 import { withPlanLimit, type PlanCtx } from "@/lib/billing";
 import { getSlashCommand } from "@/lib/ai/slashCommands";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -86,15 +86,24 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
     if (deckPhase === "generating") {
       taskType = "deck-generate";
     } else if (deckPhase === "idle") {
-      // Detect deck generation intent from last message — user approving outline or requesting generation
+      // deckPhase is "idle" by default — including for users who never want a deck.
+      // Only escalate to deck-generate when the request is unambiguously about a deck:
+      //   1) the user explicitly mentions deck/presentation/slides/pitch deck, OR
+      //   2) the user is approving an outline that the assistant just proposed.
+      // Generic verbs like "generate" or "yes" must NOT hijack sheet/doc requests.
       const lastMsg = messages[messages.length - 1];
       const lastContent = typeof lastMsg?.content === "string" ? lastMsg.content.toLowerCase() : "";
-      const deckGenerationSignals = ["generate", "create the deck", "create the pitch", "create the presentation",
-        "build the deck", "build the pitch", "build the presentation", "make the deck", "make the pitch",
-        "make the presentation", "go ahead", "looks good", "let's go", "start generating", "generate now",
-        "generate the slides", "generate the pitch", "create slides", "create it", "build it", "make it",
-        "approved", "looks great", "perfect", "yes", "do it", "proceed"];
-      if (deckGenerationSignals.some(s => lastContent.includes(s))) {
+
+      const explicitDeckMention = /\b(deck|presentation|pitch deck|slideshow|powerpoint|pptx|keynote|slide(s| deck))\b/.test(lastContent);
+
+      // Approval signals only count when the previous assistant message contained a deckoutline block.
+      const prevAssistant = messages.slice(0, -1).reverse().find((m: any) => m?.role === "assistant");
+      const prevAssistantContent = typeof prevAssistant?.content === "string" ? prevAssistant.content : "";
+      const prevHasOutline = prevAssistantContent.includes("```deckoutline");
+      const approvalSignals = ["go ahead", "looks good", "let's go", "approved", "looks great", "do it", "proceed", "generate now", "start generating"];
+      const isApproval = approvalSignals.some(s => lastContent.includes(s));
+
+      if (explicitDeckMention || (isApproval && prevHasOutline)) {
         taskType = "deck-generate";
       }
     } else if (deckPhase === "viewing" && activeEntityType === "deck") {
@@ -104,8 +113,8 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
       taskType = "chat-heavy";
     }
     const modelConfig = getModelConfig(taskType, contextSize);
-    const { model: modelId, maxOutputTokens, provider: modelProvider } = modelConfig;
-    const isProModel = modelId.includes("pro");
+    // "Pro" here = the higher-capacity model, used to widen sheet/doc context.
+    const isProModel = modelConfig.model.includes("gpt-4.1") && !modelConfig.model.includes("mini");
 
     // Build the last user message with context injection
     const lastMessage = messages[messages.length - 1];
@@ -308,45 +317,13 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
     // Convert UIMessages to model messages for streamText
     const modelMessages = await convertToModelMessages(aiMessages);
 
-    let result;
-    try {
-      if (modelProvider === "google") {
-        result = streamText({
-          model: getModel(taskType, contextSize),
-          system: composedSystemPrompt,
-          messages: modelMessages,
-          maxOutputTokens,
-          providerOptions: modelId.includes("pro") ? {
-            google: { thinkingConfig: { thinkingBudget: taskType === "deck-generate" ? 2048 : 8192 } },
-          } : undefined,
-          tools: {
-            googleSearch: google.tools.googleSearch({}),
-          },
-          abortSignal: req.signal,
-        });
-      } else {
-        result = streamText({
-          model: getModel(taskType, contextSize),
-          system: composedSystemPrompt,
-          messages: modelMessages,
-          maxOutputTokens,
-          abortSignal: req.signal,
-        });
-      }
-    } catch (error: any) {
-      const msg = error?.message ?? "";
-      console.error("[Drafta Chat] AI init error:", msg);
-      const isRateLimit = msg.includes("quota") || msg.includes("rate") || msg.includes("429");
+    // Ordered model candidates — the route tries each until one streams text,
+    // so a transient provider error never dead-ends as "No response".
+    const candidates = getModelCandidates(taskType, contextSize);
+    if (candidates.length === 0) {
       return new Response(
-        JSON.stringify({
-          error: isRateLimit
-            ? "Rate limit reached. Please wait a moment and try again."
-            : "AI service is temporarily unavailable. Please try again.",
-        }),
-        {
-          status: isRateLimit ? 429 : 502,
-          headers: { "Content-Type": "application/json" },
-        }
+        JSON.stringify({ error: "AI is not configured. Please set OPENAI_API_KEY." }),
+        { status: 502, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -394,52 +371,77 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
           }
         }, 5000);
 
-        try {
-          const groundingSources: { title: string; uri: string }[] = [];
+        const groundingSources: { title: string; uri: string }[] = [];
+        let emittedText = false;
+        let lastError: unknown = null;
 
-          // Use fullStream to get both text deltas and source events
-          for await (const part of (await result).fullStream) {
+        // Stream one candidate; throws if the provider errors so the caller
+        // can fall back to the next candidate (only safe before any text).
+        const runCandidate = async (cand: (typeof candidates)[number]) => {
+          const result = streamText({
+            model: cand.model,
+            system: composedSystemPrompt,
+            messages: modelMessages,
+            maxOutputTokens: cand.maxOutputTokens,
+            ...(cand.isGoogle && cand.modelId.includes("pro")
+              ? { providerOptions: { google: { thinkingConfig: { thinkingBudget: taskType === "deck-generate" ? 2048 : 8192 } } } }
+              : {}),
+            ...(cand.isGoogle ? { tools: { googleSearch: google.tools.googleSearch({}) } } : {}),
+            abortSignal: req.signal,
+          });
+
+          for await (const part of result.fullStream) {
             if (clientDisconnected) break;
             lastChunkTime = Date.now();
-
             if (part.type === "text-delta") {
-              const data = JSON.stringify({ text: part.text });
-              safeEnqueue(encoder.encode(`data: ${data}\n\n`));
+              emittedText = true;
+              safeEnqueue(encoder.encode(`data: ${JSON.stringify({ text: part.text })}\n\n`));
             } else if (part.type === "source") {
-              // AI SDK v6 emits source events from Google Search grounding
               if (part.sourceType === "url" && part.url) {
-                groundingSources.push({
-                  title: part.title || new URL(part.url).hostname,
-                  uri: part.url,
-                });
+                groundingSources.push({ title: part.title || new URL(part.url).hostname, uri: part.url });
               }
+            } else if (part.type === "error") {
+              // fullStream surfaces provider failures as an error part
+              throw part.error instanceof Error ? part.error : new Error(String(part.error));
             }
-            // Ignore tool-call, tool-result, etc. — they're internal to Google Search
           }
+        };
 
-          // Send grounding sources if web search was used
-          if (!clientDisconnected && groundingSources.length > 0) {
-            const groundingData = JSON.stringify({ grounding: { sources: groundingSources, queries: [] } });
-            safeEnqueue(encoder.encode(`data: ${groundingData}\n\n`));
+        try {
+          for (let i = 0; i < candidates.length; i++) {
+            try {
+              await runCandidate(candidates[i]);
+              lastError = null;
+              break; // streamed to completion
+            } catch (err) {
+              lastError = err;
+              console.error(`[Drafta Chat] candidate ${candidates[i].label} failed:`, err instanceof Error ? err.message : err);
+              // Can only retry a fresh candidate if nothing was sent yet.
+              if (emittedText || clientDisconnected) break;
+            }
           }
 
           clearInterval(timeoutCheck);
+
+          if (lastError && !emittedText && !clientDisconnected) {
+            const errMsg = lastError instanceof Error ? lastError.message : "";
+            const isRateLimit = /quota|rate.?limit|429/i.test(errMsg);
+            const clientError = isRateLimit
+              ? "Rate limit reached. Please wait a moment and try again."
+              : "The AI is temporarily unavailable. Please try again in a moment.";
+            safeEnqueue(encoder.encode(`data: ${JSON.stringify({ error: clientError })}\n\n`));
+          } else if (!clientDisconnected && groundingSources.length > 0) {
+            safeEnqueue(encoder.encode(`data: ${JSON.stringify({ grounding: { sources: groundingSources, queries: [] } })}\n\n`));
+          }
+
           safeEnqueue(encoder.encode("data: [DONE]\n\n"));
           safeClose();
         } catch (error) {
           clearInterval(timeoutCheck);
-          const errMsg = error instanceof Error ? error.message : "Stream error";
-          console.error("[Drafta Chat] Stream error:", errMsg);
+          console.error("[Drafta Chat] Stream error:", error instanceof Error ? error.message : error);
           if (!clientDisconnected) {
-            // Handle rate limits — never leak raw error details to client
-            const isRateLimit = errMsg.includes("quota") || errMsg.includes("rate") || errMsg.includes("429");
-            const clientError = isRateLimit
-              ? "Rate limit reached. Please wait a moment and try again."
-              : "Something went wrong while generating a response. Please try again.";
             safeEnqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({ error: clientError })}\n\n`
-              )
+              encoder.encode(`data: ${JSON.stringify({ error: "Something went wrong while generating a response. Please try again." })}\n\n`)
             );
             safeEnqueue(encoder.encode("data: [DONE]\n\n"));
           }

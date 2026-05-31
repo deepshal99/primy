@@ -16,20 +16,28 @@ import {
   knowledgeUnits,
   projectTables,
   projectDecks,
-  projects,
 } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
+import { getProjectAccess, type ProjectRole } from "@/lib/projectAccess";
 
 type ArtifactType = "ku" | "table" | "deck";
+
+const ROLE_RANK: Record<ProjectRole, number> = {
+  viewer: 0,
+  commenter: 1,
+  editor: 2,
+  owner: 3,
+};
 
 function isValidType(t: string): t is ArtifactType {
   return t === "ku" || t === "table" || t === "deck";
 }
 
-async function ownsArtifact(
+async function canAccessArtifact(
   userId: string,
   type: ArtifactType,
-  artifactId: string
+  artifactId: string,
+  minRole: ProjectRole
 ): Promise<boolean> {
   try {
     const tableMap = {
@@ -47,13 +55,8 @@ async function ownsArtifact(
 
     if (!row) return false;
 
-    const [proj] = await db
-      .select({ userId: projects.userId })
-      .from(projects)
-      .where(and(eq(projects.id, row.projectId), eq(projects.userId, userId)))
-      .limit(1);
-
-    return !!proj;
+    const access = await getProjectAccess(row.projectId, userId);
+    return !!access && ROLE_RANK[access.role] >= ROLE_RANK[minRole];
   } catch {
     return false;
   }
@@ -75,8 +78,8 @@ export async function GET(
       return Response.json({ error: "Not found" }, { status: 404 });
     }
 
-    const owned = await ownsArtifact(session.user.id, type, id);
-    if (!owned) {
+    const allowed = await canAccessArtifact(session.user.id, type, id, "viewer");
+    if (!allowed) {
       return Response.json({ error: "Not found" }, { status: 404 });
     }
 

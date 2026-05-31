@@ -28,11 +28,15 @@ export interface ModelConfig {
 // Context size threshold for routing chat to a heavier model (30KB)
 const HEAVY_CONTEXT_THRESHOLD = 30 * 1024;
 
+// OpenAI is the sole configured provider. Deck tasks (historically Gemini)
+// now run on gpt-4.1 too — no GEMINI_API_KEY is required for the app to work.
+// Gemini can be re-enabled per-task later behind ENABLE_GEMINI if a valid key
+// is added (see getModelCandidates).
 const MODEL_REGISTRY: Record<AITask, ModelConfig> = {
-  "chat":          { provider: "openai", model: "gpt-4.1-mini",          maxOutputTokens: 8192   },
-  "chat-heavy":    { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 16384  },
-  "deck-generate": { provider: "google", model: "gemini-3.1-pro-preview", maxOutputTokens: 65536 },
-  "deck-edit":     { provider: "google", model: "gemini-3.1-pro-preview", maxOutputTokens: 32768 },
+  "chat":          { provider: "openai", model: "gpt-4.1-mini",          maxOutputTokens: 16384  },
+  "chat-heavy":    { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 32768  },
+  "deck-generate": { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 32768  },
+  "deck-edit":     { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 32768  },
   "title":         { provider: "openai", model: "gpt-4.1-mini",          maxOutputTokens: 256    },
   "web-search":    { provider: "openai", model: "gpt-4.1-mini",          maxOutputTokens: 8192   },
   "summarize":     { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 4096   },
@@ -80,6 +84,74 @@ export function getModel(task: AITask, contextSizeBytes?: number) {
   const config = getModelConfig(task, contextSizeBytes);
   if (config.provider === "google") return googleClient()(config.model);
   return openaiClient()(config.model);
+}
+
+/** True when the API key for a provider is present in the environment. */
+function hasProviderKey(provider: "openai" | "google"): boolean {
+  return provider === "google"
+    ? !!process.env.GEMINI_API_KEY
+    : !!process.env.OPENAI_API_KEY;
+}
+
+export interface ModelCandidate {
+  provider: "openai" | "google";
+  modelId: string;
+  model: ReturnType<typeof getModel>;
+  maxOutputTokens: number;
+  isGoogle: boolean;
+  label: string;
+}
+
+/**
+ * Resolve a task to an ORDERED list of model candidates the chat route tries
+ * in sequence. If one errors before emitting any text (transient error, quota,
+ * outage), it transparently falls back to the next so the user ALWAYS gets a
+ * response. OpenAI-only by default — Gemini is excluded entirely unless
+ * ENABLE_GEMINI=true AND a key is present.
+ */
+export function getModelCandidates(task: AITask, contextSizeBytes?: number): ModelCandidate[] {
+  const primary = getModelConfig(task, contextSizeBytes);
+  const geminiEnabled = process.env.ENABLE_GEMINI === "true";
+
+  const ordered: ModelConfig[] = [primary];
+
+  // Same-provider resilience fallback: gpt-4.1 is the strongest OpenAI model
+  // and least likely to truncate. Add it as a second attempt when the primary
+  // is a different/weaker model.
+  if (primary.provider === "openai" && primary.model !== "gpt-4.1") {
+    ordered.push({ provider: "openai", model: "gpt-4.1", maxOutputTokens: Math.max(primary.maxOutputTokens, 16384) });
+  }
+
+  // Cross-provider fallback to Gemini only if explicitly enabled.
+  if (geminiEnabled) {
+    ordered.push(
+      primary.provider === "google"
+        ? { provider: "openai", model: "gpt-4.1", maxOutputTokens: Math.min(primary.maxOutputTokens, 32768) }
+        : { provider: "google", model: "gemini-3.1-pro-preview", maxOutputTokens: primary.maxOutputTokens }
+    );
+  }
+
+  const seen = new Set<string>();
+  const candidates: ModelCandidate[] = [];
+  for (const cfg of ordered) {
+    const key = `${cfg.provider}:${cfg.model}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    // Skip Google unless enabled; skip any provider whose key is missing.
+    if (cfg.provider === "google" && !geminiEnabled) continue;
+    if (!hasProviderKey(cfg.provider)) continue;
+    const client = cfg.provider === "google" ? googleClient() : openaiClient();
+    candidates.push({
+      provider: cfg.provider,
+      modelId: cfg.model,
+      model: client(cfg.model),
+      maxOutputTokens: cfg.maxOutputTokens,
+      isGoogle: cfg.provider === "google",
+      label: key,
+    });
+  }
+
+  return candidates;
 }
 
 /** Embedding-model variant — needed for `embed` / `embedMany` calls. */

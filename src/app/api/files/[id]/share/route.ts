@@ -1,15 +1,33 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { knowledgeUnits, projectTables, projectDecks, projects } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { knowledgeUnits, projectTables, projectDecks } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { getProjectAccess, type ProjectRole } from "@/lib/projectAccess";
 
 /**
  * POST /api/files/[id]/share — Generate share token for a KU, table, or deck
  * DELETE /api/files/[id]/share — Remove share token (unshare)
  */
 
+const ROLE_RANK: Record<ProjectRole, number> = {
+  viewer: 0,
+  commenter: 1,
+  editor: 2,
+  owner: 3,
+};
+
+/**
+ * Resolve the entity (KU/table/deck) by id and authorize the user at editor+
+ * on its parent project. Returns null on miss so callers 404.
+ */
 async function verifyOwnership(fileId: string, userId: string) {
+  const minRank = ROLE_RANK.editor;
+  const ok = async (projectId: string) => {
+    const access = await getProjectAccess(projectId, userId);
+    return !!access && ROLE_RANK[access.role] >= minRank;
+  };
+
   // Check if it's a KU
   const [ku] = await db
     .select({
@@ -21,13 +39,8 @@ async function verifyOwnership(fileId: string, userId: string) {
     .where(eq(knowledgeUnits.id, fileId))
     .limit(1);
 
-  if (ku) {
-    const [proj] = await db
-      .select({ id: projects.id })
-      .from(projects)
-      .where(and(eq(projects.id, ku.projectId), eq(projects.userId, userId)))
-      .limit(1);
-    if (proj) return { type: "ku" as const, entity: ku };
+  if (ku && (await ok(ku.projectId))) {
+    return { type: "ku" as const, entity: ku };
   }
 
   // Check if it's a table
@@ -41,13 +54,8 @@ async function verifyOwnership(fileId: string, userId: string) {
     .where(eq(projectTables.id, fileId))
     .limit(1);
 
-  if (table) {
-    const [proj] = await db
-      .select({ id: projects.id })
-      .from(projects)
-      .where(and(eq(projects.id, table.projectId), eq(projects.userId, userId)))
-      .limit(1);
-    if (proj) return { type: "table" as const, entity: table };
+  if (table && (await ok(table.projectId))) {
+    return { type: "table" as const, entity: table };
   }
 
   // Check if it's a deck
@@ -61,13 +69,8 @@ async function verifyOwnership(fileId: string, userId: string) {
     .where(eq(projectDecks.id, fileId))
     .limit(1);
 
-  if (deck) {
-    const [proj] = await db
-      .select({ id: projects.id })
-      .from(projects)
-      .where(and(eq(projects.id, deck.projectId), eq(projects.userId, userId)))
-      .limit(1);
-    if (proj) return { type: "deck" as const, entity: deck };
+  if (deck && (await ok(deck.projectId))) {
+    return { type: "deck" as const, entity: deck };
   }
 
   return null;

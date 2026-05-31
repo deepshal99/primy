@@ -5,6 +5,7 @@ import {
   FileText,
   Table2,
   Presentation,
+  LayoutTemplate,
   MoreHorizontal,
   Pencil,
   Trash2,
@@ -41,6 +42,7 @@ import type {
   KnowledgeUnit,
   ProjectTable,
   ProjectDeck,
+  ProjectPage,
 } from "@/lib/types";
 import { ShareModal } from "@/components/settings/ShareModal";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -84,6 +86,17 @@ const FILE_TYPE_CONFIG = {
     hoverBorder: "#d4582a",
     desc: "Slides and visuals",
   },
+  page: {
+    label: "Page",
+    icon: LayoutTemplate,
+    cardBg: "#f3eeff",
+    previewBg: "#ffffff",
+    iconColor: "#9061ff",
+    accentColor: "#d9caff",
+    borderColor: "#e6dcff",
+    hoverBorder: "#9061ff",
+    desc: "Visual HTML document",
+  },
 } as const;
 
 type EntityType = keyof typeof FILE_TYPE_CONFIG;
@@ -115,19 +128,24 @@ export function ProjectHome() {
   const openKnowledgeUnit = useAppStore((s) => s.openKnowledgeUnit);
   const openTable = useAppStore((s) => s.openTable);
   const openDeck = useAppStore((s) => s.openDeck);
+  const openPage = useAppStore((s) => s.openPage);
   const createKnowledgeUnit = useAppStore((s) => s.createKnowledgeUnit);
   const createTable = useAppStore((s) => s.createTable);
   const createDeck = useAppStore((s) => s.createDeck);
+  const createPage = useAppStore((s) => s.createPage);
   const updateProject = useAppStore((s) => s.updateProject);
   const renameKnowledgeUnit = useAppStore((s) => s.renameKnowledgeUnit);
   const renameTable = useAppStore((s) => s.renameTable);
   const renameDeck = useAppStore((s) => s.renameDeck);
+  const renamePage = useAppStore((s) => s.renamePage);
   const deleteKnowledgeUnit = useAppStore((s) => s.deleteKnowledgeUnit);
   const deleteTable = useAppStore((s) => s.deleteTable);
   const deleteDeck = useAppStore((s) => s.deleteDeck);
+  const deletePage = useAppStore((s) => s.deletePage);
   const duplicateKnowledgeUnit = useAppStore((s) => s.duplicateKnowledgeUnit);
   const duplicateTable = useAppStore((s) => s.duplicateTable);
   const duplicateDeck = useAppStore((s) => s.duplicateDeck);
+  const duplicatePage = useAppStore((s) => s.duplicatePage);
 
   const isLoadingProject = useAppStore((s) => s.isLoadingProject);
 
@@ -180,6 +198,13 @@ export function ProjectHome() {
         type: "deck" as const,
         updatedAt: d.updatedAt,
         data: d as ProjectDeck,
+      })),
+      ...(project.pages || []).map((pg) => ({
+        id: pg.id,
+        title: pg.title,
+        type: "page" as const,
+        updatedAt: pg.updatedAt,
+        data: pg as ProjectPage,
       })),
     ].sort((a, b) => b.updatedAt - a.updatedAt);
   }, [project]);
@@ -242,23 +267,27 @@ export function ProjectHome() {
   const kuCount = project.knowledgeUnits.length;
   const tableCount = project.tables.length;
   const deckCount = (project.decks || []).length;
-  const totalFiles = kuCount + tableCount + deckCount;
+  const pageCount = (project.pages || []).length;
+  const totalFiles = kuCount + tableCount + deckCount + pageCount;
 
   const handleOpen = (entity: FileEntity) => {
     if (entity.type === "deck") openDeck(entity.id);
     else if (entity.type === "ku") openKnowledgeUnit(entity.id);
+    else if (entity.type === "page") openPage(entity.id);
     else openTable(entity.id);
   };
 
   const handleCreate = (type: EntityType) => {
     if (type === "ku") createKnowledgeUnit(project.id, "New Document");
     else if (type === "table") createTable(project.id, "New Table");
+    else if (type === "page") createPage(project.id, "New Page");
     else createDeck(project.id, "New Deck");
   };
 
   const handleRename = (entity: FileEntity, name: string) => {
     if (entity.type === "deck") renameDeck(project.id, entity.id, name);
     else if (entity.type === "ku") renameKnowledgeUnit(project.id, entity.id, name);
+    else if (entity.type === "page") renamePage(project.id, entity.id, name);
     else renameTable(project.id, entity.id, name);
   };
 
@@ -266,12 +295,14 @@ export function ProjectHome() {
     if (entity.type === "ku") duplicateKnowledgeUnit(project.id, entity.id);
     else if (entity.type === "table") duplicateTable(project.id, entity.id);
     else if (entity.type === "deck") duplicateDeck(project.id, entity.id);
+    else if (entity.type === "page") duplicatePage(project.id, entity.id);
   };
 
   const handleDelete = (entity: FileEntity) => {
     if (!window.confirm(`Delete "${entity.title}"? This cannot be undone.`)) return;
     if (entity.type === "deck") deleteDeck(project.id, entity.id);
     else if (entity.type === "ku") deleteKnowledgeUnit(project.id, entity.id);
+    else if (entity.type === "page") deletePage(project.id, entity.id);
     else deleteTable(project.id, entity.id);
   };
 
@@ -311,6 +342,7 @@ export function ProjectHome() {
                     { key: "ku" as const, label: "Documents", count: kuCount },
                     { key: "table" as const, label: "Spreadsheets", count: tableCount },
                     { key: "deck" as const, label: "Presentations", count: deckCount },
+                    { key: "page" as const, label: "Pages", count: pageCount },
                   ]).map((tab) => {
                     const isActive = filter === tab.key;
                     return (
@@ -444,9 +476,10 @@ export function ProjectHome() {
                   {filter === "ku" && <FileText className="w-[18px] h-[18px] text-[#4a7aed]" strokeWidth={1.6} />}
                   {filter === "table" && <Table2 className="w-[18px] h-[18px] text-[#2e9e47]" strokeWidth={1.6} />}
                   {filter === "deck" && <Presentation className="w-[18px] h-[18px] text-[#d4582a]" strokeWidth={1.6} />}
+                  {filter === "page" && <LayoutTemplate className="w-[18px] h-[18px] text-[#9061ff]" strokeWidth={1.6} />}
                 </div>
               }
-              heading={`No ${filter === "ku" ? "documents" : filter === "table" ? "spreadsheets" : "presentations"} yet`}
+              heading={`No ${filter === "ku" ? "documents" : filter === "table" ? "spreadsheets" : filter === "page" ? "pages" : "presentations"} yet`}
               description="Switch to All files or create a new one."
               action={
                 <button
@@ -454,7 +487,7 @@ export function ProjectHome() {
                   className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[12.5px] font-medium text-white bg-[#ff4a00] hover:bg-[#e54400] active:scale-[0.98] transition-all duration-150 shadow-[0_2px_8px_rgba(255,74,0,0.25)]"
                 >
                   <Plus className="w-3.5 h-3.5" strokeWidth={2.25} />
-                  Create {filter === "ku" ? "document" : filter === "table" ? "spreadsheet" : "presentation"}
+                  Create {filter === "ku" ? "document" : filter === "table" ? "spreadsheet" : filter === "page" ? "page" : "presentation"}
                 </button>
               }
             />
@@ -520,6 +553,13 @@ export function ProjectHome() {
                   >
                     <Presentation className="w-3.5 h-3.5 text-[#d4582a]" strokeWidth={2} />
                     <span className="text-[12.5px] font-medium text-[#2d2e2e]">Add deck</span>
+                  </button>
+                  <button
+                    onClick={() => handleCreate("page")}
+                    className="group flex items-center gap-2 px-4 py-2 rounded-full border border-[#e8e7e4] bg-white hover:border-[#9061ff]/40 hover:bg-[#f3eeff] active:scale-[0.98] t-fast animate-fade-in"
+                  >
+                    <LayoutTemplate className="w-3.5 h-3.5 text-[#9061ff]" strokeWidth={2} />
+                    <span className="text-[12.5px] font-medium text-[#2d2e2e]">Add page</span>
                   </button>
                 </div>
               }
@@ -602,6 +642,7 @@ export function ProjectHome() {
                         {entity.type === "ku" && <DocPreviewContent accent={config.accentColor} iconColor={config.iconColor} />}
                         {entity.type === "table" && <TablePreviewContent accent={config.accentColor} iconColor={config.iconColor} />}
                         {entity.type === "deck" && <DeckPreviewContent accent={config.accentColor} iconColor={config.iconColor} />}
+                        {entity.type === "page" && <PagePreviewContent accent={config.accentColor} iconColor={config.iconColor} />}
                       </div>
                     </div>
 
@@ -692,7 +733,7 @@ export function ProjectHome() {
               onClick={() => setFabOpen(false)}
             />
             <div className="relative z-50 flex flex-col items-end gap-1.5 mb-2">
-              {(["ku", "table", "deck"] as const).map((type, i) => {
+              {(["ku", "table", "deck", "page"] as const).map((type, i) => {
                 const config = FILE_TYPE_CONFIG[type];
                 const IconComp = config.icon;
                 return (
@@ -704,7 +745,7 @@ export function ProjectHome() {
                     }}
                     className="flex items-center gap-3 pl-4 pr-5 py-2.5 rounded-2xl bg-white border border-[#e8e7e4] shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.04)] hover:border-[#d0cfc9] hover:shadow-[0_6px_24px_rgba(0,0,0,0.12)] active:scale-[0.95] t-normal cursor-pointer"
                     style={{
-                      animation: `fab-item-in 200ms ${(3 - i) * 40}ms both cubic-bezier(0.34,1.56,0.64,1)`,
+                      animation: `fab-item-in 200ms ${(4 - i) * 40}ms both cubic-bezier(0.34,1.56,0.64,1)`,
                     }}
                   >
                     <div
@@ -1049,6 +1090,29 @@ function DeckPreviewContent({ accent }: { accent: string; iconColor: string }) {
   );
 }
 
+function PagePreviewContent({ accent }: { accent: string; iconColor: string }) {
+  return (
+    <div className="flex items-center justify-center p-3.5 h-full">
+      <div
+        className="w-full h-full rounded-md p-2.5 flex flex-col gap-1.5"
+        style={{ background: `${accent}18`, border: `1px solid ${accent}30` }}
+      >
+        {/* hero band */}
+        <div className="h-[18px] rounded-[3px]" style={{ background: `${accent}40` }} />
+        {/* two-column visual blocks */}
+        <div className="flex gap-1.5 flex-1">
+          <div className="flex-1 rounded-[3px]" style={{ background: `${accent}28` }} />
+          <div className="flex-[2] flex flex-col gap-1 justify-center px-1">
+            <div className="h-[4px] w-[80%] rounded-sm" style={{ background: accent, opacity: 0.6 }} />
+            <div className="h-[4px] w-[60%] rounded-sm" style={{ background: accent, opacity: 0.4 }} />
+            <div className="h-[4px] w-[70%] rounded-sm" style={{ background: accent, opacity: 0.4 }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ====================================
 // -- Types --
 // ====================================
@@ -1058,5 +1122,5 @@ interface FileEntity {
   title: string;
   type: EntityType;
   updatedAt: number;
-  data: KnowledgeUnit | ProjectTable | ProjectDeck;
+  data: KnowledgeUnit | ProjectTable | ProjectDeck | ProjectPage;
 }

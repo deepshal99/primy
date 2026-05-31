@@ -11,6 +11,7 @@ import {
   parseKuOperations,
   parseTableOperations,
   parseDeckOperations,
+  parsePageOperations,
   parseDeckOutlineItems,
   extractDisplayText,
   parseSuggestions,
@@ -75,6 +76,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           ku: "Create a document:",
           table: "Create a spreadsheet:",
           deck: "Create a presentation:",
+          page: "Create an HTML page:",
         };
         content = `${intentLabels[entityIntent]} ${content}`;
         setSelectedEntityType(null);
@@ -93,7 +95,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
         // Prepend mention references to content for AI context
         let enrichedContent = content;
         if (mentionedEntities && mentionedEntities.length > 0) {
-          const typeLabels: Record<EntityType, string> = { ku: "document", table: "spreadsheet", deck: "deck" };
+          const typeLabels: Record<EntityType, string> = { ku: "document", table: "spreadsheet", deck: "deck", page: "HTML page" };
           const refs = mentionedEntities.map((e) => `[User referenced: "${e.title}" (${typeLabels[e.type]})]`).join("\n");
           enrichedContent = refs + "\n\n" + enrichedContent;
         }
@@ -417,18 +419,19 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           const kuOps = parseKuOperations(fullText);
           const tableOps = parseTableOperations(fullText);
           const deckOps = parseDeckOperations(fullText);
+          const pageOps = parsePageOperations(fullText);
           const suggestions = parseSuggestions(fullText);
           const outlineItems = parseDeckOutlineItems(fullText);
-          const hasAnyOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || deckOps.length > 0;
+          const hasAnyOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || deckOps.length > 0 || pageOps.length > 0;
           if (!hasAnyOps && outlineItems.length === 0) {
-            const hasFences = fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops") || fullText.includes("```deckops") || fullText.includes("```deckoutline");
+            const hasFences = fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops") || fullText.includes("```deckops") || fullText.includes("```pageops") || fullText.includes("```deckoutline");
             if (hasFences) {
               console.warn("[Drafta] Operation blocks found but none parsed. Raw tail:", fullText.slice(-600));
               toast.error("AI response had formatting issues — some changes may not have been applied. Try again.");
             }
           }
 
-          finishStreaming(fullText, sheetOps, docOps, kuOps, tableOps, deckOps, suggestions);
+          finishStreaming(fullText, sheetOps, docOps, kuOps, tableOps, deckOps, pageOps, suggestions);
         } catch (applyError) {
           // Operation parsing or store mutation failed — still save the AI text response
           console.error("[Drafta] Failed to apply AI operations:", applyError);
@@ -459,9 +462,10 @@ export function ChatPanel({ centered }: ChatPanelProps) {
               const kuOps = parseKuOperations(partial);
               const tableOps = parseTableOperations(partial);
               const deckOps = parseDeckOperations(partial);
-              const hasPartialOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || deckOps.length > 0;
+              const pageOps = parsePageOperations(partial);
+              const hasPartialOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || deckOps.length > 0 || pageOps.length > 0;
               if (hasPartialOps) {
-                finishStreaming(extractDisplayText(partial) || partial, sheetOps, docOps, kuOps, tableOps, deckOps);
+                finishStreaming(extractDisplayText(partial) || partial, sheetOps, docOps, kuOps, tableOps, deckOps, pageOps);
               } else {
                 finishStreaming(extractDisplayText(partial) || partial);
               }
@@ -545,17 +549,8 @@ export function ChatPanel({ centered }: ChatPanelProps) {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Chat header -- sidebar mode only, inside white card */}
-      {!centered && (
-        <div className="flex items-center px-3.5 h-[44px] flex-shrink-0 border-b border-[rgba(0,0,0,0.06)] min-w-0">
-          <span
-            className="text-[13px] text-[#171717] truncate min-w-0 flex-1"
-            style={{ fontWeight: 550 }}
-          >
-            {currentProject?.title || "Drafta AI"}
-          </span>
-        </div>
-      )}
+      {/* No chat header: the project/file name lives in the top bar now.
+          The chat is the primary surface — keep its chrome minimal. */}
         {showHeroLayout ? (
           /* Centered empty state: title + chatbox + entity pills */
           <div className="flex-1 flex flex-col items-center justify-center px-6 pb-12">
