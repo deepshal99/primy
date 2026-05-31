@@ -554,39 +554,40 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
     }
   };
 
-  const brandedDocked = branded && !centered;
+  // Branded chat (V2): same docked layout on the workspaces home AND inside a
+  // project — branded header + hero + greeting/messages. `centered` no longer
+  // forks the look so the two screens match.
+  const brandedDocked = !!branded;
   const showLanding = brandedDocked && !hasMessages && !(isLoadingProject && !!currentProjectId);
 
   return (
     <div className="flex flex-col h-full" style={{ background: brandedDocked ? "var(--card, #fff)" : undefined }}>
       {/* Header */}
-      {!centered && (
-        brandedDocked ? (
-          <div className="flex items-center gap-2 px-5 h-[54px] flex-shrink-0">
-            <ChatLogoMark />
-            <span className="font-semibold text-[15px] tracking-[-0.02em]" style={{ color: "var(--ink, #171716)" }}>Drafta AI</span>
-            <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--accent-soft, #F1F0ED)", color: "var(--ink-3, #706E68)" }}>Beta</span>
-            <div className="flex-1" />
-            {onToggleExpand && (
-              <button onClick={onToggleExpand} title={expanded ? "Restore" : "Expand chat"}
-                className="flex items-center justify-center w-7 h-7 rounded-[7px] press" style={{ color: "var(--icon, #585753)" }}>
-                {expanded ? <Minimize2 size={15} /> : <Maximize2 size={14} />}
-              </button>
-            )}
-            {onCollapse && (
-              <button onClick={onCollapse} title="Hide chat"
-                className="flex items-center justify-center w-7 h-7 rounded-[7px] press" style={{ color: "var(--icon, #585753)" }}>
-                <PanelRightClose size={15} />
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 px-4 h-[42px] flex-shrink-0 border-b border-[rgba(0,0,0,0.05)]">
-            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#FFB43F" }} />
-            <span className="text-[12.5px] font-medium text-[#525252]">Assistant</span>
-          </div>
-        )
-      )}
+      {brandedDocked ? (
+        <div className="flex items-center gap-2 px-5 h-[54px] flex-shrink-0">
+          <ChatLogoMark />
+          <span className="font-semibold text-[15px] tracking-[-0.02em]" style={{ color: "var(--ink, #171716)" }}>Drafta AI</span>
+          <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--accent-soft, #F1F0ED)", color: "var(--ink-3, #706E68)" }}>Beta</span>
+          <div className="flex-1" />
+          {onToggleExpand && (
+            <button onClick={onToggleExpand} title={expanded ? "Restore" : "Expand chat"}
+              className="flex items-center justify-center w-7 h-7 rounded-[7px] press" style={{ color: "var(--icon, #585753)" }}>
+              {expanded ? <Minimize2 size={15} /> : <Maximize2 size={14} />}
+            </button>
+          )}
+          {onCollapse && (
+            <button onClick={onCollapse} title="Hide chat"
+              className="flex items-center justify-center w-7 h-7 rounded-[7px] press" style={{ color: "var(--icon, #585753)" }}>
+              <PanelRightClose size={15} />
+            </button>
+          )}
+        </div>
+      ) : !centered ? (
+        <div className="flex items-center gap-2 px-4 h-[42px] flex-shrink-0 border-b border-[rgba(0,0,0,0.05)]">
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#FFB43F" }} />
+          <span className="text-[12.5px] font-medium text-[#525252]">Assistant</span>
+        </div>
+      ) : null}
         {showLanding ? (
           /* Branded landing: hero illustration + warm greeting + input */
           <>
@@ -612,9 +613,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
             </div>
           </>
         ) : showHeroLayout ? (
-          <>
-          {branded && <HeroLandscape />}
-          {/* Centered empty state: title + chatbox + entity pills */}
+          /* Centered empty state (legacy non-branded): title + chatbox + pills */
           <div className="flex-1 flex flex-col items-center justify-center px-6 pb-12">
             <div className="w-full max-w-[680px]">
               {/* Title */}
@@ -641,7 +640,6 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
               </div>
             </div>
           </div>
-          </>
         ) : (
           <>
             {/* Content area */}

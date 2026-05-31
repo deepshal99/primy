@@ -15,13 +15,15 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Inbox, PenLine, Search, ChevronRight, Plus, FileText, Table2, Presentation,
+  Inbox, PenLine, Search, Plus, FileText, Table2, Presentation,
   LayoutTemplate, MoreHorizontal, LayoutGrid, CalendarDays,
   PanelRightOpen, Sun, Moon, ArrowLeft, Settings, CircleHelp, Check,
   Folder as FolderIcon, FolderPlus, Home, Trash2, Pencil, FolderInput,
   Rocket, Sparkles, Compass, Layers, Target, Box, Hexagon, Flame,
+  LogOut, ChevronsUpDown,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useDarkMode } from "@/lib/useShellV2";
@@ -39,7 +41,7 @@ import type { EntityType, Project, Folder } from "@/lib/types";
 /* ───────────────────────── shared meta ───────────────────────── */
 
 const FONT = "Inter, system-ui, sans-serif";
-const CARD_H = 224; // consistent board card height
+const CARD_H = 256; // consistent board card height
 const ENTITY: Record<EntityType, { Icon: typeof FileText; label: string; color: string; tint: string; chipBg: string; chipText: string }> = {
   ku:    { Icon: FileText,       label: "Doc",   color: "#4285F4", tint: "rgba(66,133,244,0.14)",  chipBg: "#EDF4FF", chipText: "#3F79E0" },
   table: { Icon: Table2,         label: "Sheet", color: "#42C366", tint: "rgba(66,195,102,0.16)",  chipBg: "#E7F7ED", chipText: "#2E9E47" },
@@ -196,9 +198,10 @@ export function AppShellV2() {
   const [chatExpanded, setChatExpanded] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [wsMenu, setWsMenu] = useState<{ id: string; title: string; x: number; y: number } | null>(null);
   const [renamingWs, setRenamingWs] = useState<string | null>(null);
+  const [profileMenu, setProfileMenu] = useState(false);
+  const { data: session } = useSession();
   const sidebarScroll = useScrollReveal<HTMLDivElement>();
   const bodyScroll = useScrollReveal<HTMLDivElement>();
 
@@ -214,11 +217,6 @@ export function AppShellV2() {
   useEffect(() => {
     if (userQuery.data?.hasOnboarded) loadProjects();
   }, [userQuery.data?.hasOnboarded, loadProjects]);
-
-  // keep the active project expanded in the tree
-  useEffect(() => {
-    if (currentProjectId) setExpanded((e) => ({ ...e, [currentProjectId]: true }));
-  }, [currentProjectId]);
 
   // search open event (from sidebar) + Cmd+K
   useEffect(() => {
@@ -278,63 +276,66 @@ export function AppShellV2() {
           )}
 
           {projects.map((p) => {
-            const items = projectItems(p);
             const isActive = p.id === currentProjectId;
-            const isOpen = !!expanded[p.id];
+            if (renamingWs === p.id) {
+              return (
+                <div key={p.id} className="flex items-center gap-2.5 w-full h-[34px] px-2 mb-0.5 rounded-[9px]" style={{ background: "var(--sidebar-accent)" }}>
+                  <WorkspaceBadge id={p.id} />
+                  <input autoFocus defaultValue={p.title || "Untitled"}
+                    onBlur={(e) => { setRenamingWs(null); const v = e.target.value.trim(); if (v && v !== p.title) useAppStore.getState().renameProject(p.id, v); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setRenamingWs(null); }}
+                    className="flex-1 min-w-0 bg-transparent outline-none text-[12.5px] font-medium" style={{ color: "var(--ink)" }} />
+                </div>
+              );
+            }
             return (
-              <div key={p.id} className="mb-[5px]">
-                {renamingWs === p.id ? (
-                  <div className="flex items-center w-full h-[34px] rounded-[9px]" style={{ background: "var(--sidebar-accent)" }}>
-                    <span className="w-6 flex-shrink-0" />
-                    <WorkspaceBadge id={p.id} />
-                    <input autoFocus defaultValue={p.title || "Untitled"}
-                      onBlur={(e) => { setRenamingWs(null); const v = e.target.value.trim(); if (v && v !== p.title) useAppStore.getState().renameProject(p.id, v); }}
-                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setRenamingWs(null); }}
-                      className="flex-1 min-w-0 ml-2.5 mr-2.5 bg-transparent outline-none text-[12.5px] font-medium" style={{ color: "var(--ink)" }} />
-                  </div>
-                ) : (
-                  <TreeRow
-                    leading={<WorkspaceBadge id={p.id} />}
-                    label={p.title || "Untitled"}
-                    active={isActive && !currentEntityId}
-                    caret={items.length > 0}
-                    open={isOpen}
-                    onCaret={() => setExpanded((e) => ({ ...e, [p.id]: !e[p.id] }))}
-                    onClick={() => { if (p.id !== currentProjectId) switchProject(p.id); setExpanded((e) => ({ ...e, [p.id]: true })); }}
-                    onContextMenu={(ev) => { ev.preventDefault(); setWsMenu({ id: p.id, title: p.title || "Untitled", x: ev.clientX, y: ev.clientY }); }}
-                  />
-                )}
-                {isOpen && (() => {
-                  const pFolders = (p.folders || []).slice().sort((a, b) => a.position - b.position);
-                  const inFolder = (fid: string) => items.filter((it) => it.folderId === fid);
-                  const unfiled = items.filter((it) => !it.folderId || !pFolders.some((f) => f.id === it.folderId));
-                  const openEntity = (it: Item) => { if (p.id !== currentProjectId) switchProject(p.id); openItem(it); };
-                  return (
-                    <>
-                      {pFolders.map((f) => (
-                        <div key={f.id}>
-                          <Leaf folder icon={<FolderIcon size={14} style={{ color: f.color }} />} label={f.name} count={inFolder(f.id).length} onClick={() => {}} />
-                          {inFolder(f.id).map((it) => {
-                            const e = ENTITY[it.type];
-                            return <Leaf key={it.id} indent icon={<e.Icon size={13} />} label={it.title} active={currentEntityId === it.id} onClick={() => openEntity(it)} />;
-                          })}
-                        </div>
-                      ))}
-                      {unfiled.map((it) => {
-                        const e = ENTITY[it.type];
-                        return <Leaf key={it.id} icon={<e.Icon size={14} />} label={it.title} active={currentEntityId === it.id} onClick={() => openEntity(it)} />;
-                      })}
-                    </>
-                  );
-                })()}
-              </div>
+              <button key={p.id}
+                onClick={() => switchProject(p.id)}
+                onContextMenu={(ev) => { ev.preventDefault(); setWsMenu({ id: p.id, title: p.title || "Untitled", x: ev.clientX, y: ev.clientY }); }}
+                className="flex items-center gap-2.5 w-full h-[34px] px-2 mb-0.5 rounded-[9px] press hover-row text-left text-[12.5px]"
+                style={{ background: isActive ? "var(--sidebar-accent)" : "transparent", color: isActive ? "var(--ink)" : "var(--ink-2)", fontWeight: isActive ? 500 : 400 }}>
+                <WorkspaceBadge id={p.id} />
+                <span className="flex-1 truncate">{p.title || "Untitled"}</span>
+              </button>
             );
           })}
         </div>
 
-        <div className="px-5 py-4 flex-shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
-          <NavRow icon={<Settings size={16} />} label="Settings" onClick={() => setSettingsOpen(true)} />
+        <div className="px-4 py-2.5 flex-shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
           <NavRow icon={<CircleHelp size={16} />} label="Help & Support" onClick={() => {}} />
+          {/* Profile */}
+          <div className="relative mt-1">
+            <button onClick={() => setProfileMenu((v) => !v)}
+              className="flex items-center gap-2.5 w-full h-[46px] px-2 rounded-[10px] press hover-row">
+              {(() => {
+                const name = session?.user?.name || session?.user?.email || "You";
+                const initials = name.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((s) => s[0]?.toUpperCase()).join("") || "U";
+                return <span className="flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 text-[12px] font-semibold text-white" style={{ background: "var(--primary)" }}>{initials}</span>;
+              })()}
+              <div className="min-w-0 flex-1 text-left">
+                <div className="text-[12.5px] font-medium truncate" style={{ color: "var(--ink)" }}>{session?.user?.name || "Account"}</div>
+                <div className="text-[11px] truncate" style={{ color: "var(--ink-4)" }}>{session?.user?.email || ""}</div>
+              </div>
+              <ChevronsUpDown size={14} style={{ color: "var(--ink-4)" }} />
+            </button>
+            {profileMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setProfileMenu(false)} />
+                <div className="absolute bottom-[52px] left-0 right-0 z-50 rounded-[11px] p-1.5"
+                  style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
+                  <button onClick={() => { setSettingsOpen(true); setProfileMenu(false); }}
+                    className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
+                    <Settings size={14} /> Settings
+                  </button>
+                  <div className="my-1 h-px" style={{ background: "var(--border)" }} />
+                  <button onClick={() => { setProfileMenu(false); signOut({ callbackUrl: "/login" }); }}
+                    className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[12.5px] press hover-row" style={{ color: "#d4183d" }}>
+                    <LogOut size={14} /> Sign out
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </aside>
 
@@ -874,8 +875,8 @@ function AllProjects({ projects, onOpen, onNew, onContext }: { projects: Project
         </button>
       </div>
       <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
-        <button onClick={onNew} className="relative overflow-hidden flex flex-col items-center justify-center gap-2 rounded-[14px] press lift min-h-[148px]"
-          style={{ border: "1px solid var(--border-strong)", color: "var(--ink)", background: "linear-gradient(150deg, #FFFDFB 0%, #EEF3FF 55%, #F7EEFE 100%)" }}>
+        <button onClick={onNew} className="relative overflow-hidden flex flex-col items-center justify-center gap-2 rounded-[14px] press lift"
+          style={{ border: "1px solid var(--border-strong)", color: "var(--ink)", minHeight: 168, background: "linear-gradient(150deg, #FFFDFB 0%, #EEF4FF 100%)" }}>
           <span className="flex items-center justify-center w-12 h-12 rounded-full bg-white" style={{ boxShadow: "var(--shadow-card)" }}>
             <Plus size={22} strokeWidth={1.9} style={{ color: "var(--ink-2)" }} />
           </span>
@@ -888,12 +889,9 @@ function AllProjects({ projects, onOpen, onNew, onContext }: { projects: Project
           const Icon = iconFor(p.id);
           const color = wsColor(p);
           return (
-            <button key={p.id} onClick={() => onOpen(p.id)} onContextMenu={(e) => onContext(p.id, p.title || "Untitled", e)} className="text-left rounded-[14px] p-4 lift relative overflow-hidden group"
-              style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)" }}>
-              {/* soft corner glow keyed to the workspace */}
-              <div className="absolute -top-14 -right-14 w-36 h-36 rounded-full pointer-events-none transition-opacity duration-300 group-hover:opacity-90"
-                style={{ background: `radial-gradient(circle, ${color}, transparent 68%)`, opacity: 0.16 }} />
-              <div className="flex items-start gap-3 mb-3 relative">
+            <button key={p.id} onClick={() => onOpen(p.id)} onContextMenu={(e) => onContext(p.id, p.title || "Untitled", e)} className="text-left rounded-[14px] p-5 lift relative overflow-hidden group flex flex-col"
+              style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)", minHeight: 168 }}>
+              <div className="flex items-start gap-3 mb-3.5 relative">
                 <div className="w-9 h-9 rounded-[9px] flex items-center justify-center flex-shrink-0" style={{ background: "var(--accent-soft)", color: "var(--icon)" }}>
                   <Icon size={18} strokeWidth={1.9} />
                 </div>
@@ -907,8 +905,8 @@ function AllProjects({ projects, onOpen, onNew, onContext }: { projects: Project
                   )}
                 </div>
               </div>
-              {p.description && <p className="text-[12px] leading-[1.5] line-clamp-2 mb-3 relative" style={{ color: "var(--ink-3)" }}>{p.description}</p>}
-              <div className="flex items-center gap-1.5 text-[11.5px] tabular-nums relative" style={{ color: "var(--ink-4)" }}>
+              {p.description && <p className="text-[12.5px] leading-[1.55] line-clamp-3 relative flex-1" style={{ color: "var(--ink-3)" }}>{p.description}</p>}
+              <div className="flex items-center gap-1.5 text-[11.5px] tabular-nums relative mt-3.5" style={{ color: "var(--ink-4)" }}>
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
                 {count} file{count === 1 ? "" : "s"} · {relTime(p.updatedAt)}
               </div>
@@ -948,35 +946,3 @@ function NavRow({ icon, label, hint, onClick }: { icon: React.ReactNode; label: 
   );
 }
 
-function TreeRow({ leading, label, active, caret, open, onCaret, onClick, onContextMenu }: {
-  leading: React.ReactNode; label: string; active?: boolean; caret?: boolean; open?: boolean; onCaret: () => void; onClick: () => void; onContextMenu?: (e: React.MouseEvent) => void;
-}) {
-  return (
-    <div className="flex items-center w-full h-[34px] rounded-[9px] press group" onContextMenu={onContextMenu}
-      style={{ background: active ? "var(--sidebar-accent)" : "transparent", color: active ? "var(--ink)" : "var(--ink-2)" }}>
-      <button onClick={(e) => { e.stopPropagation(); onCaret(); }}
-        className="flex items-center justify-center w-6 h-full flex-shrink-0" style={{ color: "var(--ink-4)" }}>
-        {caret ? <ChevronRight size={13} style={{ transform: open ? "rotate(90deg)" : undefined, transition: "transform 120ms" }} /> : <span className="w-[13px]" />}
-      </button>
-      <button onClick={onClick} className="flex items-center gap-2.5 flex-1 min-w-0 pr-2.5 h-full text-left text-[12.5px]" style={{ fontWeight: active ? 500 : 400 }}>
-        {leading}
-        <span className="flex-1 truncate">{label}</span>
-      </button>
-    </div>
-  );
-}
-
-function Leaf({ icon, label, active, muted, folder, indent, count, onClick }: { icon: React.ReactNode; label: string; active?: boolean; muted?: boolean; folder?: boolean; indent?: boolean; count?: number; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="flex items-center gap-2 w-full h-[28px] rounded-[8px] text-[12px] press hover-row" style={{
-      paddingLeft: indent ? 44 : folder ? 24 : 30, paddingRight: 10,
-      background: active ? "var(--sidebar-accent)" : "transparent",
-      color: muted ? "var(--ink-4)" : folder ? "var(--ink-2)" : active ? "var(--ink)" : "var(--ink-2)",
-      fontWeight: active || folder ? 500 : 400,
-    }}>
-      <span className="flex-shrink-0" style={{ color: muted ? "var(--ink-4)" : "var(--icon)" }}>{icon}</span>
-      <span className="flex-1 text-left truncate">{label}</span>
-      {count != null && <span className="text-[10.5px] tabular-nums" style={{ color: "var(--ink-4)" }}>{count}</span>}
-    </button>
-  );
-}
