@@ -15,7 +15,7 @@
 :root {
   --font-size: 16px;
   --background: #FCFBF8;          /* warm near-white product shell */
-  --canvas: #F3F2EF;             /* slightly deeper warm bg behind floating panes */
+  --canvas: #F6F4EE;             /* warm cream behind floating panes (cards pop via shadow) */
   --foreground: #171716;         /* ink */
   --card: #FFFDFB;
   --card-foreground: #171716;

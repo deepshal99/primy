@@ -33,11 +33,11 @@ import type { EntityType, Project } from "@/lib/types";
 /* ───────────────────────── shared meta ───────────────────────── */
 
 const FONT = "Inter, system-ui, sans-serif";
-const ENTITY: Record<EntityType, { Icon: typeof FileText; label: string }> = {
-  ku: { Icon: FileText, label: "Doc" },
-  table: { Icon: Table2, label: "Sheet" },
-  deck: { Icon: Presentation, label: "Deck" },
-  page: { Icon: LayoutTemplate, label: "Page" },
+const ENTITY: Record<EntityType, { Icon: typeof FileText; label: string; color: string; tint: string; chipBg: string; chipText: string }> = {
+  ku:    { Icon: FileText,       label: "Doc",   color: "#4285F4", tint: "rgba(66,133,244,0.14)",  chipBg: "#EDF4FF", chipText: "#3F79E0" },
+  table: { Icon: Table2,         label: "Sheet", color: "#42C366", tint: "rgba(66,195,102,0.16)",  chipBg: "#E7F7ED", chipText: "#2E9E47" },
+  deck:  { Icon: Presentation,   label: "Deck",  color: "#FFAD45", tint: "rgba(255,173,69,0.18)",  chipBg: "#FFF1DF", chipText: "#B87426" },
+  page:  { Icon: LayoutTemplate, label: "Page",  color: "#8757D7", tint: "rgba(135,87,215,0.14)",  chipBg: "#F3ECFF", chipText: "#8051CC" },
 };
 const CANDY = ["#FFB43F", "#4285F4", "#8757D7", "#67CEC8", "#F073A7", "#42c366", "#ecb730"];
 function accentFor(id: string): string {
@@ -60,10 +60,10 @@ type ViewMode = "board" | "kanban" | "timeline";
 type Item = { id: string; type: EntityType; title: string; updatedAt: number };
 
 const TYPE_ORDER: { type: EntityType; label: string; color: string }[] = [
-  { type: "ku", label: "Docs", color: "#4285F4" },
-  { type: "table", label: "Sheets", color: "#42c366" },
-  { type: "deck", label: "Decks", color: "#FFB43F" },
-  { type: "page", label: "Pages", color: "#8757D7" },
+  { type: "ku", label: "Docs", color: ENTITY.ku.color },
+  { type: "table", label: "Sheets", color: ENTITY.table.color },
+  { type: "deck", label: "Decks", color: ENTITY.deck.color },
+  { type: "page", label: "Pages", color: ENTITY.page.color },
 ];
 
 function projectItems(p: Project | undefined): Item[] {
@@ -387,11 +387,13 @@ function KanbanView({ projectId, items }: { projectId: string; items: Item[] }) 
                 {list.map((it) => {
                   const e = ENTITY[it.type];
                   return (
-                    <button key={it.id} onClick={() => openItem(it)} className="text-left rounded-[10px] p-3 lift min-w-0"
+                    <button key={it.id} onClick={() => openItem(it)} className="text-left rounded-[10px] p-3 lift min-w-0 relative overflow-hidden"
                       style={{ background: "var(--card)", border: "1px solid var(--border)", boxShadow: "var(--shadow-card)" }}>
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <e.Icon size={12} style={{ color: "var(--icon)" }} />
-                        <span className="text-[10.5px]" style={{ color: "var(--ink-3)" }}>{e.label}</span>
+                      <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: e.color, opacity: 0.85 }} />
+                      <div className="mb-1.5">
+                        <span className="inline-flex items-center gap-1 h-[18px] px-2 rounded-full text-[10px] font-medium" style={{ background: e.chipBg, color: e.chipText }}>
+                          <e.Icon size={11} /> {e.label}
+                        </span>
                       </div>
                       <div className="text-[13px] font-semibold tracking-[-0.01em] mb-1 line-clamp-2" style={{ color: "var(--ink)" }}>{it.title}</div>
                       <div className="text-[11px]" style={{ color: "var(--ink-4)" }}>{relTime(it.updatedAt)}</div>
@@ -447,14 +449,16 @@ function EntityCard({ item }: { item: Item }) {
     <button onClick={() => openItem(item)}
       className="text-left rounded-[12px] px-4 py-4 lift flex flex-col relative overflow-hidden group"
       style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)", minHeight: 168 }}>
+      {/* color accent rail */}
+      <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: e.color, opacity: 0.85 }} />
       <div className="flex items-start gap-3 mb-3">
         <div className="text-[15.5px] font-semibold tracking-[-0.02em] leading-snug flex-1" style={{ color: "var(--ink)" }}>{item.title}</div>
         <MoreHorizontal size={15} style={{ color: "var(--ink-3)" }} />
       </div>
       <EntityPreview type={item.type} />
       <div className="flex items-center gap-2.5 mt-4 relative z-10">
-        <span className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: "var(--ink-3)" }}>
-          <e.Icon size={13} /> {e.label}
+        <span className="inline-flex items-center gap-1.5 h-[22px] px-2.5 rounded-full text-[11px] font-medium" style={{ background: e.chipBg, color: e.chipText }}>
+          <e.Icon size={12} /> {e.label}
         </span>
         <span className="ml-auto text-[11px] tabular-nums" style={{ color: "var(--ink-4)" }}>{relTime(item.updatedAt)}</span>
       </div>
@@ -463,14 +467,15 @@ function EntityCard({ item }: { item: Item }) {
 }
 
 function EntityPreview({ type }: { type: EntityType }) {
+  const e = ENTITY[type];
   if (type === "table") {
     return (
-      <div className="flex-1 rounded-[9px] overflow-hidden" style={{ border: "1px solid var(--border)" }}>
-        <div className="grid grid-cols-3 text-[10px] font-medium" style={{ color: "var(--ink-3)", background: "var(--accent-soft)" }}>
+      <div className="flex-1 rounded-[9px] overflow-hidden" style={{ border: `1px solid ${e.tint}` }}>
+        <div className="grid grid-cols-3 text-[10px] font-medium" style={{ color: e.chipText, background: e.chipBg }}>
           {["A", "B", "C"].map((h) => <div key={h} className="px-2 py-1.5">{h}</div>)}
         </div>
         {[0, 1].map((r) => (
-          <div key={r} className="grid grid-cols-3 text-[10.5px]" style={{ color: "var(--ink-3)", borderTop: "1px solid var(--border)" }}>
+          <div key={r} className="grid grid-cols-3 text-[10.5px]" style={{ color: "var(--ink-3)", borderTop: `1px solid ${e.tint}` }}>
             {[0, 1, 2].map((c) => <div key={c} className="px-2 py-1.5">·</div>)}
           </div>
         ))}
@@ -482,20 +487,23 @@ function EntityPreview({ type }: { type: EntityType }) {
   }
   if (type === "page") {
     return (
-      <div className="flex-1 rounded-[10px] overflow-hidden" style={{ border: "1px solid var(--border)" }}>
-        <div className="h-7 px-2.5 flex items-center gap-1.5" style={{ borderBottom: "1px solid var(--border)", background: "var(--accent-soft)" }}>
+      <div className="flex-1 rounded-[10px] overflow-hidden" style={{ border: `1px solid ${e.tint}` }}>
+        <div className="h-7 px-2.5 flex items-center gap-1.5" style={{ borderBottom: `1px solid ${e.tint}`, background: "#FAF7FF" }}>
           {["#FF7D6E", "#F7C853", "#67CEC8"].map((c) => <span key={c} className="w-2 h-2 rounded-full" style={{ background: c }} />)}
         </div>
         <div className="p-2.5 space-y-1.5">
-          <div className="h-2.5 w-20 rounded-full" style={{ background: "var(--border-strong)" }} />
-          <div className="h-7 rounded-[6px]" style={{ background: "var(--accent-soft)" }} />
+          <div className="h-2.5 w-20 rounded-full" style={{ background: e.tint }} />
+          <div className="h-7 rounded-[6px]" style={{ background: "linear-gradient(90deg, #F3ECFF, #EEF7FF)" }} />
         </div>
       </div>
     );
   }
+  // doc — tinted prose lines, last line accented
   return (
     <div className="flex-1 space-y-1.5">
-      {[90, 70, 80, 60].map((w, i) => <div key={i} className="h-2 rounded-full" style={{ width: `${w}%`, background: "var(--accent-soft)" }} />)}
+      {[90, 70, 80, 55].map((w, i) => (
+        <div key={i} className="h-2 rounded-full" style={{ width: `${w}%`, background: i === 0 ? e.tint : "var(--accent-soft)" }} />
+      ))}
     </div>
   );
 }
@@ -504,8 +512,8 @@ function NewCard({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button onClick={onClick}
       className="relative overflow-hidden flex flex-col items-center justify-center gap-2.5 rounded-[12px] press"
-      style={{ border: "1px solid var(--border-strong)", color: "var(--ink)", minHeight: 168, background: "linear-gradient(145deg, var(--card) 0%, var(--accent-soft) 100%)" }}>
-      <span className="flex items-center justify-center w-14 h-14 rounded-full" style={{ background: "var(--card)", boxShadow: "var(--shadow-card)" }}>
+      style={{ border: "1px solid var(--border-strong)", color: "var(--ink)", minHeight: 168, background: "linear-gradient(145deg, #FFFDFB 0%, #EEF7FF 100%)" }}>
+      <span className="flex items-center justify-center w-14 h-14 rounded-full bg-white" style={{ boxShadow: "var(--shadow-card)" }}>
         <Plus size={26} strokeWidth={1.8} style={{ color: "var(--ink-2)" }} />
       </span>
       <span className="text-[14px] font-medium">Create</span>

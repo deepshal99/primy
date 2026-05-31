@@ -71,6 +71,27 @@ export const projects = pgTable(
   ]
 );
 
+// ── Folders (in-project grouping for the Workspaces tree + board) ──
+//
+// Optional one-level grouping of entities inside a project. Entities carry a
+// nullable folderId (set null on folder delete, so entities survive as
+// "Unfiled"). position drives manual ordering in the sidebar/board.
+export const folders = pgTable(
+  "folders",
+  {
+    id: text("id").primaryKey(), // client-provided nanoid
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 200 }).notNull().default("New Folder"),
+    color: varchar("color", { length: 20 }).notNull().default("#FFB43F"),
+    position: integer("position").notNull().default(0),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [index("folders_project_id_idx").on(table.projectId)]
+);
+
 // ── Knowledge Units (Documents) ──
 export const knowledgeUnits = pgTable(
   "knowledge_units",
@@ -79,6 +100,7 @@ export const knowledgeUnits = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
+    folderId: text("folder_id").references(() => folders.id, { onDelete: "set null" }),
     title: varchar("title", { length: 500 }).notNull().default("Untitled Document"),
     content: text("content").notNull().default(""),
     shareToken: varchar("share_token", { length: 32 }).unique(),
@@ -99,6 +121,7 @@ export const projectTables = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
+    folderId: text("folder_id").references(() => folders.id, { onDelete: "set null" }),
     title: varchar("title", { length: 500 }).notNull().default("Untitled Table"),
     sheets: jsonb("sheets").notNull().default([]),
     shareToken: varchar("share_token", { length: 32 }).unique(),
@@ -119,6 +142,7 @@ export const projectDecks = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
+    folderId: text("folder_id").references(() => folders.id, { onDelete: "set null" }),
     title: varchar("title", { length: 500 }).notNull().default("Untitled Deck"),
     theme: varchar("theme", { length: 20 }).notNull().default("light"),
     style: jsonb("style"),
@@ -147,6 +171,7 @@ export const projectPages = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
+    folderId: text("folder_id").references(() => folders.id, { onDelete: "set null" }),
     title: varchar("title", { length: 500 }).notNull().default("Untitled Page"),
     html: text("html").notNull().default(""),
     editableFields: jsonb("editable_fields").$type<unknown[]>().default([]),
