@@ -612,7 +612,9 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
             </div>
           </>
         ) : showHeroLayout ? (
-          /* Centered empty state: title + chatbox + entity pills */
+          <>
+          {branded && <HeroLandscape />}
+          {/* Centered empty state: title + chatbox + entity pills */}
           <div className="flex-1 flex flex-col items-center justify-center px-6 pb-12">
             <div className="w-full max-w-[680px]">
               {/* Title */}
@@ -639,6 +641,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
               </div>
             </div>
           </div>
+          </>
         ) : (
           <>
             {/* Content area */}

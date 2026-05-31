@@ -55,6 +55,14 @@ function hashOf(id: string): number {
 function iconFor(id: string): typeof Rocket {
   return WORKSPACE_ICONS[hashOf(id) % WORKSPACE_ICONS.length];
 }
+const CANDY = ["#FFB43F", "#4285F4", "#8757D7", "#67CEC8", "#F073A7", "#42C366"];
+const TYPE_COLOR: Record<string, string> = {
+  Design: "#8757D7", Research: "#4285F4", Marketing: "#F073A7", Finance: "#42C366",
+  People: "#FFB43F", Content: "#67CEC8", Engineering: "#4285F4", Sales: "#FF7A2F", Other: "#8757D7",
+};
+function wsColor(p: { id: string; projectType?: string }): string {
+  return (p.projectType && TYPE_COLOR[p.projectType]) || CANDY[hashOf(p.id) % CANDY.length];
+}
 function relTime(ts: number): string {
   const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));
   if (s < 60) return "just now";
@@ -428,19 +436,19 @@ export function AppShellV2() {
       {wsMenu && (
         <>
           <div className="fixed inset-0 z-[60]" onClick={() => setWsMenu(null)} onContextMenu={(e) => { e.preventDefault(); setWsMenu(null); }} />
-          <div className="fixed z-[61] w-48 rounded-[10px] py-1.5"
+          <div className="fixed z-[61] w-48 rounded-[11px] p-1.5"
             style={{ left: Math.min(wsMenu.x, window.innerWidth - 200), top: Math.min(wsMenu.y, window.innerHeight - 120), background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
             <button onClick={() => { switchProject(wsMenu.id); setWsMenu(null); }}
-              className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
+              className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
               <ArrowLeft size={13} className="rotate-180" /> Open
             </button>
             <button onClick={() => { setRenamingWs(wsMenu.id); setWsMenu(null); }}
-              className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
+              className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
               <Pencil size={13} /> Rename
             </button>
             <div className="my-1 h-px" style={{ background: "var(--border)" }} />
             <button onClick={() => { if (confirm(`Delete workspace "${wsMenu.title}"? This removes all its files.`)) { useAppStore.getState().deleteProject(wsMenu.id); } setWsMenu(null); }}
-              className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "#d4183d" }}>
+              className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[12.5px] press hover-row" style={{ color: "#d4183d" }}>
               <Trash2 size={13} /> Delete workspace
             </button>
           </div>
@@ -577,15 +585,15 @@ function FolderSection({ projectId, folder, list, folders }: { projectId: string
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 top-7 z-50 w-44 rounded-[10px] py-1.5"
+                <div className="absolute right-0 top-7 z-50 w-44 rounded-[11px] p-1.5"
                   style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
                   <button onClick={() => { setMenuOpen(false); setRenaming(true); }}
-                    className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
+                    className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
                     <Pencil size={13} /> Rename
                   </button>
                   <div className="my-1 h-px" style={{ background: "var(--border)" }} />
                   <button onClick={() => { setMenuOpen(false); if (confirm(`Delete folder "${folder.name}"? Its files move to Unfiled.`)) useAppStore.getState().deleteFolder(projectId, folder.id); }}
-                    className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "#d4183d" }}>
+                    className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[12.5px] press hover-row" style={{ color: "#d4183d" }}>
                     <Trash2 size={13} /> Delete folder
                   </button>
                 </div>
@@ -745,30 +753,30 @@ function CardMenu({ item, projectId, folders, onRename, onClose }: { item: Item;
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute right-3 top-11 z-50 w-52 rounded-[10px] py-1.5 overflow-hidden"
+      <div className="absolute right-3 top-11 z-50 w-52 rounded-[11px] p-1.5"
         style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
-        <button onClick={onRename} className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
+        <button onClick={onRename} className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
           <Pencil size={13} /> Rename
         </button>
         <div className="my-1 h-px" style={{ background: "var(--border)" }} />
-        <div className="px-3 py-1 text-[11px] font-medium flex items-center gap-1.5" style={{ color: "var(--ink-4)" }}><FolderInput size={12} /> Move to</div>
-        <button onClick={() => move(null)} className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: item.folderId ? "var(--ink-2)" : "var(--ink)" }}>
+        <div className="px-2.5 py-1 text-[11px] font-medium flex items-center gap-1.5" style={{ color: "var(--ink-4)" }}><FolderInput size={12} /> Move to</div>
+        <button onClick={() => move(null)} className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[12.5px] press hover-row" style={{ color: item.folderId ? "var(--ink-2)" : "var(--ink)" }}>
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--ink-4)" }} /> Unfiled
           {!item.folderId && <Check size={13} className="ml-auto" style={{ color: "var(--accent-amber)" }} />}
         </button>
         {folders.map((f) => (
-          <button key={f.id} onClick={() => move(f.id)} className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
+          <button key={f.id} onClick={() => move(f.id)} className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[12.5px] press hover-row" style={{ color: "var(--ink-2)" }}>
             <span className="w-2.5 h-2.5 rounded-full" style={{ background: f.color }} /> <span className="truncate">{f.name}</span>
             {item.folderId === f.id && <Check size={13} className="ml-auto flex-shrink-0" style={{ color: "var(--accent-amber)" }} />}
           </button>
         ))}
         <button onClick={() => { const f = useAppStore.getState().createFolder(projectId); useAppStore.getState().moveEntityToFolder(projectId, item.id, item.type, f.id); onClose(); }}
-          className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "var(--ink-3)" }}>
+          className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[12.5px] press hover-row" style={{ color: "var(--ink-3)" }}>
           <Plus size={13} /> New folder
         </button>
         <div className="my-1 h-px" style={{ background: "var(--border)" }} />
         <button onClick={() => { if (confirm(`Delete "${item.title}"?`)) deleteEntity(projectId, item); onClose(); }}
-          className="flex items-center gap-2.5 w-full h-8 px-3 text-[12.5px] press hover-row" style={{ color: "#d4183d" }}>
+          className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[12.5px] press hover-row" style={{ color: "#d4183d" }}>
           <Trash2 size={13} /> Delete
         </button>
       </div>
@@ -866,30 +874,44 @@ function AllProjects({ projects, onOpen, onNew, onContext }: { projects: Project
         </button>
       </div>
       <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
-        <button onClick={onNew} className="flex flex-col items-center justify-center gap-2.5 rounded-[12px] press min-h-[120px]"
-          style={{ border: "1px dashed var(--border-strong)", color: "var(--ink-3)", background: "linear-gradient(145deg, var(--card), var(--accent-soft))" }}>
-          <Plus size={22} /> <span className="text-[13px] font-medium">New workspace</span>
+        <button onClick={onNew} className="relative overflow-hidden flex flex-col items-center justify-center gap-2 rounded-[14px] press lift min-h-[148px]"
+          style={{ border: "1px solid var(--border-strong)", color: "var(--ink)", background: "linear-gradient(150deg, #FFFDFB 0%, #EEF3FF 55%, #F7EEFE 100%)" }}>
+          <span className="flex items-center justify-center w-12 h-12 rounded-full bg-white" style={{ boxShadow: "var(--shadow-card)" }}>
+            <Plus size={22} strokeWidth={1.9} style={{ color: "var(--ink-2)" }} />
+          </span>
+          <span className="text-[13.5px] font-medium">New workspace</span>
         </button>
         {projects.map((p) => {
           const count = p.counts
             ? p.counts.knowledgeUnits + p.counts.tables + p.counts.decks + p.counts.pages
             : p.knowledgeUnits.length + p.tables.length + p.decks.length + p.pages.length;
+          const Icon = iconFor(p.id);
+          const color = wsColor(p);
           return (
-            <button key={p.id} onClick={() => onOpen(p.id)} onContextMenu={(e) => onContext(p.id, p.title || "Untitled", e)} className="text-left rounded-[12px] p-4 lift"
+            <button key={p.id} onClick={() => onOpen(p.id)} onContextMenu={(e) => onContext(p.id, p.title || "Untitled", e)} className="text-left rounded-[14px] p-4 lift relative overflow-hidden group"
               style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)" }}>
-              <div className="flex items-center gap-3 mb-3">
-                {(() => { const Icon = iconFor(p.id); return (
-                  <div className="w-9 h-9 rounded-[9px] flex items-center justify-center flex-shrink-0" style={{ background: "var(--accent-soft)", color: "var(--icon)" }}>
-                    <Icon size={18} strokeWidth={1.9} />
-                  </div>
-                ); })()}
-                <div className="min-w-0">
+              {/* soft corner glow keyed to the workspace */}
+              <div className="absolute -top-14 -right-14 w-36 h-36 rounded-full pointer-events-none transition-opacity duration-300 group-hover:opacity-90"
+                style={{ background: `radial-gradient(circle, ${color}, transparent 68%)`, opacity: 0.16 }} />
+              <div className="flex items-start gap-3 mb-3 relative">
+                <div className="w-9 h-9 rounded-[9px] flex items-center justify-center flex-shrink-0" style={{ background: "var(--accent-soft)", color: "var(--icon)" }}>
+                  <Icon size={18} strokeWidth={1.9} />
+                </div>
+                <div className="min-w-0 flex-1">
                   <div className="text-[14px] font-semibold truncate" style={{ color: "var(--ink)" }}>{p.title || "Untitled"}</div>
-                  {p.projectType && <div className="text-[11.5px]" style={{ color: "var(--ink-4)" }}>{p.projectType}</div>}
+                  {p.projectType && (
+                    <span className="inline-flex items-center mt-1 h-[19px] px-2 rounded-full text-[10.5px] font-medium"
+                      style={{ background: `color-mix(in srgb, ${color} 15%, transparent)`, color: `color-mix(in srgb, ${color} 75%, #111)` }}>
+                      {p.projectType}
+                    </span>
+                  )}
                 </div>
               </div>
-              {p.description && <p className="text-[12px] leading-[1.5] line-clamp-2 mb-3" style={{ color: "var(--ink-3)" }}>{p.description}</p>}
-              <div className="text-[11.5px] tabular-nums" style={{ color: "var(--ink-4)" }}>{count} file{count === 1 ? "" : "s"} · {relTime(p.updatedAt)}</div>
+              {p.description && <p className="text-[12px] leading-[1.5] line-clamp-2 mb-3 relative" style={{ color: "var(--ink-3)" }}>{p.description}</p>}
+              <div className="flex items-center gap-1.5 text-[11.5px] tabular-nums relative" style={{ color: "var(--ink-4)" }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
+                {count} file{count === 1 ? "" : "s"} · {relTime(p.updatedAt)}
+              </div>
             </button>
           );
         })}
