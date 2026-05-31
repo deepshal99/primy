@@ -146,6 +146,8 @@ export function Breadcrumb({ onGoHome }: BreadcrumbProps) {
             open={menu === "project"}
             onToggle={() => setMenu((m) => (m === "project" ? null : "project"))}
             onClose={() => setMenu(null)}
+            onPrimary={goProjectHome}
+            primaryTitle="Go to project home"
             accent={HEAT}
             heading="Switch project"
             icon={<Folder size={13} style={{ color: HEAT }} />}
@@ -210,6 +212,8 @@ function CrumbMenu({
   open,
   onToggle,
   onClose,
+  onPrimary,
+  primaryTitle,
   accent,
   heading,
   icon,
@@ -219,6 +223,10 @@ function CrumbMenu({
   open: boolean;
   onToggle: () => void;
   onClose: () => void;
+  /** When set, clicking the name fires this (e.g. go to project home) and only
+   *  the ▾ chevron opens the dropdown. Without it, the whole crumb toggles. */
+  onPrimary?: () => void;
+  primaryTitle?: string;
   accent: string;
   heading?: string;
   icon?: React.ReactNode;
@@ -243,24 +251,52 @@ function CrumbMenu({
   }, [open, onClose]);
 
   return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={onToggle}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="press flex items-center gap-1.5 h-[30px] px-2 rounded-[8px] hover:bg-black/[0.05] active:scale-[0.97] transition-[background-color,transform] motion-reduce:transition-none max-w-[260px]"
-        style={{ background: open ? "rgba(0,0,0,0.05)" : "transparent", transitionDuration: "140ms" }}
-        // accent kept for the active-glyph contract; harmless if unused
-        data-accent={accent}
-      >
-        {icon}
-        <span className="truncate font-medium text-[#171717]">{label}</span>
-        <ChevronDown
-          size={13}
-          className="text-[#a3a3a3] flex-shrink-0"
-          style={{ transform: open ? "rotate(180deg)" : undefined, transition: "transform .15s var(--ease-out, ease)" }}
-        />
-      </button>
+    <div className="relative flex items-center" ref={ref} data-accent={accent}>
+      {onPrimary ? (
+        // Split crumb: name → primary action (project home); ▾ → switcher.
+        <div className="flex items-center rounded-[8px]" style={{ background: open ? "rgba(0,0,0,0.05)" : "transparent" }}>
+          <button
+            onClick={onPrimary}
+            title={primaryTitle}
+            className="press flex items-center gap-1.5 h-[30px] pl-2 pr-1 rounded-l-[8px] hover:bg-black/[0.05] active:scale-[0.98] transition-[background-color,transform] motion-reduce:transition-none max-w-[230px]"
+            style={{ transitionDuration: "140ms" }}
+          >
+            {icon}
+            <span className="truncate font-medium text-[#171717]">{label}</span>
+          </button>
+          <button
+            onClick={onToggle}
+            aria-haspopup="menu"
+            aria-expanded={open}
+            aria-label="Switch project"
+            title="Switch project"
+            className="press flex items-center justify-center h-[30px] w-[22px] rounded-r-[8px] hover:bg-black/[0.05] active:scale-[0.97] transition-[background-color,transform] motion-reduce:transition-none"
+            style={{ transitionDuration: "140ms" }}
+          >
+            <ChevronDown
+              size={13}
+              className="text-[#a3a3a3]"
+              style={{ transform: open ? "rotate(180deg)" : undefined, transition: "transform .15s var(--ease-out, ease)" }}
+            />
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={onToggle}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          className="press flex items-center gap-1.5 h-[30px] px-2 rounded-[8px] hover:bg-black/[0.05] active:scale-[0.97] transition-[background-color,transform] motion-reduce:transition-none max-w-[260px]"
+          style={{ background: open ? "rgba(0,0,0,0.05)" : "transparent", transitionDuration: "140ms" }}
+        >
+          {icon}
+          <span className="truncate font-medium text-[#171717]">{label}</span>
+          <ChevronDown
+            size={13}
+            className="text-[#a3a3a3] flex-shrink-0"
+            style={{ transform: open ? "rotate(180deg)" : undefined, transition: "transform .15s var(--ease-out, ease)" }}
+          />
+        </button>
+      )}
       {open && (
         <div
           role="menu"

@@ -38,6 +38,7 @@ export function AppShell() {
   const canUndo = useAppStore((s) => s.canUndo);
   const canRedo = useAppStore((s) => s.canRedo);
   const closeTab = useAppStore((s) => s.closeTab);
+  const loadProjects = useAppStore((s) => s.loadProjects);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("chat");
 
@@ -57,6 +58,15 @@ export function AppShell() {
       router.replace("/onboarding");
     }
   }, [userQuery.data, pathname, router]);
+
+  // Fetch the project list once onboarding is confirmed. (The old NavRail used
+  // to trigger this on mount; the shell overhaul removed NavRail, so the app
+  // was silently running on the localStorage cache only — load from server.)
+  useEffect(() => {
+    if (userQuery.data?.hasOnboarded) {
+      loadProjects();
+    }
+  }, [userQuery.data?.hasOnboarded, loadProjects]);
 
   // When an entity opens (e.g. AI creates one), flip mobile to the work pane.
   useEffect(() => {

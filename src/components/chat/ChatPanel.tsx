@@ -549,8 +549,14 @@ export function ChatPanel({ centered }: ChatPanelProps) {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* No chat header: the project/file name lives in the top bar now.
-          The chat is the primary surface — keep its chrome minimal. */}
+      {/* Minimal chat header (sidebar mode): assistant identity only — the
+          project/file name lives in the top bar, so we don't repeat it. */}
+      {!centered && (
+        <div className="flex items-center gap-2 px-4 h-[42px] flex-shrink-0 border-b border-[rgba(0,0,0,0.05)]">
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#ff4a00" }} />
+          <span className="text-[12.5px] font-medium text-[#525252]">Assistant</span>
+        </div>
+      )}
         {showHeroLayout ? (
           /* Centered empty state: title + chatbox + entity pills */
           <div className="flex-1 flex flex-col items-center justify-center px-6 pb-12">
