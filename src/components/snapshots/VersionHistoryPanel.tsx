@@ -217,7 +217,7 @@ export function VersionHistoryPanel({
                   onClick={handleSaveNow}
                   disabled={saving}
                   className="h-9 px-3 text-[13px] gap-1.5"
-                  style={{ backgroundColor: "#fa5d19", color: "white" }}
+                  style={{ backgroundColor: "#1A1815", color: "white" }}
                 >
                   <Save className="w-3.5 h-3.5" />
                   {saving ? "Saving…" : "Save version now"}

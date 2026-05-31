@@ -47,7 +47,7 @@ export function CTAButton({
   };
 
   const style =
-    variant === "primary" ? { backgroundColor: "#fa5d19" } : undefined;
+    variant === "primary" ? { backgroundColor: "#1A1815" } : undefined;
 
   return (
     <Link

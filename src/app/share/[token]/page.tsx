@@ -77,7 +77,7 @@ export default function SharePage() {
     return (
       <div className="h-screen flex items-center justify-center bg-white antialiased">
         <div className="flex items-center gap-3">
-          <Loader2 className="w-5 h-5 animate-spin text-[#fa5d19]" />
+          <Loader2 className="w-5 h-5 animate-spin text-[#FFB43F]" />
           <span className="text-[13px] text-neutral-500">Loading...</span>
         </div>
       </div>
@@ -107,8 +107,8 @@ export default function SharePage() {
             className="text-[13px] font-medium px-4 py-2 transition-colors"
             style={{
               borderRadius: 6,
-              backgroundColor: "rgba(250, 93, 25, 0.08)",
-              color: "#fa5d19",
+              backgroundColor: "rgba(255, 180, 63, 0.08)",
+              color: "#B87426",
             }}
           >
             Go to Drafta
@@ -162,7 +162,7 @@ export default function SharePage() {
         <ShareHeader
           title={data.title}
           breadcrumb={data.projectTitle ? [data.projectTitle, data.title] : [data.title]}
-          icon={<Presentation className="w-4 h-4 text-[#fa5d19]" strokeWidth={1.8} />}
+          icon={<Presentation className="w-4 h-4 text-[#FFAD45]" strokeWidth={1.8} />}
         />
         <div className="flex-1 overflow-hidden">
           <DeckViewReadOnly slides={data.slides} theme={data.theme} style={data.style} />
@@ -183,7 +183,7 @@ export default function SharePage() {
         title={data.title}
         breadcrumb={[data.title]}
         subtitle={data.description || "Shared project"}
-        icon={<FolderOpen className="w-4 h-4 text-[#fa5d19]" strokeWidth={1.8} />}
+        icon={<FolderOpen className="w-4 h-4 text-[#FFAD45]" strokeWidth={1.8} />}
       />
       <div className="flex-1 flex overflow-hidden">
         {/* File sidebar */}
@@ -226,7 +226,7 @@ export default function SharePage() {
                 {data.decks.map((deck: any) => (
                   <SidebarItem
                     key={deck.id}
-                    icon={<Presentation className="w-3.5 h-3.5 text-[#fa5d19]" strokeWidth={1.8} />}
+                    icon={<Presentation className="w-3.5 h-3.5 text-[#FFAD45]" strokeWidth={1.8} />}
                     label={deck.title}
                     isActive={selectedId === deck.id}
                     onClick={() => { setSelectedId(deck.id); setSelectedType("deck"); }}
@@ -357,7 +357,7 @@ function ShareHeader({
             letterSpacing: "-0.005em",
           }}
         >
-          <Pen className="w-3 h-3 text-[#fa5d19]" strokeWidth={2} />
+          <Pen className="w-3 h-3 text-[#FFB43F]" strokeWidth={2} />
           Created with <span className="text-neutral-900 font-semibold">Drafta</span>
           <ExternalLink className="w-3 h-3 text-neutral-400" />
         </a>
@@ -431,10 +431,10 @@ function OpenInDraftaCta() {
         rel="noopener noreferrer"
         className="group inline-flex items-center gap-2 px-3.5 py-2 text-[12.5px] font-medium text-white transition-all duration-150 ease-out hover:-translate-y-0.5"
         style={{
-          backgroundColor: "#fa5d19",
+          backgroundColor: "#1A1815",
           borderRadius: 6,
           letterSpacing: "-0.005em",
-          boxShadow: "0 1px 2px rgba(250, 93, 25, 0.18), 0 4px 12px rgba(250, 93, 25, 0.16)",
+          boxShadow: "0 1px 2px rgba(24, 24, 22, 0.18), 0 4px 12px rgba(24, 24, 22, 0.16)",
           WebkitFontSmoothing: "antialiased",
         }}
       >

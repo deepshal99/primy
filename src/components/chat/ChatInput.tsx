@@ -442,8 +442,8 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
       <div
         className={cn(
           "relative rounded-[20px] border border-[#e8e8ed] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)] t-normal",
-          isDragOver && "border-[#ff4a00] shadow-[0_0_0_2px_rgba(255,74,0,0.08)]",
-          !isDragOver && !disabled && "focus-within:border-[#ff4a00]/25 focus-within:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+          isDragOver && "border-[#FFB43F] shadow-[0_0_0_2px_rgba(255,180,63,0.12)]",
+          !isDragOver && !disabled && "focus-within:border-[#FFB43F]/40 focus-within:shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
         )}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
@@ -452,8 +452,8 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
       >
         {/* Drag overlay */}
         {isDragOver && (
-          <div className="absolute inset-0 rounded-[20px] flex items-center justify-center z-10 border-2 border-dashed pointer-events-none bg-orange-50/80 border-[#ff4a00]">
-            <div className="flex items-center gap-2 text-[#ff4a00]">
+          <div className="absolute inset-0 rounded-[20px] flex items-center justify-center z-10 border-2 border-dashed pointer-events-none bg-[rgba(255,180,63,0.10)] border-[#FFB43F]">
+            <div className="flex items-center gap-2 text-[#B87426]">
               <Upload className="w-4 h-4" />
               <span className="text-[13px] font-medium">Drop files here</span>
             </div>
@@ -604,7 +604,7 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
             className={cn(
               "absolute bottom-3 right-3.5 w-8 h-8 rounded-full flex items-center justify-center t-fast",
               canSend
-                ? "bg-[#ff4a00] text-white cursor-pointer hover:bg-[#e04300] active:scale-[0.95] shadow-[0_2px_6px_rgba(255,74,0,0.25)]"
+                ? "bg-[#1A1815] text-white cursor-pointer hover:bg-black active:scale-[0.95] shadow-[0_2px_6px_rgba(24,24,22,0.25)]"
                 : "bg-[#f0f0ee] text-[#a3a3a3] cursor-not-allowed"
             )}
           >

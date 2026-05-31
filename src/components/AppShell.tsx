@@ -160,7 +160,7 @@ export function AppShell() {
   if (userQuery.isLoading || needsOnboarding) {
     return (
       <div className="h-screen w-screen flex items-center justify-center" style={{ background: CANVAS }}>
-        <Loader2 className="w-5 h-5 animate-spin text-[#ff4a00]" />
+        <Loader2 className="w-5 h-5 animate-spin text-[#FFB43F]" />
       </div>
     );
   }
@@ -217,7 +217,7 @@ export function AppShell() {
           onClick={() => setMobilePanel("chat")}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] motion-reduce:transition-none ${
             mobilePanel === "chat"
-              ? "bg-[#ff4a00] text-white shadow-sm"
+              ? "bg-[#1A1815] text-white shadow-sm"
               : "text-[#737373] hover:text-[#171717]"
           }`}
         >
@@ -228,7 +228,7 @@ export function AppShell() {
           onClick={() => setMobilePanel("workspace")}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.97] motion-reduce:transition-none ${
             mobilePanel === "workspace"
-              ? "bg-[#ff4a00] text-white shadow-sm"
+              ? "bg-[#1A1815] text-white shadow-sm"
               : "text-[#737373] hover:text-[#171717]"
           }`}
         >

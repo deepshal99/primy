@@ -31,10 +31,10 @@ function PanelSkeleton() {
     <div className="h-full flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4 animate-fade-in">
         <div className="w-[44px] h-[44px] rounded-xl bg-[#fafaf8] border border-[#e8e7e4] flex flex-col items-start justify-center gap-[4px] px-2.5">
-          <div className="content-loader-line bg-[#ff4a00]/50" style={{ width: "80%" }} />
-          <div className="content-loader-line bg-[#ff4a00]/35" style={{ width: "60%" }} />
-          <div className="content-loader-line bg-[#ff4a00]/25" style={{ width: "85%" }} />
-          <div className="content-loader-line bg-[#ff4a00]/15" style={{ width: "45%" }} />
+          <div className="content-loader-line bg-[#FFB43F]/50" style={{ width: "80%" }} />
+          <div className="content-loader-line bg-[#FFB43F]/35" style={{ width: "60%" }} />
+          <div className="content-loader-line bg-[#FFB43F]/25" style={{ width: "85%" }} />
+          <div className="content-loader-line bg-[#FFB43F]/15" style={{ width: "45%" }} />
         </div>
         <span className="text-[12px] text-muted-foreground">Loading editor...</span>
       </div>

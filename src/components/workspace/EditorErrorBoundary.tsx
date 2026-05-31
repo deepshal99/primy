@@ -84,7 +84,7 @@ export class EditorErrorBoundary extends React.Component<
             <button
               type="button"
               onClick={this.handleReload}
-              className="mt-5 inline-flex h-9 items-center justify-center rounded-lg border border-[var(--border,#e8e8ed)] bg-[var(--card,#ffffff)] px-4 text-[13px] font-medium text-[var(--foreground,#1a1a1a)] shadow-sm transition-colors duration-150 hover:bg-[var(--accent,#f4f4f2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring,#ff4a00)] focus-visible:ring-offset-2"
+              className="mt-5 inline-flex h-9 items-center justify-center rounded-lg border border-[var(--border,#e8e8ed)] bg-[var(--card,#ffffff)] px-4 text-[13px] font-medium text-[var(--foreground,#1a1a1a)] shadow-sm transition-colors duration-150 hover:bg-[var(--accent,#f4f4f2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring,#1A1815)] focus-visible:ring-offset-2"
             >
               Reload editor
             </button>

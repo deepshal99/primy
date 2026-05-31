@@ -31,7 +31,7 @@ export function CustomInstructionsModal({ open, onClose }: { open: boolean; onCl
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#f0eee9]">
-          <span className="text-[15px] font-semibold text-[#1a1a2e]">
+          <span className="text-[15px] font-semibold text-[#171717]">
             Add Context
           </span>
           <button
@@ -49,10 +49,10 @@ export function CustomInstructionsModal({ open, onClose }: { open: boolean; onCl
             placeholder="Add any context about this project for the AI -- e.g. what it's about, how you want responses, any preferences..."
             rows={6}
             autoFocus
-            className="w-full px-3 py-2.5 rounded-xl outline-none transition-colors duration-150 text-[13px] text-[#1a1a2e] resize-none leading-relaxed bg-[#f5f5f3] border border-[#e8e8ed] focus:border-[#ff4a00] placeholder:text-[#b0ada6]"
+            className="w-full px-3 py-2.5 rounded-xl outline-none transition-colors duration-150 text-[13px] text-[#171717] resize-none leading-relaxed bg-[#F1F0ED] border border-[rgba(24,24,22,0.08)] focus:border-[#FFB43F] placeholder:text-[#B9B6AE]"
             style={{ minHeight: "24px" }}
           />
-          <p className="mt-3 text-[11px] text-[#b0ada6] leading-[1.4]">
+          <p className="mt-3 text-[11px] text-[#B9B6AE] leading-[1.4]">
             This context will be shared with the AI in every message. Changes save automatically.
           </p>
         </div>

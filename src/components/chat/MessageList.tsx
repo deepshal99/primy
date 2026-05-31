@@ -57,7 +57,7 @@ function MessageListLoading() {
                     width: `${w * 2.4}px`,
                     backgroundColor:
                       row.side === "right"
-                        ? "rgba(255,74,0,0.10)"
+                        ? "rgba(255,180,63,0.10)"
                         : "rgba(0,0,0,0.06)",
                   }}
                 />
@@ -90,16 +90,16 @@ function MessageListEmpty({
     <div className="flex flex-col items-center justify-center px-6 py-12 text-center animate-fade-in">
       {/* Spark / chat illustration */}
       <div
-        className="relative w-12 h-12 mb-4 flex items-center justify-center rounded-2xl bg-[rgba(255,74,0,0.06)] border border-[rgba(255,74,0,0.10)]"
+        className="relative w-12 h-12 mb-4 flex items-center justify-center rounded-2xl bg-[rgba(255,180,63,0.06)] border border-[rgba(255,180,63,0.10)]"
         aria-hidden
       >
         <Sparkles
-          className="w-5 h-5 text-[#ff4a00]"
+          className="w-5 h-5 text-[#FFB43F]"
           strokeWidth={1.75}
         />
         {/* Pulse ring */}
         <span
-          className="absolute inset-0 rounded-2xl border border-[rgba(255,74,0,0.18)] animate-ping"
+          className="absolute inset-0 rounded-2xl border border-[rgba(255,180,63,0.18)] animate-ping"
           style={{ animationDuration: "2.4s" }}
         />
       </div>
@@ -116,7 +116,7 @@ function MessageListEmpty({
           <button
             key={s}
             onClick={() => handleClick(s.replace(/—.*$/, "").trim())}
-            className="px-3 py-1.5 rounded-full border border-[rgba(0,0,0,0.08)] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] active:scale-[0.97] transition-all duration-150 animate-fade-in"
+            className="px-3 py-1.5 rounded-full border border-[rgba(0,0,0,0.08)] hover:border-[#FFB43F]/40 hover:bg-[rgba(255,180,63,0.08)] active:scale-[0.97] transition-all duration-150 animate-fade-in"
           >
             <span className="text-[11.5px] text-[#525252] tabular-nums">
               {s}

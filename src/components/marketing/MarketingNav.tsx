@@ -36,7 +36,7 @@ export function MarketingNav() {
         >
           <span
             className="inline-flex h-7 w-7 items-center justify-center rounded-[8px]"
-            style={{ backgroundColor: "#fa5d19" }}
+            style={{ backgroundColor: "#1A1815" }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
@@ -45,7 +45,7 @@ export function MarketingNav() {
               />
               <path
                 d="M9 7 L12.5 7 C15.8 7 17 9.5 17 12 C17 14.5 15.8 17 12.5 17 L9 17 Z"
-                fill="#fa5d19"
+                fill="#FFB43F"
               />
             </svg>
           </span>
@@ -70,7 +70,7 @@ export function MarketingNav() {
           <Link
             href="/login?mode=signup"
             className="inline-flex h-9 items-center px-3.5 rounded-[6px] text-[13px] font-medium text-white transition-all duration-150 hover:brightness-95 active:scale-[0.99] ml-1"
-            style={{ backgroundColor: "#fa5d19" }}
+            style={{ backgroundColor: "#1A1815" }}
           >
             Get started
           </Link>

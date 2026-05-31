@@ -327,7 +327,7 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
           <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-card border border-border shadow-[0_8px_30px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.06)]">
             <Loader2
               className="w-3.5 h-3.5 animate-spin"
-              style={{ color: activeData?.color || "#ff4a00" }}
+              style={{ color: activeData?.color || "#FFB43F" }}
             />
             <span className="text-[12px] text-muted-foreground font-medium">
               {activeData?.label || "Processing"}...
@@ -344,7 +344,7 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
                 {streamResult}
                 {state === "streaming" && (
                   <span
-                    className="inline-block w-[2px] h-[14px] bg-[#ff4a00] ml-0.5 align-middle"
+                    className="inline-block w-[2px] h-[14px] bg-[#FFB43F] ml-0.5 align-middle"
                     style={{ animation: "cursorBlink 0.8s infinite" }}
                   />
                 )}
@@ -355,7 +355,7 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
               <div className="flex items-center gap-1.5 px-3 py-2 border-t border-border">
                 <button
                   onClick={handleReplace}
-                  className="flex-1 h-[30px] bg-[#ff4a00] text-white rounded-lg text-[12px] font-medium hover:bg-[#e54400] t-colors cursor-pointer"
+                  className="flex-1 h-[30px] bg-[#1A1815] text-white rounded-lg text-[12px] font-medium hover:bg-black t-colors cursor-pointer"
                 >
                   Replace
                 </button>

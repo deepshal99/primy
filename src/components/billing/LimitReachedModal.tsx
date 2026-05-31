@@ -76,8 +76,8 @@ export function LimitReachedModal({
             className="mb-3 inline-flex h-9 w-9 items-center justify-center"
             style={{
               borderRadius: 8,
-              backgroundColor: "rgba(255, 74, 0, 0.10)",
-              color: "#fa5d19",
+              backgroundColor: "rgba(255, 180, 63, 0.14)",
+              color: "#FFB43F",
             }}
           >
             <Sparkles className="h-4 w-4" />
@@ -102,7 +102,7 @@ export function LimitReachedModal({
           >
             <div
               className="mt-0.5 h-1.5 w-1.5 flex-shrink-0"
-              style={{ borderRadius: 9999, backgroundColor: "#fa5d19" }}
+              style={{ borderRadius: 9999, backgroundColor: "#FFB43F" }}
             />
             <p className="text-[12px] leading-snug text-muted-foreground">
               Pro includes 1,500 messages/mo, brand profiles, no watermark, and more.
@@ -124,14 +124,14 @@ export function LimitReachedModal({
             className="text-[13px] font-medium text-white transition-all"
             style={{
               borderRadius: 6,
-              backgroundColor: "#fa5d19",
-              boxShadow: "0 1px 2px rgba(250, 93, 25, 0.15)",
+              backgroundColor: "#1A1815",
+              boxShadow: "0 1px 2px rgba(24, 24, 22, 0.15)",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "#e04300";
+              e.currentTarget.style.backgroundColor = "#000000";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "#fa5d19";
+              e.currentTarget.style.backgroundColor = "#1A1815";
             }}
           >
             Upgrade to Pro &mdash; ${PRO_PRICE_USD}/mo

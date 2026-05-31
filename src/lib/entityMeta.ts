@@ -20,6 +20,6 @@ export interface EntityMeta {
 export const ENTITY_META: Record<EntityType, EntityMeta> = {
   ku: { label: "Document", group: "Documents", color: "#2a6dfb", bg: "#eef3fd", Icon: FileText },
   table: { label: "Spreadsheet", group: "Sheets", color: "#42c366", bg: "#eafaef", Icon: Table2 },
-  deck: { label: "Presentation", group: "Decks", color: "#fa5d19", bg: "#fef0e8", Icon: Presentation },
+  deck: { label: "Presentation", group: "Decks", color: "#FFAD45", bg: "#FFF1DF", Icon: Presentation },
   page: { label: "Page", group: "Pages", color: "#9061ff", bg: "#f3eeff", Icon: LayoutTemplate },
 };

@@ -185,7 +185,7 @@ export default function OnboardingPage() {
   if (status === "loading" || userLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#fafaf8]">
-        <Loader2 className="w-5 h-5 animate-spin text-[#ff4a00]" />
+        <Loader2 className="w-5 h-5 animate-spin text-[#FFB43F]" />
       </div>
     );
   }
@@ -203,10 +203,10 @@ export default function OnboardingPage() {
       {/* ── Header: progress + skip ── */}
       <header className="px-6 md:px-10 pt-8 pb-4 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-[8px] bg-[#ff4a00] flex items-center justify-center shadow-[0_2px_8px_rgba(255,74,0,0.25)]">
+          <div className="w-7 h-7 rounded-[8px] bg-[#1A1815] flex items-center justify-center shadow-[0_2px_8px_rgba(24,24,22,0.18)]">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M5 3 L5 21 L13.5 21 C18.5 21 21 17 21 12 C21 7 18.5 3 13.5 3 Z" fill="white" />
-              <path d="M9 7 L12.5 7 C15.8 7 17 9.5 17 12 C17 14.5 15.8 17 12.5 17 L9 17 Z" fill="#ff4a00" />
+              <path d="M9 7 L12.5 7 C15.8 7 17 9.5 17 12 C17 14.5 15.8 17 12.5 17 L9 17 Z" fill="#FFB43F" />
             </svg>
           </div>
           <span className="text-[13px] font-medium text-[#171717] tracking-tight">Drafta</span>
@@ -287,9 +287,9 @@ function ProgressDots({ step, total }: { step: number; total: number }) {
             )}
             style={{
               backgroundColor: isActive
-                ? "#ff4a00"
+                ? "#FFB43F"
                 : isComplete
-                ? "rgba(255,74,0,0.45)"
+                ? "rgba(255,180,63,0.45)"
                 : "rgba(0,0,0,0.1)",
             }}
             aria-hidden="true"
@@ -359,7 +359,7 @@ function Step1Welcome({
   return (
     <section aria-labelledby="step1-title">
       <div className="text-center mb-10">
-        <p className="text-[12px] uppercase tracking-[0.08em] text-[#ff4a00] font-medium mb-3">
+        <p className="text-[12px] uppercase tracking-[0.08em] text-[#B87426] font-medium mb-3">
           Welcome to Drafta
         </p>
         <h1
@@ -387,7 +387,7 @@ function Step1Welcome({
                 "border bg-white text-left transition-all duration-150 ease-[cubic-bezier(0.16,1,0.3,1)]",
                 "hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.04)] cursor-pointer",
                 selected
-                  ? "border-[#ff4a00] shadow-[0_0_0_1px_#ff4a00,0_2px_8px_rgba(255,74,0,0.12)]"
+                  ? "border-[#FFB43F] shadow-[0_0_0_1px_#FFB43F,0_2px_8px_rgba(255,180,63,0.12)]"
                   : "border-[rgba(0,0,0,0.08)] hover:border-[rgba(0,0,0,0.16)]"
               )}
               aria-pressed={selected}
@@ -395,17 +395,17 @@ function Step1Welcome({
               <span
                 className={cn(
                   "flex items-center justify-center w-8 h-8 rounded-[6px] transition-colors",
-                  selected ? "bg-[rgba(255,74,0,0.1)]" : "bg-[rgba(0,0,0,0.04)]"
+                  selected ? "bg-[rgba(255,180,63,0.1)]" : "bg-[rgba(0,0,0,0.04)]"
                 )}
               >
                 <Icon
-                  className={cn("w-4 h-4 transition-colors", selected ? "text-[#ff4a00]" : "text-[#525252]")}
+                  className={cn("w-4 h-4 transition-colors", selected ? "text-[#B87426]" : "text-[#525252]")}
                   strokeWidth={1.75}
                 />
               </span>
               <span className="text-[14px] font-medium text-[#171717] flex-1">{label}</span>
               {selected && (
-                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#ff4a00] animate-fade-in-soft">
+                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#1A1815] animate-fade-in-soft">
                   <Check className="w-3 h-3 text-white" strokeWidth={3} />
                 </span>
               )}
@@ -430,7 +430,7 @@ function Step2Demo({ onContinue, onBack }: { onContinue: () => void; onBack: () 
   return (
     <section aria-labelledby="step2-title">
       <div className="text-center mb-10">
-        <p className="text-[12px] uppercase tracking-[0.08em] text-[#ff4a00] font-medium mb-3">
+        <p className="text-[12px] uppercase tracking-[0.08em] text-[#B87426] font-medium mb-3">
           How it works
         </p>
         <h1
@@ -479,8 +479,8 @@ function DemoCard() {
 
       {/* Faux assistant row */}
       <div className="px-5 py-4 flex items-start gap-3 bg-[#fafaf8]">
-        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-[rgba(255,74,0,0.1)] flex items-center justify-center">
-          <Sparkles className="w-3.5 h-3.5 text-[#ff4a00]" strokeWidth={1.75} />
+        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-[rgba(255,180,63,0.1)] flex items-center justify-center">
+          <Sparkles className="w-3.5 h-3.5 text-[#FFB43F]" strokeWidth={1.75} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[11px] uppercase tracking-wider text-[#a3a3a3] font-medium mb-2">Drafta</div>
@@ -505,8 +505,8 @@ function DemoCard() {
             <ArtifactChip
               icon={<Presentation className="w-3.5 h-3.5" strokeWidth={1.75} />}
               label="Pitch Deck"
-              color="#fa5d19"
-              bg="rgba(250,93,25,0.1)"
+              color="#FFB43F"
+              bg="rgba(255,180,63,0.12)"
               delay={240}
             />
           </div>
@@ -591,7 +591,7 @@ function Step3FirstProject({
   return (
     <section aria-labelledby="step3-title">
       <div className="text-center mb-10">
-        <p className="text-[12px] uppercase tracking-[0.08em] text-[#ff4a00] font-medium mb-3">
+        <p className="text-[12px] uppercase tracking-[0.08em] text-[#B87426] font-medium mb-3">
           Last step
         </p>
         <h1
@@ -619,7 +619,7 @@ function Step3FirstProject({
             placeholder="My first Drafta project"
             disabled={busy}
             maxLength={120}
-            className="w-full h-11 px-3.5 rounded-[6px] border border-[rgba(0,0,0,0.08)] bg-white text-[14px] text-[#171717] placeholder:text-[#a3a3a3] outline-none focus:border-[rgba(255,74,0,0.4)] focus:ring-2 focus:ring-[rgba(255,74,0,0.1)] transition-all disabled:opacity-60"
+            className="w-full h-11 px-3.5 rounded-[6px] border border-[rgba(0,0,0,0.08)] bg-white text-[14px] text-[#171717] placeholder:text-[#a3a3a3] outline-none focus:border-[rgba(255,180,63,0.6)] focus:ring-2 focus:ring-[rgba(255,180,63,0.25)] transition-all disabled:opacity-60"
             autoFocus
           />
         </label>
@@ -636,7 +636,7 @@ function Step3FirstProject({
             disabled={busy}
             rows={2}
             maxLength={280}
-            className="w-full px-3.5 py-2.5 rounded-[6px] border border-[rgba(0,0,0,0.08)] bg-white text-[14px] text-[#171717] placeholder:text-[#a3a3a3] outline-none focus:border-[rgba(255,74,0,0.4)] focus:ring-2 focus:ring-[rgba(255,74,0,0.1)] transition-all resize-none disabled:opacity-60"
+            className="w-full px-3.5 py-2.5 rounded-[6px] border border-[rgba(0,0,0,0.08)] bg-white text-[14px] text-[#171717] placeholder:text-[#a3a3a3] outline-none focus:border-[rgba(255,180,63,0.6)] focus:ring-2 focus:ring-[rgba(255,180,63,0.25)] transition-all resize-none disabled:opacity-60"
           />
         </label>
       </div>
@@ -673,9 +673,9 @@ function PrimaryButton({
       disabled={loading}
       className={cn(
         "inline-flex items-center gap-2 h-11 px-5 rounded-[6px] text-[14px] font-medium",
-        "bg-[#ff4a00] text-white shadow-[0_2px_8px_rgba(255,74,0,0.25)]",
+        "bg-[#1A1815] text-white shadow-[0_2px_8px_rgba(24,24,22,0.18)]",
         "transition-all duration-150 ease-[cubic-bezier(0.16,1,0.3,1)]",
-        "hover:bg-[#e54400] hover:shadow-[0_4px_14px_rgba(255,74,0,0.32)] active:scale-[0.98]",
+        "hover:bg-black hover:shadow-[0_4px_14px_rgba(24,24,22,0.18)] active:scale-[0.98]",
         "disabled:opacity-70 disabled:cursor-wait cursor-pointer"
       )}
     >

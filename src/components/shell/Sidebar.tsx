@@ -22,7 +22,7 @@ import { useAppStore } from "@/lib/store";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { goGlobalHome } from "@/components/shell/Breadcrumb";
 
-const HEAT = "#ff4a00";
+const HEAT = "#1A1815";
 
 export function Sidebar() {
   const currentProjectId = useAppStore((s) => s.currentProjectId);

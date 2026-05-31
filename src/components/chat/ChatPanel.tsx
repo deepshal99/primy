@@ -553,7 +553,7 @@ export function ChatPanel({ centered }: ChatPanelProps) {
           project/file name lives in the top bar, so we don't repeat it. */}
       {!centered && (
         <div className="flex items-center gap-2 px-4 h-[42px] flex-shrink-0 border-b border-[rgba(0,0,0,0.05)]">
-          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#ff4a00" }} />
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#FFB43F" }} />
           <span className="text-[12.5px] font-medium text-[#525252]">Assistant</span>
         </div>
       )}

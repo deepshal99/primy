@@ -47,7 +47,7 @@ export function FilePreviewPill({ attachment, onRemove }: FilePreviewPillProps) 
         </span>
         <span className="text-[10px] text-[#a3a3a3] leading-tight">
           {attachment.isExtracting ? (
-            <span className="flex items-center gap-1 text-[#ff4a00]">
+            <span className="flex items-center gap-1 text-[#B87426]">
               <Loader2 className="w-2.5 h-2.5 animate-spin" />
               Processing...
             </span>

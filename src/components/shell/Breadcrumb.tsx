@@ -25,7 +25,7 @@ import { useAppStore } from "@/lib/store";
 import type { EntityType } from "@/lib/types";
 import { ENTITY_META } from "@/lib/entityMeta";
 
-const HEAT = "#ff4a00";
+const HEAT = "#FFB43F";
 
 const ENTITY = ENTITY_META;
 

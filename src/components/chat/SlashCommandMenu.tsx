@@ -106,7 +106,7 @@ export function SlashCommandMenu({
                 <span
                   className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded uppercase tracking-wide"
                   style={{
-                    backgroundColor: isProGated ? "rgba(0,0,0,0.04)" : "#fa5d19",
+                    backgroundColor: isProGated ? "rgba(0,0,0,0.04)" : "#1A1815",
                     color: isProGated ? "#737373" : "white",
                   }}
                 >

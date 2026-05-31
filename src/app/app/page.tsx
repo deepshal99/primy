@@ -4,11 +4,14 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
+import { AppShellV2 } from "@/components/shell/v2/AppShellV2";
+import { useShellV2 } from "@/lib/useShellV2";
 import { DEV_AUTH_BYPASS } from "@/components/providers/DevAutoLogin";
 
 export default function AppHome() {
   const { status } = useSession();
   const router = useRouter();
+  const shellV2 = useShellV2();
 
   useEffect(() => {
     // In dev bypass mode, DevAutoLogin signs us in instead of redirecting.
@@ -23,11 +26,11 @@ export default function AppHome() {
         <div className="flex flex-col items-center gap-5 animate-fade-in">
           {/* Animated doc lines — content being created */}
           <div className="w-[52px] h-[52px] rounded-2xl bg-[#fafaf8] border border-[#e8e7e4] flex flex-col items-start justify-center gap-[5px] px-3">
-            <div className="content-loader-line bg-[#ff4a00]/60" style={{ width: "80%" }} />
-            <div className="content-loader-line bg-[#ff4a00]/40" style={{ width: "65%" }} />
-            <div className="content-loader-line bg-[#ff4a00]/30" style={{ width: "90%" }} />
-            <div className="content-loader-line bg-[#ff4a00]/20" style={{ width: "50%" }} />
-            <div className="content-loader-line bg-[#ff4a00]/15" style={{ width: "72%" }} />
+            <div className="content-loader-line bg-[#FFB43F]/60" style={{ width: "80%" }} />
+            <div className="content-loader-line bg-[#FFB43F]/40" style={{ width: "65%" }} />
+            <div className="content-loader-line bg-[#FFB43F]/30" style={{ width: "90%" }} />
+            <div className="content-loader-line bg-[#FFB43F]/20" style={{ width: "50%" }} />
+            <div className="content-loader-line bg-[#FFB43F]/15" style={{ width: "72%" }} />
           </div>
           <p className="text-[13px] text-[#95928E]">
             Loading Drafta AI...
@@ -41,5 +44,5 @@ export default function AppHome() {
     return null;
   }
 
-  return <AppShell />;
+  return shellV2 ? <AppShellV2 /> : <AppShell />;
 }

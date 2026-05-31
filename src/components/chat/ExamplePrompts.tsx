@@ -41,9 +41,9 @@ const ENTITY_PILLS: EntityPill[] = [
     type: "deck",
     label: "Presentation",
     icon: Presentation,
-    color: "#fa5d19",
+    color: "#FFAD45",
     bg: "#fef0e8",
-    border: "#fa5d19",
+    border: "#FFAD45",
     placeholder: "Describe your presentation...",
   },
 ];
@@ -168,7 +168,7 @@ export function ExamplePrompts({
             <button
               key={s}
               onClick={() => onSelect?.(s)}
-              className="px-3 py-[7px] rounded-xl border border-[#e8e7e4] hover:border-[#ff4a00]/30 hover:bg-[#fff8f5] t-fast text-left group active:scale-[0.98]"
+              className="px-3 py-[7px] rounded-xl border border-[#e8e7e4] hover:border-[#FFB43F]/40 hover:bg-[rgba(255,180,63,0.08)] t-fast text-left group active:scale-[0.98]"
             >
               <span className="text-[12px] leading-snug text-[#95928E] group-hover:text-foreground t-colors">
                 {s}

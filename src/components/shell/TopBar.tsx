@@ -47,7 +47,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-const HEAT = "#ff4a00";
+const HEAT = "#1A1815";
 
 export function TopBar() {
   const { data: session } = useSession();

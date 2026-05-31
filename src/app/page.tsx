@@ -66,7 +66,7 @@ function Hero() {
             <div className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full border border-[rgba(0,0,0,0.08)] bg-white text-[11px] font-medium text-[#525252] mb-6">
               <span
                 className="w-1.5 h-1.5 rounded-full"
-                style={{ backgroundColor: "#fa5d19" }}
+                style={{ backgroundColor: "#FFB43F" }}
               />
               <span>Now in beta — Pro free for 60 days</span>
             </div>
@@ -129,7 +129,7 @@ function ProductPreview() {
         className="absolute -inset-8 -z-10 rounded-[24px] opacity-[0.55]"
         style={{
           background:
-            "radial-gradient(60% 60% at 50% 40%, rgba(250,93,25,0.10) 0%, rgba(250,93,25,0) 60%)",
+            "radial-gradient(60% 60% at 50% 40%, rgba(255,180,63,0.10) 0%, rgba(255,180,63,0) 60%)",
         }}
       />
       <div
@@ -159,7 +159,7 @@ function ProductPreview() {
               <div className="space-y-1">
                 <MockSidebarRow color="#2a6dfb" label="Brand brief" active />
                 <MockSidebarRow color="#42c366" label="Q3 metrics" />
-                <MockSidebarRow color="#fa5d19" label="Launch deck" />
+                <MockSidebarRow color="#FFAD45" label="Launch deck" />
               </div>
               <div className="mt-4 text-[9px] uppercase tracking-wider text-[#a3a3a3] font-medium mb-2 px-1">
                 Files
@@ -192,11 +192,11 @@ function ProductPreview() {
                 <div className="h-3" />
                 <div
                   className="h-2 rounded-full"
-                  style={{ width: "44%", backgroundColor: "rgba(250,93,25,0.20)" }}
+                  style={{ width: "44%", backgroundColor: "rgba(255,180,63,0.20)" }}
                 />
                 <div
                   className="h-2 rounded-full"
-                  style={{ width: "60%", backgroundColor: "rgba(250,93,25,0.14)" }}
+                  style={{ width: "60%", backgroundColor: "rgba(255,180,63,0.14)" }}
                 />
               </div>
             </div>
@@ -263,7 +263,7 @@ function MockChatBubble({
   return (
     <div
       className="text-[10px] leading-snug px-2 py-1.5 rounded-[6px] text-white"
-      style={{ backgroundColor: "#fa5d19" }}
+      style={{ backgroundColor: "#1A1815" }}
     >
       {children}
     </div>
@@ -432,13 +432,13 @@ function KillerDemo() {
           {/* With Drafta */}
           <div
             className="rounded-[16px] border bg-white p-6 lg:p-8"
-            style={{ borderColor: "rgba(250,93,25,0.20)" }}
+            style={{ borderColor: "rgba(255,180,63,0.20)" }}
           >
             <div className="flex items-center gap-2 mb-6">
-              <Sparkles className="w-3.5 h-3.5" style={{ color: "#fa5d19" }} strokeWidth={2.25} />
+              <Sparkles className="w-3.5 h-3.5" style={{ color: "#FFB43F" }} strokeWidth={2.25} />
               <span
                 className="text-[11px] font-medium uppercase tracking-[0.08em]"
-                style={{ color: "#fa5d19" }}
+                style={{ color: "#B87426" }}
               >
                 With Drafta
               </span>
@@ -451,7 +451,7 @@ function KillerDemo() {
               <div className="grid grid-cols-3 gap-2">
                 <ArtifactPill icon={FileText} color="#2a6dfb" label="Doc" />
                 <ArtifactPill icon={Sheet} color="#42c366" label="Sheet" />
-                <ArtifactPill icon={Presentation} color="#fa5d19" label="Deck" />
+                <ArtifactPill icon={Presentation} color="#FFAD45" label="Deck" />
               </div>
             </div>
 
@@ -487,7 +487,7 @@ function GoodBullet({ children }: { children: React.ReactNode }) {
       <Check
         className="mt-[3px] w-3.5 h-3.5 flex-shrink-0"
         strokeWidth={2.25}
-        style={{ color: "#fa5d19" }}
+        style={{ color: "#FFB43F" }}
       />
       <span className="leading-[1.55]">{children}</span>
     </li>
@@ -551,8 +551,8 @@ function Artifacts() {
             preview={<SheetPreview />}
           />
           <ArtifactCard
-            color="#fa5d19"
-            tint="rgba(250,93,25,0.06)"
+            color="#FFAD45"
+            tint="rgba(255,173,69,0.06)"
             icon={Presentation}
             type="Decks"
             pitch="Pitch decks and launch decks generated full-fidelity. Export to PDF or PPTX."
@@ -666,7 +666,7 @@ function DeckPreview() {
               style={{
                 width: i === 0 ? "70%" : "55%",
                 backgroundColor:
-                  i === 0 ? "rgba(250,93,25,0.50)" : "rgba(0,0,0,0.10)",
+                  i === 0 ? "rgba(255,173,69,0.50)" : "rgba(0,0,0,0.10)",
               }}
             />
             <div className="h-1 rounded-full bg-[rgba(0,0,0,0.06)]" style={{ width: "85%" }} />
@@ -736,13 +736,13 @@ function PricingTeaser() {
           <div
             className="rounded-[12px] border bg-white p-7 relative"
             style={{
-              borderColor: "rgba(250,93,25,0.30)",
-              boxShadow: "0 8px 30px rgba(250,93,25,0.08)",
+              borderColor: "rgba(255,180,63,0.30)",
+              boxShadow: "0 8px 30px rgba(255,180,63,0.08)",
             }}
           >
             <div
               className="absolute -top-2.5 left-7 inline-flex items-center h-5 px-2 rounded-full text-[10px] font-medium uppercase tracking-wider text-white"
-              style={{ backgroundColor: "#fa5d19" }}
+              style={{ backgroundColor: "#1A1815" }}
             >
               Most popular
             </div>
@@ -810,7 +810,7 @@ function PricingRow({ children }: { children: React.ReactNode }) {
 
 function FinalCTA() {
   return (
-    <section className="relative overflow-hidden" style={{ backgroundColor: "#fa5d19" }}>
+    <section className="relative overflow-hidden" style={{ backgroundColor: "#1A1815" }}>
       {/* Subtle decorative lines */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.10]" aria-hidden>
         {[...Array(7)].map((_, i) => (

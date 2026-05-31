@@ -113,7 +113,7 @@ export function SuggestionChips({ suggestions }: SuggestionChipsProps) {
           <button
             key={i}
             onClick={() => handleClick(suggestion)}
-            className="group flex items-center gap-1.5 px-3 py-[7px] rounded-xl border border-[#e8e7e4] text-[12px] leading-snug text-[#737373] font-medium t-fast hover:border-[#ff4a00]/30 hover:text-[#ff4a00] hover:bg-[#fff8f5] text-left w-fit animate-fade-in active:scale-[0.98]"
+            className="group flex items-center gap-1.5 px-3 py-[7px] rounded-xl border border-[#e8e7e4] text-[12px] leading-snug text-[#737373] font-medium t-fast hover:border-[#FFB43F]/40 hover:text-[#B87426] hover:bg-[rgba(255,180,63,0.08)] text-left w-fit animate-fade-in active:scale-[0.98]"
             style={{ animationDelay: `${i * 60}ms`, animationFillMode: "both" }}
             role="listitem"
           >

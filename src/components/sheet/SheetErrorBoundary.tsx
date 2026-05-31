@@ -33,7 +33,7 @@ class SheetErrorBoundaryInner extends React.Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center h-full gap-4 p-8">
-          <AlertTriangle className="w-10 h-10 text-[#ff4a00]" />
+          <AlertTriangle className="w-10 h-10 text-[#B87426]" />
           <h3 className="text-lg font-semibold text-foreground">
             Spreadsheet Error
           </h3>
@@ -43,7 +43,7 @@ class SheetErrorBoundaryInner extends React.Component<Props, State> {
           </p>
           <button
             onClick={this.handleReset}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-[#ff4a00] text-white hover:bg-[#e54400]"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-[#1A1815] text-white hover:bg-black"
           >
             <RefreshCw className="w-4 h-4" />
             Reset Sheet

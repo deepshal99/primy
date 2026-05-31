@@ -22,11 +22,11 @@ import { Plus } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import type { Project } from "@/lib/types";
 
-const HEAT = "#ff4a00";
+const HEAT = "#1A1815";
 const BORDER = "rgba(0,0,0,0.08)";
 
 // Stable per-project accent palette (entity + brand colors from design.ts).
-const ACCENTS = ["#ff4a00", "#2a6dfb", "#9061ff", "#42c366", "#ecb730", "#eb3424"] as const;
+const ACCENTS = ["#FFB43F", "#2a6dfb", "#9061ff", "#42c366", "#ecb730", "#eb3424"] as const;
 
 /** Deterministic accent for a project id — stable across renders/sessions. */
 function accentFor(id: string): string {
@@ -180,7 +180,7 @@ export function GlobalHome() {
                       openProject(p.id);
                     }
                   }}
-                  className="gh-card rounded-2xl bg-white p-4 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#ff4a00]/30"
+                  className="gh-card rounded-2xl bg-white p-4 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#FFB43F]/40"
                   style={{
                     border: `1px solid ${BORDER}`,
                     boxShadow: "0 1px 2px rgba(0,0,0,0.03)",

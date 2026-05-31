@@ -117,18 +117,20 @@ This is the largest file (~78KB). All client-side state lives in a single Zustan
 
 ## Design System
 
-Based on Firecrawl's design system (v3). CSS variables in `globals.css`. Tokens in `src/lib/design.ts`. Full spec in `src/design-system/`.
+Strut-inspired warm shell (overhaul locked 1 Jun 2026; reference `/preview/strut`). CSS variables in `globals.css`. Tokens in `src/lib/design.ts`. Full action plan: `docs/superpowers/specs/2026-06-01-drafta-strut-overhaul-action-plan.md`.
 
-- **Brand (Heat)**: `#fa5d19` — opacity-based scale (heat.4 through heat.100). Always white text on heat backgrounds. **NEVER use dark text on orange.**
+- **Brand**: **black wordmark + ink `#1A1815`** primary fill (white text on it). The brand is NOT orange anymore — the legacy `#fa5d19`/`#ff4a00` oranges were swept out across the codebase.
+- **Warm accent (amber)**: `#FFB43F` — AI signal, highlights, soft pills, active dots. For amber **text** on light, use the readable deep amber `#B87426` (never `#FFB43F` for text — too light).
+- **Candy accents** (used as **workspace identity dots**, not entity coding): blue `#4285F4`, pink `#F073A7`, purple `#8757D7`, teal `#67CEC8`. Blue `#4285F4` is the interactive/active/link color.
 - **Fonts**: Inter (UI/body, weights 400/450/500/600/700 — headings use 500), Geist Mono (code)
-- **Entity colors**: doc `#2a6dfb` (bluetron), sheet `#42c366` (forest), deck `#fa5d19` (heat)
-- **Surfaces**: white (#ffffff) base, #fafafa lighter, alpha-based borders throughout
-- **Borders**: `rgba(0,0,0,0.04)` faint, `rgba(0,0,0,0.08)` muted (default), `rgba(0,0,0,0.16)` loud — NOT hex colors
-- **Text hierarchy**: `#171717` (primary) / `#525252` (secondary) / `#737373` (tertiary) / `#a3a3a3` (muted)
-- **Radius**: Pixel-based — 4/6/8/12/16/full. Buttons+inputs=6px, cards=8px, modals=8px
-- **Accents**: bluetron `#2a6dfb`, forest `#42c366`, crimson `#eb3424`, honey `#ecb730`, amethyst `#9061ff`
+- **Entity colors** (board/kanban grouping only; **entity icons are monochrome** `var(--icon)`): doc blue `#4285F4`, sheet forest `#42c366`, deck amber `#FFAD45`, page purple `#8757D7`
+- **Surfaces**: warm near-white `#FCFBF8` base, card `#FFFDFB`, sidebar `#F7F7F4`, canvas `#F3F2EF`. Full `.dark` block exists (Strut DARK palette) — shell chrome is dark-aware; reused editors/chat are still light-only (follow-on).
+- **Borders**: `rgba(24,24,22,0.08)` default (`--border`), `rgba(24,24,22,0.12)` strong (`--border-strong`), `rgba(24,24,22,0.04)` faint — alpha, NOT hex.
+- **Text hierarchy** (`--ink` ramp): `#171716` primary / `#3B3A37` secondary / `#706E68` tertiary / `#B9B6AE` muted.
+- **Shadows**: `--shadow-card` / `--shadow-lift` / `--shadow-pane` (warm, ink-tinted). Use `.press` / `.lift` / `.hover-row` utilities for interaction feel.
+- **Radius**: Pixel-based — 4/6/8/12/16/full. Buttons+inputs=6-8px, cards=12px, panes/modals=14px.
 
-Use entity colors consistently when rendering entity-specific UI (icons, badges, tabs, card backgrounds).
+Reach for tokens (`var(--ink)`, `var(--accent-amber)`, `var(--card)`, …) — never hardcode the old oranges. Color signals **workspace identity** (the per-project dot), not entity type; entity icons stay monochrome.
 
 ## Environment Variables
 
@@ -173,7 +175,7 @@ Several module upgrades are planned (see `.claude/plans/`):
 Solo founders, marketers, SMB operators, and students who need to create documents, spreadsheets, and decks without switching between 5 different tools. They range from semi-technical to non-technical. They value speed and simplicity over power-user features. Their context: busy, often working alone, need professional output without professional design skills.
 
 ### Brand Personality
-**Clean, Smart, Approachable.** The interface should feel like a sharp tool that doesn't require a manual. Warm but not playful. Professional but not corporate. The orange brand color (`#ff4a00`) provides energy without aggression.
+**Clean, Smart, Approachable.** The interface should feel like a sharp tool that doesn't require a manual. Warm but not playful. Professional but not corporate. A black wordmark on warm near-white surfaces, with amber (`#FFB43F`) as the warm accent, gives energy and confidence without aggression.
 
 ### Emotional Goal
 **Delight** — "This is fun and surprisingly easy." Users should feel a spark of pleasure when things just work: when AI produces exactly what they asked for, when a deck generates in seconds, when the interface anticipates their next move. The product should feel effortless, not effortful.
@@ -181,7 +183,7 @@ Solo founders, marketers, SMB operators, and students who need to create documen
 ### Aesthetic Direction
 - **References**: Linear (clean, fast, sharp UI), Pitch.com (polished, warm, presentation-quality)
 - **Anti-references**: Google Docs (bland, institutional, dated)
-- **Theme**: Light mode only. White surfaces, warm orange accents, generous whitespace, alpha-based borders
+- **Theme**: Warm near-white surfaces, black brand + amber accent, generous whitespace, alpha-based borders. A `.dark` palette exists for the shell chrome (editors/chat are light-only for now).
 - **Typography**: Degular for headings (warmth + character), Inter for body (clarity + readability), JetBrains Mono for code
 - **Motion**: Spring-based entrances, fast micro-interactions (120ms), staggered reveals. Always respect `prefers-reduced-motion`.
 
@@ -189,6 +191,6 @@ Solo founders, marketers, SMB operators, and students who need to create documen
 
 1. **Content is king** — The interface should disappear. Minimize chrome, maximize the user's work. Every pixel of UI should earn its place.
 2. **One glance, one action** — Users should understand what to do without reading instructions. Clear hierarchy, obvious affordances, no hidden menus for primary actions.
-3. **Warm precision** — Combine the sharpness of Linear with the warmth of Pitch. Clean geometry + warm orange + soft shadows = approachable professionalism.
+3. **Warm precision** — Combine the sharpness of Linear with the warmth of Pitch. Clean geometry + warm near-white + amber accent + soft shadows = approachable professionalism.
 4. **AI as collaborator, not wizard** — AI interactions should feel like working with a smart colleague, not invoking magic. Show the process, celebrate the result, keep the user in control.
 5. **Consistent entity language** — Each entity type (doc/sheet/deck) has its own color and personality. Use these consistently across tabs, icons, badges, and backgrounds to build spatial memory.

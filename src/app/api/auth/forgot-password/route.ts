@@ -103,12 +103,12 @@ export async function POST(req: Request) {
                 <table width="480" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:16px;border:1px solid #e8e7e4;padding:40px;">
                   <tr>
                     <td>
-                      <div style="width:36px;height:36px;border-radius:10px;background-color:#ff4a00;margin-bottom:24px;"></div>
+                      <div style="width:36px;height:36px;border-radius:10px;background-color:#1A1815;margin-bottom:24px;"></div>
                       <h1 style="margin:0 0 8px;font-size:20px;font-weight:600;color:#1a1a2e;line-height:1.3;">Reset your password</h1>
                       <p style="margin:0 0 28px;font-size:14px;color:#6b6b80;line-height:1.6;">
                         We received a request to reset your password. Click the button below to choose a new one. This link expires in 1 hour.
                       </p>
-                      <a href="${resetUrl}" style="display:inline-block;background-color:#ff4a00;color:#ffffff;text-decoration:none;font-size:14px;font-weight:500;padding:12px 28px;border-radius:12px;line-height:1;">
+                      <a href="${resetUrl}" style="display:inline-block;background-color:#1A1815;color:#ffffff;text-decoration:none;font-size:14px;font-weight:500;padding:12px 28px;border-radius:12px;line-height:1;">
                         Reset password
                       </a>
                       <p style="margin:28px 0 0;font-size:12px;color:#95928E;line-height:1.5;">

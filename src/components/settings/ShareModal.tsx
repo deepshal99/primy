@@ -136,7 +136,7 @@ export function ShareModal({
               onClick={toggleShare}
               disabled={loading}
               className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors duration-200 cursor-pointer"
-              style={{ background: isShared ? "#ff4a00" : "#e8e8ed" }}
+              style={{ background: isShared ? "#1A1815" : "#e8e8ed" }}
               aria-label={isShared ? "Disable sharing" : "Enable sharing"}
             >
               {loading ? (
@@ -168,7 +168,7 @@ export function ShareModal({
                   "h-10 px-3.5 rounded-lg text-[13px] font-medium t-fast flex items-center gap-1.5 flex-shrink-0 cursor-pointer",
                   copied
                     ? "bg-[#2e9e47] text-white"
-                    : "bg-[#ff4a00] text-white hover:bg-[#e54400]"
+                    : "bg-[#1A1815] text-white hover:bg-black"
                 )}
               >
                 {copied ? (

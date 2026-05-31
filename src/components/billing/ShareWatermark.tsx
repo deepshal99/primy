@@ -50,8 +50,8 @@ export function ShareWatermark({ ownerPlan }: ShareWatermarkProps) {
           width: 8,
           height: 8,
           borderRadius: 9999,
-          backgroundColor: "#fa5d19",
-          boxShadow: "0 0 0 2px rgba(250, 93, 25, 0.12)",
+          backgroundColor: "#1A1815",
+          boxShadow: "0 0 0 2px rgba(24, 24, 22, 0.12)",
         }}
       />
       <span>

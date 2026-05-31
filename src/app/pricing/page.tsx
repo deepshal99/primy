@@ -126,13 +126,13 @@ function PricingCards() {
           <div
             className="rounded-[12px] border bg-white p-7 flex flex-col relative"
             style={{
-              borderColor: "rgba(250,93,25,0.30)",
-              boxShadow: "0 8px 30px rgba(250,93,25,0.08)",
+              borderColor: "rgba(255,180,63,0.30)",
+              boxShadow: "0 8px 30px rgba(255,180,63,0.08)",
             }}
           >
             <div
               className="absolute -top-2.5 left-7 inline-flex items-center h-5 px-2 rounded-full text-[10px] font-medium uppercase tracking-wider text-white"
-              style={{ backgroundColor: "#fa5d19" }}
+              style={{ backgroundColor: "#1A1815" }}
             >
               Most popular
             </div>
@@ -340,7 +340,7 @@ function FeatureMatrix() {
             </div>
             <div
               className="px-5 py-4 text-[12px] uppercase tracking-[0.08em] font-medium"
-              style={{ color: "#fa5d19" }}
+              style={{ color: "#B87426" }}
             >
               Pro
             </div>
@@ -479,7 +479,7 @@ function FAQ() {
 
 function FinalCTA() {
   return (
-    <section className="relative overflow-hidden" style={{ backgroundColor: "#fa5d19" }}>
+    <section className="relative overflow-hidden" style={{ backgroundColor: "#1A1815" }}>
       <div className="absolute inset-0 pointer-events-none opacity-[0.10]" aria-hidden>
         {[...Array(7)].map((_, i) => (
           <div

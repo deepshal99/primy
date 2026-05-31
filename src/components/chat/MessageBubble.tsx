@@ -127,7 +127,7 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
           )}
           {/* User message bubble */}
           {message.content && (
-            <div className="rounded-2xl rounded-br-md bg-[#ff4a00] text-white px-4 py-3 ml-auto w-fit">
+            <div className="rounded-2xl rounded-br-md bg-[#1A1815] text-white px-4 py-3 ml-auto w-fit">
               <p className="text-[13px] leading-relaxed whitespace-pre-wrap text-white">
                 {renderContentWithMentions(message.content, message.mentionedEntities, true)}
               </p>
@@ -156,7 +156,7 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
                   href={src.uri}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors hover:opacity-80 truncate max-w-[200px] bg-muted text-[#ff4a00]"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors hover:opacity-80 truncate max-w-[200px] bg-muted text-[#B87426]"
                   title={src.uri}
                 >
                   {src.title}
@@ -279,9 +279,9 @@ function ThinkingIndicator({ readingFiles }: { readingFiles: string[] }) {
   return (
     <div className="flex items-center gap-2.5 py-1">
       <div className="w-4 h-4 flex flex-col items-start justify-center gap-[2.5px] flex-shrink-0">
-        <div className="h-[1.5px] rounded-full bg-[#ff4a00]/60 content-loader-line" style={{ width: "100%" }} />
-        <div className="h-[1.5px] rounded-full bg-[#ff4a00]/40 content-loader-line" style={{ width: "75%" }} />
-        <div className="h-[1.5px] rounded-full bg-[#ff4a00]/25 content-loader-line" style={{ width: "90%" }} />
+        <div className="h-[1.5px] rounded-full bg-[#FFB43F]/60 content-loader-line" style={{ width: "100%" }} />
+        <div className="h-[1.5px] rounded-full bg-[#FFB43F]/40 content-loader-line" style={{ width: "75%" }} />
+        <div className="h-[1.5px] rounded-full bg-[#FFB43F]/25 content-loader-line" style={{ width: "90%" }} />
       </div>
       <span className="text-[13px] font-medium shimmer-text text-muted-foreground">
         {label}...
@@ -333,9 +333,9 @@ function UpdateIndicator({
     <div className="flex flex-col gap-0 px-3.5 py-2.5 rounded-xl bg-muted border border-border">
       <div className="flex items-center gap-2.5">
         <div className="w-3.5 h-3.5 flex flex-col items-start justify-center gap-[2px] flex-shrink-0">
-          <div className="h-[1.5px] rounded-full bg-[#ff4a00]/60 content-loader-line" style={{ width: "100%" }} />
-          <div className="h-[1.5px] rounded-full bg-[#ff4a00]/40 content-loader-line" style={{ width: "70%" }} />
-          <div className="h-[1.5px] rounded-full bg-[#ff4a00]/25 content-loader-line" style={{ width: "85%" }} />
+          <div className="h-[1.5px] rounded-full bg-[#FFB43F]/60 content-loader-line" style={{ width: "100%" }} />
+          <div className="h-[1.5px] rounded-full bg-[#FFB43F]/40 content-loader-line" style={{ width: "70%" }} />
+          <div className="h-[1.5px] rounded-full bg-[#FFB43F]/25 content-loader-line" style={{ width: "85%" }} />
         </div>
         <span className="text-[12px] text-muted-foreground font-medium">
           Applying changes...

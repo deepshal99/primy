@@ -6,51 +6,72 @@
 @import "../styles/motion.css";
 
 /* ═══════════════════════════════════════
-   Design Tokens — Warm Orange + Clean White
-   shadcn-compatible CSS variable system
+   Design Tokens — Strut-inspired warm shell
+   Black brand · warm near-white surfaces · amber + candy accents.
+   Locked reference: /preview/strut. shadcn-compatible CSS variables.
    ═══════════════════════════════════════ */
 
 
 :root {
   --font-size: 16px;
-  --background: #ffffff;
-  --canvas: #EAEAEA;
-  --foreground: #1a1a2e;
-  --card: #ffffff;
-  --card-foreground: #1a1a2e;
-  --popover: #ffffff;
-  --popover-foreground: #1a1a2e;
-  --primary: #ff4a00;
+  --background: #FCFBF8;          /* warm near-white product shell */
+  --canvas: #F3F2EF;             /* slightly deeper warm bg behind floating panes */
+  --foreground: #171716;         /* ink */
+  --card: #FFFDFB;
+  --card-foreground: #171716;
+  --popover: #FFFDFB;
+  --popover-foreground: #171716;
+  --primary: #1A1815;            /* brand fill = ink/black (matches black wordmark) */
   --primary-foreground: #ffffff;
-  --secondary: #f5f5f5;
-  --secondary-foreground: #1a1a2e;
-  --muted: #f7f7f8;
-  --muted-foreground: #6b6b80;
-  --accent: #fff4ef;
-  --accent-foreground: #ff4a00;
+  --secondary: #F1F0ED;
+  --secondary-foreground: #171716;
+  --muted: #F3F2EF;
+  --muted-foreground: #706E68;
+  --accent: #F1F0ED;             /* subtle hover/fill surface */
+  --accent-foreground: #B87426;  /* deep amber — readable on light (code text, marks) */
   --destructive: #d4183d;
   --destructive-foreground: #ffffff;
-  --border: #e8e8ed;
+  --border: rgba(24,24,22,0.08);
   --input: transparent;
-  --input-background: #f7f7f8;
-  --switch-background: #cbced4;
+  --input-background: #F0EFEC;
+  --switch-background: #d9d6cf;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: #ff4a00;
-  --chart-1: #ff4a00;
-  --chart-2: #ff7a40;
-  --chart-3: #ffab80;
-  --chart-4: #ffd4bf;
-  --chart-5: #fff0e8;
+  --ring: #1A1815;
+  --chart-1: #FFB43F;
+  --chart-2: #4285F4;
+  --chart-3: #8757D7;
+  --chart-4: #67CEC8;
+  --chart-5: #F073A7;
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #030213;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #F7F7F4;
+  --sidebar-foreground: #171716;
+  --sidebar-primary: #1A1815;
+  --sidebar-primary-foreground: #FCFBF8;
+  --sidebar-accent: rgba(24,24,22,0.06);
+  --sidebar-accent-foreground: #171716;
+  --sidebar-border: rgba(24,24,22,0.075);
+  --sidebar-ring: rgba(24,24,22,0.16);
+
+  /* ── Strut palette: ink ramp, icon, candy accents, soft fills ── */
+  --ink: #171716;
+  --ink-2: #3B3A37;
+  --ink-3: #706E68;
+  --ink-4: #B9B6AE;
+  --icon: #585753;
+  --accent-soft: #F1F0ED;            /* pill / soft-chip background */
+  --border-strong: rgba(24,24,22,0.12);
+  --accent-amber: #FFB43F;           /* warm brand accent (AI dot, highlights) */
+  --accent-amber-deep: #B87426;
+  --accent-blue: #4285F4;            /* interactive / active / links */
+  --accent-pink: #F073A7;
+  --accent-purple: #8757D7;
+  --accent-teal: #67CEC8;
+
+  /* ── Elevation (Strut shadows) ── */
+  --shadow-card: 0 1px 1px rgba(24,24,22,0.045), 0 9px 22px rgba(24,24,22,0.03);
+  --shadow-lift: 0 10px 28px rgba(24,24,22,0.085);
+  --shadow-pane: 0 18px 45px rgba(24,24,22,0.075);
 
   /* Typography scale */
   --text-xs: 11px;
@@ -80,47 +101,47 @@
   --tracking-wide: 0.01em;
 
   /* Legacy vars — kept for backward compat during migration */
-  --color-brand: #ff4a00;
-  --color-brand-light: #ff7a40;
-  --color-brand-dark: #e54400;
-  --color-brand-subtle: rgba(255, 74, 0, 0.06);
-  --color-brand-muted: rgba(255, 74, 0, 0.12);
-  --color-entity-doc: #4a7aed;
-  --color-entity-doc-bg: #f0f4fd;
+  --color-brand: #FFB43F;            /* warm accent (was orange brand) */
+  --color-brand-light: #FFC56B;
+  --color-brand-dark: #B87426;
+  --color-brand-subtle: rgba(255, 180, 63, 0.10);
+  --color-brand-muted: rgba(255, 180, 63, 0.18);
+  --color-entity-doc: #4285F4;
+  --color-entity-doc-bg: #EDF4FF;
   --color-entity-sheet: #2e9e47;
   --color-entity-sheet-bg: #e8f7ea;
-  --color-entity-deck: #d4582a;
-  --color-entity-deck-bg: #fde8dc;
-  --color-bg-primary: #FFFFFF;
-  --color-bg-secondary: #FAFAFA;
-  --color-bg-tertiary: #F5F5F5;
-  --color-bg-workspace: #FFFFFF;
-  --color-bg-chat: #FFFFFF;
-  --color-bg-input: #f7f7f8;
-  --color-bg-hover: #F5F5F5;
-  --color-bg-elevated: #FFFFFF;
-  --color-bg-overlay: rgba(255, 255, 255, 0.95);
-  --color-bg-sidebar: #fafaf8;
-  --color-bg-sidebar-hover: #f0eee9;
-  --color-bg-sidebar-active: #e8e6e0;
-  --color-text-primary: #1a1a2e;
-  --color-text-secondary: #6b6b80;
-  --color-text-muted: #95928E;
-  --color-text-placeholder: #b0ada6;
-  --color-text-sidebar: #2d2e2e;
-  --color-text-sidebar-muted: #5a5852;
-  --color-text-sidebar-dim: #8a877f;
-  --color-border: #e8e8ed;
-  --color-border-light: #f0eee9;
-  --color-border-focus: #ff4a00;
-  --color-border-sidebar: #e8e7e4;
-  --color-success: #10B981;
-  --color-success-bg: rgba(16, 185, 129, 0.06);
+  --color-entity-deck: #FFAD45;
+  --color-entity-deck-bg: #FFF1DF;
+  --color-bg-primary: #FCFBF8;
+  --color-bg-secondary: #F7F7F4;
+  --color-bg-tertiary: #F1F0ED;
+  --color-bg-workspace: #FCFBF8;
+  --color-bg-chat: #FFFDF8;
+  --color-bg-input: #F0EFEC;
+  --color-bg-hover: rgba(24,24,22,0.04);
+  --color-bg-elevated: #FFFDFB;
+  --color-bg-overlay: rgba(252, 251, 248, 0.95);
+  --color-bg-sidebar: #F7F7F4;
+  --color-bg-sidebar-hover: rgba(24,24,22,0.04);
+  --color-bg-sidebar-active: rgba(24,24,22,0.06);
+  --color-text-primary: #171716;
+  --color-text-secondary: #3B3A37;
+  --color-text-muted: #706E68;
+  --color-text-placeholder: #B9B6AE;
+  --color-text-sidebar: #171716;
+  --color-text-sidebar-muted: #706E68;
+  --color-text-sidebar-dim: #857F76;
+  --color-border: rgba(24,24,22,0.08);
+  --color-border-light: rgba(24,24,22,0.04);
+  --color-border-focus: #1A1815;
+  --color-border-sidebar: rgba(24,24,22,0.075);
+  --color-success: #2e9e47;
+  --color-success-bg: rgba(46, 158, 71, 0.08);
   --color-error: #d4183d;
   --color-error-bg: rgba(212, 24, 61, 0.06);
-  --color-info: #3B82F6;
-  --color-info-bg: rgba(59, 130, 246, 0.06);
-  --color-step-pending: #E0E0E0;
+  --color-info: #4285F4;
+  --color-info-bg: rgba(66, 133, 244, 0.08);
+  --color-step-pending: #E2E0DA;
   --font-heading: 'Degular', 'Inter', sans-serif;
   --font-body: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -181,16 +202,128 @@
   --font-body: var(--font-body);
   --font-mono: var(--font-mono);
 
+  /* Strut accent + ink scale exposed to Tailwind */
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-icon: var(--icon);
+  --color-accent-soft: var(--accent-soft);
+  --color-border-strong: var(--border-strong);
+  --color-accent-amber: var(--accent-amber);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-pink: var(--accent-pink);
+  --color-accent-purple: var(--accent-purple);
+  --color-accent-teal: var(--accent-teal);
+
   /* Legacy color aliases for existing components */
   --color-brand: var(--color-brand);
   --color-brand-light: var(--color-brand-light);
   --color-brand-dark: var(--color-brand-dark);
-  --color-surface: #FAFAFA;
-  --color-surface-chat: #FFFFFF;
-  --color-surface-input: #f7f7f8;
-  --color-base: #FFFFFF;
-  --color-line: #e8e8ed;
-  --color-line-light: #f0eee9;
+  --color-surface: #F7F7F4;
+  --color-surface-chat: #FFFDF8;
+  --color-surface-input: #F0EFEC;
+  --color-base: #FCFBF8;
+  --color-line: rgba(24,24,22,0.08);
+  --color-line-light: rgba(24,24,22,0.04);
+}
+
+/* ═══════════════════════════════════════
+   Dark theme — Strut DARK palette.
+   Dormant until a `.dark` class is set on the root (wired in Phase 3).
+   ═══════════════════════════════════════ */
+
+.dark {
+  --background: #161513;
+  --canvas: #161513;
+  --foreground: #F1EEE8;
+  --card: #221F1A;
+  --card-foreground: #F1EEE8;
+  --popover: #221F1A;
+  --popover-foreground: #F1EEE8;
+  --primary: #F1EEE8;             /* light fill on dark */
+  --primary-foreground: #161513;
+  --secondary: #2A2722;
+  --secondary-foreground: #F1EEE8;
+  --muted: #221F1A;
+  --muted-foreground: #857F76;
+  --accent: rgba(255,252,245,0.055);
+  --accent-foreground: #F2A84E;
+  --destructive: #f0626f;
+  --destructive-foreground: #161513;
+  --border: rgba(255,252,245,0.08);
+  --input: transparent;
+  --input-background: #2A2722;
+  --switch-background: #3a362f;
+  --ring: #F1EEE8;
+
+  --ink: #F1EEE8;
+  --ink-2: #B7B3AA;
+  --ink-3: #857F76;
+  --ink-4: #615C54;
+  --icon: #8E8980;
+  --accent-soft: rgba(242,168,78,0.15);
+  --border-strong: rgba(255,252,245,0.16);
+  --accent-amber: #F2A84E;
+  --accent-amber-deep: #F2A84E;
+  --accent-blue: #5D9BFF;
+  --accent-pink: #F181B7;
+  --accent-purple: #9B72E5;
+  --accent-teal: #7ADBD7;
+
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-lift: 0 8px 24px rgba(0,0,0,0.4);
+  --shadow-pane: 0 1px 3px rgba(0,0,0,0.35);
+
+  --sidebar: #161513;
+  --sidebar-foreground: #F1EEE8;
+  --sidebar-primary: #F1EEE8;
+  --sidebar-primary-foreground: #161513;
+  --sidebar-accent: rgba(255,252,245,0.10);
+  --sidebar-accent-foreground: #F1EEE8;
+  --sidebar-border: rgba(255,252,245,0.08);
+  --sidebar-ring: rgba(255,252,245,0.16);
+
+  /* legacy aliases */
+  --color-brand: #F2A84E;
+  --color-brand-light: #F7C07A;
+  --color-brand-dark: #C98A3E;
+  --color-brand-subtle: rgba(242,168,78,0.12);
+  --color-brand-muted: rgba(242,168,78,0.20);
+  --color-entity-doc: #5D9BFF;
+  --color-entity-doc-bg: rgba(93,155,255,0.14);
+  --color-entity-sheet: #5cc97a;
+  --color-entity-sheet-bg: rgba(92,201,122,0.14);
+  --color-entity-deck: #F2A84E;
+  --color-entity-deck-bg: rgba(242,168,78,0.14);
+  --color-bg-primary: #161513;
+  --color-bg-secondary: #1d1b18;
+  --color-bg-tertiary: #221F1A;
+  --color-bg-workspace: #161513;
+  --color-bg-chat: #161513;
+  --color-bg-input: #2A2722;
+  --color-bg-hover: rgba(255,252,245,0.055);
+  --color-bg-elevated: #221F1A;
+  --color-bg-overlay: rgba(22,21,19,0.95);
+  --color-bg-sidebar: #161513;
+  --color-bg-sidebar-hover: rgba(255,252,245,0.055);
+  --color-bg-sidebar-active: rgba(255,252,245,0.10);
+  --color-text-primary: #F1EEE8;
+  --color-text-secondary: #B7B3AA;
+  --color-text-muted: #857F76;
+  --color-text-placeholder: #615C54;
+  --color-text-sidebar: #F1EEE8;
+  --color-text-sidebar-muted: #B7B3AA;
+  --color-text-sidebar-dim: #857F76;
+  --color-border: rgba(255,252,245,0.08);
+  --color-border-light: rgba(255,252,245,0.04);
+  --color-border-focus: #F1EEE8;
+  --color-border-sidebar: rgba(255,252,245,0.08);
+  --color-success: #5cc97a;
+  --color-success-bg: rgba(92,201,122,0.12);
+  --color-info: #5D9BFF;
+  --color-info-bg: rgba(93,155,255,0.12);
+  --color-step-pending: #3a362f;
 }
 
 /* ═══════════════════════════════════════
@@ -388,7 +521,7 @@ html, body { height: 100%; margin: 0; padding: 0; }
   100% { background-position: -200% center; }
 }
 .shimmer-text {
-  background: linear-gradient(90deg, #95928E 0%, #95928E 40%, #5a5852 50%, #95928E 60%, #95928E 100%);
+  background: linear-gradient(90deg, #857F76 0%, #857F76 40%, #3B3A37 50%, #857F76 60%, #857F76 100%);
   background-size: 300% auto;
   -webkit-background-clip: text;
   background-clip: text;
@@ -463,12 +596,12 @@ html, body { height: 100%; margin: 0; padding: 0; }
 
 /* AI-inserted content highlight */
 @keyframes highlightFade {
-  0% { background-color: rgba(255, 74, 0, 0.08); border-left-color: rgba(255, 74, 0, 0.5); }
-  70% { background-color: rgba(255, 74, 0, 0.05); border-left-color: rgba(255, 74, 0, 0.3); }
+  0% { background-color: rgba(255, 180, 63, 0.16); border-left-color: rgba(255, 180, 63, 0.7); }
+  70% { background-color: rgba(255, 180, 63, 0.10); border-left-color: rgba(255, 180, 63, 0.4); }
   100% { background-color: transparent; border-left-color: transparent; }
 }
 .ai-inserted-highlight {
-  border-left: 2px solid rgba(255, 74, 0, 0.5);
+  border-left: 2px solid rgba(255, 180, 63, 0.7);
   border-radius: 0 6px 6px 0;
   padding-left: 14px;
   margin-left: -16px;
@@ -484,7 +617,7 @@ html, body { height: 100%; margin: 0; padding: 0; }
 
 /* AI tab highlight — brief flash on AI-modified tabs */
 @keyframes aiTabHighlight {
-  0% { background-color: rgba(255, 74, 0, 0.12); }
+  0% { background-color: rgba(255, 180, 63, 0.18); }
   100% { background-color: transparent; }
 }
 .ai-tab-highlight { animation: aiTabHighlight 2s ease-out forwards; }
@@ -499,8 +632,8 @@ html, body { height: 100%; margin: 0; padding: 0; }
 
 /* AI change highlight — orange flash */
 @keyframes aiHighlightFade {
-  0% { background-color: rgba(255, 74, 0, 0.20); }
-  70% { background-color: rgba(255, 74, 0, 0.08); }
+  0% { background-color: rgba(255, 180, 63, 0.28); }
+  70% { background-color: rgba(255, 180, 63, 0.12); }
   100% { background-color: transparent; }
 }
 .ai-change-highlight {
@@ -555,6 +688,18 @@ html, body { height: 100%; margin: 0; padding: 0; }
 .stagger-children > *:nth-child(5) { animation-delay: 200ms; }
 .stagger-children > *:nth-child(6) { animation-delay: 250ms; }
 .stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+
+/* ── Shell V2 interaction utilities (Strut feel) ───────────
+   press = tactile click; lift = card hover; hover-row = nav fill.
+   All transform/opacity/bg only; reduced-motion handled globally.
+   ─────────────────────────────────────────────────────────── */
+.press { transition: transform var(--duration-fast) var(--ease-default), background-color var(--duration-fast) var(--ease-default), color var(--duration-fast) var(--ease-default), box-shadow var(--duration-fast) var(--ease-default); }
+.press:active { transform: scale(0.97); }
+.lift { transition: transform var(--duration-normal) var(--ease-spring), box-shadow var(--duration-normal) var(--ease-spring), border-color var(--duration-normal) var(--ease-default); }
+.lift:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
+.lift:active { transform: translateY(0) scale(0.995); }
+.hover-row { transition: background-color var(--duration-fast) var(--ease-default), color var(--duration-fast) var(--ease-default); }
+.hover-row:hover { background-color: var(--accent); }
 
 /* ── Transition utilities ─────────────
    Use these instead of raw transition-all duration-N.
@@ -674,7 +819,7 @@ input:-webkit-autofill:active {
 .markdown-content th { background: var(--muted); font-weight: 600; font-family: var(--font-heading); font-size: 0.92em; color: var(--muted-foreground); }
 .markdown-content td { color: var(--muted-foreground); }
 
-.markdown-content a { color: var(--color-brand); text-decoration: none; }
+.markdown-content a { color: var(--accent-blue); text-decoration: none; }
 .markdown-content a:hover { text-decoration: underline; }
 
 .markdown-content blockquote {
@@ -757,7 +902,7 @@ input:-webkit-autofill:active {
 .doc-code-block code { background: none; padding: 0; color: var(--foreground); }
 .doc-editor strong { color: var(--foreground); font-weight: 600; }
 .doc-editor em { color: var(--muted-foreground); font-style: italic; }
-.doc-editor a { color: var(--color-brand); text-decoration: none; }
+.doc-editor a { color: var(--accent-blue); text-decoration: none; }
 .doc-editor a:hover { text-decoration: underline; }
 
 .doc-editor table { border-collapse: collapse; margin: 0.75em 0; width: 100%; font-size: 0.9em; }
@@ -783,19 +928,19 @@ input:-webkit-autofill:active {
 .doc-editor ul[data-type="taskList"] li > div { flex: 1; }
 .doc-editor ul[data-type="taskList"] li[data-checked="true"] > div { text-decoration: line-through; opacity: 0.5; }
 
-.doc-editor .doc-link, .doc-editor a { color: var(--color-brand); text-decoration: none; cursor: pointer; }
+.doc-editor .doc-link, .doc-editor a { color: var(--accent-blue); text-decoration: none; cursor: pointer; }
 .doc-editor .doc-link:hover, .doc-editor a:hover { text-decoration: underline; }
 
 /* Highlights */
 .doc-editor mark {
-  background-color: rgba(255, 74, 0, 0.18);
+  background-color: rgba(255, 180, 63, 0.26);
   border-radius: 2px;
   padding: 1px 2px;
   animation: aiHighlightPulse 0.6s ease-out;
 }
 @keyframes aiHighlightPulse {
-  0% { background-color: rgba(255, 74, 0, 0.40); }
-  100% { background-color: rgba(255, 74, 0, 0.18); }
+  0% { background-color: rgba(255, 180, 63, 0.50); }
+  100% { background-color: rgba(255, 180, 63, 0.26); }
 }
 
 .ProseMirror:focus { outline: none; }

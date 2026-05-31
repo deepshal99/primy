@@ -474,15 +474,15 @@ function BillingTabContent() {
         style={{
           borderRadius: 10,
           border: "1px solid rgba(0, 0, 0, 0.06)",
-          backgroundColor: isPro ? "rgba(255, 74, 0, 0.04)" : "rgba(0, 0, 0, 0.02)",
+          backgroundColor: isPro ? "rgba(255, 180, 63, 0.08)" : "rgba(0, 0, 0, 0.02)",
         }}
       >
         <div
           className="mt-0.5 inline-flex h-7 w-7 flex-shrink-0 items-center justify-center"
           style={{
             borderRadius: 8,
-            backgroundColor: isPro ? "rgba(255, 74, 0, 0.10)" : "rgba(0, 0, 0, 0.04)",
-            color: isPro ? "#fa5d19" : "#525252",
+            backgroundColor: isPro ? "rgba(255, 180, 63, 0.14)" : "rgba(0, 0, 0, 0.04)",
+            color: isPro ? "#B87426" : "#525252",
           }}
         >
           <Sparkles className="h-3.5 w-3.5" />
@@ -540,7 +540,7 @@ function BillingTabContent() {
                   className="text-[13px] font-medium text-white"
                   style={{
                     borderRadius: 6,
-                    backgroundColor: "#fa5d19",
+                    backgroundColor: "#1A1815",
                     opacity: 0.55,
                   }}
                 >
@@ -604,7 +604,7 @@ function UsageRow({
         ) : (
           <span
             className="font-medium"
-            style={{ color: isHot ? "#fa5d19" : "#525252" }}
+            style={{ color: isHot ? "#B87426" : "#525252" }}
           >
             {fmt(used)} <span className="text-muted-foreground">/ {fmt(limit)}</span>
           </span>
@@ -623,7 +623,7 @@ function UsageRow({
             style={{
               width: `${percent}%`,
               borderRadius: 9999,
-              backgroundColor: isHot ? "#fa5d19" : "#737373",
+              backgroundColor: isHot ? "#1A1815" : "#737373",
             }}
           />
         </div>

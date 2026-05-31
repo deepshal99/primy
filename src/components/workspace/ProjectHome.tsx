@@ -80,10 +80,10 @@ const FILE_TYPE_CONFIG = {
     icon: Presentation,
     cardBg: "#fde8dc",
     previewBg: "#ffffff",
-    iconColor: "#fa5d19",
+    iconColor: "#FFAD45",
     accentColor: "#f5c9b5",
     borderColor: "#f5d8ca",
-    hoverBorder: "#fa5d19",
+    hoverBorder: "#FFAD45",
     desc: "Slides and visuals",
   },
   page: {
@@ -484,7 +484,7 @@ export function ProjectHome() {
               action={
                 <button
                   onClick={() => handleCreate(filter)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[12.5px] font-medium text-white bg-[#ff4a00] hover:bg-[#e54400] active:scale-[0.98] transition-all duration-150 shadow-[0_2px_8px_rgba(255,74,0,0.25)]"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[12.5px] font-medium text-white bg-[#1A1815] hover:bg-black active:scale-[0.98] transition-all duration-150 shadow-[0_2px_8px_rgba(24,24,22,0.18)]"
                 >
                   <Plus className="w-3.5 h-3.5" strokeWidth={2.25} />
                   Create {filter === "ku" ? "document" : filter === "table" ? "spreadsheet" : filter === "page" ? "page" : "presentation"}
@@ -772,7 +772,7 @@ export function ProjectHome() {
         {/* Main FAB button */}
         <button
           onClick={() => setFabOpen(!fabOpen)}
-          className="relative z-50 w-14 h-14 rounded-2xl bg-[#ff4a00] text-white flex items-center justify-center shadow-[0_6px_24px_rgba(255,74,0,0.35),0_2px_6px_rgba(255,74,0,0.2)] hover:bg-[#e54400] hover:shadow-[0_8px_30px_rgba(255,74,0,0.4)] active:scale-[0.95] t-normal cursor-pointer"
+          className="relative z-50 w-14 h-14 rounded-2xl bg-[#1A1815] text-white flex items-center justify-center shadow-[0_6px_24px_rgba(24,24,22,0.18),0_2px_6px_rgba(24,24,22,0.18)] hover:bg-black hover:shadow-[0_8px_30px_rgba(24,24,22,0.18)] active:scale-[0.95] t-normal cursor-pointer"
           aria-label={fabOpen ? "Close menu" : "Create new file"}
         >
           <Plus
@@ -866,7 +866,7 @@ function ProjectSettingsDialog({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="A brief description of this project..."
               rows={3}
-              className="w-full rounded-lg border border-[#dddfe3] bg-transparent px-3 py-2 text-[13px] text-[#1a1a2e] placeholder:text-[#c5c2bb] resize-none focus:outline-none focus:ring-2 focus:ring-[#ff4a00]/20 focus:border-[#ff4a00]/40 transition-colors"
+              className="w-full rounded-lg border border-[rgba(24,24,22,0.08)] bg-transparent px-3 py-2 text-[13px] text-[#171717] placeholder:text-[#B9B6AE] resize-none focus:outline-none focus:ring-2 focus:ring-[#FFB43F]/30 focus:border-[#FFB43F]/60 transition-colors"
             />
           </div>
 
@@ -907,7 +907,7 @@ function ProjectSettingsDialog({
             <Button variant="outline" size="sm" onClick={onClose} className="text-[12px]">
               Cancel
             </Button>
-            <Button size="sm" onClick={handleSave} className="text-[12px] bg-[#ff4a00] hover:bg-[#e54400] text-white">
+            <Button size="sm" onClick={handleSave} className="text-[12px] bg-[#1A1815] hover:bg-black text-white">
               Save changes
             </Button>
           </div>
@@ -946,7 +946,7 @@ function EditableTitle({ value, onSave }: { value: string; onSave: (v: string) =
           if (e.key === "Enter") save();
           if (e.key === "Escape") { setDraft(value); setEditing(false); }
         }}
-        className="w-full bg-transparent outline-none border-b-2 border-[#ff4a00] pb-1 text-[26px] text-[#1a1a2e] tracking-[-0.4px] font-semibold"
+        className="w-full bg-transparent outline-none border-b-2 border-[#FFB43F] pb-1 text-[26px] text-[#171717] tracking-[-0.4px] font-semibold"
       />
     );
   }
@@ -998,7 +998,7 @@ function EditableDescription({ value, onSave }: { value: string; onSave: (v: str
           if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); save(); }
           if (e.key === "Escape") { setDraft(value); setEditing(false); }
         }}
-        className="w-full bg-transparent outline-none border-b-2 border-[#ff4a00] pb-1 resize-none text-[14px] text-[#8a877f] leading-relaxed max-w-[520px]"
+        className="w-full bg-transparent outline-none border-b-2 border-[#FFB43F] pb-1 resize-none text-[14px] text-[#8a877f] leading-relaxed max-w-[520px]"
         style={{ minHeight: "24px" }}
         placeholder="Add a project description..."
       />

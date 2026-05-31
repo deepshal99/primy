@@ -30,7 +30,7 @@ export default function LoginPage() {
   if (status === "loading" || status === "authenticated") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#fafaf8]">
-        <Loader2 className="w-6 h-6 animate-spin text-[#ff4a00]" />
+        <Loader2 className="w-6 h-6 animate-spin text-[#FFB43F]" />
       </div>
     );
   }
@@ -106,7 +106,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex bg-[#fafaf8]">
       {/* Left brand panel */}
-      <div className="hidden lg:flex flex-col justify-between w-[440px] bg-[#ff4a00] p-10 relative overflow-hidden">
+      <div className="hidden lg:flex flex-col justify-between w-[440px] bg-[#1A1815] p-10 relative overflow-hidden">
         {/* Decorative lines */}
         <div className="absolute inset-0 opacity-[0.07]">
           {[...Array(8)].map((_, i) => (
@@ -132,7 +132,7 @@ export default function LoginPage() {
               />
               <path
                 d="M9 7 L12.5 7 C15.8 7 17 9.5 17 12 C17 14.5 15.8 17 12.5 17 L9 17 Z"
-                fill="#ff4a00"
+                fill="#FFB43F"
               />
               <line x1="10.5" y1="10" x2="15" y2="10" stroke="white" strokeWidth="1.1" strokeLinecap="round" opacity="0.55" />
               <line x1="10.5" y1="12.5" x2="14" y2="12.5" stroke="white" strokeWidth="1.1" strokeLinecap="round" opacity="0.4" />
@@ -161,10 +161,10 @@ export default function LoginPage() {
         <div className="w-full max-w-[380px]">
           {/* Mobile logo */}
           <div className="lg:hidden flex justify-center mb-8">
-            <div className="w-10 h-10 rounded-xl bg-[#ff4a00] flex items-center justify-center shadow-[0_2px_8px_rgba(255,74,0,0.25)]">
+            <div className="w-10 h-10 rounded-xl bg-[#1A1815] flex items-center justify-center shadow-[0_2px_8px_rgba(24,24,22,0.18)]">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                 <path d="M5 3 L5 21 L13.5 21 C18.5 21 21 17 21 12 C21 7 18.5 3 13.5 3 Z" fill="white" />
-                <path d="M9 7 L12.5 7 C15.8 7 17 9.5 17 12 C17 14.5 15.8 17 12.5 17 L9 17 Z" fill="#ff4a00" />
+                <path d="M9 7 L12.5 7 C15.8 7 17 9.5 17 12 C17 14.5 15.8 17 12.5 17 L9 17 Z" fill="#FFB43F" />
                 <line x1="10.5" y1="10" x2="15" y2="10" stroke="white" strokeWidth="1.1" strokeLinecap="round" opacity="0.55" />
                 <line x1="10.5" y1="12.5" x2="14" y2="12.5" stroke="white" strokeWidth="1.1" strokeLinecap="round" opacity="0.4" />
               </svg>
@@ -210,7 +210,7 @@ export default function LoginPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your name"
-                  className="w-full h-11 px-4 rounded-xl border border-[#e8e7e4] bg-white text-[14px] text-[#1a1a2e] placeholder:text-[#c0bdb8] outline-none focus:border-[#ff4a00]/40 focus:ring-2 focus:ring-[#ff4a00]/10 transition-all"
+                  className="w-full h-11 px-4 rounded-xl border border-[rgba(24,24,22,0.08)] bg-white text-[14px] text-[#171717] placeholder:text-[#B9B6AE] outline-none focus:border-[#FFB43F]/60 focus:ring-2 focus:ring-[#FFB43F]/25 transition-all"
                 />
               </div>
             )}
@@ -226,7 +226,7 @@ export default function LoginPage() {
                 onChange={(e) => { setEmail(e.target.value); setError(""); }}
                 placeholder="you@email.com"
                 required
-                className="w-full h-11 px-4 rounded-xl border border-[#e8e7e4] bg-white text-[14px] text-[#1a1a2e] placeholder:text-[#c0bdb8] outline-none focus:border-[#ff4a00]/40 focus:ring-2 focus:ring-[#ff4a00]/10 transition-all"
+                className="w-full h-11 px-4 rounded-xl border border-[rgba(24,24,22,0.08)] bg-white text-[14px] text-[#171717] placeholder:text-[#B9B6AE] outline-none focus:border-[#FFB43F]/60 focus:ring-2 focus:ring-[#FFB43F]/25 transition-all"
               />
             </div>
 
@@ -242,7 +242,7 @@ export default function LoginPage() {
                   onChange={(e) => { setPassword(e.target.value); setError(""); }}
                   placeholder={mode === "signup" ? "Min 6 characters" : "Your password"}
                   required
-                  className="w-full h-11 px-4 pr-11 rounded-xl border border-[#e8e7e4] bg-white text-[14px] text-[#1a1a2e] placeholder:text-[#c0bdb8] outline-none focus:border-[#ff4a00]/40 focus:ring-2 focus:ring-[#ff4a00]/10 transition-all"
+                  className="w-full h-11 px-4 pr-11 rounded-xl border border-[rgba(24,24,22,0.08)] bg-white text-[14px] text-[#171717] placeholder:text-[#B9B6AE] outline-none focus:border-[#FFB43F]/60 focus:ring-2 focus:ring-[#FFB43F]/25 transition-all"
                 />
                 <button
                   type="button"
@@ -284,8 +284,8 @@ export default function LoginPage() {
               className={cn(
                 "w-full h-11 rounded-xl text-[14px] font-medium flex items-center justify-center gap-2 transition-all duration-200 mt-2",
                 loading
-                  ? "bg-[#ff4a00]/80 text-white cursor-wait"
-                  : "bg-[#ff4a00] text-white hover:bg-[#e54400] active:scale-[0.99] cursor-pointer"
+                  ? "bg-[#1A1815]/80 text-white cursor-wait"
+                  : "bg-[#1A1815] text-white hover:bg-black active:scale-[0.99] cursor-pointer"
               )}
             >
               {loading ? (
