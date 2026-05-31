@@ -472,6 +472,7 @@ export interface UndoSnapshot {
   deckSlides: (DeckSlide | HtmlDeckSlide)[];
   deckTheme: DeckTheme;
   pageHtml: string;
+  pageEditableFields: PageEditableField[];
   label: string;
   timestamp: number;
 }
@@ -576,6 +577,8 @@ export interface AppState {
   renameProject: (id: string, title: string) => void;
   updateProject: (id: string, updates: { title?: string; description?: string; projectType?: string }) => void;
   switchProject: (id: string) => void;
+  goToProjectsHome: () => void;
+  goToProjectHome: () => void;
 
   // Knowledge Unit CRUD
   createKnowledgeUnit: (projectId: string, title: string, content?: string) => KnowledgeUnit;

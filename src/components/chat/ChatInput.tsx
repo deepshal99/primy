@@ -18,21 +18,24 @@ import { FilePreviewPill } from "./FilePreviewPill";
 import { SlashCommandMenu } from "./SlashCommandMenu";
 import { SLASH_COMMANDS, type SlashCommand } from "@/lib/ai/slashCommands";
 import { usePlanInfo } from "@/hooks/usePlanInfo";
+import { ENTITY_META } from "@/lib/entityMeta";
 
 const MAX_INPUT_LENGTH = 50_000; // 50K chars — prevents enormous pastes from blowing up context
 
+// Sourced from the canonical ENTITY_META so colors never drift from the rest
+// of the app (these used to hardcode doc=#4a7aed while the breadcrumb used #2a6dfb).
 const ENTITY_STYLES: Record<EntityType, { text: string; bg: string; dot: string }> = {
-  ku: { text: "#4a7aed", bg: "#f0f4fd", dot: "#4a7aed" },
-  table: { text: "#2e9e47", bg: "#e8f7ea", dot: "#2e9e47" },
-  deck: { text: "#d4582a", bg: "#fde8dc", dot: "#d4582a" },
-  page: { text: "#9061ff", bg: "#f3eeff", dot: "#9061ff" },
+  ku: { text: ENTITY_META.ku.color, bg: ENTITY_META.ku.bg, dot: ENTITY_META.ku.color },
+  table: { text: ENTITY_META.table.color, bg: ENTITY_META.table.bg, dot: ENTITY_META.table.color },
+  deck: { text: ENTITY_META.deck.color, bg: ENTITY_META.deck.bg, dot: ENTITY_META.deck.color },
+  page: { text: ENTITY_META.page.color, bg: ENTITY_META.page.bg, dot: ENTITY_META.page.color },
 };
 
 const ENTITY_LABELS: Record<EntityType, string> = {
-  ku: "Document",
-  table: "Sheet",
-  deck: "Deck",
-  page: "Page",
+  ku: ENTITY_META.ku.label,
+  table: ENTITY_META.table.label,
+  deck: ENTITY_META.deck.label,
+  page: ENTITY_META.page.label,
 };
 
 interface MentionEntity {

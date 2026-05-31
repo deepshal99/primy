@@ -337,6 +337,7 @@ export const useAppStore = create<AppState>()(
           deckSlides: JSON.parse(JSON.stringify(state.deckSlides)),
           deckTheme: state.deckTheme,
           pageHtml: state.pageHtml,
+          pageEditableFields: JSON.parse(JSON.stringify(state.pageEditableFields)),
           label: `AI ${[...new Set(labelParts)].join(" & ")} changes`,
           timestamp: Date.now(),
         };
@@ -854,6 +855,13 @@ export const useAppStore = create<AppState>()(
       aiModifiedEntityIds: aiModifiedIds.length > 0 ? aiModifiedIds : state.aiModifiedEntityIds,
     });
 
+    // Auto-clear the AI-modified markers after a beat. The old TabBar cleared
+    // these on a 2s timer; with the tab row gone nothing did, so the set grew
+    // unbounded for the whole session. (Consumers may still read them meanwhile.)
+    if (aiModifiedIds.length > 0) {
+      aiModifiedIds.forEach((id) => setTimeout(() => get().clearAiModifiedEntity(id), 2200));
+    }
+
     // Success toasts — only fire when mutations actually landed in the store
     if (hasSheetOps) toast.success("Spreadsheet updated");
     else if (hasDocOps) toast.success("Document updated");
@@ -1096,6 +1104,7 @@ export const useAppStore = create<AppState>()(
       deckSlides: JSON.parse(JSON.stringify(state.deckSlides)),
       deckTheme: state.deckTheme,
       pageHtml: state.pageHtml,
+      pageEditableFields: JSON.parse(JSON.stringify(state.pageEditableFields)),
       label: snapshot.label,
       timestamp: Date.now(),
     };
@@ -1109,6 +1118,7 @@ export const useAppStore = create<AppState>()(
       deckTheme: snapshot.deckTheme,
       deckVersion: state.deckVersion + 1,
       pageHtml: snapshot.pageHtml,
+      pageEditableFields: snapshot.pageEditableFields,
       pageVersion: state.pageVersion + 1,
       undoStack: newStack,
       canUndo: newStack.length > 0,
@@ -1139,6 +1149,7 @@ export const useAppStore = create<AppState>()(
       deckSlides: JSON.parse(JSON.stringify(state.deckSlides)),
       deckTheme: state.deckTheme,
       pageHtml: state.pageHtml,
+      pageEditableFields: JSON.parse(JSON.stringify(state.pageEditableFields)),
       label: snapshot.label,
       timestamp: Date.now(),
     };
@@ -1152,6 +1163,7 @@ export const useAppStore = create<AppState>()(
       deckTheme: snapshot.deckTheme,
       deckVersion: state.deckVersion + 1,
       pageHtml: snapshot.pageHtml,
+      pageEditableFields: snapshot.pageEditableFields,
       pageVersion: state.pageVersion + 1,
       undoStack: [...state.undoStack, undoSnapshot],
       canUndo: true,
@@ -1371,6 +1383,62 @@ export const useAppStore = create<AppState>()(
     if (needsDetails && project.messages.length >= 2) {
       setTimeout(() => get().autoGenerateTitle(), 300);
     }
+  },
+
+  // Return to the global all-projects list. Mirrors switchProject's reset so
+  // NO project-scoped state (messages, openTabs, undo, memory, entity buffers)
+  // bleeds into the Projects view. Single source of truth for "go home".
+  goToProjectsHome: () => {
+    const state = get();
+    if (state.currentProjectId) state.saveCurrentEntity();
+    set({
+      currentProjectId: null,
+      currentEntityId: null,
+      currentEntityType: null,
+      messages: [],
+      sheets: createEmptySheet(),
+      sheetVersion: state.sheetVersion + 1,
+      docContent: "",
+      docVersion: state.docVersion + 1,
+      deckSlides: [],
+      deckTheme: "light" as const,
+      deckVersion: state.deckVersion + 1,
+      pageHtml: "",
+      pageEditableFields: [],
+      pageVersion: state.pageVersion + 1,
+      workspaceOpen: false,
+      isStreaming: false,
+      streamingContent: "",
+      openTabs: [],
+      suggestions: [],
+      projectMemory: {},
+      undoStack: [],
+      canUndo: false,
+      redoStack: [],
+      canRedo: false,
+    });
+  },
+
+  // Close the open entity → the current project's home (files grid). Keeps the
+  // project, its messages, open tabs and memory; clears only the active entity
+  // and its flat buffers.
+  goToProjectHome: () => {
+    const state = get();
+    if (state.currentEntityId) state.saveCurrentEntity();
+    set({
+      currentEntityId: null,
+      currentEntityType: null,
+      sheets: createEmptySheet(),
+      sheetVersion: state.sheetVersion + 1,
+      docContent: "",
+      docVersion: state.docVersion + 1,
+      deckSlides: [],
+      deckVersion: state.deckVersion + 1,
+      pageHtml: "",
+      pageEditableFields: [],
+      pageVersion: state.pageVersion + 1,
+      suggestions: [],
+    });
   },
 
   // ══════════════════════════════════

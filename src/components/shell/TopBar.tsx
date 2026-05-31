@@ -34,13 +34,10 @@ import {
   Settings,
   LogOut,
   X,
-  FileText,
-  Table2,
-  Presentation,
-  LayoutTemplate,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/cn";
+import { ENTITY_META } from "@/lib/entityMeta";
 import { Breadcrumb, goGlobalHome } from "@/components/shell/Breadcrumb";
 import { ShareModal } from "@/components/settings/ShareModal";
 import { SettingsModal } from "@/components/settings/SettingsModal";
@@ -57,7 +54,11 @@ export function TopBar() {
 
   const currentProjectId = useAppStore((s) => s.currentProjectId);
   const currentEntityId = useAppStore((s) => s.currentEntityId);
-  const projects = useAppStore((s) => s.projects);
+  // Select only the primitives we render — NOT the whole `projects` array,
+  // which changes reference on every debounced autosave and would re-render
+  // the entire top bar on each keystroke-driven save.
+  const projectTitle = useAppStore((s) => s.projects.find((p) => p.id === s.currentProjectId)?.title ?? null);
+  const projectShareToken = useAppStore((s) => s.projects.find((p) => p.id === s.currentProjectId)?.shareToken ?? null);
   const isSaving = useAppStore((s) => s.isSaving);
   const saveError = useAppStore((s) => s.saveError);
   const lastSavedAt = useAppStore((s) => s.lastSavedAt);
@@ -69,18 +70,16 @@ export function TopBar() {
   const inProjectScope = !!currentProjectId;
   const inFile = !!currentEntityId;
 
-  const project = projects.find((p) => p.id === currentProjectId) || null;
-
   const [brainOpen, setBrainOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const [shareToken, setShareToken] = useState<string | null>(project?.shareToken ?? null);
+  const [shareToken, setShareToken] = useState<string | null>(projectShareToken);
 
   // Keep the local share token in sync with the active project.
   useEffect(() => {
-    setShareToken(project?.shareToken ?? null);
-  }, [project?.id, project?.shareToken]);
+    setShareToken(projectShareToken);
+  }, [projectShareToken]);
 
   // Close the Brain panel if we leave the project scope.
   useEffect(() => {
@@ -209,25 +208,25 @@ export function TopBar() {
       </header>
 
       {/* Brain slide-over */}
-      {project && <BrainPanel open={brainOpen} onClose={() => setBrainOpen(false)} projectId={project.id} />}
+      {currentProjectId && <BrainPanel open={brainOpen} onClose={() => setBrainOpen(false)} projectId={currentProjectId} />}
 
       {/* Settings */}
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       {/* Share (project mode) */}
-      {project && (
+      {currentProjectId && (
         <ShareModal
           open={shareOpen}
           onClose={() => setShareOpen(false)}
           mode="project"
-          entityId={project.id}
-          entityTitle={project.title || "Project"}
+          entityId={currentProjectId}
+          entityTitle={projectTitle || "Project"}
           currentToken={shareToken}
           onTokenChange={(token) => {
             setShareToken(token);
             const state = useAppStore.getState();
             useAppStore.setState({
-              projects: state.projects.map((p) => (p.id === project.id ? { ...p, shareToken: token } : p)),
+              projects: state.projects.map((p) => (p.id === currentProjectId ? { ...p, shareToken: token } : p)),
             });
           }}
         />
@@ -310,10 +309,10 @@ function BrainPanel({ open, onClose, projectId }: { open: boolean; onClose: () =
   if (projectMemory.customInstructions) context.push({ label: "Instructions", value: projectMemory.customInstructions });
 
   const counts = [
-    { label: "Documents", n: project.knowledgeUnits.length, color: "#2a6dfb", Icon: FileText },
-    { label: "Sheets", n: project.tables.length, color: "#42c366", Icon: Table2 },
-    { label: "Decks", n: (project.decks || []).length, color: "#fa5d19", Icon: Presentation },
-    { label: "Pages", n: (project.pages || []).length, color: "#9061ff", Icon: LayoutTemplate },
+    { label: ENTITY_META.ku.group, n: project.knowledgeUnits.length, color: ENTITY_META.ku.color, Icon: ENTITY_META.ku.Icon },
+    { label: ENTITY_META.table.group, n: project.tables.length, color: ENTITY_META.table.color, Icon: ENTITY_META.table.Icon },
+    { label: ENTITY_META.deck.group, n: (project.decks || []).length, color: ENTITY_META.deck.color, Icon: ENTITY_META.deck.Icon },
+    { label: ENTITY_META.page.group, n: (project.pages || []).length, color: ENTITY_META.page.color, Icon: ENTITY_META.page.Icon },
   ];
 
   return (

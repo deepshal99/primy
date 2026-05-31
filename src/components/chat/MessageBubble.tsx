@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { ENTITY_META } from "@/lib/entityMeta";
 import {
   Table2,
   FileText,
@@ -67,13 +68,8 @@ function renderContentWithMentions(
       );
     } else {
       // On white background: use entity bg color with entity text color
-      const ENTITY_COLORS: Record<EntityType, { text: string; bg: string }> = {
-        ku: { text: "#4a7aed", bg: "#f0f4fd" },
-        table: { text: "#2e9e47", bg: "#e8f7ea" },
-        deck: { text: "#d4582a", bg: "#fde8dc" },
-        page: { text: "#9061ff", bg: "#f3eeff" },
-      };
-      const colors = ENTITY_COLORS[matchedEntity.type] || ENTITY_COLORS.ku;
+      const meta = ENTITY_META[matchedEntity.type] || ENTITY_META.ku;
+      const colors = { text: meta.color, bg: meta.bg };
       parts.push(
         <span
           key={key++}

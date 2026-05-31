@@ -20,48 +20,22 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import {
-  ChevronDown,
-  Check,
-  Plus,
-  FileText,
-  Table2,
-  Presentation,
-  LayoutTemplate,
-  Folder,
-} from "lucide-react";
+import { ChevronDown, Check, Plus, Folder } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import type { EntityType } from "@/lib/types";
+import { ENTITY_META } from "@/lib/entityMeta";
 
 const HEAT = "#ff4a00";
 
-const ENTITY: Record<
-  EntityType,
-  { color: string; Icon: typeof FileText; label: string; group: string }
-> = {
-  ku: { color: "#2a6dfb", Icon: FileText, label: "Document", group: "Documents" },
-  table: { color: "#42c366", Icon: Table2, label: "Spreadsheet", group: "Sheets" },
-  deck: { color: "#fa5d19", Icon: Presentation, label: "Presentation", group: "Decks" },
-  page: { color: "#9061ff", Icon: LayoutTemplate, label: "Page", group: "Pages" },
-};
+const ENTITY = ENTITY_META;
 
-/** Clear the current project → return to the global all-projects list. */
+// Navigation delegates to the store actions, which own the full reset (so no
+// project/entity state bleeds across). Exported for the TopBar logo + Sidebar.
 export function goGlobalHome() {
-  const s = useAppStore.getState();
-  if (s.currentProjectId) s.saveCurrentEntity();
-  useAppStore.setState({
-    currentProjectId: null,
-    currentEntityId: null,
-    currentEntityType: null,
-    workspaceOpen: false,
-  });
+  useAppStore.getState().goToProjectsHome();
 }
-
-/** Clear just the open entity → return to the current project's home. */
 function goProjectHome() {
-  const s = useAppStore.getState();
-  if (s.currentEntityId) s.saveCurrentEntity();
-  useAppStore.setState({ currentEntityId: null, currentEntityType: null });
+  useAppStore.getState().goToProjectHome();
 }
 
 export interface BreadcrumbProps {
@@ -301,7 +275,7 @@ function CrumbMenu({
         <div
           role="menu"
           onClick={(e) => e.stopPropagation()}
-          className="menu-pop absolute top-[38px] left-0 w-[252px] max-h-[60vh] overflow-y-auto rounded-xl bg-white p-1.5 z-[50] motion-safe:animate-[crumbPop_160ms_var(--ease-out,cubic-bezier(0.23,1,0.32,1))]"
+          className="menu-pop absolute top-[38px] left-0 w-[252px] max-h-[60vh] overflow-y-auto rounded-xl bg-white p-1.5 z-[50]"
           style={{ transformOrigin: "top left", boxShadow: "0 12px 36px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.06)" }}
         >
           {heading && (
@@ -310,16 +284,6 @@ function CrumbMenu({
           {children}
         </div>
       )}
-      {/* Self-contained keyframes so the pop works before motion.css lands. */}
-      <style jsx global>{`
-        @keyframes crumbPop {
-          from { opacity: 0; transform: scale(0.97); }
-          to { opacity: 1; transform: scale(1); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .menu-pop { animation: none !important; }
-        }
-      `}</style>
     </div>
   );
 }

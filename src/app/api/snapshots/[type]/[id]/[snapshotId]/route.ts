@@ -11,56 +11,9 @@
 
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import {
-  artifactSnapshots,
-  knowledgeUnits,
-  projectTables,
-  projectDecks,
-} from "@/db/schema";
+import { artifactSnapshots } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
-import { getProjectAccess, type ProjectRole } from "@/lib/projectAccess";
-
-type ArtifactType = "ku" | "table" | "deck";
-
-const ROLE_RANK: Record<ProjectRole, number> = {
-  viewer: 0,
-  commenter: 1,
-  editor: 2,
-  owner: 3,
-};
-
-function isValidType(t: string): t is ArtifactType {
-  return t === "ku" || t === "table" || t === "deck";
-}
-
-async function canAccessArtifact(
-  userId: string,
-  type: ArtifactType,
-  artifactId: string,
-  minRole: ProjectRole
-): Promise<boolean> {
-  try {
-    const tableMap = {
-      ku: knowledgeUnits,
-      table: projectTables,
-      deck: projectDecks,
-    } as const;
-    const t = tableMap[type];
-
-    const [row] = await db
-      .select({ projectId: t.projectId })
-      .from(t)
-      .where(eq(t.id, artifactId))
-      .limit(1);
-
-    if (!row) return false;
-
-    const access = await getProjectAccess(row.projectId, userId);
-    return !!access && ROLE_RANK[access.role] >= ROLE_RANK[minRole];
-  } catch {
-    return false;
-  }
-}
+import { canAccessArtifact, isValidArtifactType } from "@/lib/artifactAccess";
 
 export async function GET(
   _req: Request,
@@ -74,7 +27,7 @@ export async function GET(
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
     const { type, id, snapshotId } = await params;
-    if (!isValidType(type) || !id || !snapshotId) {
+    if (!isValidArtifactType(type) || !id || !snapshotId) {
       return Response.json({ error: "Not found" }, { status: 404 });
     }
 

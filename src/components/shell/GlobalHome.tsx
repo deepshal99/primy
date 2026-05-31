@@ -79,6 +79,9 @@ export function GlobalHome() {
     if (busy) return;
     setBusy(true);
     switchProject(id);
+    // switchProject is a no-op if the project is missing (deleted/stale id) —
+    // the view stays on GlobalHome, so release the lock or the grid freezes.
+    if (!useAppStore.getState().currentProjectId) setBusy(false);
   };
   const handleNew = () => {
     if (busy) return;

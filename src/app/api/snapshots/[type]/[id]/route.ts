@@ -20,65 +20,12 @@
 
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import {
-  artifactSnapshots,
-  knowledgeUnits,
-  projectTables,
-  projectDecks,
-  users,
-} from "@/db/schema";
+import { artifactSnapshots, users } from "@/db/schema";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { PLAN_LIMITS } from "@/lib/plans";
 import { effectivePlan } from "@/lib/billing/effectivePlan";
-import { getProjectAccess, type ProjectRole } from "@/lib/projectAccess";
-
-type ArtifactType = "ku" | "table" | "deck";
-
-const ROLE_RANK: Record<ProjectRole, number> = {
-  viewer: 0,
-  commenter: 1,
-  editor: 2,
-  owner: 3,
-};
-
-function isValidType(t: string): t is ArtifactType {
-  return t === "ku" || t === "table" || t === "deck";
-}
-
-/**
- * Verify the session user may access the artifact identified by (type, id)
- * at `minRole` via its parent project's membership. Returns false on any miss
- * so callers always 404 (no existence leak).
- */
-async function canAccessArtifact(
-  userId: string,
-  type: ArtifactType,
-  artifactId: string,
-  minRole: ProjectRole
-): Promise<boolean> {
-  try {
-    const tableMap = {
-      ku: knowledgeUnits,
-      table: projectTables,
-      deck: projectDecks,
-    } as const;
-    const t = tableMap[type];
-
-    const [row] = await db
-      .select({ projectId: t.projectId })
-      .from(t)
-      .where(eq(t.id, artifactId))
-      .limit(1);
-
-    if (!row) return false;
-
-    const access = await getProjectAccess(row.projectId, userId);
-    return !!access && ROLE_RANK[access.role] >= ROLE_RANK[minRole];
-  } catch {
-    return false;
-  }
-}
+import { canAccessArtifact, isValidArtifactType } from "@/lib/artifactAccess";
 
 export async function GET(
   _req: Request,
@@ -90,7 +37,7 @@ export async function GET(
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
     const { type, id } = await params;
-    if (!isValidType(type) || !id) {
+    if (!isValidArtifactType(type) || !id) {
       return Response.json({ error: "Not found" }, { status: 404 });
     }
 
@@ -139,7 +86,7 @@ export async function POST(
     }
     const userId = session.user.id;
     const { type, id } = await params;
-    if (!isValidType(type) || !id) {
+    if (!isValidArtifactType(type) || !id) {
       return Response.json({ error: "Not found" }, { status: 404 });
     }
 

@@ -5,7 +5,7 @@ import { useAppStore } from "@/lib/store";
 import { ProjectHome } from "./ProjectHome";
 import { ExportMenu } from "@/components/sheet/ExportMenu";
 import { DocExportMenu } from "@/components/doc/DocExportMenu";
-import { DeckExport } from "./EntityActions";
+import { DeckExport, EntityShareButton } from "./EntityActions";
 import { EditorErrorBoundary } from "./EditorErrorBoundary";
 import { ArtifactHistoryButton } from "@/components/snapshots/ArtifactHistoryButton";
 
@@ -78,19 +78,18 @@ export function WorkspacePanel() {
     return <EditorErrorBoundary entityType="document"><DocPanel /></EditorErrorBoundary>;
   };
 
-  // Pages own their toolbar (Preview/HTML/Present) inside PagePanel — no slim
-  // toolbar above them. Other entities get a slim export + history toolbar.
+  // Slim entity toolbar: per-file Share for every entity, plus version history
+  // and export for non-page entities (pages own Preview/HTML/Present inside
+  // PagePanel, so they only get Share here).
   const exportEl = isDeck ? <DeckExport /> : isTable ? <ExportMenu /> : <DocExportMenu />;
-  const showToolbar = !isPage;
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {showToolbar && (
-        <div className="flex items-center justify-end gap-0.5 px-2.5 h-[40px] border-b border-[#f0efec] bg-white flex-shrink-0">
-          <ArtifactHistoryButton />
-          {exportEl}
-        </div>
-      )}
+      <div className="flex items-center justify-end gap-0.5 px-2.5 h-[40px] border-b border-[#f0efec] bg-white flex-shrink-0">
+        {!isPage && <ArtifactHistoryButton />}
+        <EntityShareButton />
+        {!isPage && exportEl}
+      </div>
       <div className="flex-1 overflow-hidden relative">
         {renderPanel()}
       </div>

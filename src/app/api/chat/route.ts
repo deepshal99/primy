@@ -378,6 +378,10 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
         // Stream one candidate; throws if the provider errors so the caller
         // can fall back to the next candidate (only safe before any text).
         const runCandidate = async (cand: (typeof candidates)[number]) => {
+          // Reset the stall clock for each candidate — otherwise a fallback
+          // inherits the previous (stalled) candidate's elapsed time and the
+          // chunk-timeout can kill a healthy fallback before its first token.
+          lastChunkTime = Date.now();
           const result = streamText({
             model: cand.model,
             system: composedSystemPrompt,
