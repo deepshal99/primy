@@ -241,6 +241,7 @@ export const useAppStore = create<AppState>()(
 
   // Project system
   projects: loadProjectsFromStorage(),
+  currentProjectRole: null,
   currentProjectId: null,
   currentEntityId: null,
   currentEntityType: null,
@@ -2555,11 +2556,15 @@ export const useAppStore = create<AppState>()(
       });
       saveProjectsToStorage(updated);
 
-      // If this project is currently open, update the active view state
+      // If this project is currently open, update the active view state and
+      // record the caller's role (for read-only enforcement).
       if (current.currentProjectId === id) {
         const loadedProject = updated.find((pp) => pp.id === id);
         if (loadedProject) {
-          set({ messages: loadedProject.messages });
+          set({
+            messages: loadedProject.messages,
+            currentProjectRole: (fullProject as { myRole?: string }).myRole ?? null,
+          });
         }
       }
     } catch (err) {

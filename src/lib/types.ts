@@ -539,6 +539,8 @@ export interface AppState {
   // Project system
   projects: Project[];
   currentProjectId: string | null;
+  /** Caller's role on the open project ("owner"|"editor"|"commenter"|"viewer"). */
+  currentProjectRole: string | null;
   currentEntityId: string | null;
   currentEntityType: EntityType | null;
   projectsFullyLoaded: Record<string, boolean>; // Track which projects have been fully fetched

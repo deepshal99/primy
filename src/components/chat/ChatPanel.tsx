@@ -76,6 +76,13 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
       // Prevent concurrent streams
       if (useAppStore.getState().isStreaming) return;
 
+      // Read-only enforcement: viewers/commenters can't drive AI mutations.
+      const role = useAppStore.getState().currentProjectRole;
+      if (role === "viewer" || role === "commenter") {
+        toast.error("You have view-only access to this project.");
+        return;
+      }
+
       // Auto-create a project if none exists
       if (!useAppStore.getState().currentProjectId) {
         useAppStore.getState().createProject("New Project");
