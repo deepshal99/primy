@@ -562,9 +562,15 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
           if (lastError && !emittedText && !emittedToolCall && !clientDisconnected) {
             const errMsg = lastError instanceof Error ? lastError.message : "";
             const isRateLimit = /quota|rate.?limit|429/i.test(errMsg);
-            const clientError = isRateLimit
+            let clientError = isRateLimit
               ? "Rate limit reached. Please wait a moment and try again."
               : "The AI is temporarily unavailable. Please try again in a moment.";
+            // In dev, surface the REAL provider error so failures are diagnosable
+            // immediately instead of hidden behind the generic message. Never in
+            // production (could leak internal detail).
+            if (process.env.NODE_ENV !== "production" && errMsg) {
+              clientError += ` [dev: ${errMsg.slice(0, 300)}]`;
+            }
             safeEnqueue(encoder.encode(`data: ${JSON.stringify({ error: clientError })}\n\n`));
           } else if (!clientDisconnected && groundingSources.length > 0) {
             safeEnqueue(encoder.encode(`data: ${JSON.stringify({ grounding: { sources: groundingSources, queries: [] } })}\n\n`));
