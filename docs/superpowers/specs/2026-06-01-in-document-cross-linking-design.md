@@ -58,14 +58,15 @@ A new inline void element node `mention`:
 `value` stores a title snapshot for graceful display if the target is later deleted.
 
 ### Plugins (added to `DocView.tsx` plugin stack)
-- `@platejs/mention@^52.3.10` — `MentionPlugin` (the inline void node + trigger handling) and its input plugin. Compatible with the installed `platejs@52.3.4`.
-- `@platejs/combobox@^52.3.10` — backing the `@` picker (pulled in transitively / used by the combobox UI).
-- Custom render: `MentionPlugin.withComponent(MentionElement)` (or `.configure({ render: { node: MentionElement } })`).
+**Decision: no new dependencies.** The official `@platejs/mention` route requires adding `@ariakit/react` plus a large ported `InlineCombobox` component, which clashes with this repo's convention of hand-rolling comboboxes in plain React (`ChatInput.tsx`) and registering Plate nodes via `createPlatePlugin` (hr/tr/td). We follow that grain instead:
+- A custom inline-void element plugin registered with `createPlatePlugin({ key: 'mention', node: { isElement: true, isInline: true, isVoid: true, component: MentionElement } })` — exactly the pattern used for the existing `hr`/`tr`/`td` nodes.
+- A caret-anchored popover (`MentionCombobox`) built in plain React, positioned from `window.getSelection().getRangeAt(0).getBoundingClientRect()`, reusing the `@`-detection logic shape already present in `ChatInput.tsx`.
+- Insertion via `editor.tf.insertNodes(mentionNode)` followed by `insertText(' ')`.
 
 ### Markdown round-trip (persistence)
-Documents are stored as markdown (`docContent`), serialized via `MarkdownPlugin`. The markdown plugin exposes a `rules` option (`MdRules`). We register a rule for the `mention` node:
-- **serialize**: `mention` node → markdown link `[@<value>](drafta://<type>/<id>)`.
-- **deserialize**: a `link`/`a` mdast node whose `url` starts with `drafta://` → a `mention` node (parse `<type>/<id>` from the URI; `value` from the link text, stripping a leading `@`). Non-`drafta://` links fall through to the normal `LinkPlugin` behavior.
+Documents are stored as markdown (`docContent`), serialized via `MarkdownPlugin`. The markdown plugin exposes a `rules` option (`MdRules`, keyed by node type with `{ serialize, deserialize }`):
+- **serialize**: register `rules: { mention: { serialize } }` on `MarkdownPlugin.configure` → emits an mdast `link` node `{ type: 'link', url: 'drafta://<type>/<id>', children: [{ type: 'text', value: '@<value>' }] }`, which stringifies to `[@<value>](drafta://<type>/<id>)`.
+- **deserialize**: handled by post-walking the deserialized Slate tree inside `mdToValue` — any `link`/`a` element whose `url` starts with `drafta://` is converted into a `mention` node (parse `<type>/<id>` from the URI; `value` from the link text, stripping a leading `@`). This avoids overriding the `link` rule's internals; all load paths (`usePlateEditor` initial value and the AI-sync `setValue`) already route through `mdToValue`. Non-`drafta://` links stay as normal links via `LinkPlugin`.
 
 This means links survive save/load as ordinary markdown links, remain human-readable in raw form, and are intelligible to the AI (it sees `[@Title](drafta://ku/<id>)`).
 
@@ -125,8 +126,9 @@ backlinks → useBacklinks scans knowledgeUnits markdown for drafta://.../<id>
 - `src/components/doc/mention/MentionCombobox.tsx`
 
 **Modified**
-- `src/components/doc/DocView.tsx` (plugins, markdown rules, combobox render, backlinks footer)
-- `package.json` (`@platejs/mention`, `@platejs/combobox` at `^52.3.x`)
+- `src/components/doc/DocView.tsx` (plugins, markdown serialize rule, `mdToValue` deserialize post-walk, combobox render, backlinks footer)
+
+*(No `package.json` changes — implemented with existing deps.)*
 
 **Reused**
 - `src/lib/entityMeta.ts` (`ENTITY_META`), `src/lib/store.ts` (open actions, project data), `src/lib/types.ts` (`EntityType`).
