@@ -48,3 +48,7 @@ src/extra/
 # Diagram migration archives
 .archive/
 coverage/
+
+# env files — never commit secrets OR env templates (public repo)
+.env
+.env.*
