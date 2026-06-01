@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { PlateElement } from "platejs/react";
 import { ENTITY_META } from "@/lib/entityMeta";
 import { openEntity, useResolvedEntity } from "@/lib/entityLinks";
@@ -31,6 +31,7 @@ export function MentionElement(props: any) {
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
     setShowCard(false);
   };
+  useEffect(() => () => { if (hoverTimer.current) clearTimeout(hoverTimer.current); }, []);
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
