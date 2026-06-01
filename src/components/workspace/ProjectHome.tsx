@@ -22,6 +22,7 @@ import {
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/cn";
 import { toast } from "sonner";
+import { useCanEdit } from "@/lib/useCanEdit";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -133,6 +134,7 @@ export function ProjectHome() {
   const createTable = useAppStore((s) => s.createTable);
   const createDeck = useAppStore((s) => s.createDeck);
   const createPage = useAppStore((s) => s.createPage);
+  const canEdit = useCanEdit();
   const updateProject = useAppStore((s) => s.updateProject);
   const renameKnowledgeUnit = useAppStore((s) => s.renameKnowledgeUnit);
   const renameTable = useAppStore((s) => s.renameTable);
@@ -278,6 +280,7 @@ export function ProjectHome() {
   };
 
   const handleCreate = (type: EntityType) => {
+    if (!canEdit) { toast.error("You have view-only access to this project."); return; }
     if (type === "ku") createKnowledgeUnit(project.id, "New Document");
     else if (type === "table") createTable(project.id, "New Table");
     else if (type === "page") createPage(project.id, "New Page");
@@ -285,6 +288,7 @@ export function ProjectHome() {
   };
 
   const handleRename = (entity: FileEntity, name: string) => {
+    if (!canEdit) { toast.error("You have view-only access to this project."); return; }
     if (entity.type === "deck") renameDeck(project.id, entity.id, name);
     else if (entity.type === "ku") renameKnowledgeUnit(project.id, entity.id, name);
     else if (entity.type === "page") renamePage(project.id, entity.id, name);
@@ -292,6 +296,7 @@ export function ProjectHome() {
   };
 
   const handleDuplicate = (entity: FileEntity) => {
+    if (!canEdit) { toast.error("You have view-only access to this project."); return; }
     if (entity.type === "ku") duplicateKnowledgeUnit(project.id, entity.id);
     else if (entity.type === "table") duplicateTable(project.id, entity.id);
     else if (entity.type === "deck") duplicateDeck(project.id, entity.id);
@@ -299,6 +304,7 @@ export function ProjectHome() {
   };
 
   const handleDelete = (entity: FileEntity) => {
+    if (!canEdit) { toast.error("You have view-only access to this project."); return; }
     if (!window.confirm(`Delete "${entity.title}"? This cannot be undone.`)) return;
     if (entity.type === "deck") deleteDeck(project.id, entity.id);
     else if (entity.type === "ku") deleteKnowledgeUnit(project.id, entity.id);
@@ -311,9 +317,15 @@ export function ProjectHome() {
       <div className="max-w-[1100px] mx-auto px-20 py-10">
         {/* -- Project header (scrolls away) -- */}
         <div className="mb-8">
+          {!canEdit && (
+            <span className="inline-flex items-center gap-1.5 mb-2 px-2 py-0.5 rounded-full bg-muted text-[11px] font-medium text-muted-foreground">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#B87426]" />
+              View only
+            </span>
+          )}
           <EditableTitle
             value={project.title}
-            onSave={(title) => updateProject(project.id, { title })}
+            onSave={(title) => { if (canEdit) updateProject(project.id, { title }); }}
           />
           <EditableDescription
             value={project.description || ""}

@@ -1244,6 +1244,7 @@ export const useAppStore = create<AppState>()(
     set({
       projects: updated,
       currentProjectId: project.id,
+      currentProjectRole: null, // refreshed by loadFullProject's myRole; null = editable
       currentConversationId: null,
       currentEntityId: null,
       currentEntityType: null,
@@ -1350,6 +1351,7 @@ export const useAppStore = create<AppState>()(
 
     set({
       currentProjectId: project.id,
+      currentProjectRole: null, // refreshed by loadFullProject's myRole; null = editable
       currentConversationId: null,
       currentEntityId: null,
       currentEntityType: null,
