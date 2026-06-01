@@ -1,10 +1,12 @@
 "use client";
 
+import { useState, useRef } from "react";
 import { PlateElement } from "platejs/react";
 import { ENTITY_META } from "@/lib/entityMeta";
 import { openEntity, useResolvedEntity } from "@/lib/entityLinks";
 import type { EntityType } from "@/lib/types";
 import { toast } from "sonner";
+import { EntityHoverCard } from "./EntityHoverCard";
 
 export function MentionElement(props: any) {
   const { element } = props;
@@ -16,6 +18,19 @@ export function MentionElement(props: any) {
   const title = resolved?.title || snapshotTitle;
   const meta = ENTITY_META[entityType] || ENTITY_META.ku;
   const Icon = meta.Icon;
+
+  const [showCard, setShowCard] = useState(false);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onEnter = () => {
+    if (!exists) return;
+    const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) { setShowCard(true); return; }
+    hoverTimer.current = setTimeout(() => setShowCard(true), 300);
+  };
+  const onLeave = () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    setShowCard(false);
+  };
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -34,6 +49,8 @@ export function MentionElement(props: any) {
         onClick={handleClick}
         role="link"
         tabIndex={0}
+        onMouseEnter={onEnter}
+        onMouseLeave={onLeave}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleClick(e as any); }
         }}
@@ -52,6 +69,15 @@ export function MentionElement(props: any) {
       >
         <Icon size={12} strokeWidth={2} style={{ color: "var(--icon, currentColor)" }} aria-hidden />
         <span>@{title}</span>
+        {showCard && (
+          <span
+            contentEditable={false}
+            className="absolute left-0 top-full mt-1 z-50"
+            style={{ pointerEvents: "none" }}
+          >
+            <EntityHoverCard type={entityType} id={entityId} />
+          </span>
+        )}
       </span>
       {props.children}
     </PlateElement>
