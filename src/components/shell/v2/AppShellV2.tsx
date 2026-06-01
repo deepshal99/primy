@@ -23,7 +23,7 @@ import {
   PanelRightOpen, Sun, Moon, ArrowLeft, Settings, CircleHelp, Check,
   Folder as FolderIcon, FolderPlus, Home, Trash2, Pencil, FolderInput,
   Rocket, Sparkles, Compass, Layers, Target, Box, Hexagon, Flame,
-  LogOut, ChevronsUpDown,
+  LogOut, ChevronsUpDown, ArrowRight,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useDarkMode } from "@/lib/useShellV2";
@@ -861,54 +861,124 @@ function NewCard({ label, onClick }: { label: string; onClick: () => void }) {
 
 /* ───────────────────────── all-projects home ───────────────────────── */
 
-function AllProjects({ projects, onOpen, onNew, onContext }: { projects: Project[]; onOpen: (id: string) => void; onNew: () => void; onContext: (id: string, title: string, e: React.MouseEvent) => void }) {
+function projCounts(p: Project): { ku: number; table: number; deck: number; page: number; total: number } {
+  const c = p.counts;
+  const ku = c ? c.knowledgeUnits : p.knowledgeUnits.length;
+  const table = c ? c.tables : p.tables.length;
+  const deck = c ? c.decks : p.decks.length;
+  const page = c ? c.pages : p.pages.length;
+  return { ku, table, deck, page, total: ku + table + deck + page };
+}
+
+function TypeChip({ projectType, color }: { projectType: string; color: string }) {
   return (
-    <div className="max-w-[1100px] mx-auto px-9 py-9">
-      <div className="flex items-end justify-between mb-7">
+    <span className="inline-flex items-center h-[19px] px-2 rounded-full text-[10.5px] font-medium"
+      style={{ background: `color-mix(in srgb, ${color} 15%, transparent)`, color: `color-mix(in srgb, ${color} 75%, #111)` }}>
+      {projectType}
+    </span>
+  );
+}
+
+function Composition({ p, dim }: { p: Project; dim?: boolean }) {
+  const c = projCounts(p);
+  const parts: { type: EntityType; n: number }[] = [
+    { type: "ku" as const, n: c.ku }, { type: "table" as const, n: c.table }, { type: "deck" as const, n: c.deck }, { type: "page" as const, n: c.page },
+  ].filter((x) => x.n > 0);
+  if (parts.length === 0) return <span className="text-[11.5px]" style={{ color: "var(--ink-4)" }}>No files yet</span>;
+  return (
+    <div className="flex items-center gap-3">
+      {parts.map(({ type, n }) => {
+        const e = ENTITY[type];
+        return (
+          <span key={type} className="inline-flex items-center gap-1 text-[11.5px] font-medium tabular-nums" style={{ color: dim ? "var(--ink-4)" : "var(--ink-3)" }}>
+            <e.Icon size={13} style={{ color: e.color }} /> {n}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function AllProjects({ projects, onOpen, onNew, onContext }: { projects: Project[]; onOpen: (id: string) => void; onNew: () => void; onContext: (id: string, title: string, e: React.MouseEvent) => void }) {
+  const sorted = [...projects].sort((a, b) => b.updatedAt - a.updatedAt);
+  const featured = sorted[0];
+  const rest = sorted.slice(1);
+  const totalFiles = projects.reduce((s, p) => s + projCounts(p).total, 0);
+
+  return (
+    <div className="max-w-[1160px] mx-auto px-9 py-9">
+      {/* Header */}
+      <div className="flex items-end justify-between mb-6">
         <div>
-          <h1 className="text-[26px] font-semibold tracking-[-0.025em]" style={{ color: "var(--ink)" }}>Workspaces</h1>
-          <p className="text-[13px] mt-1" style={{ color: "var(--ink-3)" }}>Pick up where you left off, or start something new.</p>
+          <h1 className="text-[27px] font-semibold tracking-[-0.03em]" style={{ color: "var(--ink)" }}>Workspaces</h1>
+          <p className="text-[13px] mt-1" style={{ color: "var(--ink-3)" }}>
+            {projects.length} workspace{projects.length === 1 ? "" : "s"} · {totalFiles} file{totalFiles === 1 ? "" : "s"} · pick up where you left off
+          </p>
         </div>
-        <button onClick={onNew} className="flex items-center gap-1.5 h-9 px-4 rounded-[8px] text-[13px] font-medium press"
+        <button onClick={onNew} className="flex items-center gap-1.5 h-9 px-4 rounded-[8px] text-[13px] font-medium press lift"
           style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}>
           <Plus size={16} /> New workspace
         </button>
       </div>
-      <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
-        <button onClick={onNew} className="relative overflow-hidden flex flex-col items-center justify-center gap-2 rounded-[14px] press lift"
-          style={{ border: "1px solid var(--border-strong)", color: "var(--ink)", minHeight: 168, background: "linear-gradient(150deg, #FFFDFB 0%, #EEF4FF 100%)" }}>
-          <span className="flex items-center justify-center w-12 h-12 rounded-full bg-white" style={{ boxShadow: "var(--shadow-card)" }}>
+
+      {/* Featured — jump back in */}
+      {featured && (() => {
+        const Icon = iconFor(featured.id);
+        const color = wsColor(featured);
+        return (
+          <button onClick={() => onOpen(featured.id)} onContextMenu={(e) => onContext(featured.id, featured.title || "Untitled", e)}
+            className="group w-full text-left rounded-[16px] p-5 mb-5 lift flex gap-5 animate-fade-in"
+            style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)" }}>
+            <div className="flex-shrink-0 w-[112px] rounded-[13px] flex items-center justify-center self-stretch min-h-[132px]" style={{ background: "var(--accent-soft)" }}>
+              <Icon size={34} strokeWidth={1.7} style={{ color }} />
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col py-1">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: `color-mix(in srgb, ${color} 78%, #111)` }}>Jump back in</span>
+                {featured.projectType && <TypeChip projectType={featured.projectType} color={color} />}
+              </div>
+              <div className="text-[19px] font-semibold tracking-[-0.02em] truncate" style={{ color: "var(--ink)" }}>{featured.title || "Untitled"}</div>
+              {featured.description && <p className="text-[13px] leading-[1.55] line-clamp-2 mt-1.5" style={{ color: "var(--ink-3)" }}>{featured.description}</p>}
+              <div className="flex items-center gap-4 mt-auto pt-4">
+                <Composition p={featured} />
+                <span className="text-[11.5px] tabular-nums" style={{ color: "var(--ink-4)" }}>· {relTime(featured.updatedAt)}</span>
+                <span className="ml-auto inline-flex items-center gap-1.5 text-[12.5px] font-medium transition-transform group-hover:translate-x-0.5" style={{ color: `color-mix(in srgb, ${color} 78%, #111)` }}>
+                  Open <ArrowRight size={15} />
+                </span>
+              </div>
+            </div>
+          </button>
+        );
+      })()}
+
+      {/* Grid */}
+      <div className="grid gap-4 stagger-children" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(264px, 1fr))" }}>
+        <button onClick={onNew} className="animate-fade-in-up relative overflow-hidden flex flex-col items-center justify-center gap-2 rounded-[14px] press lift"
+          style={{ border: "1px dashed var(--border-strong)", color: "var(--ink)", minHeight: 176, background: "var(--card)" }}>
+          <span className="flex items-center justify-center w-12 h-12 rounded-full" style={{ background: "var(--accent-soft)" }}>
             <Plus size={22} strokeWidth={1.9} style={{ color: "var(--ink-2)" }} />
           </span>
           <span className="text-[13.5px] font-medium">New workspace</span>
         </button>
-        {projects.map((p) => {
-          const count = p.counts
-            ? p.counts.knowledgeUnits + p.counts.tables + p.counts.decks + p.counts.pages
-            : p.knowledgeUnits.length + p.tables.length + p.decks.length + p.pages.length;
+        {rest.map((p) => {
           const Icon = iconFor(p.id);
           const color = wsColor(p);
           return (
-            <button key={p.id} onClick={() => onOpen(p.id)} onContextMenu={(e) => onContext(p.id, p.title || "Untitled", e)} className="text-left rounded-[14px] p-5 lift relative overflow-hidden group flex flex-col"
-              style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)", minHeight: 168 }}>
-              <div className="flex items-start gap-3 mb-3.5 relative">
+            <button key={p.id} onClick={() => onOpen(p.id)} onContextMenu={(e) => onContext(p.id, p.title || "Untitled", e)} className="animate-fade-in-up text-left rounded-[14px] p-5 lift relative overflow-hidden group flex flex-col"
+              style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)", minHeight: 176 }}>
+              <div className="flex items-start gap-3 mb-3.5">
                 <div className="w-9 h-9 rounded-[9px] flex items-center justify-center flex-shrink-0" style={{ background: "var(--accent-soft)", color: "var(--icon)" }}>
                   <Icon size={18} strokeWidth={1.9} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-[14px] font-semibold truncate" style={{ color: "var(--ink)" }}>{p.title || "Untitled"}</div>
-                  {p.projectType && (
-                    <span className="inline-flex items-center mt-1 h-[19px] px-2 rounded-full text-[10.5px] font-medium"
-                      style={{ background: `color-mix(in srgb, ${color} 15%, transparent)`, color: `color-mix(in srgb, ${color} 75%, #111)` }}>
-                      {p.projectType}
-                    </span>
-                  )}
+                  {p.projectType && <span className="inline-block mt-1"><TypeChip projectType={p.projectType} color={color} /></span>}
                 </div>
               </div>
-              {p.description && <p className="text-[12.5px] leading-[1.55] line-clamp-3 relative flex-1" style={{ color: "var(--ink-3)" }}>{p.description}</p>}
-              <div className="flex items-center gap-1.5 text-[11.5px] tabular-nums relative mt-3.5" style={{ color: "var(--ink-4)" }}>
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
-                {count} file{count === 1 ? "" : "s"} · {relTime(p.updatedAt)}
+              {p.description && <p className="text-[12.5px] leading-[1.55] line-clamp-2 flex-1" style={{ color: "var(--ink-3)" }}>{p.description}</p>}
+              <div className="flex items-center justify-between mt-3.5 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+                <Composition p={p} dim />
+                <span className="text-[11px] tabular-nums" style={{ color: "var(--ink-4)" }}>{relTime(p.updatedAt)}</span>
               </div>
             </button>
           );
