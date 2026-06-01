@@ -30,6 +30,7 @@ import {
 import { DocToolbar } from "./DocToolbar";
 import { SelectionBubble } from "./SelectionBubble";
 import { MentionElement } from "./mention/MentionElement";
+import { MentionCombobox } from "./mention/MentionCombobox";
 
 // HR void element plugin
 function HrElement({ attributes, children }: any) {
@@ -674,6 +675,8 @@ export function DocView() {
           />
           {/* Selection Bubble - must be inside <Plate> for editor.selection access */}
           <SelectionBubble editor={editor} containerRef={editorContainerRef} />
+          {/* @-mention combobox - inside <Plate> so useEditorRef() resolves */}
+          <MentionCombobox />
         </Plate>
         {isStreaming && <StreamingBar />}
       </div>
