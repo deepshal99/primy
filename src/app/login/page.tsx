@@ -44,8 +44,8 @@ export default function LoginPage() {
       return;
     }
 
-    if (mode === "signup" && password.length < 6) {
-      setError("Password must be at least 6 characters");
+    if (mode === "signup" && password.length < 8) {
+      setError("Password must be at least 8 characters");
       return;
     }
 
@@ -62,15 +62,16 @@ export default function LoginPage() {
     setLoading(false);
 
     if (result?.error) {
+      // NextAuth v5 surfaces an error CODE (e.g. "CredentialsSignin") rather
+      // than the thrown message, so map by intent. Sign-in failures are kept
+      // deliberately generic — we never reveal whether the email exists.
       const msg = result.error;
-      if (msg.includes("Email already registered")) {
+      if (mode === "signup" && /already/i.test(msg)) {
         setError("Email already registered. Try signing in.");
-      } else if (msg.includes("No account found")) {
-        setError("No account found. Sign up first.");
-      } else if (msg.includes("Incorrect password")) {
-        setError("Incorrect password.");
+      } else if (mode === "signup") {
+        setError("Couldn't create your account. Try again.");
       } else {
-        setError("Something went wrong. Try again.");
+        setError("Invalid email or password.");
       }
     } else if (result?.ok) {
       // New signups land in onboarding; existing users land in the app.

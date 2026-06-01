@@ -201,6 +201,17 @@ export const passwordResetTokens = pgTable(
   (table) => [index("prt_user_id_idx").on(table.userId)]
 );
 
+// ── Login throttle (brute-force / credential-stuffing protection) ──
+// Durable, cross-instance (the in-memory limiter doesn't survive serverless).
+// `key` is "email:<addr>" or "ip:<addr>". Rows are short-lived and cleared on
+// a successful login.
+export const loginAttempts = pgTable("login_attempts", {
+  key: text("key").primaryKey(),
+  fails: integer("fails").notNull().default(0),
+  firstFailAt: timestamp("first_fail_at").notNull().defaultNow(),
+  lockedUntil: timestamp("locked_until"),
+});
+
 // ── Messages (Chat history per project) ──
 export const messages = pgTable(
   "messages",

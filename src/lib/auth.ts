@@ -5,8 +5,30 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
+import { validatePassword, isDevOnlyEmail } from "@/lib/authPolicy";
+import { emailKey, ipKey, lockedSeconds, recordFailure, clearAttempts, THRESHOLDS } from "@/lib/authThrottle";
+
+function getClientIp(request: Request | undefined): string {
+  const h = request?.headers;
+  // Prefer the platform-set real IP; x-forwarded-for's leftmost can be spoofed.
+  return (
+    h?.get("x-real-ip") ||
+    h?.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "unknown"
+  );
+}
+
+// A real bcrypt hash compared against when no user is found, so a failed login
+// takes the same time whether or not the email exists (defeats timing-based
+// account enumeration). The plaintext is irrelevant — it never matches.
+const DUMMY_HASH = bcrypt.hashSync("primy-timing-equalizer-not-a-secret", 12);
+
+// Generic message for ALL sign-in failures — never reveal whether the email
+// exists or whether it was the password that was wrong.
+const GENERIC_LOGIN_ERROR = "Invalid email or password";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   providers: [
     Credentials({
       name: "Email",
@@ -16,7 +38,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         name: { label: "Name", type: "text" },
         mode: { label: "Mode", type: "text" }, // "signin" or "signup"
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const email = (credentials?.email as string)?.trim().toLowerCase();
         const password = credentials?.password as string;
         const name = (credentials?.name as string)?.trim();
@@ -24,21 +46,29 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!email || !password) return null;
 
+        // Dev-only accounts (admin@*.local) must never authenticate in prod,
+        // even if such a row exists in the database. Gating elsewhere is
+        // client-side only; this is the server-side backstop.
+        if (process.env.NODE_ENV === "production" && isDevOnlyEmail(email)) {
+          throw new Error(GENERIC_LOGIN_ERROR);
+        }
+
         if (mode === "signup") {
-          // Check if email already exists
+          const pwError = validatePassword(password);
+          if (pwError) throw new Error(pwError);
+
+          // Check if email already exists. (Sign-up necessarily reveals whether
+          // an email is taken — that's an accepted UX tradeoff, mitigated by
+          // rate limiting; login below stays non-enumerable.)
           const existing = await db
-            .select()
+            .select({ id: users.id })
             .from(users)
             .where(eq(users.email, email))
             .limit(1);
           if (existing.length > 0) {
             throw new Error("Email already registered");
           }
-          if (password.length < 6) {
-            throw new Error("Password must be at least 6 characters");
-          }
 
-          // Hash password and create user
           const passwordHash = await bcrypt.hash(password, 12);
           const [newUser] = await db
             .insert(users)
@@ -52,19 +82,32 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           return { id: newUser.id, name: newUser.name, email: newUser.email };
         } else {
-          // Sign in
+          // Brute-force / credential-stuffing throttle (durable, per-email AND
+          // per-IP). Checked BEFORE any work so a locked account/IP is cheap.
+          const eKey = emailKey(email);
+          const iKey = ipKey(getClientIp(request));
+          const lock = Math.max(await lockedSeconds(eKey), await lockedSeconds(iKey));
+          if (lock > 0) {
+            throw new Error(`Too many attempts. Try again in ${Math.ceil(lock / 60)} min.`);
+          }
+
+          // Always run a bcrypt compare (against a dummy hash when the user is
+          // absent) and return ONE generic error, so neither the message nor
+          // the timing reveals whether the account exists.
           const [user] = await db
             .select()
             .from(users)
             .where(eq(users.email, email))
             .limit(1);
-          if (!user) {
-            throw new Error("No account found with this email");
+          const hash = user?.passwordHash ?? DUMMY_HASH;
+          const passwordMatch = await bcrypt.compare(password, hash);
+          if (!user || !passwordMatch) {
+            await recordFailure(eKey, THRESHOLDS.EMAIL_THRESHOLD);
+            await recordFailure(iKey, THRESHOLDS.IP_THRESHOLD);
+            throw new Error(GENERIC_LOGIN_ERROR);
           }
-          const passwordMatch = await bcrypt.compare(password, user.passwordHash);
-          if (!passwordMatch) {
-            throw new Error("Incorrect password");
-          }
+          await clearAttempts(eKey);
+          await clearAttempts(iKey);
           return { id: user.id, name: user.name, email: user.email };
         }
       },
@@ -127,6 +170,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   session: {
     strategy: "jwt",
+    // Was the 30-day default — a stolen JWT is non-revocable until it expires,
+    // so cap the window. Refreshes daily on activity. (Full revocation on
+    // password reset is tracked via tokenVersion in the hardening plan.)
+    maxAge: 7 * 24 * 60 * 60, // 7 days
+    updateAge: 24 * 60 * 60, // refresh once per day
   },
   secret: process.env.NEXTAUTH_SECRET!,
 });

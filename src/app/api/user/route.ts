@@ -4,6 +4,7 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { effectivePlan, isOnGracePeriod } from "@/lib/billing";
+import { validatePassword } from "@/lib/authPolicy";
 
 export async function GET() {
   try {
@@ -95,11 +96,9 @@ export async function PATCH(req: Request) {
 
     // Password change
     if (currentPassword && newPassword) {
-      if (typeof newPassword !== "string" || newPassword.length < 6) {
-        return Response.json(
-          { error: "New password must be at least 6 characters" },
-          { status: 400 }
-        );
+      const pwError = validatePassword(newPassword);
+      if (pwError) {
+        return Response.json({ error: pwError }, { status: 400 });
       }
 
       const [user] = await db

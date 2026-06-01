@@ -3,6 +3,7 @@ import { users, passwordResetTokens } from "@/db/schema";
 import { eq, and, gt } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { validatePassword } from "@/lib/authPolicy";
 
 export async function POST(req: Request) {
   try {
@@ -28,11 +29,9 @@ export async function POST(req: Request) {
     if (!token) {
       return Response.json({ error: "Token is required" }, { status: 400 });
     }
-    if (!password || password.length < 6) {
-      return Response.json(
-        { error: "Password must be at least 6 characters" },
-        { status: 400 }
-      );
+    const pwError = validatePassword(password);
+    if (pwError || typeof password !== "string") {
+      return Response.json({ error: pwError ?? "Password is required" }, { status: 400 });
     }
 
     // Look up valid, non-expired token
