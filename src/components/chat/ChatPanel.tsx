@@ -465,17 +465,21 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
               console.warn("[Drafta] Operation blocks found but none parsed. Raw tail:", fullText.slice(-600));
               toast.error("AI response had formatting issues — some changes may not have been applied. Try again.");
             } else {
-              // Claim/action reconciliation: the model claimed it created/edited
-              // an artifact but emitted ZERO operation blocks. Never let that
-              // pass silently — the user would otherwise see "Created X" with no
-              // X and no tab. Requires BOTH an action verb AND an entity noun to
-              // avoid false positives on ordinary short answers.
+              // Claim/action reconciliation: catch the rare case where the model
+              // SAYS it created/updated a Drafta artifact but emitted no tool call
+              // or operation block. This must be VERY conservative — ANSWER mode
+              // legitimately produces summaries full of words like "built" or
+              // "pages", which must NOT trigger a false alarm. So we require a
+              // first-person completion claim tied to an artifact noun, and only
+              // in the lead (a real confirmation leads, e.g. "I've created the X
+              // document."), not buried in body prose.
               const displayText = extractDisplayText(fullText) || fullText;
-              const claimsAction =
-                /\b(created|added|generated|built|inserted|updated|edited|drafted|here'?s your|i'?ve\s+(?:created|added|made|updated|built|generated|drafted))\b/i.test(displayText) &&
-                /\b(document|doc|spreadsheet|sheet|table|deck|presentation|slides?|page|tracker|outline)\b/i.test(displayText);
-              if (claimsAction) {
-                console.warn("[Drafta] Model claimed an action but emitted no operation block. Tail:", fullText.slice(-400));
+              const lead = displayText.slice(0, 240);
+              const claimsArtifactAction =
+                /\bi(?:'ve| have| just)?\s+(?:created|added|made|built|generated|drafted|put together|set up|updated)\b[^.!?\n]{0,60}\b(document|doc|spreadsheet|sheet|table|deck|presentation|slides?|page|one-?pager|tracker)\b/i.test(lead) ||
+                /\bhere(?:'s| is)\s+(?:your|the)\s+(?:new\s+)?[^.!?\n]{0,40}\b(document|doc|spreadsheet|sheet|table|deck|presentation|page|one-?pager)\b/i.test(lead);
+              if (claimsArtifactAction) {
+                console.warn("[Drafta] Model claimed an artifact action but emitted no operation. Lead:", lead);
                 toast.error("The AI described a change but didn't actually apply it. Please ask again.");
               }
             }
