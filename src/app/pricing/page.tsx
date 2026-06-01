@@ -9,9 +9,9 @@ export const dynamic = "force-static";
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Pricing — Drafta",
+  title: "Pricing — Primy",
   description:
-    "Simple pricing for Drafta. Free forever. Upgrade to Pro for unlimited workspaces, more AI messages, and brand profiles.",
+    "Simple pricing for Primy. Free forever. Upgrade to Pro for unlimited workspaces, more AI messages, and brand profiles.",
 };
 
 /* ──────────────────────────────────────────────
@@ -153,7 +153,7 @@ function PricingCards() {
               <Row>{fmtCount(pro.aiMessagesPerMonth)} AI messages / month</Row>
               <Row>Unlimited file uploads</Row>
               <Row>{fmtBytes(pro.storageBytes)} storage</Row>
-              <Row>No "Built with Drafta" watermark</Row>
+              <Row>No "Built with Primy" watermark</Row>
               <Row>Brand voice + visual profiles</Row>
               <Row>Full slash command set</Row>
               <Row>Snapshot history (20 per artifact)</Row>
@@ -286,7 +286,7 @@ function FeatureMatrix() {
           pro: fmtBool(true),
         },
         {
-          label: '"Built with Drafta" watermark on shares',
+          label: '"Built with Primy" watermark on shares',
           free: fmtBool(free.watermarkOnShares),
           pro: fmtBool(pro.watermarkOnShares),
         },

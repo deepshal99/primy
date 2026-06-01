@@ -67,7 +67,7 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
   const [roles, setRoles] = useState<Set<string>>(() => new Set());
-  const [projectTitle, setProjectTitle] = useState("My first Drafta project");
+  const [projectTitle, setProjectTitle] = useState("My first Primy project");
   const [projectDescription, setProjectDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>("");
@@ -154,7 +154,7 @@ export default function OnboardingPage() {
 
   const handleCreateProject = useCallback(async () => {
     if (busy) return;
-    const title = projectTitle.trim() || "My first Drafta project";
+    const title = projectTitle.trim() || "My first Primy project";
     setBusy(true);
     setError("");
     try {
@@ -209,7 +209,7 @@ export default function OnboardingPage() {
               <path d="M9 7 L12.5 7 C15.8 7 17 9.5 17 12 C17 14.5 15.8 17 12.5 17 L9 17 Z" fill="#FFB43F" />
             </svg>
           </div>
-          <span className="text-[13px] font-medium text-[#171717] tracking-tight">Drafta</span>
+          <span className="text-[13px] font-medium text-[#171717] tracking-tight">Primy</span>
         </div>
         <ProgressDots step={step} total={TOTAL_STEPS} />
       </header>
@@ -360,7 +360,7 @@ function Step1Welcome({
     <section aria-labelledby="step1-title">
       <div className="text-center mb-10">
         <p className="text-[12px] uppercase tracking-[0.08em] text-[#B87426] font-medium mb-3">
-          Welcome to Drafta
+          Welcome to Primy
         </p>
         <h1
           id="step1-title"
@@ -441,7 +441,7 @@ function Step2Demo({ onContinue, onBack }: { onContinue: () => void; onBack: () 
           Chat. Get a doc, sheet, or deck.
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-[#525252] max-w-[460px] mx-auto">
-          Type what you need. Drafta turns it into the right artifact — and remembers everything for next time.
+          Type what you need. Primy turns it into the right artifact — and remembers everything for next time.
         </p>
       </div>
 
@@ -483,7 +483,7 @@ function DemoCard() {
           <Sparkles className="w-3.5 h-3.5 text-[#FFB43F]" strokeWidth={1.75} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[11px] uppercase tracking-wider text-[#a3a3a3] font-medium mb-2">Drafta</div>
+          <div className="text-[11px] uppercase tracking-wider text-[#a3a3a3] font-medium mb-2">Primy</div>
           <p className="text-[14px] text-[#525252] leading-relaxed mb-3">
             On it. Building a proposal doc with scope, timeline, and pricing.
           </p>
@@ -616,7 +616,7 @@ function Step3FirstProject({
             value={title}
             onChange={(e) => onTitleChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="My first Drafta project"
+            placeholder="My first Primy project"
             disabled={busy}
             maxLength={120}
             className="w-full h-11 px-3.5 rounded-[6px] border border-[rgba(0,0,0,0.08)] bg-white text-[14px] text-[#171717] placeholder:text-[#a3a3a3] outline-none focus:border-[rgba(255,180,63,0.6)] focus:ring-2 focus:ring-[rgba(255,180,63,0.25)] transition-all disabled:opacity-60"

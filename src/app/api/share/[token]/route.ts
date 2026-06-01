@@ -10,7 +10,7 @@ import type { Plan } from "@/lib/plans";
  * Looks up the share token across projects, KUs, tables, and decks.
  *
  * Returns `ownerEffectivePlan` ("free" | "pro") so the share viewer
- * can render the "Built with Drafta" watermark for free-tier owners
+ * can render the "Built with Primy" watermark for free-tier owners
  * and serve a clean canvas for pro owners.
  *
  * Single indexed lookup — no caching layer per eng-review decision #7

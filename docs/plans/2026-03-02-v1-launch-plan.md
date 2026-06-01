@@ -1,8 +1,8 @@
-# Drafta AI v1 Launch — Implementation Plan
+# Primy AI v1 Launch — Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Make Drafta AI launch-ready for solo knowledge workers with reliable foundations, expanded AI capabilities, and polished UX.
+**Goal:** Make Primy AI launch-ready for solo knowledge workers with reliable foundations, expanded AI capabilities, and polished UX.
 
 **Architecture:** Three sequential phases — (1) Foundation & Trust fixes auth, save reliability, performance, and small CRUD gaps; (2) AI Capabilities adds inline doc editing improvements, smarter context, templates, and contextual suggestions; (3) UX Polish adds version history, direct table import, error boundaries, and technical cleanup. Each task is a standalone commit.
 
@@ -144,7 +144,7 @@ export async function POST(req: Request) {
   const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}`;
 
   await resend.emails.send({
-    from: "Drafta AI <noreply@yourdomain.com>",
+    from: "Primy AI <noreply@yourdomain.com>",
     to: email,
     subject: "Reset your password",
     html: `<p>Click <a href="${resetUrl}">here</a> to reset your password. This link expires in 1 hour.</p>`,
@@ -298,7 +298,7 @@ Run: `npx drizzle-kit push`
 **Step 2: Create example project on first login**
 
 In `GET /api/projects`, check if the user has `hasOnboarded === false`. If so:
-1. Create a "Welcome to Drafta" project with pre-populated entities (a getting-started doc, a sample table, a simple diagram, a 3-slide deck)
+1. Create a "Welcome to Primy" project with pre-populated entities (a getting-started doc, a sample table, a simple diagram, a 3-slide deck)
 2. Set `hasOnboarded = true` on the user
 3. Return the projects list including the new project
 
@@ -307,10 +307,10 @@ Define the example content as constants in a new file `src/lib/onboarding/exampl
 **Step 3: Build WelcomeModal component**
 
 Create `src/components/onboarding/WelcomeModal.tsx` — a simple modal that:
-- Shows "Welcome to Drafta AI!" with a brief description
+- Shows "Welcome to Primy AI!" with a brief description
 - Lists 4 things the user can do (create docs, sheets, diagrams, decks)
 - Has a "Get Started" button that closes the modal
-- Only shows once (use `localStorage` flag: `drafta_welcomed`)
+- Only shows once (use `localStorage` flag: `primy_welcomed`)
 
 **Step 4: Show WelcomeModal in AppShell**
 
@@ -940,7 +940,7 @@ git commit -m "feat: improve empty states with helpful placeholders across all e
 
 In `src/lib/types.ts`, remove or deprecate `Conversation`, `WorkspaceTab` (if unused), and all legacy-only fields.
 
-In `src/lib/store.ts`, remove: `saveCurrentConversation`, `loadConversation`, `deleteConversation`, `renameConversation`, `newConversation`, `loadConversations`, and all `drafta_conversations` localStorage handling. Keep `migrateConversations()` with a deprecation comment for one more release.
+In `src/lib/store.ts`, remove: `saveCurrentConversation`, `loadConversation`, `deleteConversation`, `renameConversation`, `newConversation`, `loadConversations`, and all `primy_conversations` localStorage handling. Keep `migrateConversations()` with a deprecation comment for one more release.
 
 **Step 2: Add Immer middleware**
 

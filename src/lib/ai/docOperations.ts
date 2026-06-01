@@ -9,7 +9,7 @@ export function applyDocOps(
     try {
       content = applyDocOp(content, op);
     } catch (err) {
-      console.error("[Drafta] Failed to apply doc operation:", op.type, err);
+      console.error("[Primy] Failed to apply doc operation:", op.type, err);
     }
   }
   return content;

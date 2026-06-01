@@ -7,7 +7,7 @@
 
 **Time zone note:** times below are IST (founder local). The peak Twitter window for indie / SaaS audiences is roughly 6:30 PM IST – 12:30 AM IST (= 9 AM – 3 PM ET). Anchor important posts there.
 
-**Drafta hashtags to use sparingly (max 1 per post):** `#buildinpublic` only. No others.
+**Primy hashtags to use sparingly (max 1 per post):** `#buildinpublic` only. No others.
 
 ---
 
@@ -24,7 +24,7 @@ Why: nobody was making diagrams. Everyone was making decks.
 
 The product is sharper for it.
 
-Building Drafta — the AI workspace for docs, sheets, and decks.
+Building Primy — the AI workspace for docs, sheets, and decks.
 
 **Image:** screenshot of `git diff --stat` showing the deletions, with a green block of additions for the new pricing module next to it.
 
@@ -38,7 +38,7 @@ Building Drafta — the AI workspace for docs, sheets, and decks.
 1. Every dependency is a tax you pay forever.
 2. The thing you're afraid to delete is usually the thing you should.
 
-Drafta's roadmap got 30% smaller this week. It also got 3x more shippable.
+Primy's roadmap got 30% smaller this week. It also got 3x more shippable.
 
 **Image:** none. Pure text post.
 
@@ -54,7 +54,7 @@ Drafta's roadmap got 30% smaller this week. It also got 3x more shippable.
 
 It took 4 hours of brainstorming to get to a sentence that took 4 seconds to read.
 
-**Image:** the positioning typed out in a clean editor screenshot — Drafta's own doc surface if possible.
+**Image:** the positioning typed out in a clean editor screenshot — Primy's own doc surface if possible.
 
 ---
 
@@ -113,9 +113,9 @@ Tested 4 onboarding flows on friends this morning. The one that worked needed ze
 - 0 launches yet
 - ∞ coffee
 
-Drafta v1.0 is 4 weeks out. Building in public from here.
+Primy v1.0 is 4 weeks out. Building in public from here.
 
-**Image:** a tidy week-1 scoreboard typed into a Drafta doc. Show the workspace UI in the frame.
+**Image:** a tidy week-1 scoreboard typed into a Primy doc. Show the workspace UI in the frame.
 
 ---
 
@@ -128,11 +128,11 @@ Drafta v1.0 is 4 weeks out. Building in public from here.
 **Body:**
 Every new chat = re-paste the brief, the context, the brand voice, the last draft.
 
-Drafta's fix: project memory. Every doc, sheet, and deck in a project shares context. The AI just knows.
+Primy's fix: project memory. Every doc, sheet, and deck in a project shares context. The AI just knows.
 
 I haven't copy-pasted into ChatGPT in 3 weeks.
 
-**Image:** Drafta sidebar showing a project with multiple entities, with a chat that references "the spreadsheet" and "the deck" by name.
+**Image:** Primy sidebar showing a project with multiple entities, with a chat that references "the spreadsheet" and "the deck" by name.
 
 ---
 
@@ -152,7 +152,7 @@ Type `/proposal`, get a polished proposal in your project's brand voice.
 
 ### Day 10 — Wed — 8:00 PM IST
 
-**Hook:** Drag a PDF into Drafta. Get a proposal, a budget sheet, and a deck out the other side.
+**Hook:** Drag a PDF into Primy. Get a proposal, a budget sheet, and a deck out the other side.
 
 **Body:**
 60 seconds. No prompt engineering. No "act as a senior consultant" theatre.
@@ -168,7 +168,7 @@ This was the demo that finally landed for me.
 **Hook:** Why your share links are now a growth channel:
 
 **Body:**
-Drafta shares now ship with a "Built with Drafta" pill. Like Calendly. Like Loom. Like Gamma.
+Primy shares now ship with a "Built with Primy" pill. Like Calendly. Like Loom. Like Gamma.
 
 Free users keep it. Pro users hide it.
 
@@ -183,7 +183,7 @@ A free user sharing one deck = a hundred eyeballs on the brand. That's the deal.
 **Hook:** Brand voice profiles, in 30 seconds:
 
 **Body:**
-Upload a past artifact you wrote. Drafta extracts your tone, your sentence rhythm, your weird favorite phrases.
+Upload a past artifact you wrote. Primy extracts your tone, your sentence rhythm, your weird favorite phrases.
 
 Every future draft sounds like you. Not like ChatGPT pretending to be you.
 
@@ -227,7 +227,7 @@ This is what I want every Monday morning to feel like.
 
 ### Day 15 — Mon — 8:30 PM IST
 
-**Hook:** Why I built Drafta's billing without picking a payment gateway yet:
+**Hook:** Why I built Primy's billing without picking a payment gateway yet:
 
 **Body:**
 Stripe doesn't work for India-based founders.
@@ -345,13 +345,13 @@ The system is loaded. Waiting on the trigger.
 
 If you're an indie founder, consultant, or solo operator and you want in — DM me. 12 spots left.
 
-**Image:** screenshot of a clean Drafta workspace with a sample project loaded.
+**Image:** screenshot of a clean Primy workspace with a sample project loaded.
 
 ---
 
 ### Day 23 — Tue — 9:00 PM IST
 
-**Hook:** First beta user shipped a client proposal in Drafta this morning.
+**Hook:** First beta user shipped a client proposal in Primy this morning.
 
 **Body:**
 "I dropped the brief in. Got the proposal, the budget sheet, and a deck. Closed the loop in 40 minutes. Used to take half a day."
@@ -381,7 +381,7 @@ Onboarding is now redesigned around #2.
 
 ### Day 25 — Thu — 9:30 PM IST
 
-**Hook:** Quietest power feature in Drafta:
+**Hook:** Quietest power feature in Primy:
 
 **Body:**
 Mention `@deck-name` in chat. The AI pulls in that artifact's content as context.
@@ -414,7 +414,7 @@ If this is you, beta is open. DMs.
 **Hook:** Asking for help:
 
 **Body:**
-Drafta hits public launch in 2 weeks. I'm looking for:
+Primy hits public launch in 2 weeks. I'm looking for:
 
 - Indie founders to try it (free Pro for 6 months)
 - Honest feedback on the landing page (DM me)
@@ -439,7 +439,7 @@ Reply or DM. I read everything.
 
 Onward.
 
-**Image:** simple stat card — typed clean in a Drafta doc.
+**Image:** simple stat card — typed clean in a Primy doc.
 
 ---
 
@@ -447,7 +447,7 @@ Onward.
 
 ### Day 29 — Mon — 8:30 PM IST
 
-**Hook:** Drafta launches next week.
+**Hook:** Primy launches next week.
 
 **Body:**
 What it is: the AI workspace for docs, sheets, and decks. Chat to create and edit them all. Drag in any file. Project memory keeps everything connected.
@@ -465,7 +465,7 @@ What it costs: $0 free. $24/mo Pro. No surprises.
 **Hook:** Going live on Product Hunt tomorrow.
 
 **Body:**
-5 weeks of cuts, refactors, and 50 beta users later — Drafta v1.0.
+5 weeks of cuts, refactors, and 50 beta users later — Primy v1.0.
 
 If you've been following this build, tomorrow's the day to show up.
 

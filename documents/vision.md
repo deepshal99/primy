@@ -1,11 +1,11 @@
-# Drafta AI — Vision & Roadmap
+# Primy AI — Vision & Roadmap
 
 ## Vision
-Drafta is the AI workspace for docs, sheets, and decks. Drag in any file, get artifacts generated and edited with full project memory, never copy-paste from ChatGPT again.
+Primy is the AI workspace for docs, sheets, and decks. Drag in any file, get artifacts generated and edited with full project memory, never copy-paste from ChatGPT again.
 
 ## Core Thesis
 - Knowledge work is scattered. AI tools forget your project. Files live in 8 places.
-- Project memory is the moat — the more you use Drafta, the better it understands your work
+- Project memory is the moat — the more you use Primy, the better it understands your work
 - Multi-format output from a single chat is the killer feature
 - Solo operators with project-based work are the wedge
 

@@ -88,7 +88,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     const result = await signIn("credentials", {
-      email: "admin@drafta.local",
+      email: "admin@primy.local",
       password: "admin",
       mode: "signin",
       redirect: false,
@@ -331,7 +331,7 @@ export default function LoginPage() {
                 )}
               </button>
               <p className="text-[10.5px] text-center mt-2 text-[#b0ada6]">
-                <span className="font-mono">admin@drafta.local</span> · seeded via{" "}
+                <span className="font-mono">admin@primy.local</span> · seeded via{" "}
                 <span className="font-mono">npm run dev:admin</span>
               </p>
             </div>

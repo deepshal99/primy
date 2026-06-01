@@ -97,7 +97,7 @@ export function SuggestionChips({ suggestions }: SuggestionChipsProps) {
   const handleClick = (suggestion: string) => {
     clearSuggestions();
     window.dispatchEvent(
-      new CustomEvent("drafta:send-message", {
+      new CustomEvent("primy:send-message", {
         detail: { content: suggestion },
       })
     );

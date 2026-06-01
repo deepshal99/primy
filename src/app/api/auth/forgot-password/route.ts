@@ -86,9 +86,9 @@ export async function POST(req: Request) {
     const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}`;
 
     await getResend().emails.send({
-      from: process.env.RESEND_FROM_EMAIL || "Drafta AI <noreply@drafta.ai>",
+      from: process.env.RESEND_FROM_EMAIL || "Primy <noreply@primy.ai>",
       to: user.email,
-      subject: "Reset your password — Drafta AI",
+      subject: "Reset your password — Primy",
       html: `
         <!DOCTYPE html>
         <html>

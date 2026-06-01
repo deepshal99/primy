@@ -70,7 +70,7 @@ export function applyOperations(
     try {
       result = applyOperation(result, op);
     } catch (err) {
-      console.error("[Drafta] Failed to apply operation:", op.type, err);
+      console.error("[Primy] Failed to apply operation:", op.type, err);
       // Continue with remaining operations instead of crashing
     }
   }

@@ -9,9 +9,9 @@ import type { CellData, SheetData, DeckSlide } from "@/lib/types";
 
 export const GETTING_STARTED_DOC_TITLE = "Getting Started";
 
-export const GETTING_STARTED_DOC_CONTENT = `# Welcome to Drafta AI
+export const GETTING_STARTED_DOC_CONTENT = `# Welcome to Primy
 
-Drafta is your AI-powered workspace for creating and managing documents, spreadsheets, and presentations — all in one place.
+Primy is your AI-powered workspace for creating and managing documents, spreadsheets, and presentations — all in one place.
 
 ## How it works
 
@@ -116,7 +116,7 @@ export const WELCOME_DECK_SLIDES: DeckSlide[] = [
   {
     id: "slide-1",
     layout: "title",
-    title: "Welcome to Drafta AI",
+    title: "Welcome to Primy",
     subtitle: "Your AI-powered workspace for docs, sheets, and decks.",
   },
   {

@@ -5,7 +5,7 @@ import { useSession, signIn } from "next-auth/react";
 
 /**
  * DEV ONLY. When NEXT_PUBLIC_DEV_AUTH_BYPASS=true and the visitor has no
- * session, silently signs in as the local dev admin (admin@drafta.local).
+ * session, silently signs in as the local dev admin (admin@primy.local).
  * This removes the login wall while testing. It is a real credentials
  * sign-in, so both the server `auth()` and client `useSession()` work
  * normally afterward — no other code needs to special-case it.
@@ -25,7 +25,7 @@ export function DevAutoLogin() {
     if (status === "unauthenticated" && !tried.current) {
       tried.current = true;
       void signIn("credentials", {
-        email: "admin@drafta.local",
+        email: "admin@primy.local",
         password: "admin",
         mode: "signin",
         redirect: false,

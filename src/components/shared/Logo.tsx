@@ -9,7 +9,7 @@ export function Logo() {
         <Pen className="w-3.5 h-3.5 text-white" strokeWidth={2} />
       </div>
       <span className="text-heading font-heading text-[#171717]">
-        Drafta AI
+        Primy
       </span>
     </div>
   );

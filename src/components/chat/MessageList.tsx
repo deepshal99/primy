@@ -82,7 +82,7 @@ function MessageListEmpty({
       return;
     }
     window.dispatchEvent(
-      new CustomEvent("drafta:send-message", { detail: { content: text } })
+      new CustomEvent("primy:send-message", { detail: { content: text } })
     );
   };
 

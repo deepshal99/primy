@@ -1,7 +1,7 @@
 /**
  * Ensure a local-only dev admin user exists.
  *
- *   email:    admin@drafta.local
+ *   email:    admin@primy.local
  *   password: admin
  *   plan:     "pro" (no proUntil expiry, so it stays Pro forever)
  *
@@ -27,7 +27,7 @@ import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
 import { users } from "@/db/schema";
 
-const DEV_ADMIN_EMAIL = "admin@drafta.local";
+const DEV_ADMIN_EMAIL = "admin@primy.local";
 const DEV_ADMIN_PASSWORD = "admin";
 const DEV_ADMIN_NAME = "Dev Admin";
 

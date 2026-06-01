@@ -1,4 +1,4 @@
-# Drafta Team-SSOT Rebranding — Implementation Action Plan
+# Primy Team-SSOT Rebranding — Implementation Action Plan
 
 **Source PRD:** `.context/attachments/8Eaw3z/pasted_text_2026-05-31_16-51-59.txt`
 **Owner:** Deepak · **Date:** 31 May 2026 · **Status:** Plan for execution
@@ -98,7 +98,7 @@ Add tables:
 **Verify:** edits to name/purpose persist to the single context store; activity strip renders real `activityEvents`; filter chips work.
 
 ### 1.6 Visible Project Brain (read-only view)
-Top-bar button → slide-over showing what Drafta knows: context (goal/audience/voice/keyFacts), connected artifacts + counts, recent decisions.
+Top-bar button → slide-over showing what Primy knows: context (goal/audience/voice/keyFacts), connected artifacts + counts, recent decisions.
 **Copy from:** `contextRelevance.ts` (already scores/lists entities) feeds the artifact list.
 **Verify:** Brain reflects the same context store as header + settings (coherence rule); opens/closes as slide-over.
 

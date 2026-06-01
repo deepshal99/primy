@@ -1,6 +1,6 @@
 -- Drop the project_diagrams table.
 --
--- The diagrams entity was cut as part of the Drafta v1.0 cleanup. Run the
+-- The diagrams entity was cut as part of the Primy v1.0 cleanup. Run the
 -- one-off `npx tsx scripts/archive-diagrams.ts` script first to dump the
 -- contents to .archive/ before applying this migration.
 --

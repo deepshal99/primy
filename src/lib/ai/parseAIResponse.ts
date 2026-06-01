@@ -223,7 +223,7 @@ function fixUnescapedNewlinesInJson(jsonStr: string): string {
 function parseOpsFromBlock<T>(block: string): T[] {
   const parsed = robustJsonParse(block);
   if (!parsed) {
-    console.warn("[Drafta Parse] Failed to parse block as JSON:", block.slice(0, 300));
+    console.warn("[Primy Parse] Failed to parse block as JSON:", block.slice(0, 300));
     return [];
   }
 
@@ -234,11 +234,11 @@ function parseOpsFromBlock<T>(block: string): T[] {
   } else if (Array.isArray(parsed)) {
     const filtered = parsed.filter((item: any) => item?.type) as T[];
     if (filtered.length === 0 && parsed.length > 0) {
-      console.warn("[Drafta Parse] Parsed JSON array but no items had 'type' field:", JSON.stringify(parsed[0]).slice(0, 200));
+      console.warn("[Primy Parse] Parsed JSON array but no items had 'type' field:", JSON.stringify(parsed[0]).slice(0, 200));
     }
     return filtered;
   }
-  console.warn("[Drafta Parse] Parsed JSON but couldn't extract operations:", JSON.stringify(parsed).slice(0, 200));
+  console.warn("[Primy Parse] Parsed JSON but couldn't extract operations:", JSON.stringify(parsed).slice(0, 200));
   return [];
 }
 
@@ -251,7 +251,7 @@ export function parseSheetOperations(fullText: string): SheetOperation[] {
     if (ops.length > 0) {
       operations.push(...ops);
     } else {
-      if (process.env.NODE_ENV !== "production") console.warn("[Drafta] Failed to parse sheetops block:", block.slice(0, 200));
+      if (process.env.NODE_ENV !== "production") console.warn("[Primy] Failed to parse sheetops block:", block.slice(0, 200));
     }
   }
 
@@ -267,7 +267,7 @@ export function parseDocOperations(fullText: string): DocOperation[] {
     if (ops.length > 0) {
       operations.push(...ops);
     } else {
-      if (process.env.NODE_ENV !== "production") console.warn("[Drafta] Failed to parse docops block:", block.slice(0, 200));
+      if (process.env.NODE_ENV !== "production") console.warn("[Primy] Failed to parse docops block:", block.slice(0, 200));
     }
   }
 
@@ -336,7 +336,7 @@ export function parseKuOperations(fullText: string): KuOperation[] {
     }
 
     if (!found) {
-      if (process.env.NODE_ENV !== "production") console.warn("[Drafta] Failed to parse kuops block:", block.slice(0, 200));
+      if (process.env.NODE_ENV !== "production") console.warn("[Primy] Failed to parse kuops block:", block.slice(0, 200));
     }
   }
 
@@ -355,13 +355,13 @@ export function parseTableOperations(fullText: string): TableOperation[] {
       for (const op of ops) {
         if (op.type === "CREATE" && (!op.celldata || !Array.isArray(op.celldata) || op.celldata.length === 0)) {
           // Allow CREATE with empty celldata — the store will create an empty sheet
-          console.warn("[Drafta] tableops CREATE has empty/missing celldata, defaulting to empty sheet:", op.title);
+          console.warn("[Primy] tableops CREATE has empty/missing celldata, defaulting to empty sheet:", op.title);
           op.celldata = [];
         }
         operations.push(op);
       }
     } else {
-      if (process.env.NODE_ENV !== "production") console.warn("[Drafta] Failed to parse tableops block:", block.slice(0, 200));
+      if (process.env.NODE_ENV !== "production") console.warn("[Primy] Failed to parse tableops block:", block.slice(0, 200));
     }
   }
 
@@ -379,13 +379,13 @@ export function parsePageOperations(fullText: string): PageOperation[] {
     if (ops.length > 0) {
       for (const op of ops) {
         if ((op.type === "CREATE" || op.type === "UPDATE") && typeof op.html !== "string") {
-          if (process.env.NODE_ENV !== "production") console.warn("[Drafta] pageops op missing html, skipping:", op.type);
+          if (process.env.NODE_ENV !== "production") console.warn("[Primy] pageops op missing html, skipping:", op.type);
           continue;
         }
         operations.push(op);
       }
     } else {
-      if (process.env.NODE_ENV !== "production") console.warn("[Drafta] Failed to parse pageops block:", block.slice(0, 200));
+      if (process.env.NODE_ENV !== "production") console.warn("[Primy] Failed to parse pageops block:", block.slice(0, 200));
     }
   }
 
@@ -400,7 +400,7 @@ export function parsePageOperations(fullText: string): PageOperation[] {
  */
 function normalizeHtmlSlide(slide: any): any | null {
   if (typeof slide.html !== "string" || slide.html.length === 0) {
-    console.warn("[Drafta] HTML slide rejected — missing or empty html field:", slide.id);
+    console.warn("[Primy] HTML slide rejected — missing or empty html field:", slide.id);
     return null;
   }
   // Ensure id
@@ -537,9 +537,9 @@ export function parseDeckOperations(fullText: string): DeckOperation[] {
         }
       }
       if (ops.length === 0) {
-        console.warn("[Drafta] All HTML-aware parse attempts failed for deckops block");
+        console.warn("[Primy] All HTML-aware parse attempts failed for deckops block");
       } else {
-        console.debug("[Drafta] HTML deckops block parsed successfully");
+        console.debug("[Primy] HTML deckops block parsed successfully");
       }
     } else {
       // Standard parse for non-HTML deck operations
@@ -561,24 +561,24 @@ export function parseDeckOperations(fullText: string): DeckOperation[] {
               })
               .filter(Boolean);
             if (op.slides.length < before) {
-              console.warn(`[Drafta] ${before - op.slides.length} HTML slides were rejected during normalization`);
+              console.warn(`[Primy] ${before - op.slides.length} HTML slides were rejected during normalization`);
             }
             if (op.slides.length > 0) {
-              console.log(`[Drafta] Deck ${op.type}: ${op.slides.length} slides parsed successfully (${op.slides.filter((s: any) => 'html' in s).length} HTML)`);
+              console.log(`[Primy] Deck ${op.type}: ${op.slides.length} slides parsed successfully (${op.slides.filter((s: any) => 'html' in s).length} HTML)`);
             }
           }
         }
       }
       operations.push(...ops);
     } else {
-      console.warn("[Drafta] Failed to parse deckops block:", block.slice(0, 300));
+      console.warn("[Primy] Failed to parse deckops block:", block.slice(0, 300));
       // Last-resort: try to extract individual slide objects from the block
       if (block.includes('"html"') && block.includes('"slides"')) {
-        console.warn("[Drafta] Attempting last-resort slide extraction...");
+        console.warn("[Primy] Attempting last-resort slide extraction...");
         const recovered = lastResortSlideExtraction(block);
         if (recovered) {
           operations.push(recovered);
-          console.debug("[Drafta] Last-resort extraction recovered", recovered.type === "CREATE" ? recovered.slides?.length : 0, "slides");
+          console.debug("[Primy] Last-resort extraction recovered", recovered.type === "CREATE" ? recovered.slides?.length : 0, "slides");
         }
       }
     }
@@ -668,7 +668,7 @@ function lastResortSlideExtraction(block: string): DeckOperation | null {
       return { type: "UPDATE", deckId: deckIdMatch?.[1] || "", slides } as DeckOperation;
     }
   } catch (e) {
-    console.warn("[Drafta] Last-resort slide extraction failed:", e);
+    console.warn("[Primy] Last-resort slide extraction failed:", e);
     return null;
   }
 }

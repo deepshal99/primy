@@ -84,7 +84,7 @@ Assistant: ${assistantMessage}`,
 
     return Response.json({ title });
   } catch (error) {
-    console.error("[Drafta] Title generation error:", error);
+    console.error("[Primy] Title generation error:", error);
     return Response.json({ title: "New Project", description: null, projectType: null });
   }
 }

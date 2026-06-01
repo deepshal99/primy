@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * ShareWatermark — "Built with Drafta" pill rendered on share viewers
+ * ShareWatermark — "Built with Primy" pill rendered on share viewers
  * when the artifact owner is on the free plan. Mirrors the Calendly /
  * Loom pattern: subtle but clickable, fixed bottom-right.
  *
@@ -23,7 +23,7 @@ export function ShareWatermark({ ownerPlan }: ShareWatermarkProps) {
       href="/?ref=share"
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="Built with Drafta"
+      aria-label="Built with Primy"
       className="fixed bottom-4 right-4 z-50 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-medium text-neutral-700 antialiased transition-all duration-150 ease-out hover:-translate-y-0.5 hover:text-neutral-900"
       style={{
         borderRadius: 9999,
@@ -55,7 +55,7 @@ export function ShareWatermark({ ownerPlan }: ShareWatermarkProps) {
         }}
       />
       <span>
-        Built with <span className="font-semibold">Drafta</span>
+        Built with <span className="font-semibold">Primy</span>
       </span>
     </a>
   );

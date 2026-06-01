@@ -194,7 +194,7 @@ export async function POST(req: Request) {
   }
 }
 
-// ── Onboarding helper: seed a "Welcome to Drafta" project ──
+// ── Onboarding helper: seed a "Welcome to Primy" project ──
 
 async function createExampleProject(userId: string) {
   const projectId = nanoid();
@@ -205,7 +205,7 @@ async function createExampleProject(userId: string) {
   await db.insert(projects).values({
     id: projectId,
     userId,
-    title: "Welcome to Drafta",
+    title: "Welcome to Primy",
     description: "Your getting-started project with an example document, a spreadsheet, and a slide deck.",
     projectType: "Other",
   });

@@ -1,4 +1,4 @@
-# Drafta AI — Response Intelligence Plan
+# Primy AI — Response Intelligence Plan
 
 **Date:** 2026-06-01
 **Goal:** Smarter, sharper replies. Lead with substance. Concise + action-oriented when there IS an action. When there's no action, just answer like a smart colleague. Always context-aware.
@@ -9,7 +9,7 @@
 
 **Done**
 - `systemPrompt.ts` — new authoritative top section: **"How to respond — READ FIRST"** (ANSWER / ACT / ASK intent gate), **Voice** (lead with the answer, concise, one next-step), and **Context awareness** (resolve "it/this", edit the open entity, don't recreate). Softened the two over-action rules (old "NEVER long text → always make a doc" and the Q&A duplicate) to deliverable-based rules.
-- `draftaTools.ts` — `TOOL_ROUTING_PROMPT` now opens with "if the user only asked a question, don't call a tool — just reply," so tools can't re-introduce the over-action bias.
+- `primyTools.ts` — `TOOL_ROUTING_PROMPT` now opens with "if the user only asked a question, don't call a tool — just reply," so tools can't re-introduce the over-action bias.
 - `route.ts` — **complexity-based effort routing**: a message matching strategy/analysis/planning intent bumps gpt-5.x `reasoningEffort` to `high` for a sharper answer; everyday asks stay on `low` for latency. Safe — only applied to candidates that already carry a `reasoningEffort` (never the gpt-4.1 fallback).
 
 **Next phase (the other ~30% of "smarter") — not yet built**
@@ -57,7 +57,7 @@ This **replaces** the blanket "long answer → always create a doc." New rule of
 - Soften line 47 and line 285 to the deliverable-based rule above (keep the spirit: don't dump a 2-page essay into a chat bubble — but only when it's actually deliverable content).
 - **Keep** "NEVER promise without delivering" (reliability) and the create-vs-edit routing rules.
 
-### 5. Tool prompt alignment (`draftaTools.ts`)
+### 5. Tool prompt alignment (`primyTools.ts`)
 Add one line to `TOOL_ROUTING_PROMPT`: *"If the user only asked a question or is chatting, do NOT call a tool — just reply. Tools are for creating/editing artifacts."* Prevents the tools from re-introducing the over-action bias.
 
 ### 6. (Optional) verbosity per need
@@ -67,7 +67,7 @@ Keep `verbosity: low` globally. If ANSWER-mode replies feel clipped in testing, 
 
 ## Files
 - `src/lib/ai/systemPrompt.ts` — new Intent Gate + Voice section at top; soften lines 47/285; tighten context rules. (~80% of the work, all text.)
-- `src/lib/ai/draftaTools.ts` — one line in `TOOL_ROUTING_PROMPT`.
+- `src/lib/ai/primyTools.ts` — one line in `TOOL_ROUTING_PROMPT`.
 - `src/lib/ai/modelRouter.ts` — only if verbosity needs bumping after QA.
 
 ## Validation matrix (must pass)

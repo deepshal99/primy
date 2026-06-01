@@ -26,7 +26,7 @@ Long-form (~1500 words). Ship as a single IndieHackers thread on launch day.
 >
 > I sat with that for an hour. The answer wasn't a single entity — it was that "AI workspace" wasn't the product. The product was the **moment**: you have a half-finished idea, you want a deliverable. Today, that means alt-tabbing between ChatGPT, Google Docs, Sheets, and Slides for 45 minutes, copy-pasting like it's 2007.
 >
-> Drafta kills that loop. You chat once. The AI builds the actual artifact in the actual workspace. Project memory means the AI knows the files you uploaded last week, the deck you made yesterday, the sheet you tweaked this morning. Nothing falls through the cracks.
+> Primy kills that loop. You chat once. The AI builds the actual artifact in the actual workspace. Project memory means the AI knows the files you uploaded last week, the deck you made yesterday, the sheet you tweaked this morning. Nothing falls through the cracks.
 
 ### What I cut
 
@@ -42,11 +42,11 @@ A list of things I deleted, with line counts. Total: -4,573 net lines in the cut
 
 The thesis is the moat. The thesis was right; only the *story* was wrong.
 
-- **Project memory** — every file, doc, sheet, and deck gets embedded and is available as context to every chat in that project. Notion AI is page-scoped. ChatGPT Canvas forgets when you start a new thread. Drafta remembers across sessions and across artifact types.
+- **Project memory** — every file, doc, sheet, and deck gets embedded and is available as context to every chat in that project. Notion AI is page-scoped. ChatGPT Canvas forgets when you start a new thread. Primy remembers across sessions and across artifact types.
 - **Multi-format output** — chat once, get a doc OR a sheet OR a deck depending on what fits. The AI picks. You can override.
 - **Drag-drop everything** — PDFs, voice memos, ZIPs. The AI reads them all and uses them as context for everything you build later.
 - **Inline mention chips** — `@AcmeProposal` in a doc inserts a colored chip linking to the artifact. Full backlinks make the workspace feel connected, like Roam, but for project deliverables.
-- **One-click branded share** — every artifact has a public-pretty share view. Free shares carry a "Built with Drafta" pill. Pro hides it. Calendly/Loom playbook.
+- **One-click branded share** — every artifact has a public-pretty share view. Free shares carry a "Built with Primy" pill. Pro hides it. Calendly/Loom playbook.
 
 ### What I built in the last 14 days
 
@@ -88,7 +88,7 @@ Free tier:
 - 50 AI messages/month
 - 5 file uploads/month
 - 500 MB storage
-- "Built with Drafta" watermark on shares
+- "Built with Primy" watermark on shares
 
 Pro tier ($24/mo, payment gateway TBD):
 - Unlimited workspaces
@@ -103,8 +103,8 @@ Pro tier ($24/mo, payment gateway TBD):
 
 I want three kinds of feedback:
 
-1. **Is the positioning clear?** Read the homepage. Tell me if it makes you understand what Drafta is in 5 seconds. If not, I want to know what's confusing.
-2. **Sign up, run a real workflow.** Pick a real project you have on your plate this week — a proposal, a status update, a pitch deck. Try to do it in Drafta. Email me what worked and what didn't.
+1. **Is the positioning clear?** Read the homepage. Tell me if it makes you understand what Primy is in 5 seconds. If not, I want to know what's confusing.
+2. **Sign up, run a real workflow.** Pick a real project you have on your plate this week — a proposal, a status update, a pitch deck. Try to do it in Primy. Email me what worked and what didn't.
 3. **Tell me what to build next.** I have a v1.1 list (brand voice profiles, recurring deliverables, workspace inbox), but I'd love to be told I'm wrong.
 
 ### What I'm watching for the next 90 days
@@ -118,7 +118,7 @@ I'll write a follow-up post on day 90 with the actual numbers, no spin.
 
 ### Try it
 
-[drafta.so](#) — free forever for one project. Beta users get Pro for 60 days.
+[primy.so](#) — free forever for one project. Beta users get Pro for 60 days.
 
 I'll be in this thread all day. Roast the work, ask anything, tell me what's broken.
 

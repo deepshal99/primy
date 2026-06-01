@@ -73,8 +73,8 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
   // Listen for global focus-chat event (Cmd+/)
   useEffect(() => {
     const handler = () => textareaRef.current?.focus();
-    window.addEventListener("drafta:focus-chat", handler);
-    return () => window.removeEventListener("drafta:focus-chat", handler);
+    window.addEventListener("primy:focus-chat", handler);
+    return () => window.removeEventListener("primy:focus-chat", handler);
   }, []);
 
   const pendingAttachments = useAppStore((s) => s.pendingAttachments);

@@ -108,7 +108,7 @@ export function SheetAIBar() {
       }
 
       window.dispatchEvent(
-        new CustomEvent("drafta:send-message", {
+        new CustomEvent("primy:send-message", {
           detail: { content: fullPrompt },
         })
       );

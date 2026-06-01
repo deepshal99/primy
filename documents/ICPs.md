@@ -1,4 +1,4 @@
-# Drafta AI — Ideal Customer Profiles
+# Primy AI — Ideal Customer Profiles
 
 > Dossiers for each customer archetype. Use these to guide feature prioritization, copy, onboarding, and UX decisions.
 

@@ -1,8 +1,8 @@
-# Drafta AI Platform Documentation
+# Primy AI Platform Documentation
 
 ## 1. Overview
 
-Drafta AI is an AI-powered workspace where users create and manage three types of entities (documents, spreadsheets, and presentations) within projects, all connected through a chat-based AI assistant powered by OpenAI for chat and Google Gemini for deck generation. The platform emphasizes cross-entity collaboration, where data and content flow between documents, sheets, and decks.
+Primy AI is an AI-powered workspace where users create and manage three types of entities (documents, spreadsheets, and presentations) within projects, all connected through a chat-based AI assistant powered by OpenAI for chat and Google Gemini for deck generation. The platform emphasizes cross-entity collaboration, where data and content flow between documents, sheets, and decks.
 
 ## 2. Core Architecture
 

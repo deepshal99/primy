@@ -33,7 +33,7 @@ export default function AppHome() {
             <div className="content-loader-line bg-[#FFB43F]/15" style={{ width: "72%" }} />
           </div>
           <p className="text-[13px] text-[#95928E]">
-            Loading Drafta AI...
+            Loading Primy...
           </p>
         </div>
       </div>

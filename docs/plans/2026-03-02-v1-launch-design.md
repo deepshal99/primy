@@ -1,7 +1,7 @@
-# Drafta AI v1 Launch — Design Document
+# Primy AI v1 Launch — Design Document
 
 **Date**: 2026-03-02
-**Goal**: Make Drafta AI launch-ready for solo knowledge workers (freelancers, researchers, students) with reliable foundations and expanded AI capabilities.
+**Goal**: Make Primy AI launch-ready for solo knowledge workers (freelancers, researchers, students) with reliable foundations and expanded AI capabilities.
 **Timeline**: 3-4 weeks
 **Branch strategy**: Feature branches off `main`, one PR per phase or logical chunk.
 
@@ -9,7 +9,7 @@
 
 ## Current State
 
-Drafta AI is an AI-powered workspace with four entity types — Documents (Plate.js), Spreadsheets (Fortune Sheet), Diagrams (Mermaid/Excalidraw/Recharts), and Decks (custom slide system) — all orchestrated through a chat-based AI assistant powered by Google Gemini.
+Primy AI is an AI-powered workspace with four entity types — Documents (Plate.js), Spreadsheets (Fortune Sheet), Diagrams (Mermaid/Excalidraw/Recharts), and Decks (custom slide system) — all orchestrated through a chat-based AI assistant powered by Google Gemini.
 
 **What works today:**
 - Full CRUD for all 4 entity types within Projects
@@ -96,12 +96,12 @@ password_reset_tokens (
 **Problem**: New users see an empty workspace with no guidance.
 
 **Design**:
-- On first login (detect via `user.createdAt === now` or a `hasOnboarded` flag), auto-create a "Welcome to Drafta" project with:
+- On first login (detect via `user.createdAt === now` or a `hasOnboarded` flag), auto-create a "Welcome to Primy" project with:
   - 1 Document: "Getting Started" with a brief guide on using the AI, creating entities, and keyboard shortcuts
   - 1 Table: Sample data (a simple task tracker with 5 rows)
-  - 1 Diagram: A flowchart showing the Drafta workflow
+  - 1 Diagram: A flowchart showing the Primy workflow
   - 1 Deck: A 3-slide intro deck
-- Show a brief welcome modal on first visit: "Welcome to Drafta AI! We've created a sample project to help you get started."
+- Show a brief welcome modal on first visit: "Welcome to Primy AI! We've created a sample project to help you get started."
 - Add `hasOnboarded: boolean` to the users table
 
 **Files touched**: `src/db/schema.ts`, `src/app/api/projects/route.ts` (or a new onboarding endpoint), `src/lib/store.ts`, new `src/components/onboarding/WelcomeModal.tsx`
@@ -266,7 +266,7 @@ Audit and improve empty states across all panels:
 **Remove legacy Conversation system**:
 - Delete all `Conversation`-related types from `types.ts`
 - Remove `saveCurrentConversation`, `loadConversation`, `deleteConversation`, `renameConversation`, `newConversation`, `loadConversations` from store
-- Remove `drafta_conversations` localStorage key handling
+- Remove `primy_conversations` localStorage key handling
 - Keep `migrateConversations()` for one more release, then remove
 
 **Add Immer middleware to Zustand**:

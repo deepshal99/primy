@@ -148,7 +148,7 @@ export default function TopBarPreview() {
             </>
           )}
           {inProjectScope && (
-            <button className="flex items-center gap-1.5 h-[30px] px-2.5 rounded-[8px] text-[12.5px] font-medium text-[#525252] hover:bg-black/[0.05] transition-colors" title="Project Brain — what Drafta knows about this project">
+            <button className="flex items-center gap-1.5 h-[30px] px-2.5 rounded-[8px] text-[12.5px] font-medium text-[#525252] hover:bg-black/[0.05] transition-colors" title="Project Brain — what Primy knows about this project">
               <Brain size={14} className="text-[#9061ff]" />
               Brain
             </button>

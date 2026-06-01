@@ -1,9 +1,9 @@
-# Drafta UI/UX Overhaul — Strut-Inspired Redesign Action Plan
+# Primy UI/UX Overhaul — Strut-Inspired Redesign Action Plan
 
 **Date:** 2026-06-01
 **Status:** Proposed (awaiting branding-shift confirmation)
 **Locked reference:** `/preview/strut` (`src/app/preview/strut/page.tsx`)
-**Supersedes design section of:** `CLAUDE.md`, `docs/superpowers/specs/2026-05-31-drafta-layout-overhaul-goal.md`
+**Supersedes design section of:** `CLAUDE.md`, `docs/superpowers/specs/2026-05-31-primy-layout-overhaul-goal.md`
 
 ---
 

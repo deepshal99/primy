@@ -24,7 +24,7 @@ export function MarketingFooter() {
               />
             </svg>
           </span>
-          <span className="text-[13px] font-medium text-[#171717]">Drafta</span>
+          <span className="text-[13px] font-medium text-[#171717]">Primy</span>
           <span className="text-[12px] text-[#a3a3a3] ml-2 tabular-nums">
             © 2026
           </span>

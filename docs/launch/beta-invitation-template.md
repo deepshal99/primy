@@ -48,11 +48,11 @@ For each, examples of who to look for + where:
 
 ### Twitter / X DM (140 chars max if possible)
 
-> Hey [name] — I built Drafta to kill the ChatGPT copy-paste loop for project work. Want a Pro pass (60 days, free)? Curious what you'd build with it.
+> Hey [name] — I built Primy to kill the ChatGPT copy-paste loop for project work. Want a Pro pass (60 days, free)? Curious what you'd build with it.
 
 If they reply with interest:
 
-> Sweet. Quick context: it's an AI workspace that builds docs, sheets, and decks in one place — keeps memory across files. Sign up at drafta.so/login?mode=signup with this email so I can flip on Pro: [their email]
+> Sweet. Quick context: it's an AI workspace that builds docs, sheets, and decks in one place — keeps memory across files. Sign up at primy.so/login?mode=signup with this email so I can flip on Pro: [their email]
 >
 > All I ask: tell me what works and what's broken after a week of using it. Even just 3 lines is gold.
 
@@ -60,11 +60,11 @@ If they reply with interest:
 
 > Hi [name] — really enjoyed [their recent post / podcast / article].
 >
-> I'm building Drafta — an AI workspace for project work. Drag in your files, chat to create docs, sheets, and decks, with project memory across everything. Solo founder, India-based, just shipped v1.0.
+> I'm building Primy — an AI workspace for project work. Drag in your files, chat to create docs, sheets, and decks, with project memory across everything. Solo founder, India-based, just shipped v1.0.
 >
 > I'm hand-picking 50 beta users for the first cohort. Pro tier free for 60 days. The only ask: feedback after a week. Honest, no spin.
 >
-> If you're curious, here's the link: drafta.so. Sign up with your work email and I'll flip on Pro for you.
+> If you're curious, here's the link: primy.so. Sign up with your work email and I'll flip on Pro for you.
 >
 > No worries if not your thing — happy to support your work however I can.
 >
@@ -72,15 +72,15 @@ If they reply with interest:
 
 ### Email (when you have it directly)
 
-Subject: `Drafta beta — Pro free for 60 days`
+Subject: `Primy beta — Pro free for 60 days`
 
 > Hi [name],
 >
-> Quick one — I'm Deepak, building [drafta.so](https://drafta.so). It's an AI workspace where you chat once and the AI builds the actual doc, sheet, or deck you need. Project memory keeps everything connected, so the AI never forgets what you're working on.
+> Quick one — I'm Deepak, building [primy.so](https://primy.so). It's an AI workspace where you chat once and the AI builds the actual doc, sheet, or deck you need. Project memory keeps everything connected, so the AI never forgets what you're working on.
 >
 > I'm onboarding the first 50 beta users this week. Pro tier free for 60 days. The only ask: 3 lines of feedback after a week.
 >
-> If you'd like in, sign up at drafta.so with this email and I'll flip on Pro within an hour: [their email]
+> If you'd like in, sign up at primy.so with this email and I'll flip on Pro within an hour: [their email]
 >
 > Thanks either way,
 > Deepak
@@ -99,7 +99,7 @@ Send 5 days after initial DM. NEVER more than once.
 
 Auto-send when a user with a beta-list email signs up. Manual for v1.0.
 
-Subject: `welcome to drafta — quick orientation`
+Subject: `welcome to primy — quick orientation`
 
 > Hi [name],
 >
@@ -111,11 +111,11 @@ Subject: `welcome to drafta — quick orientation`
 >
 > 2. **Try a slash command.** `/proposal` for proposals, `/status` for status updates, `/qbr` for QBR decks. Type the slash, hit enter, watch what happens.
 >
-> 3. **Don't try to learn the whole product.** Pick one thing on your plate this week and try to do it in Drafta. Tell me where you got stuck.
+> 3. **Don't try to learn the whole product.** Pick one thing on your plate this week and try to do it in Primy. Tell me where you got stuck.
 >
 > When you have feedback (good, bad, ugly), reply to this email. I read every one.
 >
-> If you want to skip the onboarding flow and jump straight in: drafta.so/app
+> If you want to skip the onboarding flow and jump straight in: primy.so/app
 >
 > — Deepak
 > P.S. The product is actively shipping. Expect 2-3 visible improvements per week.
@@ -132,7 +132,7 @@ Subject: `quick: what's working, what's not?`
 >
 > If you have 30 seconds, even bullet-point answers help me prioritize next week.
 >
-> If you used Drafta this week and have a screenshot to share, I'd love to feature you (with permission) on Twitter. Tag drafta.so or just reply.
+> If you used Primy this week and have a screenshot to share, I'd love to feature you (with permission) on Twitter. Tag primy.so or just reply.
 >
 > — Deepak
 
@@ -150,13 +150,13 @@ Subject: `would you mind a 2-min favor?`
 >
 > Bit of a favor: I'm collecting honest testimonials for the launch.
 >
-> If you'd write 2-3 sentences about how Drafta has fit into your workflow (the good and the limits), I'd love to use it on the site, with your name + role + permission to link to your profile.
+> If you'd write 2-3 sentences about how Primy has fit into your workflow (the good and the limits), I'd love to use it on the site, with your name + role + permission to link to your profile.
 >
 > If now's a bad time, no worries — happy to ask again later.
 >
 > Suggested prompts (use any or none):
-> - What was the last project where Drafta saved you real time?
-> - What did you stop doing because of Drafta?
+> - What was the last project where Primy saved you real time?
+> - What did you stop doing because of Primy?
 > - What's still missing?
 >
 > — Deepak
@@ -165,7 +165,7 @@ Subject: `would you mind a 2-min favor?`
 
 ## Tracking
 
-Keep a simple spreadsheet (or use Drafta itself once it's stable!):
+Keep a simple spreadsheet (or use Primy itself once it's stable!):
 
 | Name | Channel (TW/LI/Email) | DM sent | Replied | Signed up | Activated (>=1 artifact) | Week 1 feedback | Testimonial? |
 |---|---|---|---|---|---|---|---|

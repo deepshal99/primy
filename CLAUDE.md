@@ -4,14 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Drafta AI is an AI-powered workspace where users create and manage documents, spreadsheets, and presentation decks — all connected through a chat-based AI assistant. OpenAI is the primary provider for chat. Google (Gemini) is used only for deck generation/editing where it performs better. Both are required.
+Primy AI is an AI-powered workspace where users create and manage documents, spreadsheets, and presentation decks — all connected through a chat-based AI assistant. OpenAI is the primary provider for chat. Google (Gemini) is used only for deck generation/editing where it performs better. Both are required.
 
 ## Strategy & Positioning
 
 **Hero:** "The AI workspace for docs, sheets, and decks."
 **Sub:** "Chat to create and edit them all. Drag in any file. Project memory keeps everything connected — so you never copy-paste from ChatGPT again."
 
-See `docs/superpowers/specs/2026-05-01-drafta-v1-strategy.md` for full strategic context, ICPs, and execution roadmap. See `docs/superpowers/specs/2026-05-01-drafta-v1-eng-review.md` for engineering decisions.
+See `docs/superpowers/specs/2026-05-01-primy-v1-strategy.md` for full strategic context, ICPs, and execution roadmap. See `docs/superpowers/specs/2026-05-01-primy-v1-eng-review.md` for engineering decisions.
 
 ## Commands
 
@@ -117,7 +117,7 @@ This is the largest file (~78KB). All client-side state lives in a single Zustan
 
 ## Design System
 
-Strut-inspired warm shell (overhaul locked 1 Jun 2026; reference `/preview/strut`). CSS variables in `globals.css`. Tokens in `src/lib/design.ts`. Full action plan: `docs/superpowers/specs/2026-06-01-drafta-strut-overhaul-action-plan.md`.
+Strut-inspired warm shell (overhaul locked 1 Jun 2026; reference `/preview/strut`). CSS variables in `globals.css`. Tokens in `src/lib/design.ts`. Full action plan: `docs/superpowers/specs/2026-06-01-primy-strut-overhaul-action-plan.md`.
 
 - **Brand**: **black wordmark + ink `#1A1815`** primary fill (white text on it). The brand is NOT orange anymore — the legacy `#fa5d19`/`#ff4a00` oranges were swept out across the codebase.
 - **Warm accent (amber)**: `#FFB43F` — AI signal, highlights, soft pills, active dots. For amber **text** on light, use the readable deep amber `#B87426` (never `#FFB43F` for text — too light).

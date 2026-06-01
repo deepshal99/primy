@@ -111,7 +111,7 @@ export default function SharePage() {
               color: "#B87426",
             }}
           >
-            Go to Drafta
+            Go to Primy
           </a>
         </div>
       </div>
@@ -119,7 +119,7 @@ export default function SharePage() {
   }
 
   const ownerEffectivePlan: Plan = data.ownerEffectivePlan;
-  const showOpenInDraftaCta = ownerEffectivePlan === "free";
+  const showOpenInPrimyCta = ownerEffectivePlan === "free";
 
   // Single document
   if (data.type === "document") {
@@ -133,7 +133,7 @@ export default function SharePage() {
         <div className="flex-1 overflow-hidden">
           <DocViewReadOnly content={data.content} />
         </div>
-        {showOpenInDraftaCta && <OpenInDraftaCta />}
+        {showOpenInPrimyCta && <OpenInPrimyCta />}
       </ShareLayout>
     );
   }
@@ -150,7 +150,7 @@ export default function SharePage() {
         <div className="flex-1 overflow-hidden">
           <SheetViewReadOnly sheets={data.sheets || []} />
         </div>
-        {showOpenInDraftaCta && <OpenInDraftaCta />}
+        {showOpenInPrimyCta && <OpenInPrimyCta />}
       </ShareLayout>
     );
   }
@@ -167,7 +167,7 @@ export default function SharePage() {
         <div className="flex-1 overflow-hidden">
           <DeckViewReadOnly slides={data.slides} theme={data.theme} style={data.style} />
         </div>
-        {showOpenInDraftaCta && <OpenInDraftaCta />}
+        {showOpenInPrimyCta && <OpenInPrimyCta />}
       </ShareLayout>
     );
   }
@@ -257,7 +257,7 @@ export default function SharePage() {
               </div>
             )}
           </div>
-          {showOpenInDraftaCta && <OpenInDraftaCta />}
+          {showOpenInPrimyCta && <OpenInPrimyCta />}
         </div>
       </div>
     </ShareLayout>
@@ -358,7 +358,7 @@ function ShareHeader({
           }}
         >
           <Pen className="w-3 h-3 text-[#FFB43F]" strokeWidth={2} />
-          Created with <span className="text-neutral-900 font-semibold">Drafta</span>
+          Created with <span className="text-neutral-900 font-semibold">Primy</span>
           <ExternalLink className="w-3 h-3 text-neutral-400" />
         </a>
       </div>
@@ -413,10 +413,10 @@ function SidebarItem({
 }
 
 /**
- * Bottom-of-artifact "Open in Drafta" CTA. Pulls visitors toward signup.
+ * Bottom-of-artifact "Open in Primy" CTA. Pulls visitors toward signup.
  * Free-tier shares only — paid users get clean shares.
  */
-function OpenInDraftaCta() {
+function OpenInPrimyCta() {
   return (
     <div
       className="flex items-center justify-center flex-shrink-0 px-5 py-4"
@@ -438,7 +438,7 @@ function OpenInDraftaCta() {
           WebkitFontSmoothing: "antialiased",
         }}
       >
-        Make your own with Drafta
+        Make your own with Primy
         <ArrowUpRight className="w-3.5 h-3.5 transition-transform duration-150 ease-out group-hover:translate-x-0.5 group-hover:-translate-y-0.5" strokeWidth={2.2} />
       </a>
     </div>

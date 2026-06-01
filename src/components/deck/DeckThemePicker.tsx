@@ -29,7 +29,7 @@ export function DeckThemePicker() {
 
     // Dispatch a chat message to trigger AI slide generation
     window.dispatchEvent(
-      new CustomEvent("drafta:send-message", {
+      new CustomEvent("primy:send-message", {
         detail: {
           content: `Generate the full presentation with the "${selected}" theme. Use the approved outline.`,
         },

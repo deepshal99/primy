@@ -1,4 +1,4 @@
-# Drafta v1.0 — Strategy & Execution Spec
+# Primy v1.0 — Strategy & Execution Spec
 
 **Date:** 2026-05-01
 **Status:** Approved (user sign-off)
@@ -45,7 +45,7 @@ Anyone with project-based work where docs, sheets, and decks are the output:
 **Indie founders / build-in-public Twitter / IndieHackers community.**
 
 Why:
-- Founder credibility (Drafta's author *is* one)
+- Founder credibility (Primy's author *is* one)
 - Free distribution channels (Twitter, IH, Product Hunt)
 - High WTP relative to peers
 - Loud — they evangelize tools they love
@@ -89,7 +89,7 @@ The beachhead never appears in the product brand. It's a GTM channel, not a posi
 | Feature | Effort | Why |
 |---|---|---|
 | **Magic slash commands** | 2 days | Killer demo. `/proposal`, `/brief`, `/status`, `/dashboard`, `/recap`, `/agenda`, `/email`, `/qbr`, `/contract`, `/onepager` (~10 total). Each triggers a polished, ready-to-edit artifact in one shot. |
-| **Branded share + watermark** | 1 day | "Built with Drafta" pill on free shares; hidden on Pro. Free distribution mechanism (Calendly/Loom/Gamma playbook). |
+| **Branded share + watermark** | 1 day | "Built with Primy" pill on free shares; hidden on Pro. Free distribution mechanism (Calendly/Loom/Gamma playbook). |
 | **Snapshot history (polish existing undo)** | 2 days | Version timeline panel per artifact. Trust signal — users feel safe letting AI edit. |
 | **Onboarding flow** | 2 days | 3-step wired to `users.hasOnboarded`. Pick what you do → 30-sec slash command demo → pre-create example workspace. |
 | **Marketing landing page at `/`** | 2 days | Currently login is the entry. Add: hero, 3 features, pricing, footer. The first impression. |
@@ -108,7 +108,7 @@ FREE                              PRO — $24/mo                     TEAM (defer
 50 AI messages/mo                 1,500 messages/mo                 Shared workspaces
 5 file uploads/mo                 Unlimited uploads                 Member roles
 500 MB storage                    20 GB storage                     Custom domains for shares
-"Built with Drafta" watermark     No watermark                      Priority support
+"Built with Primy" watermark     No watermark                      Priority support
                                   Brand voice + visual profiles
                                   Magic slash commands (full set)
                                   Snapshot history (full)
@@ -197,7 +197,7 @@ When gateway is wired (single integration after launch):
 | **Cashfree** | Alt to Razorpay |
 | **DodoPayments** | New India-friendly merchant of record |
 
-For Drafta (USD-priced, global audience, India-based founder): **Paddle or Lemon Squeezy.**
+For Primy (USD-priced, global audience, India-based founder): **Paddle or Lemon Squeezy.**
 
 ### Unit economics (at $24/mo Pro)
 
@@ -235,7 +235,7 @@ Goal: ship something that looks shipped by a professional design team.
 | Loading states pass | Skeleton screens (shimmer/pulse) for project list, message list, sheet load, deck render |
 | Onboarding flow | 3-step minimal flow wired to `users.hasOnboarded` |
 | Settings modal redesign | Clean tabs: Account / Memory / Billing (hidden) / Danger |
-| Share view redesign | Looks like a published artifact: title, breadcrumb, watermark on free, "Try Drafta" CTA |
+| Share view redesign | Looks like a published artifact: title, breadcrumb, watermark on free, "Try Primy" CTA |
 | Run `/animate` skill | Staggered chat entries, smooth tab transitions, deck slide reveals — all <200ms, spring-based |
 | Run `/web-design-guidelines` skill | Final review for compliance |
 | Marketing landing at `/` | Hero, 3 features, pricing, footer |
@@ -392,7 +392,7 @@ If we miss by >50%: revisit positioning + ICP, not features.
 
 ## 11. The one-liner to internalize
 
-> *"Drafta is the AI workspace for docs, sheets, and decks. Drop your files in, get docs/sheets/decks generated with full project memory, ship them with one click. ChatGPT helps you talk. Drafta helps you ship."*
+> *"Primy is the AI workspace for docs, sheets, and decks. Drop your files in, get docs/sheets/decks generated with full project memory, ship them with one click. ChatGPT helps you talk. Primy helps you ship."*
 
 If a target user nods at that line, we've won. Every product, landing, and email decision should be tested against whether it makes that one line more true.
 

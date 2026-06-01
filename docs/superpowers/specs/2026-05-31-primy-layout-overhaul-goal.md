@@ -1,4 +1,4 @@
-# GOAL — Drafta Layout Overhaul (top bar + floating panes + motion system)
+# GOAL — Primy Layout Overhaul (top bar + floating panes + motion system)
 
 **Owner:** Deepak · **Date:** 31 May 2026 · **Status:** Active goal
 **Approved design:** `src/app/preview/topbar/page.tsx` (route `/preview/topbar`) — the agreed target.
@@ -41,7 +41,7 @@ utilities. Apply per the emil decision framework.
 
 ## Component contracts (new files under `src/components/shell/`)
 - **`TopBar.tsx`** — wired to store: logo→Home (clear currentEntity/Project to home view), `Breadcrumb`, Brain (opens Brain slide-over — stub if not built), Share (existing ShareModal), avatar (existing settings/profile menu). Save state + Undo/Redo render only when a file is open (reuse store `isSaving/saveError/lastSavedAt/undo/redo/canUndo/canRedo`).
-- **`Sidebar.tsx`** — on canvas: Home (→ project list / clears current project), Search (fires `drafta:open-search`), New (creates project or opens new-file), Settings (SettingsModal). Active = Home at global-home.
+- **`Sidebar.tsx`** — on canvas: Home (→ project list / clears current project), Search (fires `primy:open-search`), New (creates project or opens new-file), Settings (SettingsModal). Active = Home at global-home.
 - **`Breadcrumb.tsx`** — `Project ▾` lists projects (store `projects`, `switchProject`) + New project; `File ▾` (only when a file open) lists open + all files (`openKnowledgeUnit/openTable/openDeck/openPage`) + "All files…". Origin-aware dropdowns.
 - **`AppShell.tsx`** (rewrite) — renders TopBar + Sidebar (canvas) + floating Chat + floating Work pane; preserves: keyboard shortcuts, onboarding gate, mobile responsive (chat/workspace toggle), `sheetVersion` behavior, deck **present mode**. Removes NavRail; folds TabBar actions (undo/redo/save/share/export) into TopBar; drops the tab row + curve connectors.
 - **Global home view** — a real `GlobalHome` component (all projects + recent activity) shown when no project is open; project home stays `ProjectHome`.

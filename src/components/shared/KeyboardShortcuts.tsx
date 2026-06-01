@@ -22,7 +22,7 @@ export function KeyboardShortcuts() {
 
   useEffect(() => {
     const handleShow = () => setOpen(true);
-    window.addEventListener("drafta:show-shortcuts", handleShow);
+    window.addEventListener("primy:show-shortcuts", handleShow);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "?" ) {
@@ -34,7 +34,7 @@ export function KeyboardShortcuts() {
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener("drafta:show-shortcuts", handleShow);
+      window.removeEventListener("primy:show-shortcuts", handleShow);
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);

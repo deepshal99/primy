@@ -999,3 +999,92 @@ input:-webkit-autofill:active {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ═══════════════════════════════════════
+   Toasts — floating "ink" pill (bottom-center)
+   Appearance is set in AppToaster.tsx; this layer adds the
+   colour-coded icon disc, its pop-in, and text + control styling.
+   ═══════════════════════════════════════ */
+
+.primy-toast-icon {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+/* The lucide glyph inside the disc — pops in with scale + blur (polish spec). */
+.primy-toast-ic {
+  display: inline-flex;
+  filter: drop-shadow(0 0 6px currentColor);
+  animation: primy-ic-pop 0.3s cubic-bezier(0.2, 0, 0, 1) 0.05s both;
+}
+
+@keyframes primy-ic-pop {
+  from { opacity: 0; transform: scale(0.25); filter: blur(4px); }
+  to   { opacity: 1; transform: scale(1);    filter: blur(0); }
+}
+
+.primy-toast-spin {
+  animation: primy-toast-spin 0.7s linear infinite;
+}
+@keyframes primy-toast-spin {
+  to { transform: rotate(360deg); }
+}
+
+.primy-toast-title {
+  font-weight: 500;
+  line-height: 1.35;
+}
+.primy-toast-desc {
+  color: rgba(243, 240, 234, 0.62) !important;
+  font-size: 12.5px;
+  line-height: 1.4;
+  margin-top: 1px;
+}
+
+/* Close button — subtle, only on hover, sits inside the pill. */
+.primy-toast-close {
+  position: static !important;
+  width: 18px;
+  height: 18px;
+  margin-left: 2px;
+  border: none !important;
+  border-radius: 9999px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: rgba(243, 240, 234, 0.7) !important;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.primy-toast:hover .primy-toast-close {
+  opacity: 1;
+}
+.primy-toast-close:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #fff !important;
+}
+
+/* Inline action button — warm amber, tactile. */
+.primy-toast-action {
+  margin-left: 6px;
+  border-radius: 9999px !important;
+  background: var(--accent-amber) !important;
+  color: #1A1815 !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  padding: 4px 11px !important;
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+.primy-toast-action:hover { filter: brightness(1.05); }
+.primy-toast-action:active { transform: scale(0.96); }
+
+@media (prefers-reduced-motion: reduce) {
+  .primy-toast-ic { animation: none; }
+  .primy-toast-spin { animation-duration: 1.4s; }
+}

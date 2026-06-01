@@ -1,4 +1,4 @@
-# Drafta AI — Visual Style Guide
+# Primy AI — Visual Style Guide
 
 ## Brand Identity
 - **Primary Brand Color (Heat)**: `#fa5d19` — opacity-based scale (heat.4 through heat.100)

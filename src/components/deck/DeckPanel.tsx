@@ -54,11 +54,11 @@ export function DeckPanel() {
   useEffect(() => {
     const handlePresent = () => setShowPresentation(true);
     const handleAI = () => setShowAIDialog(true);
-    window.addEventListener("drafta:deck-present", handlePresent);
-    window.addEventListener("drafta:deck-ai", handleAI);
+    window.addEventListener("primy:deck-present", handlePresent);
+    window.addEventListener("primy:deck-ai", handleAI);
     return () => {
-      window.removeEventListener("drafta:deck-present", handlePresent);
-      window.removeEventListener("drafta:deck-ai", handleAI);
+      window.removeEventListener("primy:deck-present", handlePresent);
+      window.removeEventListener("primy:deck-ai", handleAI);
     };
   }, []);
 

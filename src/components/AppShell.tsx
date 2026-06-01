@@ -87,11 +87,11 @@ export function AppShell() {
         }
         if (e.key === "b") {
           e.preventDefault();
-          window.dispatchEvent(new Event("drafta:toggle-sidebar"));
+          window.dispatchEvent(new Event("primy:toggle-sidebar"));
         }
         if (e.key === "/" && !e.shiftKey) {
           e.preventDefault();
-          window.dispatchEvent(new Event("drafta:focus-chat"));
+          window.dispatchEvent(new Event("primy:focus-chat"));
         }
         if (e.key === "w") {
           e.preventDefault();
@@ -145,8 +145,8 @@ export function AppShell() {
   // Listen for search open event from the Sidebar.
   useEffect(() => {
     const handler = () => setSearchOpen(true);
-    window.addEventListener("drafta:open-search", handler);
-    return () => window.removeEventListener("drafta:open-search", handler);
+    window.addEventListener("primy:open-search", handler);
+    return () => window.removeEventListener("primy:open-search", handler);
   }, []);
 
   // The work pane and chat are both always present. On mobile a single panel

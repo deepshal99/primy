@@ -74,7 +74,7 @@ export default function BrandPreview() {
           <div className="flex items-center justify-center w-9 h-9 rounded-[10px]" style={{ background: C.primary }}>
             <span className="text-[18px] font-bold" style={{ color: C.secondary }}>D</span>
           </div>
-          <span className="text-[22px] font-semibold tracking-[-0.03em]">Drafta</span>
+          <span className="text-[22px] font-semibold tracking-[-0.03em]">Primy</span>
           <span className="ml-2 text-[12px] font-medium px-2.5 py-1 rounded-full" style={{ background: C.surface, color: C.muted, border: `1px solid ${C.border}` }}>Brand preview</span>
         </div>
         <p className="text-[15px] mb-8" style={{ color: C.muted }}>Clean product palette — black wordmark, warm off-white surfaces, candy accents at 10%.</p>
@@ -87,7 +87,7 @@ export default function BrandPreview() {
             <div className="flex items-center justify-center w-8 h-8 rounded-[9px]" style={{ background: C.primary }}>
               <span className="text-[15px] font-bold" style={{ color: C.secondary }}>D</span>
             </div>
-            <span className="text-[20px] font-semibold tracking-[-0.02em]" style={{ color: C.primary }}>Drafta</span>
+            <span className="text-[20px] font-semibold tracking-[-0.02em]" style={{ color: C.primary }}>Primy</span>
           </div>
         </div>
 
@@ -142,7 +142,7 @@ export default function BrandPreview() {
           <div className="flex flex-col flex-shrink-0 px-3 py-4" style={{ width: 196, background: C.secondary, borderRight: `1px solid ${C.border}` }}>
             <div className="flex items-center gap-2 px-2 mb-5">
               <div className="flex items-center justify-center w-6 h-6 rounded-[7px]" style={{ background: C.primary }}><span className="text-[12px] font-bold" style={{ color: C.secondary }}>D</span></div>
-              <span className="text-[15px] font-semibold tracking-[-0.02em]">Drafta</span>
+              <span className="text-[15px] font-semibold tracking-[-0.02em]">Primy</span>
             </div>
             {["Inbox", "Quick Note", "Search"].map((n) => (
               <div key={n} className="flex items-center gap-2.5 h-[32px] px-2 rounded-[8px] text-[13px]" style={{ color: C.muted }}>

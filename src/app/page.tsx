@@ -21,7 +21,7 @@ export const dynamic = "force-static";
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Drafta — The AI workspace for docs, sheets, and decks",
+  title: "Primy — The AI workspace for docs, sheets, and decks",
   description:
     "Chat to create and edit docs, sheets, and decks. Drag in any file. Project memory keeps everything connected — so you never copy-paste from ChatGPT again.",
 };
@@ -143,7 +143,7 @@ function ProductPreview() {
             <span className="w-2.5 h-2.5 rounded-full bg-[rgba(0,0,0,0.10)]" />
           </div>
           <div className="text-[10px] text-[#a3a3a3] tracking-wide">
-            drafta.preview
+            primy.preview
           </div>
           <div className="w-12" />
         </div>
@@ -331,7 +331,7 @@ function ValueProps() {
 }
 
 /* ──────────────────────────────────────────────
-   Killer demo — Without Drafta vs With Drafta
+   Killer demo — Without Primy vs With Primy
    ────────────────────────────────────────────── */
 
 function KillerDemo() {
@@ -349,18 +349,18 @@ function KillerDemo() {
             Never copy-paste from ChatGPT again.
           </h2>
           <p className="mt-4 text-[15px] text-[#525252] max-w-[560px] mx-auto leading-relaxed">
-            Most AI tools forget what you did yesterday. Drafta remembers
+            Most AI tools forget what you did yesterday. Primy remembers
             every file and every artifact in the project — so the second
             ask is faster than the first.
           </p>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6">
-          {/* Without Drafta */}
+          {/* Without Primy */}
           <div className="rounded-[16px] border border-[rgba(0,0,0,0.06)] bg-white p-6 lg:p-8">
             <div className="flex items-center gap-2 mb-6">
               <span className="text-[11px] font-medium text-[#737373] uppercase tracking-[0.08em]">
-                Without Drafta
+                Without Primy
               </span>
             </div>
 
@@ -429,7 +429,7 @@ function KillerDemo() {
             </div>
           </div>
 
-          {/* With Drafta */}
+          {/* With Primy */}
           <div
             className="rounded-[16px] border bg-white p-6 lg:p-8"
             style={{ borderColor: "rgba(255,180,63,0.20)" }}
@@ -440,7 +440,7 @@ function KillerDemo() {
                 className="text-[11px] font-medium uppercase tracking-[0.08em]"
                 style={{ color: "#B87426" }}
               >
-                With Drafta
+                With Primy
               </span>
             </div>
 
@@ -767,7 +767,7 @@ function PricingTeaser() {
               <PricingRow>Unlimited file uploads</PricingRow>
               <PricingRow>{Math.round(pro.storageBytes / (1024 * 1024 * 1024))} GB storage</PricingRow>
               <PricingRow>Brand voice + visual profiles</PricingRow>
-              <PricingRow>No "Built with Drafta" watermark</PricingRow>
+              <PricingRow>No "Built with Primy" watermark</PricingRow>
             </ul>
             <div className="mt-6">
               <CTAButton href="/login?mode=signup" variant="primary" className="w-full">

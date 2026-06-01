@@ -1,5 +1,5 @@
 /**
- * Drafta AI — Design System (Strut-inspired)
+ * Primy — Design System (Strut-inspired)
  *
  * Black brand (ink #1A1815) on warm near-white (#FCFBF8).
  * Amber (#FFB43F) is the warm accent; blue/pink/purple/teal are the candy set.
@@ -111,8 +111,25 @@ export const design = {
       sans: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
       mono: "'JetBrains Mono', 'SF Mono', 'Fira Code', monospace",
     },
+    // ── Type scale (single source of truth) ────────────────────────────
+    // One ramp for the entire platform. Every UI font-size MUST land on one
+    // of these steps — no off-scale values (no 10.5 / 11.5 / 12.5 / 16.5 …).
+    // `role` gives each step a semantic name + where it's used; `size` keeps
+    // the legacy t-shirt keys aliased to the same steps for older callers.
+    role: {
+      micro:     "11px", // timestamps, tiny meta
+      caption:   "12px", // chips, counts, eyebrow labels
+      bodySm:    "13px", // nav rows, menu items, secondary text, card bullets/prose
+      body:      "14px", // default body, inputs, Create-tile label
+      bodyLg:    "15px", // emphasized body, view/card titles, chat copy
+      h3:        "16px", // section + dialog headings
+      h2:        "18px", // brand wordmark, large headings
+      h1:        "20px", // page titles
+      displaySm: "24px", // home / empty-state headings
+      display:   "30px", // hero ("What are you working on?")
+    },
     size: {
-      "2xs": "10px",
+      "2xs": "11px",
       xs: "11px",
       sm: "12px",
       base: "14px",
@@ -121,7 +138,7 @@ export const design = {
       xl: "18px",
       "2xl": "20px",
       "3xl": "24px",
-      "4xl": "28px",
+      "4xl": "30px",
     },
     weight: {
       light: "300",
@@ -167,6 +184,10 @@ export const design = {
     xl: "14px",
     "2xl": "20px",
     full: "9999px",
+    // Selection pattern: list rows that represent a pickable item — sidebar nav,
+    // workspace rows, segmented toggles, filter chips — use `full` (pill) for
+    // their hover/active background. Reach for this on any "select me" element.
+    pill: "9999px",
   },
 
   shadows: {

@@ -53,7 +53,7 @@ function toUniverWorkbook(sheets: SheetData[]): any {
     };
   }
   return {
-    id: "drafta-readonly-workbook",
+    id: "primy-readonly-workbook",
     name: "Workbook",
     sheetOrder,
     sheets: sheetMap,

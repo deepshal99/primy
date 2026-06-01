@@ -85,10 +85,10 @@ if (typeof window !== "undefined") {
 
 // ── LocalStorage helpers ──
 
-const PROJECTS_KEY = "drafta_projects";
+const PROJECTS_KEY = "primy_projects";
 
 // TODO: Remove in next release — only needed for migrateConversations()
-const LEGACY_CONVERSATIONS_KEY = "drafta_conversations";
+const LEGACY_CONVERSATIONS_KEY = "primy_conversations";
 function loadConversationsFromStorage(): Conversation[] {
   if (typeof window === "undefined") return [];
   try {
@@ -346,7 +346,7 @@ export const useAppStore = create<AppState>()(
         newUndoStack = [...state.undoStack, snapshot].slice(-20);
       } catch (e) {
         // JSON.stringify can fail on very large decks — skip undo snapshot but don't block the pipeline
-        console.warn("[Drafta] Undo snapshot failed (data too large), skipping:", e);
+        console.warn("[Primy] Undo snapshot failed (data too large), skipping:", e);
       }
     }
 
@@ -408,7 +408,7 @@ export const useAppStore = create<AppState>()(
     let entityOpsApplied = false;
     if (hasKuOps || hasTableOps || hasDeckOps || hasPageOps) {
       if (!state.currentProjectId) {
-        console.error("[Drafta] Entity operations received but no currentProjectId");
+        console.error("[Primy] Entity operations received but no currentProjectId");
         toast.error("No active project — AI changes could not be applied. Please try again.");
       }
       newProjects = [...state.projects];
@@ -818,7 +818,7 @@ export const useAppStore = create<AppState>()(
         newProjects[projIdx] = project;
         entityOpsApplied = true;
       } else if (state.currentProjectId) {
-        console.error("[Drafta] Project not found in store for entity ops, projectId:", state.currentProjectId);
+        console.error("[Primy] Project not found in store for entity ops, projectId:", state.currentProjectId);
         toast.error("Failed to apply changes — project not found. Please try again.");
       }
     }
@@ -916,10 +916,10 @@ export const useAppStore = create<AppState>()(
         updateProjectOnServer(projectId, deletePayload).catch(() => {
           // First retry failed (updateProjectOnServer already retries 2x internally)
           // Schedule one more attempt after 5 seconds
-          console.warn("[Drafta] Delete sync failed, scheduling retry...");
+          console.warn("[Primy] Delete sync failed, scheduling retry...");
           setTimeout(() => {
             updateProjectOnServer(projectId, deletePayload).catch(() => {
-              console.error("[Drafta] Delete sync failed permanently:", deletePayload);
+              console.error("[Primy] Delete sync failed permanently:", deletePayload);
               toast.error("Some deletions may not have been saved to the server. Please refresh.");
             });
           }, 5000);

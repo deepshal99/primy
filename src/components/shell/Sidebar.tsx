@@ -9,7 +9,7 @@
  *
  *  - Projects → returns to the all-projects list (clears current project/entity,
  *               same `goGlobalHome` the logo + breadcrumb use). Active only there.
- *  - Search   → dispatches `drafta:open-search` (AppShell listens).
+ *  - Search   → dispatches `primy:open-search` (AppShell listens).
  *  - New      → createProject + switches to it.
  *  - Settings → opens the existing SettingsModal.
  *
@@ -31,7 +31,7 @@ export function Sidebar() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const atProjects = !currentProjectId; // all-projects level
-  const openSearch = () => window.dispatchEvent(new Event("drafta:open-search"));
+  const openSearch = () => window.dispatchEvent(new Event("primy:open-search"));
   const newProject = () => createProject("Untitled project");
 
   return (

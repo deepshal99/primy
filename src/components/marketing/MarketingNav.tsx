@@ -31,7 +31,7 @@ export function MarketingNav() {
       <div className="mx-auto max-w-[1200px] px-6 lg:px-8 h-16 flex items-center justify-between">
         <Link
           href="/"
-          aria-label="Drafta home"
+          aria-label="Primy home"
           className="flex items-center gap-2 group"
         >
           <span
@@ -50,7 +50,7 @@ export function MarketingNav() {
             </svg>
           </span>
           <span className="text-[15px] font-medium tracking-[-0.01em] text-[#171717]">
-            Drafta
+            Primy
           </span>
         </Link>
 

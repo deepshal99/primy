@@ -21,7 +21,7 @@ interface EmptyStateProps {
 }
 
 /**
- * EmptyState — the standard "no data" surface across Drafta.
+ * EmptyState — the standard "no data" surface across Primy.
  *
  * Layout: centered, max-width 480px, generous (64px) vertical breathing
  * room. Concentric radii are used wherever cards/buttons are inserted

@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * STANDALONE PREVIEW — Strut-style workspace shell for Drafta.
+ * STANDALONE PREVIEW — Strut-style workspace shell for Primy.
  *
  * A faithful study of strut.so's UI/UX (warm palette, calm typography, labeled
  * sidebar, docked cream chat pane, board / kanban / timeline views, a NATIVE
- * unified editor shell) — reskinned for Drafta's entities (doc / sheet / deck /
+ * unified editor shell) — reskinned for Primy's entities (doc / sheet / deck /
  * page) and the two gaps Strut exposed:
  *   1. Nested project → folder → entity hierarchy in the sidebar + board.
  *   2. One cohesive "editor shell" that wraps every entity type identically.
@@ -245,7 +245,7 @@ export default function StrutPreview() {
         {/* Brand mark */}
         <div className="flex items-center gap-2.5 px-8 h-[76px] flex-shrink-0">
           <LogoMark />
-          <span className="text-[19px] font-semibold tracking-[-0.035em]" style={{ color: t.ink }}>Drafta</span>
+          <span className="text-[19px] font-semibold tracking-[-0.035em]" style={{ color: t.ink }}>Primy</span>
           <button
             onClick={() => setMode(dark ? LIGHT : DARK)}
             className="ml-auto flex items-center justify-center w-7 h-7 rounded-[7px] press"
@@ -342,7 +342,7 @@ export default function StrutPreview() {
           <NavRow t={t} icon={<CircleHelp size={17} />} label="Help & Support" />
           <div className="mt-6 flex items-center gap-3">
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-[15px] font-medium" style={{ background: "#E8D7FF", color: "#3A2B45" }}>D</div>
-            <span className="text-[13.5px] font-medium flex-1" style={{ color: t.ink2 }}>Drafta</span>
+            <span className="text-[13.5px] font-medium flex-1" style={{ color: t.ink2 }}>Primy</span>
             <ChevronRight size={13} style={{ color: t.ink4, transform: "rotate(90deg)" }} />
           </div>
         </div>
@@ -1077,7 +1077,7 @@ function ChatPane({ t, project }: { t: Theme; project: ProjectT }) {
     >
       <div className="flex items-center gap-2 px-7 h-[58px] flex-shrink-0">
         <LogoMark />
-        <span className="font-semibold text-[16px] tracking-[-0.02em]">Drafta AI</span>
+        <span className="font-semibold text-[16px] tracking-[-0.02em]">Primy</span>
         <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: t.accentSoft, color: t.ink3 }}>Beta</span>
         <div className="flex-1" />
         <ToolbarBtn t={t}><Maximize2 size={14} /></ToolbarBtn>
@@ -1089,7 +1089,7 @@ function ChatPane({ t, project }: { t: Theme; project: ProjectT }) {
       <div className="flex-1 overflow-y-auto px-8 pb-7 flex flex-col justify-end">
         <div className="flex items-center gap-4 mb-5">
           <div className="w-6 h-6 rounded-full flex-shrink-0" style={{ background: t.accent }} />
-          <div className="font-semibold text-[18px] tracking-[-0.015em]">Drafta</div>
+          <div className="font-semibold text-[18px] tracking-[-0.015em]">Primy</div>
         </div>
         <div className="text-[16px] leading-[1.48] space-y-5" style={{ color: t.ink }}>
           <p>Hi there!</p>

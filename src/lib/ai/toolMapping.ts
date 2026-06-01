@@ -8,7 +8,7 @@ import type {
 } from "@/lib/types";
 
 /**
- * Applies Layer B tool calls (see `draftaTools.ts`) to the existing store
+ * Applies Layer B tool calls (see `primyTools.ts`) to the existing store
  * operation arrays. Each tool maps 1:1 onto an operation the store already
  * knows how to apply + auto-open, so nothing downstream changes — only the
  * transport (schema-validated tool call vs. regex-parsed fenced block).

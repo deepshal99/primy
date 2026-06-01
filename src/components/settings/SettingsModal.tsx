@@ -495,7 +495,7 @@ function BillingTabContent() {
             {isPro && isOnGracePeriod
               ? "Enjoy full Pro access during your founding-member grace period."
               : isPro
-              ? "Thanks for supporting Drafta."
+              ? "Thanks for supporting Primy."
               : "Upgrade for higher limits, brand profiles, and no watermark."}
           </p>
         </div>

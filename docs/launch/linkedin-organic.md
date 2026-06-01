@@ -28,7 +28,7 @@ LinkedIn is a different beast than Twitter or PH. Algorithm rewards: first-2-lin
 >
 > So I cut the diagrams entity entirely. -4,500 net lines. Three weeks of work to ship 14 days of focused product instead.
 >
-> Drafta is now positioned as: the AI workspace for docs, sheets, and decks. Drag any file in. The AI builds the actual deliverable. Project memory keeps everything connected.
+> Primy is now positioned as: the AI workspace for docs, sheets, and decks. Drag any file in. The AI builds the actual deliverable. Project memory keeps everything connected.
 >
 > Free for one workspace. Pro at $24/mo when our payment integration lands.
 >
@@ -125,7 +125,7 @@ LinkedIn Sponsored Content (single-image post, native).
 **Creative:**
 - Use Post 1 above (the "we shipped" announce)
 - Image: clean product screenshot — the chat → 3 artifacts visualization
-- CTA: "Visit website" → drafta.so
+- CTA: "Visit website" → primy.so
 - A/B test 2 variants of the headline
 
 **Budget pacing:**
@@ -147,10 +147,10 @@ LinkedIn DMs work when they don't feel like a pitch. Connect first, build contex
 >
 > When you draft a [proposal / status update / pitch deck] for a client, where do you start? ChatGPT and copy-paste? A template?
 >
-> I'm building Drafta to fix the copy-paste loop and would love your honest take. Happy to send you a link to try it free for 60 days if you're curious — but mostly I want your reaction to the workflow.
+> I'm building Primy to fix the copy-paste loop and would love your honest take. Happy to send you a link to try it free for 60 days if you're curious — but mostly I want your reaction to the workflow.
 
 ### Follow-up (5 days no reply)
-> Hey [name] — circling back once. If now's not the right time, no worries. If you want a 60-day Pro pass to try Drafta, just say "in" and I'll send it. Otherwise I'll let you go.
+> Hey [name] — circling back once. If now's not the right time, no worries. If you want a 60-day Pro pass to try Primy, just say "in" and I'll send it. Otherwise I'll let you go.
 
 ### NO follow-up beyond that
 - Don't double-DM beyond once

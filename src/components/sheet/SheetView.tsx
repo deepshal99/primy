@@ -84,7 +84,7 @@ function toUniverWorkbook(sheets: SheetData[]): any {
   }
 
   return {
-    id: "drafta-workbook",
+    id: "primy-workbook",
     name: "Workbook",
     sheetOrder,
     sheets: sheetMap,
@@ -228,7 +228,7 @@ export function SheetView() {
                 (sheet as any).insertImages([builtImage]);
               }
             } catch (err) {
-              console.error("[Drafta] Failed to insert sheet image:", err);
+              console.error("[Primy] Failed to insert sheet image:", err);
             }
           }
         }
@@ -315,7 +315,7 @@ export function SheetView() {
 
         useAppStore.getState().updateSheetData(newSheets);
       } catch (err) {
-        console.error("[Drafta] Failed to sync Univer to store:", err);
+        console.error("[Primy] Failed to sync Univer to store:", err);
       }
     }, 800);
   }, []);

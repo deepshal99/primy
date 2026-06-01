@@ -106,7 +106,7 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
         messages: messages.slice(0, idx),
       });
       window.dispatchEvent(
-        new CustomEvent("drafta:send-message", {
+        new CustomEvent("primy:send-message", {
           detail: { content: userMsg.content },
         })
       );

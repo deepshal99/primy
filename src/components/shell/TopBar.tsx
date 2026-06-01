@@ -131,7 +131,7 @@ export function TopBar() {
           {inProjectScope && (
             <button
               onClick={() => setBrainOpen(true)}
-              title="Project Brain — what Drafta knows about this project"
+              title="Project Brain — what Primy knows about this project"
               className="press flex items-center gap-1.5 h-[30px] px-2.5 rounded-[8px] text-[12.5px] font-medium text-[#525252] hover:bg-black/[0.05] active:scale-[0.97] transition-[background-color,transform] motion-reduce:transition-none"
               style={{ transitionDuration: "140ms" }}
             >
@@ -341,7 +341,7 @@ function BrainPanel({ open, onClose, projectId }: { open: boolean; onClose: () =
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
           <div className="text-[12.5px] text-[#737373] leading-relaxed">
-            What Drafta knows about <b className="font-medium text-[#171717]">{project.title}</b>.
+            What Primy knows about <b className="font-medium text-[#171717]">{project.title}</b>.
           </div>
 
           {/* Context */}
@@ -356,7 +356,7 @@ function BrainPanel({ open, onClose, projectId }: { open: boolean; onClose: () =
             </div>
           ) : (
             <div className="mt-4 rounded-xl px-3.5 py-3 text-[12.5px] text-[#737373]" style={{ background: "#faf9f7", border: "1px solid rgba(0,0,0,0.05)" }}>
-              No project context yet. Chat with Drafta and it will learn the purpose, audience, and voice over time.
+              No project context yet. Chat with Primy and it will learn the purpose, audience, and voice over time.
             </div>
           )}
 

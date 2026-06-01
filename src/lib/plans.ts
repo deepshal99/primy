@@ -23,7 +23,7 @@ export interface PlanLimits {
   fileUploadsPerMonth: number;
   /** Max total storage across all files (after soft delete). */
   storageBytes: number;
-  /** Whether share viewers display the "Built with Drafta" watermark. */
+  /** Whether share viewers display the "Built with Primy" watermark. */
   watermarkOnShares: boolean;
   /** Whether brand voice + visual profiles are enabled. */
   brandProfiles: boolean;

@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config";
 import path from "node:path";
 
 /**
- * Vitest config for Drafta.
+ * Vitest config for Primy.
  *
  * Integration tests use a dedicated Neon test branch via DATABASE_URL_TEST.
  * Set this in .env.local or CI; tests skip when it's missing.

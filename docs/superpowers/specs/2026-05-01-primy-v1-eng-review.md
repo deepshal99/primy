@@ -1,9 +1,9 @@
-# Drafta v1.0 — Engineering Review (gstack /plan-eng-review)
+# Primy v1.0 — Engineering Review (gstack /plan-eng-review)
 
 **Date:** 2026-05-01
 **Mode:** BIG CHANGE
 **Reviewer:** plan-eng-review skill
-**Source spec:** `2026-05-01-drafta-v1-strategy.md`
+**Source spec:** `2026-05-01-primy-v1-strategy.md`
 **Status:** All review sections complete; decisions committed
 
 ---
@@ -235,7 +235,7 @@ export function ShareWatermark({ plan }: { plan: 'free' | 'pro' }) {
   if (plan === 'pro') return null;
   return (
     <a href="/?ref=share" className="fixed bottom-4 right-4 ...">
-      Built with Drafta
+      Built with Primy
     </a>
   );
 }
@@ -397,7 +397,7 @@ test('slash /proposal generates expected ops shape', async () => {
 
 ### 22. Phase 1 cuts — gstack `/qa` smoke test
 
-After Phase 1 deploy: `/qa staging.drafta.so --quick` → assert no diagram-related errors, no broken AI flows, all entity types open correctly.
+After Phase 1 deploy: `/qa staging.primy.so --quick` → assert no diagram-related errors, no broken AI flows, all entity types open correctly.
 
 ### Critical gaps closed
 
@@ -484,7 +484,7 @@ All 3 originally critical gaps now have tests + rescue paths.
 
 ```
 +============================================================+
-|              PLAN-ENG-REVIEW — DRAFTA v1.0                 |
+|              PLAN-ENG-REVIEW — PRIMY v1.0                 |
 +============================================================+
 | Mode                  | BIG CHANGE                         |
 | Step 0 (scope)        | 30+ files; complexity acknowledged |

@@ -1,4 +1,4 @@
-# Drafta AI — Reliability Hardening Plan
+# Primy AI — Reliability Hardening Plan
 
 > **STATUS (2026-06-01): Layer A + Layer B both SHIPPED & verified (tsc + production build clean).** Layer B landed behind dual-accept — schema-validated tool calls for create/edit, with the fenced-block parser kept as a live fallback so nothing regresses. See "Implementation status" at the bottom.
 
@@ -185,7 +185,7 @@ Why this is structurally fail-proof:
 The error in the transcript:
 `API Error: 400 messages.3.content.28: 'thinking' or 'redacted_thinking' blocks in the latest assistant message cannot be modified.`
 
-This is **not** a Drafta bug. It's a Claude Code session/transport error: a prior assistant turn contained an extended-**thinking** block, and on resend the harness altered/re-ordered that block (Anthropic's API forbids mutating thinking blocks once produced — common when a message is edited/retried, or a tool result is injected into a turn that already emitted thinking).
+This is **not** a Primy bug. It's a Claude Code session/transport error: a prior assistant turn contained an extended-**thinking** block, and on resend the harness altered/re-ordered that block (Anthropic's API forbids mutating thinking blocks once produced — common when a message is edited/retried, or a tool result is injected into a turn that already emitted thinking).
 
 **Workaround:** start a fresh conversation rather than editing/retrying the message that already produced thinking; or disable interleaved/extended thinking for that session. That's why the resend eventually went through — a clean turn has no prior thinking block to violate.
 
@@ -206,7 +206,7 @@ This is **not** a Drafta bug. It's a Claude Code session/transport error: a prio
 ### Layer B — DONE (dual-accept, tsc + build clean)
 Structured client-forwarded tool calls replace hand-typed JSON for the high-value create/edit paths.
 
-- **`draftaTools.ts`** (new): 5 schema-validated tools via AI SDK `tool()` + `jsonSchema` (no zod dep) — `create_document`, `edit_document`, `append_to_document`, `create_spreadsheet`, `create_page`. No `execute` ⇒ client-forwarded. Each is id-free and maps 1:1 onto an existing store op, so the apply/auto-open pipeline is unchanged. Includes `TOOL_ROUTING_PROMPT` appended to the system prompt for chat tasks.
+- **`primyTools.ts`** (new): 5 schema-validated tools via AI SDK `tool()` + `jsonSchema` (no zod dep) — `create_document`, `edit_document`, `append_to_document`, `create_spreadsheet`, `create_page`. No `execute` ⇒ client-forwarded. Each is id-free and maps 1:1 onto an existing store op, so the apply/auto-open pipeline is unchanged. Includes `TOOL_ROUTING_PROMPT` appended to the system prompt for chat tasks.
 - **`toolMapping.ts`** (new): `applyToolCall()` maps a tool call → store ops (and **builds the sheet `celldata` from plain headers+rows** — the model no longer hand-builds cell coordinates, a big reliability win). Defensive: bad input is ignored, never throws.
 - **`route.ts`**: tools active ONLY for `chat`/`chat-heavy` (deck flow untouched). `fullStream` forwards `tool-input-start` → `{toolStart}` (live pill) and `tool-call` → `{toolCall}` (the action). gpt-4.1 fallback also supports function calling, so tools survive a fallback. `emittedToolCall` guards prevent fallback duplication and tool-only-response false errors.
 - **`ChatPanel.tsx`**: collects tool calls into `toolOps`; **dual-accept** — prefers tool ops per family, falls back to fenced parsing (legacy/deck/sheet-cell edits still work). Applied on both success AND abort paths. Tool-only responses (no prose) no longer treated as "empty".

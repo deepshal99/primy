@@ -29,7 +29,7 @@ The billing system is gateway-agnostic by design. The `Gateway` interface in `sr
 
 **Pick Lemon Squeezy for v1.0 launch.**
 
-Reasoning, mapped to Drafta's situation:
+Reasoning, mapped to Primy's situation:
 
 1. **Merchant of record** = they handle all global tax compliance. Solo founder, India-based, global audience — you do not have time to file VAT/GST/sales-tax in 30 jurisdictions. Hard requirement.
 2. **Fastest time to first transaction.** You can be live in hours, not days. Paddle's KYC is similarly light but Lemon Squeezy's onboarding flow is famously fast.
@@ -54,7 +54,7 @@ The billing core is already done. You're filling out one file: `src/lib/billing/
 
 1. Sign up at `lemonsqueezy.com`. Use your business email.
 2. Complete KYC: PAN, business name, address, bank details for payouts. Allow 24h for verification.
-3. Create one product: "Drafta Pro"
+3. Create one product: "Primy Pro"
    - Variant: Monthly subscription, $24 USD
    - (Optional) Variant: Annual subscription, $240 USD (16% discount)
 4. Note your Store ID and Product ID — you'll need them in env vars.
@@ -284,7 +284,7 @@ export async function POST() {
   const session = await auth();
   if (!session?.user?.id) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const origin = process.env.NEXTAUTH_URL ?? "https://drafta.so";
+  const origin = process.env.NEXTAUTH_URL ?? "https://primy.so";
   const url = await getGateway().createCheckoutSession({
     userId: session.user.id,
     plan: "pro",
@@ -300,7 +300,7 @@ Wire the "Upgrade to Pro" button in the LimitReachedModal + Settings → Billing
 ### Day 5 — End-to-end test on sandbox
 
 1. Use Lemon Squeezy test mode (toggle in dashboard).
-2. Sign up a test user in your local Drafta.
+2. Sign up a test user in your local Primy.
 3. Trigger upgrade from the Settings → Billing tab.
 4. Complete fake checkout with the test card.
 5. Verify webhook fires → `users.plan` is `pro` in DB.
@@ -318,7 +318,7 @@ Wire the "Upgrade to Pro" button in the LimitReachedModal + Settings → Billing
 
 ## Gotchas / risks specific to Lemon Squeezy
 
-1. **Subscription email mismatch.** If a user signs up in Drafta with email A, then completes checkout with email B, the customer is correlated by `custom_data.user_id`, not email. Make sure the checkout always passes `user_id`.
+1. **Subscription email mismatch.** If a user signs up in Primy with email A, then completes checkout with email B, the customer is correlated by `custom_data.user_id`, not email. Make sure the checkout always passes `user_id`.
 2. **Test mode != production mode.** Webhook events from test mode won't fire in production and vice-versa. Don't accidentally use a test webhook secret in prod.
 3. **Refunds are a manual action in their dashboard.** No automated refund API for indie tier. If a user asks for a refund, do it manually within 24h to maintain trust.
 4. **VAT shows up in the customer's checkout but not in your revenue.** Don't be surprised when your monthly statement is lower than 24× subscriptions — Lemon Squeezy keeps the tax portion.

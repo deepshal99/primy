@@ -1,4 +1,4 @@
-# Drafta v1.0 — Deferred Work (CLEARED)
+# Primy v1.0 — Deferred Work (CLEARED)
 
 **Date:** 2026-05-01
 **Status:** ✅ All items resolved.

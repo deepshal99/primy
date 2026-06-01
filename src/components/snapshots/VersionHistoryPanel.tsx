@@ -193,7 +193,7 @@ export function VersionHistoryPanel({
                 Version history
               </DialogTitle>
               <DialogDescription className="text-[12.5px] text-[#737373] leading-tight mt-0.5">
-                Restore any version of this {noun}. Drafta saves a version after
+                Restore any version of this {noun}. Primy saves a version after
                 each AI edit.
               </DialogDescription>
             </div>
@@ -250,7 +250,7 @@ export function VersionHistoryPanel({
                 <EmptyState
                   icon={<Clock className="w-7 h-7 text-[#a3a3a3]" />}
                   heading="No saved versions yet"
-                  description={`Drafta will save a version automatically after the next AI edit to this ${noun}.`}
+                  description={`Primy will save a version automatically after the next AI edit to this ${noun}.`}
                 />
               </div>
             )}

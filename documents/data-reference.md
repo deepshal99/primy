@@ -1,4 +1,4 @@
-# Drafta AI — Data Reference
+# Primy AI — Data Reference
 
 > Domain data relationships and business logic not expressed in the database schema alone.
 

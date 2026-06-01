@@ -1,6 +1,6 @@
 # Product Hunt Launch Playbook
 
-Complete plan for the Drafta launch on Product Hunt. Use this as the source of truth on launch day.
+Complete plan for the Primy launch on Product Hunt. Use this as the source of truth on launch day.
 
 ---
 
@@ -20,7 +20,7 @@ Pick #1 — it's clean, claims the category, no jargon.
 
 ## Description (60-100 words)
 
-> Drafta is the AI workspace for docs, sheets, and decks. Drag in any file — PDFs, spreadsheets, voice memos. Chat to create the artifact you need: a polished doc, a working spreadsheet, a client-ready deck. Project memory keeps everything connected, so the AI never forgets what you're working on.
+> Primy is the AI workspace for docs, sheets, and decks. Drag in any file — PDFs, spreadsheets, voice memos. Chat to create the artifact you need: a polished doc, a working spreadsheet, a client-ready deck. Project memory keeps everything connected, so the AI never forgets what you're working on.
 >
 > Free forever for one project. Pro for $24/mo. No more bouncing between ChatGPT, Google Drive, and Slides.
 
@@ -30,11 +30,11 @@ Pick #1 — it's clean, claims the category, no jargon.
 
 Post immediately after PH launches. Targets the "scroll past the tagline" reader.
 
-> Hey hunters! I'm Deepak, the maker of Drafta.
+> Hey hunters! I'm Deepak, the maker of Primy.
 >
 > I built this because of one specific frustration: I'd open ChatGPT, get a great draft, then copy-paste it into Google Docs to format it. Then I'd need a chart from a spreadsheet — back to ChatGPT, copy-paste into Sheets. Then a slide deck — same loop. By the end of a project I had 14 ChatGPT threads, 6 Google Docs, 2 Sheets, and a Slides deck, and the AI knew none of them existed.
 >
-> Drafta fixes that. It's a workspace where you chat with AI, and the AI builds the actual doc, sheet, or deck right inside the workspace. Drag in your files — they become part of the project's memory. Ask "summarize the brief and draft a proposal" and you get a proposal that cites your data.
+> Primy fixes that. It's a workspace where you chat with AI, and the AI builds the actual doc, sheet, or deck right inside the workspace. Drag in your files — they become part of the project's memory. Ask "summarize the brief and draft a proposal" and you get a proposal that cites your data.
 >
 > What's in v1.0:
 > - Docs (Plate.js rich text)
@@ -56,9 +56,9 @@ Post immediately after PH launches. Targets the "scroll past the tagline" reader
 Prepare BEFORE launch day. PH supports thumbnail + gallery.
 
 ### Thumbnail
-- 240×240px, shows Drafta wordmark + the three artifact icons (doc/sheet/deck)
+- 240×240px, shows Primy wordmark + the three artifact icons (doc/sheet/deck)
 - White background, heat-orange accent
-- One word visible: "Drafta"
+- One word visible: "Primy"
 
 ### Gallery (5 images, 1270×760px each)
 1. **Hero shot** — landing page screenshot with the hero line in view + product preview right side
@@ -68,7 +68,7 @@ Prepare BEFORE launch day. PH supports thumbnail + gallery.
 5. **Settings → Billing tab** — shows the usage bars, the founding-member grace banner, and the one-tier pricing
 
 ### Optional: short demo video (90s, no narration)
-- Open Drafta → drag in 3 files → ask for proposal → ask for kickoff deck → click share → done. Pure UI, no talk.
+- Open Primy → drag in 3 files → ask for proposal → ask for kickoff deck → click share → done. Pure UI, no talk.
 
 ---
 
@@ -77,10 +77,10 @@ Prepare BEFORE launch day. PH supports thumbnail + gallery.
 For the predictable Q&A. Pre-write so you can reply within 60 seconds.
 
 ### "How is this different from Notion AI?"
-> Notion is a wiki/workspace where you can ask AI questions about your pages. Drafta is the inverse — you chat first, and AI builds editable artifacts (real docs, real spreadsheets with formulas, real presentations). Notion AI doesn't generate decks. Drafta does. We also persist project context across files, not per-page.
+> Notion is a wiki/workspace where you can ask AI questions about your pages. Primy is the inverse — you chat first, and AI builds editable artifacts (real docs, real spreadsheets with formulas, real presentations). Notion AI doesn't generate decks. Primy does. We also persist project context across files, not per-page.
 
 ### "How is this different from ChatGPT Canvas?"
-> Canvas is great for one document at a time, but it forgets the rest of your work between threads. Drafta keeps every doc, sheet, deck, and uploaded file in one project — and the AI uses all of it as context. Plus, real spreadsheets with formulas (Canvas only does markdown tables) and real decks (Canvas can't make decks).
+> Canvas is great for one document at a time, but it forgets the rest of your work between threads. Primy keeps every doc, sheet, deck, and uploaded file in one project — and the AI uses all of it as context. Plus, real spreadsheets with formulas (Canvas only does markdown tables) and real decks (Canvas can't make decks).
 
 ### "Which AI model do you use?"
 > OpenAI GPT-4.1 for chat, summarization, embeddings. Gemini 3.1 Pro for deck generation (it produces noticeably better slide layouts in our testing). Both running natively, no aggregator middleman.
@@ -100,7 +100,7 @@ For the predictable Q&A. Pre-write so you can reply within 60 seconds.
 
 **Recommendation: self-hunt.**
 
-Reasoning: a hunter with a big follower base helps for first-day velocity, but Drafta's audience overlap with most "professional hunter" lists is weak (PH hunters skew dev tools, this is broader). Self-hunting also lets you be the first commenter and own the narrative.
+Reasoning: a hunter with a big follower base helps for first-day velocity, but Primy's audience overlap with most "professional hunter" lists is weak (PH hunters skew dev tools, this is broader). Self-hunting also lets you be the first commenter and own the narrative.
 
 If you want a hunter, ask someone in your direct network who's launched on PH and has 1k+ followers. Don't cold-DM hunters.
 
@@ -137,7 +137,7 @@ PH ranks by upvotes-per-time-since-launch. Front-loading the first 4 hours is cr
 
 **12:00pm — Mid-day push**
 - Post in adjacent communities (r/SideProject, r/SaaS — read rules first), Slack groups you're in
-- Reply to anyone tweeting about Drafta
+- Reply to anyone tweeting about Primy
 
 **6:00pm — Final stretch**
 - Tweet a "thanks, here's where we ended up" with the day's milestones

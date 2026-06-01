@@ -58,7 +58,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
     if (!isStreaming) return;
     const safetyTimer = setTimeout(() => {
       if (useAppStore.getState().isStreaming) {
-        console.error("[Drafta] Streaming state stuck — auto-recovering after 150s timeout");
+        console.error("[Primy] Streaming state stuck — auto-recovering after 150s timeout");
         abortControllerRef.current?.abort();
         abortStreaming();
         toast.error("Response timed out. Please try again.");
@@ -361,7 +361,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
             }
             if (parsed.error) {
               streamError = parsed.error;
-              console.error("[Drafta] Stream error:", parsed.error);
+              console.error("[Primy] Stream error:", parsed.error);
             }
             if (parsed.meta?.truncated) {
               // Server exhausted its auto-continuations and the response is still
@@ -379,7 +379,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
             }
           } catch {
             // Malformed chunk — log first few for debugging
-            if (chunkCount <= 3) console.warn("[Drafta] Malformed SSE chunk:", data.slice(0, 200));
+            if (chunkCount <= 3) console.warn("[Primy] Malformed SSE chunk:", data.slice(0, 200));
           }
         };
 
@@ -388,7 +388,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
         const stallCheck = setInterval(() => {
           if (Date.now() - lastChunkAt > STALL_TIMEOUT_MS) {
             clearInterval(stallCheck);
-            console.error("[Drafta] Stream stalled — no data for 60s. Aborting.");
+            console.error("[Primy] Stream stalled — no data for 60s. Aborting.");
             abortControllerRef.current?.abort();
           }
         }, 5000);
@@ -418,14 +418,14 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
         }
 
         if (streamError && !fullText.trim()) {
-          console.error("[Drafta] Stream completed with error, no text. Error:", streamError, "Chunks received:", chunkCount);
+          console.error("[Primy] Stream completed with error, no text. Error:", streamError, "Chunks received:", chunkCount);
           abortStreaming();
           toast.error(streamError.includes("Rate limit") ? streamError : "AI couldn't generate a response. Please try again.");
           return;
         }
 
         if (!fullText.trim() && !hasToolOps(toolOps)) {
-          console.warn("[Drafta] Stream completed with empty text. Chunks received:", chunkCount, "Buffer remainder:", buffer.slice(0, 200));
+          console.warn("[Primy] Stream completed with empty text. Chunks received:", chunkCount, "Buffer remainder:", buffer.slice(0, 200));
           abortStreaming();
           toast.error("No response received from AI. Please try again.");
           return;
@@ -462,11 +462,11 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
           if (!hasAnyOps && outlineItems.length === 0) {
             const hasFences = fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops") || fullText.includes("```deckops") || fullText.includes("```pageops") || fullText.includes("```deckoutline");
             if (hasFences) {
-              console.warn("[Drafta] Operation blocks found but none parsed. Raw tail:", fullText.slice(-600));
+              console.warn("[Primy] Operation blocks found but none parsed. Raw tail:", fullText.slice(-600));
               toast.error("AI response had formatting issues — some changes may not have been applied. Try again.");
             } else {
               // Claim/action reconciliation: catch the rare case where the model
-              // SAYS it created/updated a Drafta artifact but emitted no tool call
+              // SAYS it created/updated a Primy artifact but emitted no tool call
               // or operation block. This must be VERY conservative — ANSWER mode
               // legitimately produces summaries full of words like "built" or
               // "pages", which must NOT trigger a false alarm. So we require a
@@ -479,7 +479,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
                 /\bi(?:'ve| have| just)?\s+(?:created|added|made|built|generated|drafted|put together|set up|updated)\b[^.!?\n]{0,60}\b(document|doc|spreadsheet|sheet|table|deck|presentation|slides?|page|one-?pager|tracker)\b/i.test(lead) ||
                 /\bhere(?:'s| is)\s+(?:your|the)\s+(?:new\s+)?[^.!?\n]{0,40}\b(document|doc|spreadsheet|sheet|table|deck|presentation|page|one-?pager)\b/i.test(lead);
               if (claimsArtifactAction) {
-                console.warn("[Drafta] Model claimed an artifact action but emitted no operation. Lead:", lead);
+                console.warn("[Primy] Model claimed an artifact action but emitted no operation. Lead:", lead);
                 toast.error("The AI described a change but didn't actually apply it. Please ask again.");
               }
             }
@@ -504,7 +504,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
           }
         } catch (applyError) {
           // Operation parsing or store mutation failed — still save the AI text response
-          console.error("[Drafta] Failed to apply AI operations:", applyError);
+          console.error("[Primy] Failed to apply AI operations:", applyError);
           finishStreaming(extractDisplayText(fullText) || fullText);
           toast.error("AI responded but some changes couldn't be applied. Try again or check the response.");
         }
@@ -565,7 +565,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
         // finishStreaming/abortStreaming clear isStreaming on every normal path;
         // this catches any unexpected escape (early return, throw in cleanup).
         if (useAppStore.getState().isStreaming) {
-          console.warn("[Drafta] Stream ended without a clean finish — forcing recovery.");
+          console.warn("[Primy] Stream ended without a clean finish — forcing recovery.");
           abortStreaming();
         }
       }
@@ -578,8 +578,8 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
       const detail = (e as CustomEvent).detail;
       if (detail?.content) sendMessage(detail.content);
     };
-    window.addEventListener("drafta:send-message", handler);
-    return () => window.removeEventListener("drafta:send-message", handler);
+    window.addEventListener("primy:send-message", handler);
+    return () => window.removeEventListener("primy:send-message", handler);
   }, [sendMessage]);
 
   const hasMessages = messages.length > 0;
@@ -638,8 +638,8 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
       {brandedDocked ? (
         <div className="flex items-center gap-2 px-5 h-[54px] flex-shrink-0">
           <ChatLogoMark />
-          <span className="font-semibold text-[15px] tracking-[-0.02em]" style={{ color: "var(--ink, #171716)" }}>Drafta AI</span>
-          <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--accent-soft, #F1F0ED)", color: "var(--ink-3, #706E68)" }}>Beta</span>
+          <span className="font-semibold text-[15px] tracking-[-0.02em]" style={{ color: "var(--ink, #171716)" }}>Primy</span>
+          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "var(--accent-soft, #F1F0ED)", color: "var(--ink-3, #706E68)" }}>Beta</span>
           <div className="flex-1" />
           {onToggleExpand && (
             <button onClick={onToggleExpand} title={expanded ? "Restore" : "Expand chat"}
@@ -657,7 +657,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
       ) : !centered ? (
         <div className="flex items-center gap-2 px-4 h-[42px] flex-shrink-0 border-b border-[rgba(0,0,0,0.05)]">
           <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#FFB43F" }} />
-          <span className="text-[12.5px] font-medium text-[#525252]">Assistant</span>
+          <span className="text-[13px] font-medium text-[#525252]">Assistant</span>
         </div>
       ) : null}
         {showLanding ? (
@@ -666,12 +666,12 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
             <div className="flex-1 overflow-y-auto chat-scroll flex flex-col">
               <HeroLandscape />
               {/* greeting anchored toward the bottom — generous breathing room under the hero */}
-              <div className="mt-auto px-7 pt-7 pb-5">
+              <div className="mt-auto px-7 pt-7 pb-6">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="w-7 h-7 rounded-full flex-shrink-0" style={{ background: "var(--accent-amber, #FFB43F)" }} />
-                  <span className="font-semibold text-[18px] tracking-[-0.02em]" style={{ color: "var(--ink, #171716)" }}>Drafta</span>
+                  <span className="font-semibold text-[18px] tracking-[-0.02em]" style={{ color: "var(--ink, #171716)" }}>Primy</span>
                 </div>
-                <div className="text-[14.5px] leading-[1.6] space-y-4 [text-wrap:pretty]" style={{ color: "var(--ink, #171716)" }}>
+                <div className="text-[15px] leading-[1.62] space-y-[18px] [text-wrap:pretty]" style={{ color: "var(--ink, #171716)" }}>
                   <p>Hi there!</p>
                   <p>You can use the left workspace to start creating and organizing your work. Anything you create, we can chat about here.</p>
                   <p style={{ color: "var(--ink-2, #3B3A37)" }}>
@@ -690,7 +690,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
              the title + input centered, with a minimal on-theme create row. */
           <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
             <div className="relative w-full flex-shrink-0 overflow-hidden" style={{ height: 240 }} aria-hidden>
-              <img src="/chat-hero.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: "center 46%" }} draggable={false} />
+              <HeroIllustration wide className="absolute inset-0 w-full h-full" />
               <div className="absolute inset-x-0 bottom-0 h-24" style={{ background: "linear-gradient(to bottom, transparent, var(--canvas, #FCFBF7))" }} />
             </div>
             <div className="flex-shrink-0 flex flex-col items-center px-6 pt-10 pb-16">
@@ -710,7 +710,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
                     const m = ENTITY_META[t];
                     return (
                       <button key={t} onClick={() => handleEntityPillClick(t)}
-                        className="inline-flex items-center gap-1.5 h-[30px] pl-2.5 pr-3 rounded-full text-[12.5px] font-medium press"
+                        className="inline-flex items-center gap-1.5 h-[30px] pl-2.5 pr-3 rounded-full text-[13px] font-medium press"
                         style={{ background: m.bg, color: m.color }}>
                         <m.Icon size={13} /> {m.label}
                       </button>
@@ -724,7 +724,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
           /* Legacy (non-branded) centered empty state: title + chatbox + pills */
           <div className="flex-1 flex flex-col items-center justify-center px-6 pb-12">
             <div className="w-full max-w-[660px]">
-              <h1 className="font-heading text-[32px] font-semibold text-foreground text-center mb-7 tracking-[-0.03em] leading-tight">
+              <h1 className="font-heading text-[30px] font-semibold text-foreground text-center mb-7 tracking-[-0.03em] leading-tight">
                 What are you working on?
               </h1>
               <ChatInput
@@ -776,7 +776,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
   );
 }
 
-/* Branded Drafta mark — ink bars (matches the shell logo). */
+/* Branded Primy mark — ink bars (matches the shell logo). */
 function ChatLogoMark() {
   return (
     <div className="relative w-[20px] h-[20px] flex-shrink-0" aria-hidden>
@@ -792,16 +792,89 @@ function ChatLogoMark() {
 function HeroLandscape() {
   return (
     <div className="relative h-[188px] overflow-hidden flex-shrink-0" aria-hidden>
-      <img
-        src="/chat-hero.jpg"
-        alt=""
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ objectPosition: "center 38%" }}
-        draggable={false}
-      />
+      <HeroIllustration className="absolute inset-0 w-full h-full" />
       {/* soft fade into the chat surface */}
       <div className="absolute inset-x-0 bottom-0 h-16" style={{ background: "linear-gradient(to bottom, transparent, var(--card, #FFFDF8))" }} />
     </div>
+  );
+}
+
+/**
+ * On-brand flat illustration for the chat hero — pale warm sky, a soft sun,
+ * line-art arcs and rolling teal/amber hills. Replaces the photographic hero so
+ * it recedes into the warm shell instead of fighting it. Vector → crisp at any
+ * size, theme-neutral, zero network cost.
+ */
+function HeroIllustration({ className, style, wide }: { className?: string; style?: React.CSSProperties; wide?: boolean }) {
+  // Shared gradient palette — vivid blue dome, warm orange ridge, cream lake.
+  const defs = (
+    <defs>
+      <linearGradient id="dh-dome" x1="0.2" y1="0" x2="0.4" y2="1">
+        <stop offset="0%" stopColor="#3C6CE0" />
+        <stop offset="58%" stopColor="#5C8CEF" />
+        <stop offset="100%" stopColor="#EBF1FD" />
+      </linearGradient>
+      <linearGradient id="dh-ridge" x1="0" y1="1" x2="1" y2="0">
+        <stop offset="0%" stopColor="#F0896A" />
+        <stop offset="52%" stopColor="#F4A24C" />
+        <stop offset="100%" stopColor="#F8BE45" />
+      </linearGradient>
+      <linearGradient id="dh-water" x1="0" y1="0" x2="0.1" y2="1">
+        <stop offset="0%" stopColor="#4E92DB" />
+        <stop offset="100%" stopColor="#DEEAF8" />
+      </linearGradient>
+      <linearGradient id="dh-lake" x1="0" y1="0" x2="0.3" y2="1">
+        <stop offset="0%" stopColor="#FCF6E0" />
+        <stop offset="100%" stopColor="#F6E9C2" />
+      </linearGradient>
+    </defs>
+  );
+
+  // Wide panorama for the full-screen banner (≈5:1) — the same motif spread
+  // across so nothing gets vertically cropped by the slice.
+  if (wide) {
+    return (
+      <svg viewBox="0 0 1200 240" preserveAspectRatio="xMidYMid slice" className={className} style={style} aria-hidden role="img">
+        {defs}
+        <path d="M540 240 C 780 150 1000 152 1200 58 L1200 240 Z" fill="url(#dh-ridge)" />
+        <path d="M780 240 C 930 196 1070 202 1200 190 L1200 240 Z" fill="url(#dh-water)" />
+        <circle cx="232" cy="372" r="244" fill="url(#dh-dome)" />
+        <ellipse cx="540" cy="200" rx="118" ry="22" fill="#69CEC8" opacity="0.85" />
+        <ellipse cx="650" cy="184" rx="186" ry="34" fill="url(#dh-lake)" transform="rotate(-7 650 184)" />
+        <g fill="#1A1815">
+          <circle cx="958" cy="150" r="4" />
+          <circle cx="1004" cy="143" r="4" />
+          <circle cx="1050" cy="135" r="4" />
+        </g>
+        <g fill="none" stroke="#1A1815" strokeWidth="2" strokeLinecap="round">
+          <path d="M236 206 L236 116" />
+          <circle cx="222" cy="96" r="32" strokeOpacity="0.92" />
+          <circle cx="258" cy="120" r="22" strokeOpacity="0.92" />
+        </g>
+      </svg>
+    );
+  }
+
+  // Portrait-ish panel for the docked chat hero (≈2.3:1) — matches the reference.
+  return (
+    <svg viewBox="0 0 400 230" preserveAspectRatio="xMidYMid slice" className={className} style={style} aria-hidden role="img">
+      {defs}
+      <path d="M88 230 C 210 158 322 150 405 64 L405 230 Z" fill="url(#dh-ridge)" />
+      <path d="M206 230 C 296 190 360 198 405 184 L405 230 Z" fill="url(#dh-water)" />
+      <circle cx="104" cy="296" r="158" fill="url(#dh-dome)" />
+      <ellipse cx="206" cy="196" rx="46" ry="15" fill="#69CEC8" opacity="0.85" />
+      <ellipse cx="250" cy="180" rx="92" ry="25" fill="url(#dh-lake)" transform="rotate(-9 250 180)" />
+      <g fill="#1A1815">
+        <circle cx="322" cy="142" r="3.1" />
+        <circle cx="344" cy="138" r="3.1" />
+        <circle cx="366" cy="133" r="3.1" />
+      </g>
+      <g fill="none" stroke="#1A1815" strokeWidth="1.5" strokeLinecap="round">
+        <path d="M92 196 L92 132" />
+        <circle cx="84" cy="118" r="22" strokeOpacity="0.92" />
+        <circle cx="107" cy="133" r="15" strokeOpacity="0.92" />
+      </g>
+    </svg>
   );
 }
 

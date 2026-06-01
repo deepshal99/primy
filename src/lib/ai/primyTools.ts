@@ -1,7 +1,7 @@
 import { tool, jsonSchema } from "ai";
 
 /**
- * Drafta's client-forwarded tools (Layer B).
+ * Primy's client-forwarded tools (Layer B).
  *
  * These tools have NO `execute` function on purpose. The model CALLS them; the
  * chat route streams each call to the browser; the Zustand store applies it
@@ -17,7 +17,7 @@ import { tool, jsonSchema } from "ai";
  * still parses as a fallback (dual-accept). Every tool here is id-free and maps
  * 1:1 onto an existing store operation, so the apply pipeline is unchanged.
  */
-export const DRAFTA_TOOLS = {
+export const PRIMY_TOOLS = {
   create_document: tool({
     description:
       "Create a NEW document (note, draft, outline, report, any written/prose content) as a named file in the project. Use this for ANY text content longer than ~2 sentences instead of writing it into chat. The document opens automatically.",
@@ -100,7 +100,7 @@ export const DRAFTA_TOOLS = {
 } as const;
 
 /** Tool names available, for logging / guards. */
-export const DRAFTA_TOOL_NAMES = Object.keys(DRAFTA_TOOLS);
+export const PRIMY_TOOL_NAMES = Object.keys(PRIMY_TOOLS);
 
 /**
  * Routing guidance appended to the system prompt ONLY for chat tasks where the

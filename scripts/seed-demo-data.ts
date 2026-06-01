@@ -1,5 +1,5 @@
 /**
- * Seed fresh demo data for the local dev admin (admin@drafta.local).
+ * Seed fresh demo data for the local dev admin (admin@primy.local).
  *
  * Wipes the admin's existing projects, then creates a set of realistic team
  * workspaces — each with in-project FOLDERS plus documents, spreadsheets,
@@ -31,8 +31,8 @@ import {
   files,
 } from "@/db/schema";
 
-const ADMIN_EMAIL = "admin@drafta.local";
-const TEAMMATE_EMAIL = "maya@drafta.local";
+const ADMIN_EMAIL = "admin@primy.local";
+const TEAMMATE_EMAIL = "maya@primy.local";
 
 // ── A small builder for polished, self-contained HTML visual pages ──
 interface Stat { value: string; label: string }
@@ -88,7 +88,7 @@ function buildVisualPage(opts: {
   <header class="hero"><div class="kicker">${kicker}</div><h1>${title}</h1><p>${subtitle}</p></header>
   <section class="stats">${statCards}</section>
   <section class="grid">${sectionCards}</section>
-  <p class="foot">Drafta · living document — edits to the source keep this page in sync</p>
+  <p class="foot">Primy · living document — edits to the source keep this page in sync</p>
 </div></body></html>`;
 }
 
@@ -150,7 +150,7 @@ async function main() {
       .insert(users)
       .values({ id: nanoid(), name: "Maya Chen", email: TEAMMATE_EMAIL, passwordHash, plan: "pro", hasOnboarded: true })
       .returning();
-    console.log("[seed] Created teammate maya@drafta.local");
+    console.log("[seed] Created teammate maya@primy.local");
   }
 
   // Wipe admin's existing projects (cascades to folders/entities/members/activity/files)
@@ -209,7 +209,7 @@ async function main() {
         { folder: "planning", title: "Board Update", slides: [titleSlide("Product Strategy 2026", "Board update"), bulletsSlide("Three bets", ["Team source of truth", "Living links", "Visual HTML pages"]), statsSlide("Where we're headed", [{ value: "120", label: "Activated teams" }, { value: "118%", label: "NRR target" }, { value: "3", label: "Core bets" }])] },
       ],
       pages: [
-        { title: "Strategy — Visual", opts: page("Strategy on a page", "2026 Product Strategy", "Three bets, one north star: activated teams who live in Drafta.", "#4285F4", [{ value: "120", label: "Activated teams (Q1)" }, { value: "35%", label: "Artifacts w/ a live link" }, { value: "118%", label: "Net revenue retention" }], [{ tag: "Bet 1", heading: "Team source of truth", body: "Shared project memory + living links so a team's work stays true to source." }, { tag: "Bet 2", heading: "Living links", body: "A number in a deck is the cell in the sheet — change the source, everything updates." }, { tag: "Bet 3", heading: "Visual HTML pages", body: "Turn any document into a designed, interactive page in one click." }, { tag: "Pricing", heading: "Seat-based", body: "Generous usage, priced per seat — teams expand as they invite." }]) },
+        { title: "Strategy — Visual", opts: page("Strategy on a page", "2026 Product Strategy", "Three bets, one north star: activated teams who live in Primy.", "#4285F4", [{ value: "120", label: "Activated teams (Q1)" }, { value: "35%", label: "Artifacts w/ a live link" }, { value: "118%", label: "Net revenue retention" }], [{ tag: "Bet 1", heading: "Team source of truth", body: "Shared project memory + living links so a team's work stays true to source." }, { tag: "Bet 2", heading: "Living links", body: "A number in a deck is the cell in the sheet — change the source, everything updates." }, { tag: "Bet 3", heading: "Visual HTML pages", body: "Turn any document into a designed, interactive page in one click." }, { tag: "Pricing", heading: "Seat-based", body: "Generous usage, priced per seat — teams expand as they invite." }]) },
       ],
     },
     {
@@ -251,7 +251,7 @@ async function main() {
         { folder: "numbers", title: "Cap Table (Pre-A)", rows: [["Holder", "Shares", "% Owned"], ["Founders", 6500000, "65%"], ["Seed investors", 2000000, "20%"], ["Option pool", 1500000, "15%"]] },
       ],
       decks: [
-        { folder: "narrative", title: "Series A Deck", slides: [titleSlide("Drafta", "Series A — the source of truth for teams"), bulletsSlide("Why we win", ["Coherence, not feature soup", "Living links across docs/sheets/decks", "Project memory that compounds"]), statsSlide("Traction", [{ value: "$1.4M", label: "ARR" }, { value: "18%", label: "MoM growth" }, { value: "111%", label: "Net retention" }])] },
+        { folder: "narrative", title: "Series A Deck", slides: [titleSlide("Primy", "Series A — the source of truth for teams"), bulletsSlide("Why we win", ["Coherence, not feature soup", "Living links across docs/sheets/decks", "Project memory that compounds"]), statsSlide("Traction", [{ value: "$1.4M", label: "ARR" }, { value: "18%", label: "MoM growth" }, { value: "111%", label: "Net retention" }])] },
       ],
       pages: [
         { title: "Update — Visual", opts: page("Investor update", "Series A — at a glance", "18% MoM, $1.4M ARR, raising $8M to own the category.", "#9B78D8", [{ value: "$1.4M", label: "ARR" }, { value: "18%", label: "MoM growth" }, { value: "$8M", label: "Raising" }], [{ tag: "Story", heading: "The source of truth", body: "Teams drown in scattered docs; we make one coherent, living workspace." }, { tag: "Numbers", heading: "Clean and climbing", body: "$1.4M ARR, 111% net retention, 128 activated teams and accelerating." }, { tag: "Ask", heading: "$8M at $42M post", body: "18 months of runway to 10k activated teams and category ownership." }, { tag: "Team", heading: "Hiring six key roles", body: "Pipeline already full for the leaders who get us to the next stage." }]) },
