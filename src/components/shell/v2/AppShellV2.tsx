@@ -21,12 +21,14 @@ import {
   Inbox, PenLine, Search, Plus, FileText, Table2, Presentation,
   LayoutTemplate, MoreHorizontal, LayoutGrid, CalendarDays,
   PanelRightOpen, Sun, Moon, ArrowLeft, Settings, Check,
-  Folder as FolderIcon, FolderPlus, Home, Trash2, Pencil, FolderInput,
+  Folder as FolderIcon, FolderPlus, Trash2, Pencil, FolderInput,
   Rocket, Sparkles, Compass, Layers, Target, Box, Hexagon, Flame,
-  LogOut, ChevronsUpDown, ChevronRight, ChevronDown,
+  LogOut, ChevronsUpDown, ChevronRight, ChevronDown, Share2,
 } from "lucide-react";
+import { motion } from "motion/react";
 import { useAppStore } from "@/lib/store";
 import { useDarkMode } from "@/lib/useShellV2";
+import { BoardStyleProvider, useBoardStyle } from "@/lib/dials/boardStyle";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { WorkspacePanel } from "@/components/workspace/WorkspacePanel";
 import { EntityShareButton, DeckExport } from "@/components/workspace/EntityActions";
@@ -36,12 +38,12 @@ import { DocExportMenu } from "@/components/doc/DocExportMenu";
 import { SearchDialog } from "@/components/shared/SearchDialog";
 import { KeyboardShortcuts } from "@/components/shared/KeyboardShortcuts";
 import { SettingsModal } from "@/components/settings/SettingsModal";
+import { ShareModal } from "@/components/settings/ShareModal";
 import type { EntityType, Project, Folder } from "@/lib/types";
 
 /* ───────────────────────── shared meta ───────────────────────── */
 
 const FONT = "Inter, system-ui, sans-serif";
-const CARD_H = 300; // consistent board card height
 const ENTITY: Record<EntityType, { Icon: typeof FileText; label: string; color: string; tint: string; chipBg: string; chipText: string }> = {
   ku:    { Icon: FileText,       label: "Doc",   color: "#4285F4", tint: "rgba(66,133,244,0.14)",  chipBg: "#EDF4FF", chipText: "#3F79E0" },
   table: { Icon: Table2,         label: "Sheet", color: "#42C366", tint: "rgba(66,195,102,0.16)",  chipBg: "#E7F7ED", chipText: "#2E9E47" },
@@ -218,7 +220,6 @@ export function AppShellV2() {
   const currentEntityType = useAppStore((s) => s.currentEntityType);
   const loadProjects = useAppStore((s) => s.loadProjects);
   const switchProject = useAppStore((s) => s.switchProject);
-  const goToProjectsHome = useAppStore((s) => s.goToProjectsHome);
   const createProject = useAppStore((s) => s.createProject);
 
   const [dark, toggleDark] = useDarkMode();
@@ -228,6 +229,7 @@ export function AppShellV2() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [wsMenu, setWsMenu] = useState<{ id: string; title: string; x: number; y: number } | null>(null);
+  const [shareWs, setShareWs] = useState<{ id: string; title: string } | null>(null);
   const [renamingWs, setRenamingWs] = useState<string | null>(null);
   const [profileMenu, setProfileMenu] = useState(false);
   const { data: session } = useSession();
@@ -381,16 +383,15 @@ export function AppShellV2() {
                 <ArrowLeft size={15} /> {project?.title || "Back"}
               </button>
             ) : currentProjectId ? (
-              <div className="flex items-center gap-1.5 min-w-0">
-                <button onClick={goToProjectsHome} title="All workspaces"
-                  className="flex items-center justify-center w-8 h-8 -ml-1 rounded-[8px] press hover-row flex-shrink-0" style={{ color: "var(--icon)" }}>
-                  <Home size={16} />
+              <div className="flex items-center min-w-0">
+                <button onClick={() => useAppStore.getState().goToProjectHome()} title="Workspace home"
+                  className="flex items-center h-8 -ml-1 px-2 rounded-[8px] press hover-row min-w-0">
+                  <span className="font-semibold text-[15px] tracking-[-0.005em] truncate" style={{ color: "var(--ink)" }}>{project?.title}</span>
                 </button>
                 <button
-                  onClick={(ev) => { const r = ev.currentTarget.getBoundingClientRect(); if (project) setWsMenu({ id: project.id, title: project.title || "Untitled", x: r.left, y: r.bottom + 6 }); }}
-                  className="flex items-center gap-1.5 h-8 pl-1.5 pr-2 rounded-[8px] press hover-row min-w-0" title="Workspace options">
-                  <span className="font-semibold text-[15px] tracking-[-0.005em] truncate" style={{ color: "var(--ink)" }}>{project?.title}</span>
-                  <ChevronDown size={15} className="flex-shrink-0" style={{ color: "var(--ink-4)" }} />
+                  onClick={(ev) => { const r = ev.currentTarget.getBoundingClientRect(); if (project) setWsMenu({ id: project.id, title: project.title || "Untitled", x: r.left - 60, y: r.bottom + 6 }); }}
+                  className="flex items-center justify-center w-7 h-7 rounded-[8px] press hover-row flex-shrink-0" title="Workspace options">
+                  <ChevronDown size={15} style={{ color: "var(--ink-4)" }} />
                 </button>
               </div>
             ) : (
@@ -479,6 +480,10 @@ export function AppShellV2() {
               className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--ink-2)" }}>
               <Pencil size={13} /> Rename
             </button>
+            <button onClick={() => { setShareWs({ id: wsMenu.id, title: wsMenu.title }); setWsMenu(null); }}
+              className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--ink-2)" }}>
+              <Share2 size={13} /> Share &amp; invite
+            </button>
             <div className="my-1 h-px" style={{ background: "var(--border)" }} />
             <button onClick={() => { if (confirm(`Delete workspace "${wsMenu.title}"? This removes all its files.`)) { useAppStore.getState().deleteProject(wsMenu.id); } setWsMenu(null); }}
               className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "#d4183d" }}>
@@ -490,6 +495,23 @@ export function AppShellV2() {
 
       <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
       {settingsOpen && <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />}
+      {shareWs && (
+        <ShareModal
+          open={!!shareWs}
+          onClose={() => setShareWs(null)}
+          mode="project"
+          entityId={shareWs.id}
+          entityTitle={shareWs.title}
+          currentToken={projects.find((p) => p.id === shareWs.id)?.shareToken ?? null}
+          onTokenChange={(token) =>
+            useAppStore.setState({
+              projects: useAppStore.getState().projects.map((p) =>
+                p.id === shareWs.id ? { ...p, shareToken: token } : p,
+              ),
+            })
+          }
+        />
+      )}
       <KeyboardShortcuts />
     </div>
   );
@@ -522,12 +544,14 @@ function ProjectBody({ project, view }: { project: Project | undefined; view: Vi
   // No header block — the title + workspace menu live in the top bar; the board
   // starts right under it for a cleaner, more breathable canvas.
   return (
-    <div className="pt-2">
-      {empty ? <EmptyProject projectId={project.id} />
-        : view === "timeline" ? <TimelineView projectId={project.id} items={items} folders={folders} />
-        : folders.length > 0 ? <FolderBoardView projectId={project.id} items={items} folders={folders} />
-        : <BoardView projectId={project.id} items={items} folders={folders} />}
-    </div>
+    <BoardStyleProvider>
+      <div className="pt-2">
+        {empty ? <EmptyProject projectId={project.id} />
+          : view === "timeline" ? <TimelineView projectId={project.id} items={items} folders={folders} />
+          : folders.length > 0 ? <FolderBoardView projectId={project.id} items={items} folders={folders} />
+          : <BoardView projectId={project.id} items={items} folders={folders} />}
+      </div>
+    </BoardStyleProvider>
   );
 }
 
@@ -602,7 +626,7 @@ function FolderSection({ projectId, folder, list, folders }: { projectId: string
       </div>
       <div className="grid gap-4 px-9 pb-10" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(216px, 1fr))" }}>
         <NewCard pick={{ projectId, folderId: folder?.id ?? null }} />
-        {list.map((it) => <EntityCard key={it.id} item={it} projectId={projectId} folders={folders} />)}
+        {list.map((it, i) => <EntityCard key={it.id} item={it} projectId={projectId} folders={folders} index={i} />)}
       </div>
     </section>
   );
@@ -651,7 +675,7 @@ function BoardView({ projectId, items, folders }: { projectId: string; items: It
             </div>
             <div className="grid gap-4 px-9 pb-10" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(216px, 1fr))" }}>
               <NewCard label={ENTITY[t.type].label} onClick={() => createInProject(projectId, t.type)} />
-              {list.map((it) => <EntityCard key={it.id} item={it} projectId={projectId} folders={folders} />)}
+              {list.map((it, i) => <EntityCard key={it.id} item={it} projectId={projectId} folders={folders} index={i} />)}
             </div>
           </section>
         );
@@ -685,7 +709,7 @@ function TimelineView({ projectId, items, folders }: { projectId: string; items:
             <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
           </div>
           <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(216px, 1fr))" }}>
-            {b.list.map((it) => <EntityCard key={it.id} item={it} projectId={projectId} folders={folders} />)}
+            {b.list.map((it, i) => <EntityCard key={it.id} item={it} projectId={projectId} folders={folders} index={i} />)}
           </div>
         </section>
       ))}
@@ -695,8 +719,9 @@ function TimelineView({ projectId, items, folders }: { projectId: string; items:
 
 /* ───────────────────────── cards ───────────────────────── */
 
-function EntityCard({ item, projectId, folders }: { item: Item; projectId?: string; folders?: Folder[] }) {
+function EntityCard({ item, projectId, folders, index = 0 }: { item: Item; projectId?: string; folders?: Folder[]; index?: number }) {
   const e = ENTITY[item.type];
+  const s = useBoardStyle();
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [title, setTitle] = useState(item.title);
@@ -705,11 +730,16 @@ function EntityCard({ item, projectId, folders }: { item: Item; projectId?: stri
   const saveTitle = () => { setRenaming(false); if (projectId) renameEntity(projectId, item, title); else setTitle(item.title); };
   return (
     <div className="relative">
-      <div role="button" tabIndex={0}
+      <motion.div role="button" tabIndex={0}
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ ...s.spring, delay: index * s.stagger }}
+        whileHover={{ y: -s.hoverLift }}
+        whileTap={{ scale: 0.995 }}
         onClick={() => { if (!renaming) openItem(item); }}
         onKeyDown={(ev) => { if ((ev.key === "Enter" || ev.key === " ") && !renaming && ev.target === ev.currentTarget) { ev.preventDefault(); openItem(item); } }}
-        className="text-left rounded-[12px] px-[18px] pt-[18px] pb-[14px] lift flex flex-col relative overflow-hidden group w-full cursor-pointer"
-        style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)", height: CARD_H }}>
+        className="text-left flex flex-col relative overflow-hidden group w-full cursor-pointer hover:shadow-[var(--shadow-lift)]"
+        style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)", height: s.height, borderRadius: s.radius, paddingLeft: s.paddingX, paddingRight: s.paddingX, paddingTop: s.paddingY, paddingBottom: s.paddingY - 4 }}>
         <div className="flex items-start gap-3 mb-3.5 flex-shrink-0">
           {renaming ? (
             <input autoFocus value={title} onChange={(ev) => setTitle(ev.target.value)} onClick={(ev) => ev.stopPropagation()} onBlur={saveTitle}
@@ -734,7 +764,7 @@ function EntityCard({ item, projectId, folders }: { item: Item; projectId?: stri
             <e.Icon size={12.5} /> {e.label}
           </span>
         </div>
-      </div>
+      </motion.div>
       {menuOpen && canManage && (
         <CardMenu item={item} projectId={projectId!} folders={folders!}
           onRename={() => { setMenuOpen(false); setRenaming(true); }}
@@ -860,7 +890,7 @@ function EntityPreview({ item }: { item: Item }) {
         {bullets.length > 0 && (
           <ul className="space-y-[7px] mb-3.5">
             {bullets.map((b, i) => (
-              <li key={i} className="flex items-start gap-2.5 text-[12px] leading-[1.35]" style={{ color: "var(--ink-2)" }}>
+              <li key={i} className="flex items-start gap-2.5 text-[12px] font-medium leading-[1.35]" style={{ color: "var(--ink-2)" }}>
                 <span className="mt-[6px] w-[4px] h-[4px] rounded-full flex-shrink-0" style={{ background: "var(--ink-3)" }} />
                 <span className="line-clamp-1">{b}</span>
               </li>
@@ -868,7 +898,7 @@ function EntityPreview({ item }: { item: Item }) {
           </ul>
         )}
         {item.excerpt && (
-          <p className="text-[12px] leading-[1.45]" style={{ color: "var(--ink-2)" }}>{item.excerpt}</p>
+          <p className="text-[12px] font-medium leading-[1.45]" style={{ color: "var(--ink-2)" }}>{item.excerpt}</p>
         )}
       </div>
     );
@@ -890,12 +920,13 @@ function EntityPreview({ item }: { item: Item }) {
  *    the board — there's intentionally no create action in the top bar.
  */
 function NewCard({ label, onClick, pick }: { label?: string; onClick?: () => void; pick?: { projectId: string; folderId: string | null } }) {
+  const s = useBoardStyle();
   const [open, setOpen] = useState(false);
   return (
-    <div className="relative" style={{ height: CARD_H }}>
+    <div className="relative" style={{ height: s.height }}>
       <button onClick={() => { if (pick) setOpen((v) => !v); else onClick?.(); }}
-        className="w-full h-full overflow-hidden flex flex-col items-center justify-center gap-2.5 rounded-[12px] press lift"
-        style={{ border: "1px solid var(--border-strong)", color: "var(--ink)", background: "linear-gradient(155deg, #FFFDFB 0%, #EEF4FF 100%)" }}>
+        className="w-full h-full overflow-hidden flex flex-col items-center justify-center gap-2.5 press lift"
+        style={{ border: "1px solid var(--border-strong)", color: "var(--ink)", background: "linear-gradient(155deg, #FFFDFB 0%, #EEF4FF 100%)", borderRadius: s.radius }}>
         <span className="flex items-center justify-center w-14 h-14 rounded-full bg-white" style={{ boxShadow: "var(--shadow-card)" }}>
           <Plus size={26} strokeWidth={1.8} style={{ color: "var(--ink-2)" }} />
         </span>
