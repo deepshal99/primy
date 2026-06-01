@@ -16,7 +16,8 @@ import remarkGfm from "remark-gfm";
 import { TablePlugin } from "@platejs/table/react";
 import { ImagePlugin } from "@platejs/media/react";
 import { useAppStore } from "@/lib/store";
-import { parseEntityUri } from "@/lib/entityLinks";
+import { parseEntityUri, useBacklinks, openEntity } from "@/lib/entityLinks";
+import { ENTITY_META } from "@/lib/entityMeta";
 import {
   Loader2,
   Wand2,
@@ -520,6 +521,8 @@ export function DocView() {
 
   // Get current entity name for AI banner
   const currentEntityId = useAppStore((s) => s.currentEntityId);
+  const currentEntityType = useAppStore((s) => s.currentEntityType);
+  const backlinks = useBacklinks(currentEntityType === "ku" ? currentEntityId : null);
   const currentProjectId = useAppStore((s) => s.currentProjectId);
   const projects = useAppStore((s) => s.projects);
   let entityName = "document";
@@ -678,6 +681,40 @@ export function DocView() {
           {/* @-mention combobox - inside <Plate> so useEditorRef() resolves */}
           <MentionCombobox />
         </Plate>
+
+        {/* Backlinks footer */}
+        {backlinks.length > 0 && (
+          <div className="mx-auto w-full mt-10 mb-16 max-w-[800px] px-12">
+            <div className="border-t border-border pt-4">
+              <div
+                className="text-[11px] font-medium uppercase tracking-wide mb-2"
+                style={{ color: "var(--ink-3)" }}
+              >
+                Linked from
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {backlinks.map((b) => {
+                  const meta = ENTITY_META[b.type] || ENTITY_META.ku;
+                  const Icon = meta.Icon;
+                  return (
+                    <button
+                      key={`${b.type}:${b.id}`}
+                      type="button"
+                      onClick={() => openEntity(b.type, b.id)}
+                      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border border-border text-xs press"
+                      style={{ backgroundColor: "var(--card)", color: "var(--ink)" }}
+                      title={`Open ${meta.label.toLowerCase()}: ${b.title}`}
+                    >
+                      <Icon size={12} strokeWidth={2} style={{ color: "var(--icon, currentColor)" }} aria-hidden />
+                      <span className="truncate max-w-[200px]">{b.title}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
         {isStreaming && <StreamingBar />}
       </div>
 
