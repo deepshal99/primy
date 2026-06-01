@@ -114,7 +114,8 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
     }
     const modelConfig = getModelConfig(taskType, contextSize);
     // "Pro" here = the higher-capacity model, used to widen sheet/doc context.
-    const isProModel = modelConfig.model.includes("gpt-4.1") && !modelConfig.model.includes("mini");
+    // Any non-"mini" model (gpt-5.5, gpt-4.1) is pro-tier; only *-mini is not.
+    const isProModel = !modelConfig.model.includes("mini");
 
     // Build the last user message with context injection
     const lastMessage = messages[messages.length - 1];
@@ -351,9 +352,11 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
           try { controller.close(); } catch { /* already closed */ }
         };
 
-        // Timeout: abort if no chunks arrive within timeout period
-        // Deck generation with thinking needs longer — model thinks before first token
-        const chunkTimeoutMs = taskType.startsWith("deck") ? 120000 : 30000;
+        // Timeout: abort if no chunks arrive within timeout period.
+        // Deck generation with thinking needs longest; gpt-5.x chat reasons
+        // before the first token, so chat gets 45s (was 30s) to avoid killing a
+        // healthy stream mid-reasoning.
+        const chunkTimeoutMs = taskType.startsWith("deck") ? 120000 : 45000;
         let lastChunkTime = Date.now();
         const timeoutCheck = setInterval(() => {
           if (clientDisconnected) {
@@ -374,47 +377,77 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
         const groundingSources: { title: string; uri: string }[] = [];
         let emittedText = false;
         let lastError: unknown = null;
+        let accumulatedText = "";          // full assistant text across continuations
+        let finishReason: string | null = null;
 
-        // Stream one candidate; throws if the provider errors so the caller
-        // can fall back to the next candidate (only safe before any text).
-        const runCandidate = async (cand: (typeof candidates)[number]) => {
-          // Reset the stall clock for each candidate — otherwise a fallback
-          // inherits the previous (stalled) candidate's elapsed time and the
-          // chunk-timeout can kill a healthy fallback before its first token.
+        // Build provider options per candidate. gpt-5.x reasoning/verbosity is
+        // applied ONLY when the candidate carries them — the gpt-4.1 fallback
+        // has neither, so it never receives params it would reject.
+        const providerOptionsFor = (cand: (typeof candidates)[number]) => {
+          const opts: Record<string, any> = {};
+          if (!cand.isGoogle && (cand.reasoningEffort || cand.verbosity)) {
+            opts.openai = {
+              ...(cand.reasoningEffort ? { reasoningEffort: cand.reasoningEffort } : {}),
+              ...(cand.verbosity ? { textVerbosity: cand.verbosity } : {}),
+            };
+          }
+          if (cand.isGoogle && cand.modelId.includes("pro")) {
+            opts.google = { thinkingConfig: { thinkingBudget: taskType === "deck-generate" ? 2048 : 8192 } };
+          }
+          return Object.keys(opts).length > 0 ? opts : undefined;
+        };
+
+        // Stream one candidate over the given messages. Returns the finishReason
+        // ("stop" | "length" | …) or throws so the caller can fall back to the
+        // next candidate (only safe before any text). Resets the stall clock so
+        // a fallback/continuation never inherits a stalled candidate's elapsed
+        // time and get killed before its first token.
+        const runCandidate = async (
+          cand: (typeof candidates)[number],
+          msgs: typeof modelMessages,
+        ): Promise<string | null> => {
           lastChunkTime = Date.now();
+          const providerOptions = providerOptionsFor(cand);
           const result = streamText({
             model: cand.model,
             system: composedSystemPrompt,
-            messages: modelMessages,
+            messages: msgs,
             maxOutputTokens: cand.maxOutputTokens,
-            ...(cand.isGoogle && cand.modelId.includes("pro")
-              ? { providerOptions: { google: { thinkingConfig: { thinkingBudget: taskType === "deck-generate" ? 2048 : 8192 } } } }
-              : {}),
+            ...(providerOptions ? { providerOptions } : {}),
             ...(cand.isGoogle ? { tools: { googleSearch: google.tools.googleSearch({}) } } : {}),
             abortSignal: req.signal,
           });
 
+          let localFinish: string | null = null;
           for await (const part of result.fullStream) {
             if (clientDisconnected) break;
             lastChunkTime = Date.now();
             if (part.type === "text-delta") {
               emittedText = true;
+              accumulatedText += part.text;
               safeEnqueue(encoder.encode(`data: ${JSON.stringify({ text: part.text })}\n\n`));
             } else if (part.type === "source") {
               if (part.sourceType === "url" && part.url) {
                 groundingSources.push({ title: part.title || new URL(part.url).hostname, uri: part.url });
               }
+            } else if (part.type === "finish") {
+              // fullStream emits a terminal finish part with the stop reason.
+              localFinish = (part as { finishReason?: string }).finishReason ?? null;
             } else if (part.type === "error") {
               // fullStream surfaces provider failures as an error part
               throw part.error instanceof Error ? part.error : new Error(String(part.error));
             }
           }
+          return localFinish;
         };
 
         try {
+          // Primary attempt with provider fallback (only retries before any text).
+          let chosen: (typeof candidates)[number] | null = null;
           for (let i = 0; i < candidates.length; i++) {
             try {
-              await runCandidate(candidates[i]);
+              finishReason = await runCandidate(candidates[i], modelMessages);
+              chosen = candidates[i];
               lastError = null;
               break; // streamed to completion
             } catch (err) {
@@ -422,6 +455,39 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
               console.error(`[Drafta Chat] candidate ${candidates[i].label} failed:`, err instanceof Error ? err.message : err);
               // Can only retry a fresh candidate if nothing was sent yet.
               if (emittedText || clientDisconnected) break;
+            }
+          }
+
+          // Auto-continuation: if the model stopped because it hit the output
+          // token cap mid-response (finishReason "length"), transparently ask it
+          // to resume from exactly where it stopped and keep streaming into the
+          // SAME response. This is the fix for "starts, then vanishes" — large
+          // sheets/decks/docs that exceed maxOutputTokens now complete instead of
+          // truncating into an unparseable half-block. Capped to avoid runaway.
+          const MAX_CONTINUATIONS = 2;
+          let continuations = 0;
+          while (
+            finishReason === "length" &&
+            chosen &&
+            !clientDisconnected &&
+            continuations < MAX_CONTINUATIONS
+          ) {
+            continuations++;
+            const continuationMessages = [
+              ...modelMessages,
+              { role: "assistant" as const, content: accumulatedText },
+              {
+                role: "user" as const,
+                content:
+                  "Continue your previous response from exactly where you stopped. Do NOT repeat anything you already wrote. If you stopped mid-way through a ```operation block (tableops/sheetops/kuops/docops/deckops/pageops), resume it and emit the closing ``` so the block is valid and parseable.",
+              },
+            ];
+            try {
+              finishReason = await runCandidate(chosen, continuationMessages);
+            } catch (err) {
+              lastError = err;
+              console.error(`[Drafta Chat] continuation ${continuations} failed:`, err instanceof Error ? err.message : err);
+              break;
             }
           }
 
@@ -436,6 +502,14 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
             safeEnqueue(encoder.encode(`data: ${JSON.stringify({ error: clientError })}\n\n`));
           } else if (!clientDisconnected && groundingSources.length > 0) {
             safeEnqueue(encoder.encode(`data: ${JSON.stringify({ grounding: { sources: groundingSources, queries: [] } })}\n\n`));
+          }
+
+          // Terminal meta frame so the client knows how the stream ended.
+          // `truncated` is true only if STILL cut off after auto-continuations —
+          // the client surfaces a gentle, non-destructive notice (never silent).
+          if (!clientDisconnected) {
+            const truncated = finishReason === "length";
+            safeEnqueue(encoder.encode(`data: ${JSON.stringify({ meta: { finishReason, truncated } })}\n\n`));
           }
 
           safeEnqueue(encoder.encode("data: [DONE]\n\n"));

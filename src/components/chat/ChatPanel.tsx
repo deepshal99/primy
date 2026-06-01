@@ -47,17 +47,21 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Safety net: if isStreaming gets stuck (e.g. unhandled error), auto-recover after 3 minutes
+  // Safety net: if isStreaming ever gets stuck (unhandled error, lost stream),
+  // auto-recover. 45s is comfortably longer than the server stall timeout (45s
+  // chat / 120s deck) plus continuation headroom, yet fast enough that the UI
+  // never feels permanently frozen. The `finally` in sendMessage is the primary
+  // guarantee; this timer is the backstop for paths it can't reach.
   useEffect(() => {
     if (!isStreaming) return;
     const safetyTimer = setTimeout(() => {
       if (useAppStore.getState().isStreaming) {
-        console.error("[Drafta] Streaming state stuck — auto-recovering after 3 min timeout");
+        console.error("[Drafta] Streaming state stuck — auto-recovering after 150s timeout");
         abortControllerRef.current?.abort();
         abortStreaming();
         toast.error("Response timed out. Please try again.");
       }
-    }, 180_000);
+    }, 150_000);
     return () => clearTimeout(safetyTimer);
   }, [isStreaming, abortStreaming]);
 
@@ -327,6 +331,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
         let fullText = "";
         let buffer = "";
         let streamError = "";
+        let streamTruncated = false;
         let groundingSources: GroundingSource[] = [];
 
         let chunkCount = 0;
@@ -350,6 +355,11 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
             if (parsed.error) {
               streamError = parsed.error;
               console.error("[Drafta] Stream error:", parsed.error);
+            }
+            if (parsed.meta?.truncated) {
+              // Server exhausted its auto-continuations and the response is still
+              // cut off. Surface it — never let a half-finished answer look whole.
+              streamTruncated = true;
             }
           } catch {
             // Malformed chunk — log first few for debugging

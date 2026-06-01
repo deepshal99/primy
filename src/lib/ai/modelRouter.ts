@@ -19,22 +19,36 @@ export type AITask =
   | "summarize"     // summarization
   | "embedding";    // embeddings
 
+/** OpenAI Responses-API reasoning effort. Only valid on gpt-5.x models. */
+export type ReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+/** OpenAI text verbosity. Only valid on gpt-5.x models. */
+export type Verbosity = "low" | "medium" | "high";
+
 export interface ModelConfig {
   provider: "openai" | "google";
   model: string;
   maxOutputTokens: number;
+  /** gpt-5.x only — internal reasoning budget. Omitted ⇒ provider default. */
+  reasoningEffort?: ReasoningEffort;
+  /** gpt-5.x only — steers response length. Omitted ⇒ provider default. */
+  verbosity?: Verbosity;
 }
 
 // Context size threshold for routing chat to a heavier model (30KB)
 const HEAVY_CONTEXT_THRESHOLD = 30 * 1024;
 
-// OpenAI is the sole configured provider. Deck tasks (historically Gemini)
-// now run on gpt-4.1 too — no GEMINI_API_KEY is required for the app to work.
-// Gemini can be re-enabled per-task later behind ENABLE_GEMINI if a valid key
-// is added (see getModelCandidates).
+// OpenAI is the sole configured provider.
+//
+// Chat is on GPT-5.5 (OpenAI's current flagship) with low reasoning + low
+// verbosity — concise, consistent structured output, with the chat route's
+// candidate fallback to gpt-4.1 as a hard safety net if 5.5 is ever
+// unreachable. Tasks WITHOUT a fallback path (title/web-search/summarize, and
+// the standalone deck-ai route) stay on the proven gpt-4.1 family so an
+// account lacking gpt-5 access can never dead-end. Gemini can be re-enabled
+// per-task behind ENABLE_GEMINI (see getModelCandidates).
 const MODEL_REGISTRY: Record<AITask, ModelConfig> = {
-  "chat":          { provider: "openai", model: "gpt-4.1-mini",          maxOutputTokens: 16384  },
-  "chat-heavy":    { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 32768  },
+  "chat":          { provider: "openai", model: "gpt-5.5",               maxOutputTokens: 16384, reasoningEffort: "low",    verbosity: "low" },
+  "chat-heavy":    { provider: "openai", model: "gpt-5.5",               maxOutputTokens: 32768, reasoningEffort: "medium", verbosity: "low" },
   "deck-generate": { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 32768  },
   "deck-edit":     { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 32768  },
   "title":         { provider: "openai", model: "gpt-4.1-mini",          maxOutputTokens: 256    },
@@ -100,6 +114,9 @@ export interface ModelCandidate {
   maxOutputTokens: number;
   isGoogle: boolean;
   label: string;
+  /** Present only for gpt-5.x primaries — never on the gpt-4.1 fallback. */
+  reasoningEffort?: ReasoningEffort;
+  verbosity?: Verbosity;
 }
 
 /**
@@ -148,6 +165,8 @@ export function getModelCandidates(task: AITask, contextSizeBytes?: number): Mod
       maxOutputTokens: cfg.maxOutputTokens,
       isGoogle: cfg.provider === "google",
       label: key,
+      reasoningEffort: cfg.reasoningEffort,
+      verbosity: cfg.verbosity,
     });
   }
 

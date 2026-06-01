@@ -79,7 +79,8 @@ function relTime(ts: number): string {
 type ViewMode = "board" | "timeline";
 type Item = {
   id: string; type: EntityType; title: string; updatedAt: number; folderId?: string | null;
-  excerpt?: string;        // doc / page: plain-text preview
+  excerpt?: string;        // doc / page: plain-text prose preview
+  bullets?: string[];      // doc: leading list items, rendered above the prose
   cells?: string[][];      // sheet: top-left sample
   slideCount?: number;     // deck
 };
@@ -92,6 +93,34 @@ function stripText(s: string): string {
     .replace(/[#>*_`~]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+// Pull leading list items + prose out of a doc so the card mirrors the real
+// document shape (bullets on top, paragraph below) instead of one flat run.
+function docPreview(raw: string): { bullets: string[]; body: string } {
+  const src = raw || "";
+  const bullets: string[] = [];
+  const liMatches = src.match(/<li[^>]*>([\s\S]*?)<\/li>/gi);
+  if (liMatches) {
+    for (const li of liMatches) {
+      const t = stripText(li);
+      if (t) bullets.push(t);
+      if (bullets.length >= 4) break;
+    }
+  }
+  if (bullets.length === 0) {
+    for (const line of src.split(/\r?\n/)) {
+      const m = line.match(/^\s*(?:[-*+•]|\d+\.)\s+(.+)/);
+      if (m) { const t = stripText(m[1]); if (t) bullets.push(t); }
+      if (bullets.length >= 4) break;
+    }
+  }
+  const bodySrc = src
+    .replace(/<li[^>]*>[\s\S]*?<\/li>/gi, " ")
+    .split(/\r?\n/)
+    .filter((l) => !/^\s*(?:[-*+•]|\d+\.)\s+/.test(l))
+    .join(" ");
+  return { bullets, body: stripText(bodySrc).slice(0, 320) };
 }
 
 function sheetSample(sheets: { celldata?: { r: number; c: number; v: unknown }[] }[] | undefined): string[][] {
@@ -879,19 +908,19 @@ function TypeChip({ projectType, color }: { projectType: string; color: string }
   );
 }
 
-function Composition({ p, dim }: { p: Project; dim?: boolean }) {
+function Composition({ p }: { p: Project }) {
   const c = projCounts(p);
   const parts: { type: EntityType; n: number }[] = [
     { type: "ku" as const, n: c.ku }, { type: "table" as const, n: c.table }, { type: "deck" as const, n: c.deck }, { type: "page" as const, n: c.page },
   ].filter((x) => x.n > 0);
   if (parts.length === 0) return <span className="text-[11.5px]" style={{ color: "var(--ink-4)" }}>No files yet</span>;
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-1.5 flex-wrap">
       {parts.map(({ type, n }) => {
         const e = ENTITY[type];
         return (
-          <span key={type} className="inline-flex items-center gap-1 text-[11.5px] font-medium tabular-nums" style={{ color: dim ? "var(--ink-4)" : "var(--ink-3)" }}>
-            <e.Icon size={13} style={{ color: e.color }} /> {n}
+          <span key={type} className="inline-flex items-center gap-1 h-[21px] px-1.5 rounded-[6px] text-[10.5px] font-semibold tabular-nums" style={{ background: e.chipBg, color: e.chipText }}>
+            <e.Icon size={11} /> {n}
           </span>
         );
       })}
@@ -925,20 +954,16 @@ function AllProjects({ projects, onOpen, onNew, onContext }: { projects: Project
           const Icon = iconFor(p.id);
           const color = wsColor(p);
           return (
-            <button key={p.id} onClick={() => onOpen(p.id)} onContextMenu={(e) => onContext(p.id, p.title || "Untitled", e)} className="animate-fade-in-up text-left rounded-[14px] p-5 lift relative overflow-hidden group flex flex-col"
-              style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)", minHeight: 176 }}>
-              <div className="flex items-start gap-3 mb-3.5">
-                <div className="w-9 h-9 rounded-[9px] flex items-center justify-center flex-shrink-0" style={{ background: "var(--accent-soft)", color: "var(--icon)" }}>
-                  <Icon size={18} strokeWidth={1.9} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[14px] font-semibold truncate" style={{ color: "var(--ink)" }}>{p.title || "Untitled"}</div>
-                  {p.projectType && <span className="inline-block mt-1"><TypeChip projectType={p.projectType} color={color} /></span>}
-                </div>
+            <button key={p.id} onClick={() => onOpen(p.id)} onContextMenu={(e) => onContext(p.id, p.title || "Untitled", e)} className="animate-fade-in-up text-left rounded-[14px] px-[18px] py-4 lift relative overflow-hidden group flex flex-col"
+              style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)", minHeight: 182 }}>
+              <div className="flex items-center gap-2.5 mb-2.5">
+                <Icon size={17} strokeWidth={1.9} className="flex-shrink-0" style={{ color: "var(--icon)" }} />
+                <span className="text-[15px] font-semibold tracking-[-0.015em] flex-1 min-w-0 truncate" style={{ color: "var(--ink)" }}>{p.title || "Untitled"}</span>
+                {p.projectType && <TypeChip projectType={p.projectType} color={color} />}
               </div>
-              {p.description && <p className="text-[12.5px] leading-[1.55] line-clamp-2 flex-1" style={{ color: "var(--ink-3)" }}>{p.description}</p>}
-              <div className="flex items-center justify-between mt-3.5 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
-                <Composition p={p} dim />
+              {p.description && <p className="text-[13px] leading-[1.55] line-clamp-2" style={{ color: "var(--ink-3)" }}>{p.description}</p>}
+              <div className="flex items-center justify-between mt-auto pt-4">
+                <Composition p={p} />
                 <span className="text-[11px] tabular-nums" style={{ color: "var(--ink-4)" }}>{relTime(p.updatedAt)}</span>
               </div>
             </button>
