@@ -28,7 +28,9 @@ export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 export const MAX_FILES_PER_MESSAGE = 10;
 
 export function getFileCategory(file: File): FileAttachment["type"] {
-  if (file.type.startsWith("image/")) return "image";
+  // Treat as image only for raster types we actually support — never SVG
+  // (image/svg+xml can carry script and isn't sent to the vision model).
+  if (file.type.startsWith("image/") && file.type !== "image/svg+xml") return "image";
   if (file.type === "application/pdf") return "pdf";
   if (file.type.includes("wordprocessingml") || file.name.endsWith(".docx")) return "docx";
   if (file.type.includes("spreadsheetml") || file.type === "application/vnd.ms-excel" || file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) return "xlsx";

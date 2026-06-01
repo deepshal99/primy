@@ -99,7 +99,15 @@ async function extractZipContents(buffer: Buffer): Promise<{ text: string; entry
   const parts: string[] = [];
   const fileList: string[] = [];
   let totalChars = 0;
-  const MAX_TOTAL = 200000; // 200k chars total across all files
+  const MAX_TOTAL = 200000;            // 200k chars total across all files
+  const MAX_ENTRIES = 2000;            // cap entries listed/processed
+  const MAX_ENTRY_UNCOMPRESSED = 25 * 1024 * 1024; // 25MB/entry — bomb guard
+
+  // Uncompressed size of a JSZip entry, when available. Used to skip
+  // decompression bombs (tiny compressed → huge uncompressed) BEFORE we call
+  // .async(), which would otherwise inflate the whole entry into memory.
+  const uncompressedSize = (file: any): number =>
+    typeof file?._data?.uncompressedSize === "number" ? file._data.uncompressedSize : 0;
 
   // Collect and sort file paths
   const entries: { path: string; file: any }[] = [];
@@ -109,6 +117,9 @@ async function extractZipContents(buffer: Buffer): Promise<{ text: string; entry
     }
   });
   entries.sort((a, b) => a.path.localeCompare(b.path));
+  // Hard cap on entry count (zip with 50k+ files → memory/time).
+  const truncatedEntryList = entries.length > MAX_ENTRIES;
+  if (truncatedEntryList) entries.length = MAX_ENTRIES;
 
   // Build file tree overview
   fileList.push(`=== ZIP CONTENTS (${entries.length} files) ===`);
@@ -123,6 +134,13 @@ async function extractZipContents(buffer: Buffer): Promise<{ text: string; entry
     if (totalChars >= MAX_TOTAL) {
       parts.push(`\n... (truncated, ${entries.length - parts.length} more files)`);
       break;
+    }
+
+    // Decompression-bomb guard: skip entries whose uncompressed size is huge
+    // BEFORE decompressing them into memory.
+    if (uncompressedSize(file) > MAX_ENTRY_UNCOMPRESSED) {
+      parts.push(`\n--- ${path} --- [skipped: file too large]`);
+      continue;
     }
 
     if (isTextFile(path)) {

@@ -30,6 +30,7 @@ async function searchUnsplash(q: string, page: string): Promise<ImageResult[]> {
     const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&page=${page}&per_page=9&orientation=landscape`;
     const res = await fetch(url, {
       headers: { Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` },
+      signal: AbortSignal.timeout(5000), // never hang on a slow provider
     });
     if (!res.ok) return [];
     const data = await res.json();
@@ -56,6 +57,7 @@ async function searchPexels(q: string, page: string): Promise<ImageResult[]> {
     const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(q)}&page=${page}&per_page=9&orientation=landscape`;
     const res = await fetch(url, {
       headers: { Authorization: PEXELS_API_KEY },
+      signal: AbortSignal.timeout(5000), // never hang on a slow provider
     });
     if (!res.ok) return [];
     const data = await res.json();
