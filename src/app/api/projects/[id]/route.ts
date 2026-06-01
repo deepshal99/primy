@@ -56,9 +56,12 @@ export async function GET(
 
     const { id } = await params;
 
-    // Authorize: any member (viewer+) may read.
+    // Authorize: any member (viewer+) may read. Capture the caller's role so
+    // the client can present a read-only experience to viewers/commenters.
+    let callerRole = "owner";
     try {
-      await requireProjectAccess(id, session.user.id, "viewer");
+      const access = await requireProjectAccess(id, session.user.id, "viewer");
+      callerRole = access.role;
     } catch (e) {
       const res = accessErrorResponse(e);
       if (res) return res;
@@ -190,6 +193,7 @@ export async function GET(
         attachments: m.attachments,
       })),
       hasMoreMessages: totalMessages > MESSAGES_PER_PAGE,
+      myRole: callerRole,
     };
 
     return Response.json(result);
