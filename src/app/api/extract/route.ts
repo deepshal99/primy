@@ -6,6 +6,9 @@ import { generateText } from "ai";
 import { getModel } from "@/lib/ai/modelRouter";
 import "@/lib/env";
 
+// Vision OCR for image-based PDFs can take 30-50s; give the route room.
+export const maxDuration = 120;
+
 function getSummarizeModel() {
   return getModel("summarize");
 }
@@ -14,6 +17,44 @@ async function parsePdfBuffer(buffer: Buffer): Promise<string> {
   const { extractText } = await import("unpdf");
   const result = await extractText(new Uint8Array(buffer));
   return (result.text || []).join("\n");
+}
+
+/** True when extraction yielded essentially no readable text (image/scanned). */
+function isLikelyEmpty(text: string): boolean {
+  return text.replace(/\s+/g, "").length < 100;
+}
+
+/**
+ * OCR fallback for image-based / scanned PDFs. unpdf's text extractor returns
+ * (almost) nothing for these, so we hand the raw PDF to a vision model, which
+ * reads the pages directly — no canvas/rendering deps. Bounded by size + tokens
+ * to stay within the route's time budget. Returns "" on any failure.
+ */
+async function ocrPdfBuffer(buffer: Buffer): Promise<string> {
+  // Vision input gets expensive/slow on huge PDFs; only OCR reasonable sizes.
+  if (buffer.length > 20 * 1024 * 1024) return "";
+  try {
+    const { text } = await generateText({
+      model: getModel("summarize"), // gpt-4.1 (vision-capable)
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "This PDF is image-based (scanned or exported slides) so its text layer is empty. Read the pages with vision and transcribe ALL readable text and data as clean plain text, in page order. Preserve tables as simple rows. No commentary, no markdown fences.",
+            },
+            { type: "file", mediaType: "application/pdf", data: new Uint8Array(buffer), filename: "document.pdf" },
+          ],
+        },
+      ],
+      maxOutputTokens: 8000,
+    });
+    return text || "";
+  } catch (err) {
+    console.error("[Extract API] PDF OCR fallback failed:", err instanceof Error ? err.message : err);
+    return "";
+  }
 }
 
 // Supported text extensions inside zip files
@@ -184,6 +225,7 @@ export async function POST(req: Request) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     let text = "";
+    let ocrUsed = false;
     // For ZIPs, we increment fileUploads by the number of internal entries
     // (matches the user-facing "files uploaded" count). For all other
     // single-file requests, this stays at 1.
@@ -198,6 +240,15 @@ export async function POST(req: Request) {
           { error: "Failed to parse PDF. The file may be corrupt or password-protected." },
           { status: 422 }
         );
+      }
+      // Image-based / scanned PDF → no text layer. Fall back to vision OCR so
+      // the user isn't silently handed an empty file.
+      if (isLikelyEmpty(text)) {
+        const ocr = await ocrPdfBuffer(buffer);
+        if (!isLikelyEmpty(ocr)) {
+          text = ocr;
+          ocrUsed = true;
+        }
       }
     } else if (
       file.type.includes("wordprocessingml") ||
@@ -276,13 +327,22 @@ export async function POST(req: Request) {
       console.error("[Extract API] usage increment error:", err);
     }
 
+    // Still no readable text (e.g. an image-only PDF where OCR also came up
+    // empty, or an empty file) — tell the user instead of returning silence.
+    if (isLikelyEmpty(text)) {
+      return NextResponse.json({
+        text: "",
+        warning: "We couldn't read any text from this file. If it's a scanned or image-only document, the content may not be machine-readable.",
+      });
+    }
+
     // AI summarization for large documents
     if (text.length > SUMMARY_THRESHOLD) {
       const { summary, keyPoints } = await summarizeLargeDocument(text);
-      return NextResponse.json({ text, summary, keyPoints });
+      return NextResponse.json({ text, summary, keyPoints, ocr: ocrUsed });
     }
 
-    return NextResponse.json({ text });
+    return NextResponse.json({ text, ocr: ocrUsed });
   } catch (error) {
     console.error("[Extract API] Error:", error instanceof Error ? error.message : error);
     console.error("[Extract API] Stack:", error instanceof Error ? error.stack : "no stack");

@@ -149,6 +149,11 @@ export async function extractViaServer(file: File): Promise<string> {
   }
 
   const result = await response.json();
+  // Server couldn't read the file (e.g. an image-only PDF where OCR also failed).
+  // Surface it as a clear error so the upload doesn't look like it succeeded.
+  if (result.warning && !result.text) {
+    throw new Error(result.warning);
+  }
   return result.text || "";
 }
 
