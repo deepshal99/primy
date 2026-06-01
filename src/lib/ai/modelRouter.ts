@@ -4,14 +4,15 @@ import { createOpenAI } from "@ai-sdk/openai";
 /**
  * Task-keyed model registry.
  *
- * Phase 1 cleanup: Drafta uses OpenAI for all chat-related tasks and Google
+ * Phase 1 cleanup: Primy uses OpenAI for all chat-related tasks and Google
  * (Gemini 3.1 Pro) for deck generation/editing where it performs better.
  * Provider is selected per-task, not via a global env var.
  */
 
 export type AITask =
-  | "chat"          // small context (<30KB)
-  | "chat-heavy"    // large context (>30KB)
+  | "chat"          // small context (<30KB) — fast default
+  | "chat-heavy"    // large context (>30KB) — fast default
+  | "chat-deep"     // complex reasoning (strategy/analysis) — deeper, slower
   | "deck-generate" // deck generation
   | "deck-edit"     // deck editing
   | "title"         // auto-generate project title
@@ -39,16 +40,19 @@ const HEAVY_CONTEXT_THRESHOLD = 30 * 1024;
 
 // OpenAI is the sole configured provider.
 //
-// Chat is on GPT-5.5 (OpenAI's current flagship) with low reasoning + low
-// verbosity — concise, consistent structured output, with the chat route's
-// candidate fallback to gpt-4.1 as a hard safety net if 5.5 is ever
-// unreachable. Tasks WITHOUT a fallback path (title/web-search/summarize, and
-// the standalone deck-ai route) stay on the proven gpt-4.1 family so an
-// account lacking gpt-5 access can never dead-end. Gemini can be re-enabled
-// per-task behind ENABLE_GEMINI (see getModelCandidates).
+// SPEED-FIRST routing (measured): GPT-5.5 is ~2× slower than gpt-4.1 and tends
+// to over-produce (e.g. a "comprehensive" doc → 98s / 22K chars vs gpt-4.1's
+// 22s). For an interactive workspace, latency dominates felt quality — so
+// everyday chat runs on the FAST gpt-4.1, and only genuinely complex reasoning
+// requests (strategy/analysis/planning — see complexRequest in chat/route.ts)
+// escalate to "chat-deep" on GPT-5.5. The chat route keeps gpt-4.1 as a
+// candidate fallback either way. Note: gpt-4.1 doesn't support the
+// reasoningEffort/textVerbosity params (Responses API rejects them), so its
+// configs carry neither — conciseness is enforced via the system prompt.
 const MODEL_REGISTRY: Record<AITask, ModelConfig> = {
-  "chat":          { provider: "openai", model: "gpt-5.5",               maxOutputTokens: 16384, reasoningEffort: "low",    verbosity: "low" },
-  "chat-heavy":    { provider: "openai", model: "gpt-5.5",               maxOutputTokens: 32768, reasoningEffort: "medium", verbosity: "low" },
+  "chat":          { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 16384  },
+  "chat-heavy":    { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 32768  },
+  "chat-deep":     { provider: "openai", model: "gpt-5.5",               maxOutputTokens: 32768, reasoningEffort: "medium", verbosity: "low" },
   "deck-generate": { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 32768  },
   "deck-edit":     { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 32768  },
   "title":         { provider: "openai", model: "gpt-4.1-mini",          maxOutputTokens: 256    },

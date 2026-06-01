@@ -3,7 +3,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { NextRequest } from "next/server";
 import { SYSTEM_PROMPT } from "@/lib/ai/systemPrompt";
 import { getModelConfig, getModelCandidates, estimateContextSize, type AITask } from "@/lib/ai/modelRouter";
-import { DRAFTA_TOOLS, TOOL_ROUTING_PROMPT } from "@/lib/ai/draftaTools";
+import { PRIMY_TOOLS, TOOL_ROUTING_PROMPT } from "@/lib/ai/primyTools";
 import { withPlanLimit, type PlanCtx } from "@/lib/billing";
 import { getSlashCommand } from "@/lib/ai/slashCommands";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -154,8 +154,11 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
     // (where docs/sheets/pages are created). Deck tasks keep their dedicated
     // fenced/outline flow untouched. The gpt-4.1 fallback candidate also
     // supports function calling, so tools survive a fallback.
+    // Tools are decided here (before the complexRequest escalation below); a
+    // complex chat request is still "chat"/"chat-heavy" at this point, so tools
+    // stay enabled when it later escalates to "chat-deep".
     const useTools = taskType === "chat" || taskType === "chat-heavy";
-    const draftaTools = useTools ? DRAFTA_TOOLS : undefined;
+    const primyTools = useTools ? PRIMY_TOOLS : undefined;
     if (useTools) {
       composedSystemPrompt = `${composedSystemPrompt}\n\n${TOOL_ROUTING_PROMPT}`;
     }
@@ -203,6 +206,11 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
     // would reject the param.
     const complexRequest =
       /\b(strateg(?:y|ic)|analy[sz]e|analysis|comprehensive|in-?depth|deep dive|road ?map|business case|financial model|forecast|evaluate|trade-?offs?|pros and cons|framework|competitive|go-to-market|gtm)\b/i.test(userTextLower);
+    // Escalate only genuinely complex chat to the deeper (slower) GPT-5.5 model;
+    // everyday chat stays on fast gpt-4.1. Deck tasks are unaffected.
+    if (complexRequest && (taskType === "chat" || taskType === "chat-heavy")) {
+      taskType = "chat-deep";
+    }
     const hasSearchIntent =
       /\b(search|look up|find out|research|google|check online|latest|current|recent news)\b/i.test(textContent) ||
       /\b(how many followers|engagement rate|follower count|trending|stock price|weather)\b/i.test(textContent) ||
@@ -406,11 +414,11 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
         const providerOptionsFor = (cand: (typeof candidates)[number]) => {
           const opts: Record<string, any> = {};
           if (!cand.isGoogle && (cand.reasoningEffort || cand.verbosity)) {
-            // Bump effort for complex asks — only on candidates that already
-            // carry a reasoningEffort (gpt-5.x). The gpt-4.1 fallback stays bare.
-            const effort = cand.reasoningEffort && complexRequest ? "high" : cand.reasoningEffort;
+            // Effort/verbosity come straight from the candidate (gpt-5.x only;
+            // the gpt-4.1 fallback carries neither and stays bare). Complexity is
+            // now handled by model SELECTION (chat-deep), not an effort bump.
             opts.openai = {
-              ...(effort ? { reasoningEffort: effort } : {}),
+              ...(cand.reasoningEffort ? { reasoningEffort: cand.reasoningEffort } : {}),
               ...(cand.verbosity ? { textVerbosity: cand.verbosity } : {}),
             };
           }
@@ -435,7 +443,7 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
           // produce a union `tools` type that streamText can't infer.
           const activeTools: ToolSet | undefined = cand.isGoogle
             ? ({ googleSearch: google.tools.googleSearch({}) } as ToolSet)
-            : (draftaTools as ToolSet | undefined);
+            : (primyTools as ToolSet | undefined);
           const result = streamText({
             model: cand.model,
             system: composedSystemPrompt,
@@ -500,7 +508,7 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
             return await runCandidate(cand, msgs);
           } catch (err) {
             if (emittedText || emittedToolCall || clientDisconnected || !isTransient(err)) throw err;
-            console.warn(`[Drafta Chat] transient error on ${cand.label} — one retry:`, err instanceof Error ? err.message : err);
+            console.warn(`[Primy Chat] transient error on ${cand.label} — one retry:`, err instanceof Error ? err.message : err);
             await new Promise((r) => setTimeout(r, 700));
             return await runCandidate(cand, msgs);
           }
@@ -517,7 +525,7 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
               break; // streamed to completion
             } catch (err) {
               lastError = err;
-              console.error(`[Drafta Chat] candidate ${candidates[i].label} failed:`, err instanceof Error ? err.message : err);
+              console.error(`[Primy Chat] candidate ${candidates[i].label} failed:`, err instanceof Error ? err.message : err);
               // Can only retry a fresh candidate if nothing (text OR a tool call)
               // was sent yet — otherwise a fallback would duplicate output.
               if (emittedText || emittedToolCall || clientDisconnected) break;
@@ -552,7 +560,7 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
               finishReason = await runCandidate(chosen, continuationMessages);
             } catch (err) {
               lastError = err;
-              console.error(`[Drafta Chat] continuation ${continuations} failed:`, err instanceof Error ? err.message : err);
+              console.error(`[Primy Chat] continuation ${continuations} failed:`, err instanceof Error ? err.message : err);
               break;
             }
           }
@@ -588,7 +596,7 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
           safeClose();
         } catch (error) {
           clearInterval(timeoutCheck);
-          console.error("[Drafta Chat] Stream error:", error instanceof Error ? error.message : error);
+          console.error("[Primy Chat] Stream error:", error instanceof Error ? error.message : error);
           if (!clientDisconnected) {
             safeEnqueue(
               encoder.encode(`data: ${JSON.stringify({ error: "Something went wrong while generating a response. Please try again." })}\n\n`)
@@ -608,7 +616,7 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
       },
     });
   } catch (error) {
-    console.error("[Drafta Chat] Unhandled error:", error instanceof Error ? error.message : error);
+    console.error("[Primy Chat] Unhandled error:", error instanceof Error ? error.message : error);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
