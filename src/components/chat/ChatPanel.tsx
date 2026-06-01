@@ -17,7 +17,7 @@ import {
   parseSuggestions,
 } from "@/lib/ai/parseAIResponse";
 import { scoreRelevance } from "@/lib/ai/contextRelevance";
-import { emptyToolOps, applyToolCall, hasToolOps, toolIndicatorKind } from "@/lib/ai/toolMapping";
+import { emptyToolOps, applyToolCall, hasToolOps, toolIndicatorKind, summarizeOps } from "@/lib/ai/toolMapping";
 import { Maximize2, Minimize2, PanelRightClose } from "lucide-react";
 import { ENTITY_META } from "@/lib/entityMeta";
 import { MessageList } from "./MessageList";
@@ -481,7 +481,17 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
             }
           }
 
-          finishStreaming(fullText, sheetOps, docOps, kuOps, tableOps, deckOps, pageOps, suggestions);
+          // With verbosity:low the model often returns ONLY a tool call and no
+          // prose — which would render an empty assistant bubble. Synthesize a
+          // one-line confirmation from the applied ops so the chat always reads
+          // cleanly. (Normal prose replies keep fullText untouched.)
+          const hasDisplayText = (extractDisplayText(fullText) || "").trim().length > 0;
+          const contentForFinish =
+            hasDisplayText
+              ? fullText
+              : summarizeOps({ sheetOps, docOps, kuOps, tableOps, deckOps, pageOps }) || fullText;
+
+          finishStreaming(contentForFinish, sheetOps, docOps, kuOps, tableOps, deckOps, pageOps, suggestions);
 
           // Non-silent truncation notice: server ran out of auto-continuations
           // and the answer is still cut off. Don't let a half-answer look whole.
@@ -674,14 +684,14 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
         ) : showHeroLayout && branded ? (
           /* V2 full-screen landing: full-bleed illustration across the top, then
              the title + input centered, with a minimal on-theme create row. */
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="relative w-full flex-shrink-0 overflow-hidden" style={{ height: 220 }} aria-hidden>
-              <img src="/chat-hero.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: "center 44%" }} draggable={false} />
-              <div className="absolute inset-x-0 bottom-0 h-20" style={{ background: "linear-gradient(to bottom, transparent, var(--canvas, #FCFBF7))" }} />
+          <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+            <div className="relative w-full flex-shrink-0 overflow-hidden" style={{ height: 240 }} aria-hidden>
+              <img src="/chat-hero.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: "center 46%" }} draggable={false} />
+              <div className="absolute inset-x-0 bottom-0 h-24" style={{ background: "linear-gradient(to bottom, transparent, var(--canvas, #FCFBF7))" }} />
             </div>
-            <div className="flex-1 flex flex-col items-center justify-center px-6 pb-16 -mt-4">
+            <div className="flex-shrink-0 flex flex-col items-center px-6 pt-10 pb-16">
               <div className="w-full max-w-[640px]">
-                <h1 className="font-heading text-[32px] font-semibold text-foreground text-center mb-7 tracking-[-0.03em] leading-tight">
+                <h1 className="font-heading text-[30px] font-semibold text-foreground text-center mb-6 tracking-[-0.03em] leading-tight">
                   What are you working on?
                 </h1>
                 <ChatInput

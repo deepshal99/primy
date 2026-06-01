@@ -3,6 +3,7 @@ import type {
   TableOperation,
   DocOperation,
   PageOperation,
+  DeckOperation,
   CellData,
 } from "@/lib/types";
 
@@ -41,6 +42,50 @@ export function toolIndicatorKind(toolName: string): "doc" | "sheet" | "page" | 
     default:
       return null;
   }
+}
+
+/**
+ * One-line confirmation built from the ops that were applied — used when the
+ * model returns a tool call (or a terse fenced block) with NO prose, so the
+ * chat never shows an empty assistant bubble after an action. Markdown-bold the
+ * entity title to match the assistant's normal confirmation style.
+ */
+export function summarizeOps(ops: {
+  sheetOps?: { type: string }[];
+  docOps?: { type: string }[];
+  kuOps?: KuOperation[];
+  tableOps?: TableOperation[];
+  deckOps?: DeckOperation[];
+  pageOps?: PageOperation[];
+}): string {
+  const parts: string[] = [];
+  for (const op of ops.kuOps || []) {
+    if (op.type === "CREATE") parts.push(`Created **${op.title}**.`);
+    else if (op.type === "RENAME") parts.push("Renamed the document.");
+    else if (op.type === "DELETE") parts.push("Deleted the document.");
+    else parts.push("Updated the document.");
+  }
+  for (const op of ops.tableOps || []) {
+    if (op.type === "CREATE") parts.push(`Created the **${op.title}** spreadsheet.`);
+    else if (op.type === "DELETE") parts.push("Deleted the spreadsheet.");
+    else parts.push("Updated the spreadsheet.");
+  }
+  for (const op of ops.pageOps || []) {
+    if (op.type === "CREATE") parts.push(`Created the **${op.title}** page.`);
+    else if (op.type === "RENAME") parts.push("Renamed the page.");
+    else if (op.type === "DELETE") parts.push("Deleted the page.");
+    else parts.push("Updated the page.");
+  }
+  for (const op of ops.deckOps || []) {
+    if (op.type === "CREATE") parts.push(`Created the **${op.title}** deck.`);
+    else if (op.type === "RENAME") parts.push("Renamed the deck.");
+    else if (op.type === "DELETE") parts.push("Deleted the deck.");
+    else parts.push("Updated the deck.");
+  }
+  if ((ops.docOps || []).length) parts.push("Updated the document.");
+  if ((ops.sheetOps || []).length) parts.push("Updated the spreadsheet.");
+  // De-dupe identical lines and keep it short.
+  return [...new Set(parts)].slice(0, 3).join(" ");
 }
 
 /** Build Univer/Fortune sparse celldata from plain headers + rows. */

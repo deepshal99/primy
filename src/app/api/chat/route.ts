@@ -482,12 +482,36 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
           return localFinish;
         };
 
+        // A transient provider blip (5xx / overload / network) tends to fail BOTH
+        // OpenAI candidates at once, so cross-model fallback alone isn't enough.
+        // Give each candidate ONE quick same-model retry on a transient error —
+        // but only while nothing has been emitted, so a retry can't duplicate
+        // output. Hard errors (4xx, quota, bad request) are not retried.
+        const isTransient = (err: unknown) => {
+          const m = err instanceof Error ? err.message : String(err);
+          if (/quota|invalid|unsupported|\b400\b|\b401\b|\b403\b|\b404\b/i.test(m)) return false;
+          return /\b5\d\d\b|overload|temporar|timeout|timed out|ECONNRESET|ETIMEDOUT|network|fetch failed/i.test(m);
+        };
+        const runCandidateResilient = async (
+          cand: (typeof candidates)[number],
+          msgs: typeof modelMessages,
+        ): Promise<string | null> => {
+          try {
+            return await runCandidate(cand, msgs);
+          } catch (err) {
+            if (emittedText || emittedToolCall || clientDisconnected || !isTransient(err)) throw err;
+            console.warn(`[Drafta Chat] transient error on ${cand.label} — one retry:`, err instanceof Error ? err.message : err);
+            await new Promise((r) => setTimeout(r, 700));
+            return await runCandidate(cand, msgs);
+          }
+        };
+
         try {
           // Primary attempt with provider fallback (only retries before any text).
           let chosen: (typeof candidates)[number] | null = null;
           for (let i = 0; i < candidates.length; i++) {
             try {
-              finishReason = await runCandidate(candidates[i], modelMessages);
+              finishReason = await runCandidateResilient(candidates[i], modelMessages);
               chosen = candidates[i];
               lastError = null;
               break; // streamed to completion
