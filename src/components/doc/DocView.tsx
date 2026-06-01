@@ -16,6 +16,7 @@ import remarkGfm from "remark-gfm";
 import { TablePlugin } from "@platejs/table/react";
 import { ImagePlugin } from "@platejs/media/react";
 import { useAppStore } from "@/lib/store";
+import { parseEntityUri } from "@/lib/entityLinks";
 import {
   Loader2,
   Wand2,
@@ -286,9 +287,35 @@ function TableHeaderCellElement({ attributes, children }: any) {
   );
 }
 
+// Convert any link node whose url is drafta:// into a mention node, recursively.
+function hydrateMentions(nodes: any[]): any[] {
+  if (!Array.isArray(nodes)) return nodes;
+  return nodes.map((n) => {
+    if (n && (n.type === "a" || n.type === "link")) {
+      const url: string = n.url || n.href || "";
+      const parsed = parseEntityUri(url);
+      if (parsed) {
+        const text = (n.children?.[0]?.text ?? n.children?.[0]?.value ?? "").replace(/^@/, "");
+        return {
+          type: "mention",
+          entityType: parsed.type,
+          entityId: parsed.id,
+          value: text,
+          children: [{ text: "" }],
+        };
+      }
+    }
+    if (Array.isArray(n?.children)) {
+      return { ...n, children: hydrateMentions(n.children) };
+    }
+    return n;
+  });
+}
+
 function mdToValue(editor: any, md: string) {
   try {
-    return editor.getApi(MarkdownPlugin).markdown.deserialize(md);
+    const value = editor.getApi(MarkdownPlugin).markdown.deserialize(md);
+    return hydrateMentions(value);
   } catch {
     return [{ type: "p", children: [{ text: md || "" }] }];
   }
@@ -322,6 +349,15 @@ export function DocView() {
       MarkdownPlugin.configure({
         options: {
           remarkPlugins: [remarkGfm],
+          rules: {
+            mention: {
+              serialize: (node: any) => ({
+                type: "link",
+                url: `drafta://${node.entityType}/${node.entityId}`,
+                children: [{ type: "text", value: `@${node.value || ""}` }],
+              }),
+            },
+          },
         },
       }),
       HrPlugin,
