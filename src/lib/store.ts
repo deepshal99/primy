@@ -223,6 +223,7 @@ export const useAppStore = create<AppState>()(
   projectMemory: {},
   readingFiles: [],
   aiPhase: 'idle' as const,
+  streamingAction: null,
   undoStack: [],
   canUndo: false,
   redoStack: [],
@@ -265,10 +266,10 @@ export const useAppStore = create<AppState>()(
     })),
 
   startStreaming: () =>
-    set({ isStreaming: true, streamingContent: "", aiPhase: 'thinking' }),
+    set({ isStreaming: true, streamingContent: "", aiPhase: 'thinking', streamingAction: null }),
 
   abortStreaming: () =>
-    set({ isStreaming: false, streamingContent: "", readingFiles: [], aiPhase: 'idle' }),
+    set({ isStreaming: false, streamingContent: "", readingFiles: [], aiPhase: 'idle', streamingAction: null }),
 
   appendStreamChunk: (chunk: string) =>
     set((state) => ({
@@ -844,6 +845,7 @@ export const useAppStore = create<AppState>()(
       suggestions: suggestions || [],
       readingFiles: [],
       aiPhase: 'done' as const,
+      streamingAction: null,
       undoStack: newUndoStack,
       canUndo: newUndoStack.length > 0,
       // Clear redo stack when new AI operations are applied
@@ -1020,6 +1022,7 @@ export const useAppStore = create<AppState>()(
 
   setReadingFiles: (files: string[]) => set({ readingFiles: files }),
   setAIPhase: (phase) => set({ aiPhase: phase }),
+  setStreamingAction: (action) => set({ streamingAction: action }),
 
   // ── Legacy Conversations (TODO: Remove in next release — only kept for migration) ──
 

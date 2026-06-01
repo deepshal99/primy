@@ -207,20 +207,29 @@ interface StreamingBubbleProps {
 export function StreamingBubble({ content }: StreamingBubbleProps) {
   const aiPhase = useAppStore((s) => s.aiPhase);
   const readingFiles = useAppStore((s) => s.readingFiles);
+  // Layer B: set live while a tool call streams ("doc" | "sheet" | "page").
+  const streamingAction = useAppStore((s) => s.streamingAction);
 
   const hasSheetOps = content.includes("```sheetops");
   const hasDocOps = content.includes("```docops");
   const hasKuOps = content.includes("```kuops");
   const hasTableOps = content.includes("```tableops");
   const hasDeckOps = content.includes("```deckops");
-  const hasAnyOps = hasSheetOps || hasDocOps || hasKuOps || hasTableOps || hasDeckOps;
+  const hasPageOps = content.includes("```pageops");
+  const hasOutline = content.includes("```deckoutline");
+  const hasAnyOps = hasSheetOps || hasDocOps || hasKuOps || hasTableOps || hasDeckOps || hasPageOps;
 
+  // Strip EVERY operation/outline block so raw JSON never leaks into the chat
+  // while it streams. The `(\n```|$)` tail also catches a block whose closing
+  // fence hasn't arrived yet mid-stream (i.e. still being written).
   const displayContent = content
     .replace(/```sheetops\n[\s\S]*?(\n```|$)/g, "")
     .replace(/```docops\n[\s\S]*?(\n```|$)/g, "")
     .replace(/```kuops\n[\s\S]*?(\n```|$)/g, "")
     .replace(/```tableops\n[\s\S]*?(\n```|$)/g, "")
-    .replace(/```deckops\n[\s\S]*?(\n```|$)/g, "");
+    .replace(/```deckops\n[\s\S]*?(\n```|$)/g, "")
+    .replace(/```pageops\n[\s\S]*?(\n```|$)/g, "")
+    .replace(/```deckoutline\n[\s\S]*?(\n```|$)/g, "");
 
   const hasVisibleContent = displayContent.trim().length > 0;
 
@@ -228,7 +237,31 @@ export function StreamingBubble({ content }: StreamingBubbleProps) {
   if (aiPhase === "updating") {
     return (
       <div className="fade-in-up">
-        <UpdateIndicator hasOps={{ hasSheetOps, hasDocOps, hasKuOps, hasTableOps, hasDeckOps }} />
+        <UpdateIndicator hasOps={{ hasSheetOps, hasDocOps, hasKuOps, hasTableOps, hasDeckOps, hasPageOps }} />
+      </div>
+    );
+  }
+
+  // An action is streaming ⇒ the AI is actively BUILDING an artifact, via either
+  // a Layer B tool call (streamingAction) or a legacy fenced block. Show only
+  // the present-tense action indicator — never the prose summary, which the
+  // model writes in the past tense ("Created X") and would read as "done" while
+  // the work is still in flight. The confirmation prose returns on the final
+  // settled message once the artifact actually exists.
+  const indicatorType: "sheet" | "doc" | "deck" | "page" | null =
+    streamingAction === "sheet" || hasSheetOps || hasTableOps
+      ? "sheet"
+      : streamingAction === "page" || hasPageOps
+        ? "page"
+        : hasDeckOps || hasOutline
+          ? "deck"
+          : streamingAction === "doc" || hasDocOps || hasKuOps
+            ? "doc"
+            : null;
+  if (indicatorType) {
+    return (
+      <div className="fade-in-up">
+        <OperationIndicator type={indicatorType} />
       </div>
     );
   }
@@ -236,17 +269,10 @@ export function StreamingBubble({ content }: StreamingBubbleProps) {
   return (
     <div className="fade-in-up">
       {hasVisibleContent ? (
-        <div className="space-y-3">
-          <div className="text-[13px] leading-[1.7] text-foreground markdown-content">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {displayContent}
-            </ReactMarkdown>
-          </div>
-          {hasAnyOps && (
-            <OperationIndicator
-              type={hasSheetOps || hasTableOps ? "sheet" : hasDeckOps ? "deck" : "doc"}
-            />
-          )}
+        <div className="text-[13px] leading-[1.7] text-foreground markdown-content">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {displayContent}
+          </ReactMarkdown>
         </div>
       ) : (
         <ThinkingIndicator readingFiles={readingFiles} />
@@ -292,11 +318,12 @@ function ThinkingIndicator({ readingFiles }: { readingFiles: string[] }) {
 
 /* -- Inline operation indicator (during streaming) -- */
 
-function OperationIndicator({ type }: { type: "sheet" | "doc" | "deck" }) {
+function OperationIndicator({ type }: { type: "sheet" | "doc" | "deck" | "page" }) {
   const config = {
     sheet: { icon: Table2, label: "Building spreadsheet", color: "#2e9e47", bg: "#e8f7ea" },
     doc: { icon: PenLine, label: "Writing document", color: "#4a7aed", bg: "#f0f4fd" },
     deck: { icon: FileText, label: "Building presentation", color: "#d4582a", bg: "#fde8dc" },
+    page: { icon: FileText, label: "Designing page", color: "#8757D7", bg: "#f1ecfb" },
   }[type];
   const Icon = config.icon;
 
@@ -328,6 +355,8 @@ function UpdateIndicator({
     entities.push({ label: "Document", color: "#4a7aed", bg: "#f0f4fd" });
   if (hasOps.hasDeckOps)
     entities.push({ label: "Deck", color: "#d4582a", bg: "#fde8dc" });
+  if (hasOps.hasPageOps)
+    entities.push({ label: "Page", color: "#8757D7", bg: "#f1ecfb" });
 
   return (
     <div className="flex flex-col gap-0 px-3.5 py-2.5 rounded-xl bg-muted border border-border">

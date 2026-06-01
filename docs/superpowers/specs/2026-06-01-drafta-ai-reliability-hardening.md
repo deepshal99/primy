@@ -1,5 +1,7 @@
 # Drafta AI — Reliability Hardening Plan
 
+> **STATUS (2026-06-01): Layer A + Layer B both SHIPPED & verified (tsc + production build clean).** Layer B landed behind dual-accept — schema-validated tool calls for create/edit, with the fenced-block parser kept as a live fallback so nothing regresses. See "Implementation status" at the bottom.
+
 **Date:** 2026-06-01
 **Goal:** AI never silently fails. Every create/edit either lands and auto-opens, or shows a clear, recoverable error. Concise responses. Always-on indicators ("Creating doc…", "Editing sheet…").
 
@@ -186,3 +188,40 @@ The error in the transcript:
 This is **not** a Drafta bug. It's a Claude Code session/transport error: a prior assistant turn contained an extended-**thinking** block, and on resend the harness altered/re-ordered that block (Anthropic's API forbids mutating thinking blocks once produced — common when a message is edited/retried, or a tool result is injected into a turn that already emitted thinking).
 
 **Workaround:** start a fresh conversation rather than editing/retrying the message that already produced thinking; or disable interleaved/extended thinking for that session. That's why the resend eventually went through — a clean turn has no prior thinking block to violate.
+
+---
+
+## Implementation status (2026-06-01)
+
+### Layer A — DONE
+- **A1 — model + sampling** (`modelRouter.ts`, `route.ts`): chat + chat-heavy → **GPT-5.5** with `reasoningEffort` (low / medium) + `textVerbosity: low` via `providerOptions.openai`, applied per-candidate. `isProModel` now = any non-`mini` model (so 5.5 gets full sheet/doc context, not the 4KB mini cap). **Scope decision:** only chat/chat-heavy upgraded — they're the complaint area AND have the candidate fallback to `gpt-4.1` as a hard safety net. `title` / `web-search` / `summarize` / `deck-*` stay on the proven `gpt-4.1` family because they call `getModel()` with **no fallback path**; an account lacking gpt-5 access must never dead-end. The gpt-4.1 fallback candidate carries no reasoning/verbosity, so it can't be sent params it would reject.
+- **A2 — finish-reason + auto-continuation** (`route.ts`): `fullStream` now captures the `finish` part's `finishReason`. On `length` (hit the output cap mid-block) the server transparently re-prompts "continue from exactly where you stopped, close the block" and streams into the SAME response, capped at 2 continuations. A terminal `{ meta: { finishReason, truncated } }` frame tells the client how it ended. Chat stall timeout 30s → 45s (gpt-5 reasons before first token).
+- **A3 — claim/action reconciliation** (`ChatPanel.tsx`): if the model's prose claims an action (action-verb **and** entity-noun) but zero ops parsed and no fences present, a clear error toast fires — no more silent "Created X" with no X.
+- **A4 — indicators**: existing `OperationIndicator`/`UpdateIndicator` already key off op-blocks during stream; reinforced. New non-silent truncation toast when `meta.truncated`.
+- **A5 — stuck-state**: `finally` in `sendMessage` guarantees `isStreaming` is always cleared on every path; safety backstop timer 180s → 150s.
+- **A6 — conciseness**: delivered via `textVerbosity: low` + existing "no long text in chat" prompt rule.
+
+**Verification:** `tsc --noEmit` clean; `npm run build` clean (all routes compiled). No test framework exists in repo, so verification is type+build + code review. `next lint` is broken under Next 16 (unrelated pre-existing issue).
+
+### Layer B — DONE (dual-accept, tsc + build clean)
+Structured client-forwarded tool calls replace hand-typed JSON for the high-value create/edit paths.
+
+- **`draftaTools.ts`** (new): 5 schema-validated tools via AI SDK `tool()` + `jsonSchema` (no zod dep) — `create_document`, `edit_document`, `append_to_document`, `create_spreadsheet`, `create_page`. No `execute` ⇒ client-forwarded. Each is id-free and maps 1:1 onto an existing store op, so the apply/auto-open pipeline is unchanged. Includes `TOOL_ROUTING_PROMPT` appended to the system prompt for chat tasks.
+- **`toolMapping.ts`** (new): `applyToolCall()` maps a tool call → store ops (and **builds the sheet `celldata` from plain headers+rows** — the model no longer hand-builds cell coordinates, a big reliability win). Defensive: bad input is ignored, never throws.
+- **`route.ts`**: tools active ONLY for `chat`/`chat-heavy` (deck flow untouched). `fullStream` forwards `tool-input-start` → `{toolStart}` (live pill) and `tool-call` → `{toolCall}` (the action). gpt-4.1 fallback also supports function calling, so tools survive a fallback. `emittedToolCall` guards prevent fallback duplication and tool-only-response false errors.
+- **`ChatPanel.tsx`**: collects tool calls into `toolOps`; **dual-accept** — prefers tool ops per family, falls back to fenced parsing (legacy/deck/sheet-cell edits still work). Applied on both success AND abort paths. Tool-only responses (no prose) no longer treated as "empty".
+- **store / `MessageBubble`**: new `streamingAction` drives the live "Writing document… / Building spreadsheet… / Designing page…" pill straight from the tool event (not guessed from text). Past-tense prose stays hidden while the action runs.
+
+**Why this kills the root causes:** the tool call IS the action (can't claim-without-doing), the schema enforces valid input (no malformed-JSON misses), and there's nothing to leak into chat. The fenced parser remains as a live fallback (dual-accept), so nothing regresses.
+
+**Double-create safety:** per-family `toolOps.X.length ? toolOps.X : fenced` — a family never applies both tool and fenced ops. Cross-family (e.g. a doc tool + a fenced deck) correctly coexist.
+
+**Watch-item:** a single very large artifact (e.g. a big `create_page` HTML) on the light chat model could still hit the 16,384-output-token cap; unlike fenced blocks, a truncated tool call can't be partially salvaged. It fails **non-silently** (truncation toast + reconciliation toast + no false success), and routes to `chat-heavy` (32,768) when context is large. If big one-pagers are common, raise chat `maxOutputTokens` or add a dedicated heavier route.
+
+### Follow-ups (now)
+- Sheet-cell edits, page edits, decks, rename/delete still use the fenced path — migrate to tools in a later pass once the create tools are proven in prod.
+- Once tool usage is confirmed dominant in logs, trim the fenced-block instructions from `systemPrompt.ts` to reduce mixed signals (keep the parser as fallback).
+
+### Follow-ups / watch-items
+- Confirm the OpenAI account has **gpt-5.5 / gpt-5.4-mini** access. If not, chat silently falls back to gpt-4.1 (safe, but you lose the upgrade) — check server logs for `candidate openai:gpt-5.5 failed`.
+- Consider extending the candidate-fallback pattern to the `deck-ai` and `title`/`summarize` routes so they too can move to gpt-5.x safely.

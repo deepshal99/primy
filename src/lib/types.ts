@@ -520,6 +520,8 @@ export interface AppState {
   projectMemory: ProjectMemory;
   readingFiles: string[];
   aiPhase: AIPhase;
+  /** Live action label while an AI tool call streams: "doc" | "sheet" | "page" | null. */
+  streamingAction: string | null;
 
   // Undo/Redo history
   undoStack: UndoSnapshot[];
@@ -567,6 +569,7 @@ export interface AppState {
   clearSuggestions: () => void;
   setReadingFiles: (files: string[]) => void;
   setAIPhase: (phase: AIPhase) => void;
+  setStreamingAction: (action: string | null) => void;
   applySheetOperations: (operations: SheetOperation[]) => void;
   applyDocOperations: (operations: DocOperation[]) => void;
   updateSheetData: (data: SheetData[]) => void;

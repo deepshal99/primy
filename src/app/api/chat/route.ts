@@ -1,8 +1,9 @@
-import { streamText, convertToModelMessages, type UIMessage } from "ai";
+import { streamText, convertToModelMessages, type UIMessage, type ToolSet } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { NextRequest } from "next/server";
 import { SYSTEM_PROMPT } from "@/lib/ai/systemPrompt";
 import { getModelConfig, getModelCandidates, estimateContextSize, type AITask } from "@/lib/ai/modelRouter";
+import { DRAFTA_TOOLS, TOOL_ROUTING_PROMPT } from "@/lib/ai/draftaTools";
 import { withPlanLimit, type PlanCtx } from "@/lib/billing";
 import { getSlashCommand } from "@/lib/ai/slashCommands";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -149,6 +150,16 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
       }
     }
 
+    // Layer B: schema-validated action tools are active ONLY for chat tasks
+    // (where docs/sheets/pages are created). Deck tasks keep their dedicated
+    // fenced/outline flow untouched. The gpt-4.1 fallback candidate also
+    // supports function calling, so tools survive a fallback.
+    const useTools = taskType === "chat" || taskType === "chat-heavy";
+    const draftaTools = useTools ? DRAFTA_TOOLS : undefined;
+    if (useTools) {
+      composedSystemPrompt = `${composedSystemPrompt}\n\n${TOOL_ROUTING_PROMPT}`;
+    }
+
     // Build sheet context as CSV for token efficiency
     let sheetContext = "";
     const sheetsWithData = (sheetData || []).filter((s: any) => s.celldata?.length > 0);
@@ -184,6 +195,14 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
 
     // Detect search-intent queries
     const userTextLower = textContent.toLowerCase();
+
+    // Complex-reasoning intent → bump gpt-5.x reasoning effort to "high" for a
+    // sharper answer on hard, open-ended tasks (strategy, analysis, planning).
+    // Everyday requests stay on the registry default (low) for snappy latency.
+    // Never applied to the gpt-4.1 fallback — it carries no reasoningEffort and
+    // would reject the param.
+    const complexRequest =
+      /\b(strateg(?:y|ic)|analy[sz]e|analysis|comprehensive|in-?depth|deep dive|road ?map|business case|financial model|forecast|evaluate|trade-?offs?|pros and cons|framework|competitive|go-to-market|gtm)\b/i.test(userTextLower);
     const hasSearchIntent =
       /\b(search|look up|find out|research|google|check online|latest|current|recent news)\b/i.test(textContent) ||
       /\b(how many followers|engagement rate|follower count|trending|stock price|weather)\b/i.test(textContent) ||
@@ -376,6 +395,7 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
 
         const groundingSources: { title: string; uri: string }[] = [];
         let emittedText = false;
+        let emittedToolCall = false;       // Layer B: a tool call was streamed
         let lastError: unknown = null;
         let accumulatedText = "";          // full assistant text across continuations
         let finishReason: string | null = null;
@@ -386,8 +406,11 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
         const providerOptionsFor = (cand: (typeof candidates)[number]) => {
           const opts: Record<string, any> = {};
           if (!cand.isGoogle && (cand.reasoningEffort || cand.verbosity)) {
+            // Bump effort for complex asks — only on candidates that already
+            // carry a reasoningEffort (gpt-5.x). The gpt-4.1 fallback stays bare.
+            const effort = cand.reasoningEffort && complexRequest ? "high" : cand.reasoningEffort;
             opts.openai = {
-              ...(cand.reasoningEffort ? { reasoningEffort: cand.reasoningEffort } : {}),
+              ...(effort ? { reasoningEffort: effort } : {}),
               ...(cand.verbosity ? { textVerbosity: cand.verbosity } : {}),
             };
           }
@@ -408,13 +431,20 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
         ): Promise<string | null> => {
           lastChunkTime = Date.now();
           const providerOptions = providerOptionsFor(cand);
+          // Unify both tool sources to ToolSet so the conditional spread doesn't
+          // produce a union `tools` type that streamText can't infer.
+          const activeTools: ToolSet | undefined = cand.isGoogle
+            ? ({ googleSearch: google.tools.googleSearch({}) } as ToolSet)
+            : (draftaTools as ToolSet | undefined);
           const result = streamText({
             model: cand.model,
             system: composedSystemPrompt,
             messages: msgs,
             maxOutputTokens: cand.maxOutputTokens,
             ...(providerOptions ? { providerOptions } : {}),
-            ...(cand.isGoogle ? { tools: { googleSearch: google.tools.googleSearch({}) } } : {}),
+            ...(activeTools
+              ? { tools: activeTools, ...(cand.isGoogle ? {} : { toolChoice: "auto" as const }) }
+              : {}),
             abortSignal: req.signal,
           });
 
@@ -426,6 +456,17 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
               emittedText = true;
               accumulatedText += part.text;
               safeEnqueue(encoder.encode(`data: ${JSON.stringify({ text: part.text })}\n\n`));
+            } else if (part.type === "tool-input-start") {
+              // Model began a tool call — fire the live action pill immediately
+              // (the input args may stream for several seconds before completing).
+              const name = (part as { toolName?: string }).toolName;
+              if (name) safeEnqueue(encoder.encode(`data: ${JSON.stringify({ toolStart: { name } })}\n\n`));
+            } else if (part.type === "tool-call") {
+              // Final, schema-validated tool call. Forward to the client, which
+              // applies it to the store (create/edit the entity + auto-open).
+              emittedToolCall = true;
+              const tc = part as { toolName?: string; input?: unknown };
+              safeEnqueue(encoder.encode(`data: ${JSON.stringify({ toolCall: { name: tc.toolName, input: tc.input } })}\n\n`));
             } else if (part.type === "source") {
               if (part.sourceType === "url" && part.url) {
                 groundingSources.push({ title: part.title || new URL(part.url).hostname, uri: part.url });
@@ -453,8 +494,9 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
             } catch (err) {
               lastError = err;
               console.error(`[Drafta Chat] candidate ${candidates[i].label} failed:`, err instanceof Error ? err.message : err);
-              // Can only retry a fresh candidate if nothing was sent yet.
-              if (emittedText || clientDisconnected) break;
+              // Can only retry a fresh candidate if nothing (text OR a tool call)
+              // was sent yet — otherwise a fallback would duplicate output.
+              if (emittedText || emittedToolCall || clientDisconnected) break;
             }
           }
 
@@ -493,7 +535,7 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
 
           clearInterval(timeoutCheck);
 
-          if (lastError && !emittedText && !clientDisconnected) {
+          if (lastError && !emittedText && !emittedToolCall && !clientDisconnected) {
             const errMsg = lastError instanceof Error ? lastError.message : "";
             const isRateLimit = /quota|rate.?limit|429/i.test(errMsg);
             const clientError = isRateLimit

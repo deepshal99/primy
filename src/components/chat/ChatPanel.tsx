@@ -17,7 +17,9 @@ import {
   parseSuggestions,
 } from "@/lib/ai/parseAIResponse";
 import { scoreRelevance } from "@/lib/ai/contextRelevance";
+import { emptyToolOps, applyToolCall, hasToolOps, toolIndicatorKind } from "@/lib/ai/toolMapping";
 import { Maximize2, Minimize2, PanelRightClose } from "lucide-react";
+import { ENTITY_META } from "@/lib/entityMeta";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 import { ExamplePrompts, ENTITY_PILLS } from "./ExamplePrompts";
@@ -99,6 +101,11 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
       addUserMessage(content, attachments, mentionedEntities);
       clearPendingAttachments();
       startStreaming();
+
+      // Layer B: collected tool-call ops, declared OUTSIDE the try so both the
+      // success and abort paths can apply whatever the model called before the
+      // stream ended.
+      const toolOps = emptyToolOps();
 
       try {
         const state = useAppStore.getState();
@@ -361,6 +368,15 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
               // cut off. Surface it — never let a half-finished answer look whole.
               streamTruncated = true;
             }
+            if (parsed.toolStart?.name) {
+              // Model began a tool call — show the live action pill right away.
+              const kind = toolIndicatorKind(parsed.toolStart.name);
+              if (kind) useAppStore.getState().setStreamingAction(kind);
+            }
+            if (parsed.toolCall?.name) {
+              // Schema-validated action — collect it for apply at stream end.
+              applyToolCall(parsed.toolCall.name, parsed.toolCall.input, toolOps);
+            }
           } catch {
             // Malformed chunk — log first few for debugging
             if (chunkCount <= 3) console.warn("[Drafta] Malformed SSE chunk:", data.slice(0, 200));
@@ -408,7 +424,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
           return;
         }
 
-        if (!fullText.trim()) {
+        if (!fullText.trim() && !hasToolOps(toolOps)) {
           console.warn("[Drafta] Stream completed with empty text. Chunks received:", chunkCount, "Buffer remainder:", buffer.slice(0, 200));
           abortStreaming();
           toast.error("No response received from AI. Please try again.");
@@ -432,11 +448,14 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
               }
             }
           }
-          const docOps = parseDocOperations(fullText);
-          const kuOps = parseKuOperations(fullText);
-          const tableOps = parseTableOperations(fullText);
+          // Dual-accept: prefer schema-validated tool-call ops; fall back to
+          // fenced-block parsing per family so legacy output, deck flows, and
+          // sheet-cell edits still work. sheetOps (cell edits) stay fenced.
+          const docOps = toolOps.doc.length ? toolOps.doc : parseDocOperations(fullText);
+          const kuOps = toolOps.ku.length ? toolOps.ku : parseKuOperations(fullText);
+          const tableOps = toolOps.table.length ? toolOps.table : parseTableOperations(fullText);
           const deckOps = parseDeckOperations(fullText);
-          const pageOps = parsePageOperations(fullText);
+          const pageOps = toolOps.page.length ? toolOps.page : parsePageOperations(fullText);
           const suggestions = parseSuggestions(fullText);
           const outlineItems = parseDeckOutlineItems(fullText);
           const hasAnyOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || deckOps.length > 0 || pageOps.length > 0;
@@ -445,10 +464,30 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
             if (hasFences) {
               console.warn("[Drafta] Operation blocks found but none parsed. Raw tail:", fullText.slice(-600));
               toast.error("AI response had formatting issues — some changes may not have been applied. Try again.");
+            } else {
+              // Claim/action reconciliation: the model claimed it created/edited
+              // an artifact but emitted ZERO operation blocks. Never let that
+              // pass silently — the user would otherwise see "Created X" with no
+              // X and no tab. Requires BOTH an action verb AND an entity noun to
+              // avoid false positives on ordinary short answers.
+              const displayText = extractDisplayText(fullText) || fullText;
+              const claimsAction =
+                /\b(created|added|generated|built|inserted|updated|edited|drafted|here'?s your|i'?ve\s+(?:created|added|made|updated|built|generated|drafted))\b/i.test(displayText) &&
+                /\b(document|doc|spreadsheet|sheet|table|deck|presentation|slides?|page|tracker|outline)\b/i.test(displayText);
+              if (claimsAction) {
+                console.warn("[Drafta] Model claimed an action but emitted no operation block. Tail:", fullText.slice(-400));
+                toast.error("The AI described a change but didn't actually apply it. Please ask again.");
+              }
             }
           }
 
           finishStreaming(fullText, sheetOps, docOps, kuOps, tableOps, deckOps, pageOps, suggestions);
+
+          // Non-silent truncation notice: server ran out of auto-continuations
+          // and the answer is still cut off. Don't let a half-answer look whole.
+          if (streamTruncated) {
+            toast.warning("The response was long and may be cut off — ask the AI to continue if something's missing.");
+          }
         } catch (applyError) {
           // Operation parsing or store mutation failed — still save the AI text response
           console.error("[Drafta] Failed to apply AI operations:", applyError);
@@ -472,14 +511,14 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
           // Stream was aborted (user stop, stall detection, or safety timeout)
           // Try to parse and apply any operations from partial content
           const partial = useAppStore.getState().streamingContent;
-          if (partial.trim()) {
+          if (partial.trim() || hasToolOps(toolOps)) {
             try {
               const sheetOps = parseSheetOperations(partial);
-              const docOps = parseDocOperations(partial);
-              const kuOps = parseKuOperations(partial);
-              const tableOps = parseTableOperations(partial);
+              const docOps = toolOps.doc.length ? toolOps.doc : parseDocOperations(partial);
+              const kuOps = toolOps.ku.length ? toolOps.ku : parseKuOperations(partial);
+              const tableOps = toolOps.table.length ? toolOps.table : parseTableOperations(partial);
               const deckOps = parseDeckOperations(partial);
-              const pageOps = parsePageOperations(partial);
+              const pageOps = toolOps.page.length ? toolOps.page : parsePageOperations(partial);
               const hasPartialOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || deckOps.length > 0 || pageOps.length > 0;
               if (hasPartialOps) {
                 finishStreaming(extractDisplayText(partial) || partial, sheetOps, docOps, kuOps, tableOps, deckOps, pageOps);
@@ -507,6 +546,14 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
           error instanceof Error ? error.message : "Something went wrong";
         abortStreaming();
         toast.error(errMsg);
+      } finally {
+        // Absolute guarantee: no code path leaves the UI stuck "streaming".
+        // finishStreaming/abortStreaming clear isStreaming on every normal path;
+        // this catches any unexpected escape (early return, throw in cleanup).
+        if (useAppStore.getState().isStreaming) {
+          console.warn("[Drafta] Stream ended without a clean finish — forcing recovery.");
+          abortStreaming();
+        }
       }
     },
     [addUserMessage, startStreaming, appendStreamChunk, finishStreaming, abortStreaming, clearPendingAttachments]
@@ -564,10 +611,11 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
     }
   };
 
-  // Branded chat (V2): same docked layout on the workspaces home AND inside a
-  // project — branded header + hero + greeting/messages. `centered` no longer
-  // forks the look so the two screens match.
-  const brandedDocked = !!branded;
+  // Branded chat (V2):
+  //  - docked (in a project): branded header + hero + greeting (brandedDocked)
+  //  - full-screen (no project, `centered`): ChatGPT-style centered hero, with
+  //    the landscape illustration when `branded`.
+  const brandedDocked = !!branded && !centered;
   const showLanding = brandedDocked && !hasMessages && !(isLoadingProject && !!currentProjectId);
 
   return (
@@ -623,16 +671,48 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
               <ChatInput onSend={sendMessage} disabled={isStreaming} centered={centered} onStop={stopStreaming} pill />
             </div>
           </>
+        ) : showHeroLayout && branded ? (
+          /* V2 full-screen landing: full-bleed illustration across the top, then
+             the title + input centered, with a minimal on-theme create row. */
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="relative w-full flex-shrink-0 overflow-hidden" style={{ height: 220 }} aria-hidden>
+              <img src="/chat-hero.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: "center 44%" }} draggable={false} />
+              <div className="absolute inset-x-0 bottom-0 h-20" style={{ background: "linear-gradient(to bottom, transparent, var(--canvas, #FCFBF7))" }} />
+            </div>
+            <div className="flex-1 flex flex-col items-center justify-center px-6 pb-16 -mt-4">
+              <div className="w-full max-w-[640px]">
+                <h1 className="font-heading text-[32px] font-semibold text-foreground text-center mb-7 tracking-[-0.03em] leading-tight">
+                  What are you working on?
+                </h1>
+                <ChatInput
+                  onSend={sendMessage}
+                  disabled={isStreaming}
+                  centered={centered}
+                  onStop={stopStreaming}
+                  placeholder={activePlaceholder || "Describe what you want to create..."}
+                />
+                <div className="flex items-center justify-center gap-2 mt-5">
+                  {(["ku", "table", "deck"] as const).map((t) => {
+                    const m = ENTITY_META[t];
+                    return (
+                      <button key={t} onClick={() => handleEntityPillClick(t)}
+                        className="inline-flex items-center gap-1.5 h-[30px] pl-2.5 pr-3 rounded-full text-[12.5px] font-medium press"
+                        style={{ background: m.bg, color: m.color }}>
+                        <m.Icon size={13} /> {m.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
         ) : showHeroLayout ? (
-          /* Centered empty state (legacy non-branded): title + chatbox + pills */
+          /* Legacy (non-branded) centered empty state: title + chatbox + pills */
           <div className="flex-1 flex flex-col items-center justify-center px-6 pb-12">
-            <div className="w-full max-w-[680px]">
-              {/* Title */}
+            <div className="w-full max-w-[660px]">
               <h1 className="font-heading text-[32px] font-semibold text-foreground text-center mb-7 tracking-[-0.03em] leading-tight">
                 What are you working on?
               </h1>
-
-              {/* Chat input */}
               <ChatInput
                 onSend={sendMessage}
                 disabled={isStreaming}
@@ -640,8 +720,6 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
                 onStop={stopStreaming}
                 placeholder={activePlaceholder || "Describe what you want to create..."}
               />
-
-              {/* Entity type pills — click to create project + open blank entity */}
               <div className="mt-5">
                 <ExamplePrompts
                   centered
