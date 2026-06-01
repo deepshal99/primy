@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { DocToolbar } from "./DocToolbar";
 import { SelectionBubble } from "./SelectionBubble";
+import { MentionElement } from "./mention/MentionElement";
 
 // HR void element plugin
 function HrElement({ attributes, children }: any) {
@@ -341,6 +342,15 @@ export function DocView() {
       }),
       ImagePlugin.configure({
         render: { node: ImageElement },
+      }),
+      createPlatePlugin({
+        key: "mention",
+        node: {
+          isElement: true,
+          isInline: true,
+          isVoid: true,
+          component: MentionElement,
+        },
       }),
     ],
     []
