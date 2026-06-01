@@ -593,12 +593,13 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
           <>
             <div className="flex-1 overflow-y-auto chat-scroll flex flex-col">
               <HeroLandscape />
-              <div className="px-7 pt-7 pb-2">
+              {/* greeting anchored toward the bottom — generous breathing room under the hero */}
+              <div className="mt-auto px-7 pt-7 pb-5">
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="w-6 h-6 rounded-full flex-shrink-0" style={{ background: "var(--accent-amber, #FFB43F)" }} />
-                  <span className="font-semibold text-[17px] tracking-[-0.015em]" style={{ color: "var(--ink, #171716)" }}>Drafta</span>
+                  <span className="w-7 h-7 rounded-full flex-shrink-0" style={{ background: "var(--accent-amber, #FFB43F)" }} />
+                  <span className="font-semibold text-[18px] tracking-[-0.02em]" style={{ color: "var(--ink, #171716)" }}>Drafta</span>
                 </div>
-                <div className="text-[14.5px] leading-[1.55] space-y-3.5" style={{ color: "var(--ink, #171716)" }}>
+                <div className="text-[14.5px] leading-[1.6] space-y-4 [text-wrap:pretty]" style={{ color: "var(--ink, #171716)" }}>
                   <p>Hi there!</p>
                   <p>You can use the left workspace to start creating and organizing your work. Anything you create, we can chat about here.</p>
                   <p style={{ color: "var(--ink-2, #3B3A37)" }}>

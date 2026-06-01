@@ -23,7 +23,7 @@ import {
   PanelRightOpen, Sun, Moon, ArrowLeft, Settings, CircleHelp, Check,
   Folder as FolderIcon, FolderPlus, Home, Trash2, Pencil, FolderInput,
   Rocket, Sparkles, Compass, Layers, Target, Box, Hexagon, Flame,
-  LogOut, ChevronsUpDown, ArrowRight,
+  LogOut, ChevronsUpDown,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { useDarkMode } from "@/lib/useShellV2";
@@ -901,8 +901,6 @@ function Composition({ p, dim }: { p: Project; dim?: boolean }) {
 
 function AllProjects({ projects, onOpen, onNew, onContext }: { projects: Project[]; onOpen: (id: string) => void; onNew: () => void; onContext: (id: string, title: string, e: React.MouseEvent) => void }) {
   const sorted = [...projects].sort((a, b) => b.updatedAt - a.updatedAt);
-  const featured = sorted[0];
-  const rest = sorted.slice(1);
   const totalFiles = projects.reduce((s, p) => s + projCounts(p).total, 0);
 
   return (
@@ -921,46 +919,9 @@ function AllProjects({ projects, onOpen, onNew, onContext }: { projects: Project
         </button>
       </div>
 
-      {/* Featured — jump back in */}
-      {featured && (() => {
-        const Icon = iconFor(featured.id);
-        const color = wsColor(featured);
-        return (
-          <button onClick={() => onOpen(featured.id)} onContextMenu={(e) => onContext(featured.id, featured.title || "Untitled", e)}
-            className="group w-full text-left rounded-[16px] p-5 mb-5 lift flex gap-5 animate-fade-in"
-            style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)" }}>
-            <div className="flex-shrink-0 w-[112px] rounded-[13px] flex items-center justify-center self-stretch min-h-[132px]" style={{ background: "var(--accent-soft)" }}>
-              <Icon size={34} strokeWidth={1.7} style={{ color }} />
-            </div>
-            <div className="flex-1 min-w-0 flex flex-col py-1">
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="text-[10.5px] font-semibold uppercase tracking-[0.08em]" style={{ color: `color-mix(in srgb, ${color} 78%, #111)` }}>Jump back in</span>
-                {featured.projectType && <TypeChip projectType={featured.projectType} color={color} />}
-              </div>
-              <div className="text-[19px] font-semibold tracking-[-0.02em] truncate" style={{ color: "var(--ink)" }}>{featured.title || "Untitled"}</div>
-              {featured.description && <p className="text-[13px] leading-[1.55] line-clamp-2 mt-1.5" style={{ color: "var(--ink-3)" }}>{featured.description}</p>}
-              <div className="flex items-center gap-4 mt-auto pt-4">
-                <Composition p={featured} />
-                <span className="text-[11.5px] tabular-nums" style={{ color: "var(--ink-4)" }}>· {relTime(featured.updatedAt)}</span>
-                <span className="ml-auto inline-flex items-center gap-1.5 text-[12.5px] font-medium transition-transform group-hover:translate-x-0.5" style={{ color: `color-mix(in srgb, ${color} 78%, #111)` }}>
-                  Open <ArrowRight size={15} />
-                </span>
-              </div>
-            </div>
-          </button>
-        );
-      })()}
-
       {/* Grid */}
       <div className="grid gap-4 stagger-children" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(264px, 1fr))" }}>
-        <button onClick={onNew} className="animate-fade-in-up relative overflow-hidden flex flex-col items-center justify-center gap-2 rounded-[14px] press lift"
-          style={{ border: "1px dashed var(--border-strong)", color: "var(--ink)", minHeight: 176, background: "var(--card)" }}>
-          <span className="flex items-center justify-center w-12 h-12 rounded-full" style={{ background: "var(--accent-soft)" }}>
-            <Plus size={22} strokeWidth={1.9} style={{ color: "var(--ink-2)" }} />
-          </span>
-          <span className="text-[13.5px] font-medium">New workspace</span>
-        </button>
-        {rest.map((p) => {
+        {sorted.map((p) => {
           const Icon = iconFor(p.id);
           const color = wsColor(p);
           return (
