@@ -49,6 +49,8 @@ src/extra/
 .archive/
 coverage/
 
-# env files — never commit secrets OR env templates (public repo)
+# env files — never commit real secrets (.env, .env.local, .env.production, …)
+# Exception: .env.example is tracked as the placeholders-only reference.
 .env
 .env.*
+!.env.example
