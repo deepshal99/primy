@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useEditorRef } from "platejs/react";
 import { ENTITY_META } from "@/lib/entityMeta";
 import { createMentionNode, useProjectEntities, type EntityRef } from "@/lib/entityLinks";
@@ -59,13 +59,8 @@ export function MentionCombobox() {
   const select = useCallback(
     (ref: EntityRef) => {
       const q = query;
-      try {
-        editor.tf.deleteBackward({ unit: "character", distance: q.length + 1 } as any);
-      } catch {
-        for (let i = 0; i < q.length + 1; i++) {
-          try { editor.tf.deleteBackward("character" as any); } catch { /* noop */ }
-        }
-      }
+      // Remove the "@" + query the user typed (q.length + 1 chars) in one atomic delete.
+      editor.tf.delete({ reverse: true, unit: "character", distance: q.length + 1 } as any);
       editor.tf.insertNodes(createMentionNode(ref) as any);
       editor.tf.insertText(" ");
       close();
