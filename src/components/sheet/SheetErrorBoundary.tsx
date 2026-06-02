@@ -43,7 +43,7 @@ class SheetErrorBoundaryInner extends React.Component<Props, State> {
           </p>
           <button
             onClick={this.handleReset}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-[#1A1815] text-white hover:bg-black"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-primary text-primary-foreground hover:opacity-90"
           >
             <RefreshCw className="w-4 h-4" />
             Reset Sheet

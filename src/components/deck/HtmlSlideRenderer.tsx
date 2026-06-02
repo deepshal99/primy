@@ -120,7 +120,7 @@ export function HtmlSlideRenderer({
       {isActive && (
         <div
           className="absolute inset-0 pointer-events-none rounded-lg"
-          style={{ boxShadow: "inset 0 0 0 2px #d4582a" }}
+          style={{ boxShadow: "inset 0 0 0 2px var(--accent-blue)" }}
         />
       )}
     </div>

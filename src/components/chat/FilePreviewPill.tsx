@@ -10,20 +10,20 @@ interface FilePreviewPillProps {
 }
 
 const FILE_STYLE: Record<string, { icon: typeof File; color: string; bg: string }> = {
-  text: { icon: FileText, color: "#737373", bg: "#f5f5f3" },
-  pdf: { icon: FileText, color: "#ef4444", bg: "rgba(239,68,68,0.06)" },
-  docx: { icon: FileText, color: "#4a7aed", bg: "rgba(74,122,237,0.06)" },
-  xlsx: { icon: FileText, color: "#2e9e47", bg: "rgba(46,158,71,0.06)" },
-  image: { icon: ImageIcon, color: "#7c5cb8", bg: "rgba(124,92,184,0.06)" },
-  zip: { icon: FolderArchive, color: "#d4582a", bg: "rgba(212,88,42,0.06)" },
+  text: { icon: FileText, color: "#737373", bg: "rgba(115,115,115,0.10)" },
+  pdf: { icon: FileText, color: "#ef4444", bg: "rgba(239,68,68,0.10)" },
+  docx: { icon: FileText, color: "#4a7aed", bg: "rgba(74,122,237,0.10)" },
+  xlsx: { icon: FileText, color: "#2e9e47", bg: "rgba(46,158,71,0.10)" },
+  image: { icon: ImageIcon, color: "#7c5cb8", bg: "rgba(124,92,184,0.10)" },
+  zip: { icon: FolderArchive, color: "#FFAD45", bg: "rgba(255,173,69,0.10)" },
 };
 
 export function FilePreviewPill({ attachment, onRemove }: FilePreviewPillProps) {
-  const style = FILE_STYLE[attachment.type] || { icon: File, color: "#737373", bg: "#f5f5f3" };
+  const style = FILE_STYLE[attachment.type] || { icon: File, color: "#737373", bg: "rgba(115,115,115,0.10)" };
   const Icon = style.icon;
 
   return (
-    <div className="animate-scale-in flex items-center gap-2.5 pl-2.5 pr-1.5 py-1.5 rounded-[14px] bg-[#fafaf8] border border-[#e8e7e4] group hover:border-[#dddfe3] t-colors">
+    <div className="animate-scale-in flex items-center gap-2.5 pl-2.5 pr-1.5 py-1.5 rounded-[14px] bg-muted border border-border group hover:border-[var(--border-strong)] t-colors">
       {/* Thumbnail or icon */}
       {attachment.previewUrl ? (
         <img
@@ -42,12 +42,12 @@ export function FilePreviewPill({ attachment, onRemove }: FilePreviewPillProps) 
 
       {/* File info */}
       <div className="flex flex-col min-w-0 gap-px">
-        <span className="text-[11px] font-medium text-[#1a1a1a] truncate max-w-[130px] leading-tight">
+        <span className="text-[11px] font-medium text-foreground truncate max-w-[130px] leading-tight">
           {attachment.name}
         </span>
-        <span className="text-[10px] text-[#a3a3a3] leading-tight">
+        <span className="text-[10px] text-muted-foreground leading-tight">
           {attachment.isExtracting ? (
-            <span className="flex items-center gap-1 text-[#B87426]">
+            <span className="flex items-center gap-1 text-[var(--accent-amber-deep)]">
               <Loader2 className="w-2.5 h-2.5 animate-spin" />
               Processing...
             </span>
@@ -60,7 +60,7 @@ export function FilePreviewPill({ attachment, onRemove }: FilePreviewPillProps) 
       {/* Remove button */}
       <button
         onClick={() => onRemove(attachment.id)}
-        className="w-5 h-5 rounded-full flex items-center justify-center text-[#a3a3a3] hover:text-[#555555] hover:bg-[#f0f0ee] t-fast cursor-pointer flex-shrink-0"
+        className="w-5 h-5 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent t-fast cursor-pointer flex-shrink-0"
         aria-label={`Remove ${attachment.name}`}
       >
         <X className="w-3 h-3" strokeWidth={2} />

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import { openEntity } from "@/lib/entityLinks";
 import type { EntityType } from "@/lib/types";
-import { Code2, Eye, Maximize2, X } from "lucide-react";
+import { Code2, Download, Eye, Maximize2, X } from "lucide-react";
 
 /**
  * Injected into the previewed page so internal entity links open the entity
@@ -53,6 +53,28 @@ export function PagePanel() {
   const pageHtml = useAppStore((s) => s.pageHtml);
   const pageVersion = useAppStore((s) => s.pageVersion);
   const updatePageHtml = useAppStore((s) => s.updatePageHtml);
+
+  // Resolve the current page's title for a friendly download filename.
+  const currentEntityId = useAppStore((s) => s.currentEntityId);
+  const currentProjectId = useAppStore((s) => s.currentProjectId);
+  const projects = useAppStore((s) => s.projects);
+  const pageTitle =
+    projects
+      .find((p) => p.id === currentProjectId)
+      ?.pages?.find((pg) => pg.id === currentEntityId)?.title || "page";
+
+  const handleDownload = () => {
+    const blob = new Blob([pageHtml], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const slug = pageTitle.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "page";
+    a.href = url;
+    a.download = `${slug}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const [mode, setMode] = useState<"preview" | "code">("preview");
   const [present, setPresent] = useState(false);
@@ -107,15 +129,24 @@ export function PagePanel() {
 
   if (present) {
     return (
-      <div className="fixed inset-0 z-[60] bg-white flex flex-col animate-fade-in">
-        <div className="flex items-center justify-between px-4 h-[44px] border-b border-[rgba(0,0,0,0.08)] flex-shrink-0">
-          <span className="text-[12px] font-medium text-[#737373]">Presenting</span>
-          <button
-            onClick={() => setPresent(false)}
-            className="inline-flex items-center gap-1.5 h-[28px] px-2.5 rounded-md text-[12px] text-[#525252] hover:bg-[#f5f5f5] transition-colors t-fast"
-          >
-            <X size={14} /> Exit
-          </button>
+      <div className="fixed inset-0 z-[60] bg-background flex flex-col animate-fade-in">
+        <div className="flex items-center justify-between px-4 h-[44px] border-b border-border flex-shrink-0 bg-secondary">
+          <span className="text-[12px] font-medium text-muted-foreground">Presenting</span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleDownload}
+              className="inline-flex items-center gap-1.5 h-[28px] px-2.5 rounded-md text-[12px] text-muted-foreground hover:bg-accent transition-colors t-fast"
+              title="Download as HTML file"
+            >
+              <Download size={14} /> Download
+            </button>
+            <button
+              onClick={() => setPresent(false)}
+              className="inline-flex items-center gap-1.5 h-[28px] px-2.5 rounded-md text-[12px] text-muted-foreground hover:bg-accent transition-colors t-fast"
+            >
+              <X size={14} /> Exit
+            </button>
+          </div>
         </div>
         <div className="flex-1 overflow-hidden">{frame}</div>
       </div>
@@ -123,14 +154,14 @@ export function PagePanel() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="h-full flex flex-col bg-background">
       {/* Page toolbar */}
-      <div className="flex items-center justify-between px-3 h-[40px] border-b border-[#f0efec] flex-shrink-0">
-        <div className="inline-flex items-center rounded-md bg-[#f5f4f2] p-0.5">
+      <div className="flex items-center justify-between px-3 h-[40px] border-b border-border flex-shrink-0 bg-secondary">
+        <div className="inline-flex items-center rounded-md bg-muted p-0.5">
           <button
             onClick={() => setMode("preview")}
             className={`inline-flex items-center gap-1.5 h-[26px] px-2.5 rounded-[5px] text-[12px] font-medium transition-colors t-fast ${
-              mode === "preview" ? "bg-white text-[#171717] shadow-[0_1px_2px_rgba(0,0,0,0.06)]" : "text-[#737373] hover:text-[#525252]"
+              mode === "preview" ? "bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.06)]" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <Eye size={13} /> Preview
@@ -138,20 +169,30 @@ export function PagePanel() {
           <button
             onClick={() => setMode("code")}
             className={`inline-flex items-center gap-1.5 h-[26px] px-2.5 rounded-[5px] text-[12px] font-medium transition-colors t-fast ${
-              mode === "code" ? "bg-white text-[#171717] shadow-[0_1px_2px_rgba(0,0,0,0.06)]" : "text-[#737373] hover:text-[#525252]"
+              mode === "code" ? "bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.06)]" : "text-muted-foreground hover:text-foreground"
             }`}
           >
             <Code2 size={13} /> HTML
           </button>
         </div>
 
-        <button
-          onClick={() => setPresent(true)}
-          disabled={!hasContent}
-          className="inline-flex items-center gap-1.5 h-[28px] px-2.5 rounded-md text-[12px] font-medium text-[#525252] hover:bg-[#f5f5f5] disabled:opacity-40 disabled:cursor-not-allowed transition-colors t-fast"
-        >
-          <Maximize2 size={13} /> Present
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleDownload}
+            disabled={!hasContent}
+            className="inline-flex items-center gap-1.5 h-[28px] px-2.5 rounded-md text-[12px] font-medium text-muted-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors t-fast"
+            title="Download as HTML file"
+          >
+            <Download size={13} /> Download
+          </button>
+          <button
+            onClick={() => setPresent(true)}
+            disabled={!hasContent}
+            className="inline-flex items-center gap-1.5 h-[28px] px-2.5 rounded-md text-[12px] font-medium text-muted-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors t-fast"
+          >
+            <Maximize2 size={13} /> Present
+          </button>
+        </div>
       </div>
 
       {/* Body */}
@@ -159,11 +200,11 @@ export function PagePanel() {
         {!hasContent ? (
           <div className="h-full flex items-center justify-center">
             <div className="text-center max-w-[320px] px-6">
-              <div className="w-12 h-12 rounded-xl bg-[#f3eeff] flex items-center justify-center mx-auto mb-4">
-                <Eye size={20} className="text-[#9061ff]" />
+              <div className="w-12 h-12 rounded-xl bg-[var(--accent-purple)]/10 flex items-center justify-center mx-auto mb-4">
+                <Eye size={20} className="text-accent-purple" />
               </div>
-              <p className="text-[14px] font-medium text-[#171717] mb-1">This page is empty</p>
-              <p className="text-[13px] text-[#737373] leading-relaxed">
+              <p className="text-[14px] font-medium text-foreground mb-1">This page is empty</p>
+              <p className="text-[13px] text-muted-foreground leading-relaxed">
                 Ask the assistant to turn a document into a visual page, or paste HTML in the editor.
               </p>
             </div>
@@ -178,7 +219,7 @@ export function PagePanel() {
               updatePageHtml(e.target.value);
             }}
             spellCheck={false}
-            className="w-full h-full resize-none border-0 outline-none p-4 font-mono text-[12.5px] leading-relaxed text-[#1a1a1a] bg-[#fafafa]"
+            className="w-full h-full resize-none border-0 outline-none p-4 font-mono text-[12.5px] leading-relaxed text-foreground bg-muted"
             placeholder="<!doctype html> ..."
           />
         )}

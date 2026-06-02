@@ -81,7 +81,7 @@ export function ArtifactHistoryButton() {
         onClick={() => setOpen(true)}
         title="Version history"
         aria-label="Open version history"
-        className="flex items-center justify-center h-8 w-8 rounded-md text-[#525252] hover:bg-[#fafaf8] hover:text-[#171717] transition-colors"
+        className="flex items-center justify-center h-8 w-8 rounded-md text-icon hover:bg-accent hover:text-foreground transition-colors"
       >
         <History className="w-4 h-4" />
       </button>

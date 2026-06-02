@@ -9,7 +9,7 @@ export const dynamic = "force-static";
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Pricing — Primy",
+  title: "Pricing | Primy",
   description:
     "Simple pricing for Primy. Free forever. Upgrade to Pro for unlimited workspaces, more AI messages, and brand profiles.",
 };
@@ -162,7 +162,7 @@ function PricingCards() {
               Get started
             </CTAButton>
             <p className="mt-3 text-[11px] text-center text-[#737373] leading-relaxed">
-              Coming soon — beta users get Pro free for 60 days.
+              Coming soon. Beta users get Pro free for 60 days.
             </p>
           </div>
 
@@ -391,11 +391,11 @@ function FAQ() {
     },
     {
       q: "Can I cancel anytime?",
-      a: <>Yes. Cancel from Settings — your plan stays active until the end of the billing period.</>,
+      a: <>Yes. Cancel from Settings, and your plan stays active until the end of the billing period.</>,
     },
     {
       q: "Do you offer refunds?",
-      a: <>Yes — full refund within 7 days of any charge, no questions asked. Email us and we'll process it the same day.</>,
+      a: <>Yes. Full refund within 7 days of any charge, no questions asked. Email us and we'll process it the same day.</>,
     },
     {
       q: "Is my data private?",
@@ -411,7 +411,7 @@ function FAQ() {
       q: "What payment methods do you accept?",
       a: (
         <>
-          Coming soon — we'll integrate Razorpay, Paddle, or Lemon Squeezy
+          Coming soon. We'll integrate Razorpay, Paddle, or Lemon Squeezy
           depending on your region. For the beta, every user is on the house.
         </>
       ),
@@ -422,7 +422,7 @@ function FAQ() {
         <>
           No. We use volume pricing on a single managed AI account so we can
           keep Pro at a flat rate without surprise overages. It also keeps
-          billing simple — one subscription, no metered side-charges.
+          billing simple: one subscription, no metered side-charges.
         </>
       ),
     },

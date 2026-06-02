@@ -124,7 +124,7 @@ function saveProjectsToStorage(projects: Project[]) {
     localStorage.setItem(PROJECTS_KEY, JSON.stringify(stripped));
   } catch (err) {
     if (err instanceof DOMException && err.name === "QuotaExceededError") {
-      toast.error("Storage full — some changes may not be saved");
+      toast.error("Storage full. Some changes may not be saved");
     }
   }
 }
@@ -463,7 +463,7 @@ export const useAppStore = create<AppState>()(
     if (hasKuOps || hasTableOps || hasDeckOps || hasPageOps) {
       if (!state.currentProjectId) {
         console.error("[Primy] Entity operations received but no currentProjectId");
-        toast.error("No active project — AI changes could not be applied. Please try again.");
+        toast.error("No active project. AI changes could not be applied. Please try again.");
       }
       newProjects = [...state.projects];
       const projIdx = newProjects.findIndex((p) => p.id === state.currentProjectId);
@@ -877,7 +877,7 @@ export const useAppStore = create<AppState>()(
         entityOpsApplied = true;
       } else if (state.currentProjectId) {
         console.error("[Primy] Project not found in store for entity ops, projectId:", state.currentProjectId);
-        toast.error("Failed to apply changes — project not found. Please try again.");
+        toast.error("Failed to apply changes: project not found. Please try again.");
       }
     }
 
@@ -997,7 +997,7 @@ export const useAppStore = create<AppState>()(
     if (hasAnyOps && state.currentEntityId && state.currentEntityType) {
       const post = get();
       const labelPreview = displayContent.slice(0, 60);
-      const label = labelPreview ? `After AI edit — ${labelPreview}` : "After AI edit";
+      const label = labelPreview ? `After AI edit: ${labelPreview}` : "After AI edit";
       const id = post.currentEntityId!;
       switch (post.currentEntityType) {
         case "ku":
@@ -1611,7 +1611,7 @@ export const useAppStore = create<AppState>()(
           await get().loadFullProject(targetProjectId);
         }
       } catch {
-        toast.error("Couldn't sync the move — it's saved locally");
+        toast.error("Couldn't sync the move, but it's saved locally");
       }
     })();
   },
@@ -2643,14 +2643,14 @@ export const useAppStore = create<AppState>()(
     updateProjectOnServer(project.id, syncPayload)
       .then((result) => {
         if (!result.ok) {
-          toast.error("Failed to save to server — changes are saved locally");
+          toast.error("Failed to save to server. Changes are saved locally");
           set({ saveError: "Failed to save" });
         } else {
           set({ saveError: null });
         }
       })
       .catch(() => {
-        toast.error("Failed to save to server — changes are saved locally");
+        toast.error("Failed to save to server. Changes are saved locally");
         set({ saveError: "Failed to save" });
       })
       .finally(() => set({ isSaving: false, lastSavedAt: Date.now() }));

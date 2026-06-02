@@ -12,17 +12,10 @@
      • Every movement rule is wrapped so prefers-reduced-motion keeps
        opacity/color but drops transforms.
      • Hover lifts gated behind (hover:hover) and (pointer:fine).
-   Reuses existing --duration-* tokens from globals.css — does NOT
-   clobber them. Adds only the stronger easing vars below.
+   ALL motion tokens (--duration-*, --ease-*) are defined ONCE in
+   globals.css :root — the canonical source. This file only consumes
+   them. Full ruleset: documents/motion.md.
    ═══════════════════════════════════════════════════════════════════ */
-
-:root {
-  /* Strong custom easings (emil framework). --ease-out is intentionally
-     re-declared stronger than the globals.css fallback. */
-  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);       /* entrances / responsive feedback */
-  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);   /* on-screen movement / morph */
-  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);    /* iOS-like drawer / slide-over */
-}
 
 /* ───────── .press — pressable feedback ─────────
    Instant "the UI heard you" scale on :active. */
@@ -166,20 +159,134 @@
   animation: primy-shake 300ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
-/* ───────── .num-pop — number pop-in ─────────
-   Counts / usage figures changing. Subtle vertical pop. */
-@keyframes primy-num-pop {
-  0% {
-    opacity: 0;
-    transform: translateY(6px) scale(0.96);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+/* ───────── .slide-in-right — right-docked panel / drawer entrance ─────────
+   For a chat or detail panel sliding in from the right edge. Uses the iOS-like
+   drawer easing. Pairs with a width transition on the host for a clean reflow. */
+@keyframes primy-slide-in-right {
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: none; }
 }
-.num-pop {
-  animation: primy-num-pop 200ms var(--ease-out) both;
+.slide-in-right {
+  animation: primy-slide-in-right var(--duration-slow) var(--ease-drawer) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .slide-in-right { animation: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   transitions.dev-sourced primitives (t-*)
+   Richer micro-interactions driven by the React helpers in
+   src/components/ui/transitions/* (IconSwap, AnimatedNumber, TextReveal).
+   Same home, same tokens as everything above — all timings/easings
+   reference the canonical motion tokens in globals.css :root.
+   (These supersede the old single-element .num-pop number bump.)
+   ═══════════════════════════════════════════════════════════════════ */
+:root {
+  /* icon swap — crossfade/morph between two stacked icons → ease-in-out */
+  --icon-swap-dur: var(--duration-normal);
+  --icon-swap-blur: 2px;
+  --icon-swap-start-scale: 0.5;
+  --icon-swap-ease: var(--ease-in-out);
+  /* number pop-in — per-digit, occasional → ease-out, no bounce */
+  --digit-dur: var(--duration-slow);
+  --digit-distance: 8px;
+  --digit-stagger: 70ms;
+  --digit-blur: 2px;
+  --digit-ease: var(--ease-out);
+  --digit-dir-x: 0;
+  --digit-dir-y: 1;
+  /* texts reveal — staggered headline+subtext entrance → ease-out */
+  --stagger-dur: var(--duration-slow);
+  --stagger-distance: 12px;
+  --stagger-stagger: 40ms;
+  --stagger-blur: 3px;
+  --stagger-ease: var(--ease-out);
+}
+
+/* IconSwap — cross-fade two icons stacked in one grid cell (copy↔check,
+   sun↔moon). Both stay mounted; toggle data-state. Distinct from the
+   .icon-swap slot-crossfade above (which swaps the slot's CONTENT). */
+.t-icon-swap {
+  position: relative;
+  display: inline-grid;
+}
+.t-icon-swap .t-icon {
+  grid-area: 1 / 1;
+  transition:
+    opacity   var(--icon-swap-dur) var(--icon-swap-ease),
+    filter    var(--icon-swap-dur) var(--icon-swap-ease),
+    transform var(--icon-swap-dur) var(--icon-swap-ease);
+  will-change: opacity, filter, transform;
+}
+.t-icon-swap[data-state="a"] .t-icon[data-icon="a"],
+.t-icon-swap[data-state="b"] .t-icon[data-icon="b"] {
+  opacity: 1;
+  filter: blur(0);
+  transform: scale(1);
+}
+.t-icon-swap[data-state="a"] .t-icon[data-icon="b"],
+.t-icon-swap[data-state="b"] .t-icon[data-icon="a"] {
+  opacity: 0;
+  filter: blur(var(--icon-swap-blur));
+  transform: scale(var(--icon-swap-start-scale));
+}
+
+/* AnimatedNumber — each digit re-enters with blur; last two stagger. */
+@keyframes t-digit-pop-in {
+  0%   {
+    transform: translate(
+      calc(var(--digit-distance) * var(--digit-dir-x)),
+      calc(var(--digit-distance) * var(--digit-dir-y))
+    );
+    opacity: 0;
+    filter: blur(var(--digit-blur));
+  }
+  100% { transform: translate(0, 0); opacity: 1; filter: blur(0); }
+}
+.t-digit-group {
+  display: inline-flex;
+  align-items: baseline;
+}
+.t-digit {
+  display: inline-block;
+  will-change: transform, opacity, filter;
+}
+.t-digit-group.is-animating .t-digit {
+  animation: t-digit-pop-in var(--digit-dur) var(--digit-ease) both;
+}
+.t-digit-group.is-animating .t-digit[data-stagger="1"] {
+  animation-delay: var(--digit-stagger);
+}
+.t-digit-group.is-animating .t-digit[data-stagger="2"] {
+  animation-delay: calc(var(--digit-stagger) * 2);
+}
+
+/* TextReveal — staggered blurred rise; quiet single-fade exit. */
+.t-stagger-line {
+  display: block;
+  opacity: 0;
+  transform: translateY(var(--stagger-distance));
+  filter: blur(var(--stagger-blur));
+  transition:
+    opacity   var(--stagger-dur) var(--stagger-ease),
+    transform var(--stagger-dur) var(--stagger-ease),
+    filter    var(--stagger-dur) var(--stagger-ease);
+  will-change: transform, opacity, filter;
+}
+.t-stagger.is-shown .t-stagger-line {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+.t-stagger.is-hiding .t-stagger-line {
+  opacity: 0;
+  transform: translateY(0);
+  filter: blur(0);
+  transition:
+    opacity 200ms ease,
+    transform 0s linear,
+    filter 0s linear;
+  transition-delay: 0s;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -225,8 +332,7 @@
     filter: none;
   }
 
-  .success-pop,
-  .num-pop {
+  .success-pop {
     animation: none;
     opacity: 1;
   }
@@ -234,4 +340,9 @@
   .shake {
     animation: none;
   }
+
+  /* transitions.dev-sourced primitives */
+  .t-icon-swap .t-icon { transition: none !important; }
+  .t-digit-group .t-digit { animation: none !important; }
+  .t-stagger-line { transition: none !important; }
 }

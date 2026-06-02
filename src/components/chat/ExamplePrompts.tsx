@@ -24,7 +24,7 @@ const ENTITY_PILLS: EntityPill[] = [
     label: "Document",
     icon: FileText,
     color: "#2a6dfb",
-    bg: "#f0f4fd",
+    bg: "rgba(42,109,251,0.12)",
     border: "#2a6dfb",
     placeholder: "Describe your document...",
   },
@@ -33,7 +33,7 @@ const ENTITY_PILLS: EntityPill[] = [
     label: "Spreadsheet",
     icon: Table2,
     color: "#42c366",
-    bg: "#e8f7ea",
+    bg: "rgba(66,195,102,0.14)",
     border: "#42c366",
     placeholder: "Describe your spreadsheet...",
   },
@@ -42,7 +42,7 @@ const ENTITY_PILLS: EntityPill[] = [
     label: "Presentation",
     icon: Presentation,
     color: "#FFAD45",
-    bg: "#fef0e8",
+    bg: "rgba(255,173,69,0.16)",
     border: "#FFAD45",
     placeholder: "Describe your presentation...",
   },
@@ -168,9 +168,9 @@ export function ExamplePrompts({
             <button
               key={s}
               onClick={() => onSelect?.(s)}
-              className="px-3 py-[7px] rounded-xl border border-[#e8e7e4] hover:border-[#FFB43F]/40 hover:bg-[rgba(255,180,63,0.08)] t-fast text-left group active:scale-[0.98]"
+              className="px-3 py-[7px] rounded-xl border border-border hover:border-[var(--accent-amber)]/40 hover:bg-[var(--accent-amber)]/8 t-fast text-left group active:scale-[0.98]"
             >
-              <span className="text-[12px] leading-snug text-[#95928E] group-hover:text-foreground t-colors">
+              <span className="text-[12px] leading-snug text-muted-foreground group-hover:text-foreground t-colors">
                 {s}
               </span>
             </button>
@@ -190,7 +190,7 @@ export function ExamplePrompts({
           <h2 className="font-heading text-[16px] font-semibold text-foreground tracking-[-0.02em]">
             Start something new
           </h2>
-          <p className="text-[12.5px] text-[#95928E] leading-relaxed max-w-[240px]">
+          <p className="text-[12.5px] text-muted-foreground leading-relaxed max-w-[240px]">
             Describe what you want below, or pick a format to begin.
           </p>
         </div>
@@ -200,9 +200,9 @@ export function ExamplePrompts({
               key={pill.type}
               onClick={() => onEntityTypeSelect?.(pill.type)}
               style={{ animationDelay: `${60 + i * 45}ms` }}
-              className="group animate-fade-in-up flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-[#ebeae7] bg-white text-[13px] font-medium text-[#525252] hover:text-[#1a1a1a] t-fast active:scale-[0.98] cursor-pointer hover:shadow-[0_1px_3px_rgba(0,0,0,0.05)]"
+              className="group animate-fade-in-up flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-border bg-card text-[13px] font-medium text-muted-foreground hover:text-foreground t-fast active:scale-[0.98] cursor-pointer hover:shadow-[0_1px_3px_rgba(0,0,0,0.05)]"
               onMouseEnter={(e) => (e.currentTarget.style.borderColor = `${pill.color}55`)}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#ebeae7")}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
             >
               <span
                 className="flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0 t-fast"
@@ -221,7 +221,7 @@ export function ExamplePrompts({
   // Centered mode: entity type selector pills (full-screen hero)
   return (
     <div className="flex flex-col items-center gap-2.5">
-      <span className="text-[12px] text-[#b0ada6] tracking-wide">or start from scratch</span>
+      <span className="text-[12px] text-muted-foreground tracking-wide">or start from scratch</span>
       <div className="flex flex-wrap items-center justify-center gap-2">
       {ENTITY_PILLS.map((pill) => {
         const isSelected = selectedEntityType === pill.type;
@@ -235,7 +235,7 @@ export function ExamplePrompts({
               "flex items-center gap-2 px-4 py-2 rounded-[14px] border text-[13px] font-medium t-fast active:scale-[0.98] cursor-pointer",
               isSelected
                 ? "shadow-sm"
-                : "border-[#e8e8ed] text-[#737373] hover:border-[#dddfe3] hover:text-[#1a1a1a] hover:bg-[#f5f5f3]"
+                : "border-border text-muted-foreground hover:border-border hover:text-foreground hover:bg-accent"
             )}
             style={
               isSelected

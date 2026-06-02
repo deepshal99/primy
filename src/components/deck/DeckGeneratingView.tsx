@@ -26,22 +26,22 @@ export function DeckGeneratingView() {
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className="w-2 h-2 rounded-full bg-[#d4582a] animate-bounce"
+              className="w-2 h-2 rounded-full bg-[#FFAD45] animate-bounce"
               style={{ animationDelay: `${i * 0.15}s`, animationDuration: "1s" }}
             />
           ))}
         </div>
         <div>
-          <p className="text-[15px] font-semibold text-[#1a1a2e] mb-1.5">
+          <p className="text-[15px] font-semibold text-foreground mb-1.5">
             Building your presentation
           </p>
-          <p className="text-[13px] text-[#6b6b80]">{STEPS[stepIdx]}...</p>
+          <p className="text-[13px] text-muted-foreground">{STEPS[stepIdx]}...</p>
         </div>
         <div className="w-full space-y-1.5">
           {STEPS.map((step, i) => (
             <div key={step} className="flex items-center gap-2.5 text-left">
-              <div className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors duration-500 ${i <= stepIdx ? "bg-[#d4582a]" : "bg-[#e8e7e4]"}`} />
-              <span className={`text-[12px] transition-colors duration-500 ${i <= stepIdx ? "text-[#1a1a2e]" : "text-[#b0ada6]"}`}>{step}</span>
+              <div className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors duration-500 ${i <= stepIdx ? "bg-[#FFAD45]" : "bg-border"}`} />
+              <span className={`text-[12px] transition-colors duration-500 ${i <= stepIdx ? "text-foreground" : "text-muted-foreground"}`}>{step}</span>
             </div>
           ))}
         </div>

@@ -13,6 +13,7 @@ export type AITask =
   | "chat"          // small context (<30KB) — fast default
   | "chat-heavy"    // large context (>30KB) — fast default
   | "chat-deep"     // complex reasoning (strategy/analysis) — deeper, slower
+  | "page-generate" // visual HTML page design — strongest model, design quality matters
   | "deck-generate" // deck generation
   | "deck-edit"     // deck editing
   | "deck-critique" // vision critique of a rendered slide (image in)
@@ -54,6 +55,15 @@ const MODEL_REGISTRY: Record<AITask, ModelConfig> = {
   "chat":          { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 16384  },
   "chat-heavy":    { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 32768  },
   "chat-deep":     { provider: "openai", model: "gpt-5.5",               maxOutputTokens: 32768, reasoningEffort: "medium", verbosity: "low" },
+  // Page design — visual quality is judged hardest here. Both gpt-5.x reasoning
+  // models far out-design gpt-4.1. Benchmarked (2026-06-03) gpt-5.5 vs gpt-5.1
+  // vs gpt-5-mini on real page gen: gpt-5-mini is ~6× cheaper (~$0.017 vs
+  // ~$0.10/page) and ~40% faster (~70s vs ~120s) at near-equal quality — on par
+  // for data/dashboards, marginally less lavish on editorial hero flourish.
+  // gpt-5.1 is NOT cheaper (over-verbose). So gpt-5-mini is the default; a
+  // premium gpt-5.5 pass can be offered behind an explicit "Enhance" action.
+  // verbosity:high → fuller markup; reasoningEffort:medium → coherent layout.
+  "page-generate": { provider: "openai", model: "gpt-5-mini",            maxOutputTokens: 32768, reasoningEffort: "medium", verbosity: "high" },
   "deck-generate": { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 32768  },
   "deck-edit":     { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 32768  },
   "deck-critique": { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 2048   },

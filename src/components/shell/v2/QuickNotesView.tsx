@@ -9,10 +9,11 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { PenLine, Plus, Search, Trash2, FolderInput } from "lucide-react";
+import { PenLine, Plus, Search, Trash2, FolderInput, SearchX, PanelRightOpen } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
 import { WorkspacePanel } from "@/components/workspace/WorkspacePanel";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 const CANDY = ["#FFB43F", "#4285F4", "#8757D7", "#67CEC8", "#F073A7", "#42C366"];
 function wsDot(id: string): string {
@@ -30,17 +31,51 @@ function stripText(s: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+// A note's content can be Markdown (AI-authored) OR Plate JSON (editor-saved).
+// Pull readable text from either so the rail never shows blank/garbled rows.
+// Crucially: JSON content with no text returns "" (never leaks raw JSON).
+function extractText(content: string): string {
+  const c = (content || "").trim();
+  if (!c) return "";
+  if (c.startsWith("[") || c.startsWith("{")) {
+    try {
+      const json = JSON.parse(c);
+      const out: string[] = [];
+      const walk = (n: unknown): void => {
+        if (Array.isArray(n)) { n.forEach(walk); return; }
+        if (n && typeof n === "object") {
+          const node = n as { text?: unknown; children?: unknown };
+          if (typeof node.text === "string") out.push(node.text);
+          if (node.children) walk(node.children);
+        }
+      };
+      walk(json);
+      return out.join(" ").replace(/\s+/g, " ").trim();
+    } catch {
+      // looked like JSON but didn't parse — fall through to markdown stripping
+    }
+  }
+  return stripText(c);
+}
+
 function noteTitle(title: string, content: string): string {
   const t = (title || "").trim();
   if (t) return t;
-  const firstLine = stripText(content).slice(0, 60);
+  const firstLine = extractText(content).slice(0, 60).trim();
   return firstLine || "Untitled note";
 }
 function notePreview(title: string, content: string): string {
-  const body = stripText(content);
+  const body = extractText(content);
   const t = (title || "").trim();
-  const rest = t && body.startsWith(t) ? body.slice(t.length).trim() : body;
+  // The title line (explicit title, or the first line we used as the title)
+  // is stripped so the preview never just repeats the title.
+  const titleLine = t || body.slice(0, 60).trim();
+  const rest = body.startsWith(titleLine) ? body.slice(titleLine.length).trim() : body;
   return rest || "No additional text";
+}
+function isEmptyNote(title: string, content: string): boolean {
+  return !(title || "").trim() && !extractText(content);
 }
 function relTime(ts: number): string {
   const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));
@@ -54,7 +89,7 @@ function relTime(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-export function QuickNotesView({ projectId, onExit }: { projectId: string; onExit: () => void }) {
+export function QuickNotesView({ projectId, onExit, chatHidden, onShowChat }: { projectId: string; onExit: () => void; chatHidden?: boolean; onShowChat?: () => void }) {
   const projects = useAppStore((s) => s.projects);
   const currentEntityId = useAppStore((s) => s.currentEntityId);
   const currentEntityType = useAppStore((s) => s.currentEntityType);
@@ -93,6 +128,8 @@ export function QuickNotesView({ projectId, onExit }: { projectId: string; onExi
     s.openKnowledgeUnit(ku.id);
   };
 
+  const openNote = (id: string) => useAppStore.getState().openKnowledgeUnit(id);
+
   // First visit with notes but nothing selected → open the most recent so the
   // editor is never awkwardly blank next to a full list.
   useEffect(() => {
@@ -103,6 +140,8 @@ export function QuickNotesView({ projectId, onExit }: { projectId: string; onExi
   }, [projectId, notes.length]);
 
   const editorOpen = !!currentEntityId && currentEntityType === "ku" && notes.some((n) => n.id === currentEntityId);
+
+  const totalNotes = project?.knowledgeUnits.length ?? 0;
 
   return (
     <div className="flex flex-1 min-h-0">
@@ -118,7 +157,7 @@ export function QuickNotesView({ projectId, onExit }: { projectId: string; onExi
           </button>
         </div>
 
-        {(project?.knowledgeUnits.length ?? 0) > 0 && (
+        {totalNotes > 0 && (
           <div className="px-3 pb-2 flex-shrink-0">
             <div className="flex items-center gap-2 h-[32px] px-2.5 rounded-[8px]" style={{ background: "var(--canvas)", border: "1px solid var(--border)" }}>
               <Search size={13} style={{ color: "var(--ink-4)" }} />
@@ -130,20 +169,23 @@ export function QuickNotesView({ projectId, onExit }: { projectId: string; onExi
 
         <div className="flex-1 min-h-0 overflow-y-auto v2-scroll px-2 pb-3">
           {notes.length === 0 && !isLoadingProject ? (
-            <div className="px-3 py-8 text-center text-[12.5px]" style={{ color: "var(--ink-4)" }}>
-              {q ? "No matching notes." : "No notes yet."}
-            </div>
+            q ? (
+              <EmptyState size="sm" icon={SearchX} title="No matching notes" description={`Nothing matches “${q.trim()}”.`} />
+            ) : (
+              <EmptyState size="sm" icon={PenLine} title="No notes yet" description="Hit + to start writing. Your notes appear here." />
+            )
           ) : (
             notes.map((n) => {
               const active = n.id === currentEntityId;
+              const empty = isEmptyNote(n.title, n.content);
               return (
                 <div key={n.id} role="button" tabIndex={0}
-                  onClick={() => useAppStore.getState().openKnowledgeUnit(n.id)}
-                  onKeyDown={(e) => { if (e.key === "Enter") useAppStore.getState().openKnowledgeUnit(n.id); }}
-                  className="group relative px-3 py-2.5 rounded-[10px] mb-0.5 cursor-pointer t-fast"
+                  onClick={() => openNote(n.id)}
+                  onKeyDown={(e) => { if (e.key === "Enter") openNote(n.id); }}
+                  className="group relative px-3 py-2.5 rounded-[10px] mb-0.5 cursor-pointer t-fast hover-row"
                   style={{ background: active ? "var(--accent-soft)" : "transparent" }}>
-                  <div className="text-[13px] font-semibold truncate pr-5" style={{ color: "var(--ink)" }}>{noteTitle(n.title, n.content)}</div>
-                  <div className="text-[12px] truncate mt-0.5" style={{ color: "var(--ink-3)" }}>{notePreview(n.title, n.content)}</div>
+                  <div className="text-[13px] font-semibold truncate pr-5" style={{ color: empty ? "var(--ink-3)" : "var(--ink)", fontStyle: empty ? "italic" : "normal" }}>{noteTitle(n.title, n.content)}</div>
+                  <div className="text-[12px] truncate mt-0.5" style={{ color: "var(--ink-4)" }}>{notePreview(n.title, n.content)}</div>
                   <div className="text-[11px] mt-1 tabular-nums" style={{ color: "var(--ink-4)" }}>{relTime(n.updatedAt)}</div>
                   <button
                     onClick={(e) => { e.stopPropagation(); if (confirm("Delete this note?")) useAppStore.getState().deleteKnowledgeUnit(projectId, n.id); }}
@@ -192,6 +234,13 @@ export function QuickNotesView({ projectId, onExit }: { projectId: string; onExi
                   </>
                 )}
               </div>
+              {chatHidden && onShowChat && (
+                <button onClick={onShowChat} title="Show chat"
+                  className="flex items-center justify-center w-8 h-8 rounded-[8px] press"
+                  style={{ color: "var(--icon)", border: "1px solid var(--border)", background: "var(--card)" }}>
+                  <PanelRightOpen size={16} />
+                </button>
+              )}
             </div>
             <div className="flex-1 min-h-0 px-4 pb-4 pr-3">
               <div className="h-full overflow-hidden rounded-[14px]" style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
@@ -200,21 +249,14 @@ export function QuickNotesView({ projectId, onExit }: { projectId: string; onExi
             </div>
           </div>
         ) : (
-          <div className="h-full flex flex-col items-center justify-center gap-4 px-8 text-center">
-            <span className="flex items-center justify-center w-16 h-16 rounded-[18px]" style={{ background: "var(--accent-soft)", color: "var(--ink-4)" }}>
-              <PenLine size={26} />
-            </span>
-            <div>
-              <div className="text-[16px] font-semibold tracking-[-0.02em]" style={{ color: "var(--ink)" }}>Capture a thought</div>
-              <p className="text-[13px] mt-1.5 max-w-[340px]" style={{ color: "var(--ink-3)" }}>
-                A scratch space that never gets in your way. Jot it now — promote it into a real workspace later.
-              </p>
-            </div>
-            <button onClick={newNote}
-              className="flex items-center gap-1.5 h-9 px-4 rounded-[9px] text-[13px] font-medium press lift"
-              style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}>
-              <Plus size={16} /> New note
-            </button>
+          <div className="h-full flex items-center justify-center">
+            <EmptyState
+              size="lg"
+              icon={PenLine}
+              title="Capture a thought"
+              description="A scratch space that never gets in your way. Jot it now, promote it into a real workspace later."
+              action={{ label: "New note", onClick: newNote, icon: Plus }}
+            />
           </div>
         )}
       </div>

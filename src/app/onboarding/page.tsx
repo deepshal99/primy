@@ -27,7 +27,6 @@ import {
   FileText,
   Table2,
   Presentation,
-  Sparkles,
   Check,
   Rocket,
   Briefcase,
@@ -38,6 +37,7 @@ import {
 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { cn } from "@/lib/cn";
+import { LogoMark } from "@/components/shared/Logo";
 
 interface UserPayload {
   id: string;
@@ -370,7 +370,7 @@ function Step1Welcome({
           What do you do?
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-[#525252] max-w-[460px] mx-auto">
-          Pick anything that fits — we use this later to seed examples that match your work. Optional.
+          Pick anything that fits. We use this later to seed examples that match your work. Optional.
         </p>
       </div>
 
@@ -441,7 +441,7 @@ function Step2Demo({ onContinue, onBack }: { onContinue: () => void; onBack: () 
           Chat. Get a doc, sheet, or deck.
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-[#525252] max-w-[460px] mx-auto">
-          Type what you need. Primy turns it into the right artifact — and remembers everything for next time.
+          Type what you need. Primy turns it into the right artifact, and remembers everything for next time.
         </p>
       </div>
 
@@ -480,7 +480,7 @@ function DemoCard() {
       {/* Faux assistant row */}
       <div className="px-5 py-4 flex items-start gap-3 bg-[#fafaf8]">
         <div className="flex-shrink-0 w-7 h-7 rounded-full bg-[rgba(255,180,63,0.1)] flex items-center justify-center">
-          <Sparkles className="w-3.5 h-3.5 text-[#FFB43F]" strokeWidth={1.75} />
+          <LogoMark size={15} style={{ color: "#171716" }} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[11px] uppercase tracking-wider text-[#a3a3a3] font-medium mb-2">Primy</div>
@@ -602,7 +602,7 @@ function Step3FirstProject({
           Let&apos;s create your first project.
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-[#525252] max-w-[460px] mx-auto">
-          A project is your canvas — chat history, docs, sheets, and decks all live together.
+          A project is your canvas: chat history, docs, sheets, and decks all live together.
         </p>
       </div>
 
@@ -632,7 +632,7 @@ function Step3FirstProject({
             value={description}
             onChange={(e) => onDescriptionChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="One line — keeps the AI on track"
+            placeholder="One line that keeps the AI on track"
             disabled={busy}
             rows={2}
             maxLength={280}

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link2, Check, Copy, Loader2, X, UserPlus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { IconSwap } from "@/components/ui/transitions";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
 
@@ -216,14 +217,14 @@ export function ShareModal({
               onClick={toggleShare}
               disabled={loading}
               className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors duration-200 cursor-pointer"
-              style={{ background: isShared ? "#1A1815" : "#e8e8ed" }}
+              style={{ background: isShared ? "var(--primary)" : "var(--border-strong)" }}
               aria-label={isShared ? "Disable sharing" : "Enable sharing"}
             >
               {loading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary-foreground" />
               ) : (
                 <div
-                  className="absolute top-[2px] w-5 h-5 rounded-full bg-white t-normal"
+                  className="absolute top-[2px] w-5 h-5 rounded-full bg-card t-normal"
                   style={{
                     left: isShared ? "22px" : "2px",
                     boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
@@ -248,20 +249,15 @@ export function ShareModal({
                   "h-10 px-3.5 rounded-lg text-[13px] font-medium t-fast flex items-center gap-1.5 flex-shrink-0 cursor-pointer",
                   copied
                     ? "bg-[#2e9e47] text-white"
-                    : "bg-[#1A1815] text-white hover:bg-black"
+                    : "bg-primary text-primary-foreground hover:bg-black"
                 )}
               >
-                {copied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5" strokeWidth={2} />
-                    Copy
-                  </>
-                )}
+                <IconSwap
+                  state={copied ? "b" : "a"}
+                  a={<Copy className="w-3.5 h-3.5" strokeWidth={2} />}
+                  b={<Check className="w-3.5 h-3.5" strokeWidth={2.5} />}
+                />
+                {copied ? "Copied" : "Copy"}
               </button>
             </div>
           )}
@@ -295,7 +291,7 @@ export function ShareModal({
                   <button
                     onClick={handleInvite}
                     disabled={inviting || !inviteEmail.trim()}
-                    className="h-9 px-3 rounded-lg bg-[#1A1815] text-white text-[13px] font-medium flex items-center gap-1.5 hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed t-fast cursor-pointer"
+                    className="h-9 px-3 rounded-lg bg-primary text-primary-foreground text-[13px] font-medium flex items-center gap-1.5 hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed t-fast cursor-pointer"
                   >
                     {inviting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" strokeWidth={2} />}
                     Add

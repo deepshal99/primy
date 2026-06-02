@@ -60,7 +60,7 @@ export function EntityShareButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="w-[36px] h-[36px] flex items-center justify-center rounded-lg text-[#95928E] hover:text-[#2d2e2e] hover:bg-[#efeee9] active:scale-[0.95] t-fast cursor-pointer"
+        className="w-[36px] h-[36px] flex items-center justify-center rounded-lg text-icon hover:text-foreground hover:bg-accent active:scale-[0.95] t-fast cursor-pointer"
         aria-label="Share this file"
         title="Share this file"
       >
@@ -86,7 +86,7 @@ export function DeckExport() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="w-[36px] h-[36px] flex items-center justify-center rounded-lg text-[#95928E] hover:text-[#2d2e2e] hover:bg-[#efeee9] active:scale-[0.95] t-fast cursor-pointer" aria-label="Export presentation">
+        <button className="w-[36px] h-[36px] flex items-center justify-center rounded-lg text-icon hover:text-foreground hover:bg-accent active:scale-[0.95] t-fast cursor-pointer" aria-label="Export presentation">
           <Download className="w-4 h-4" />
         </button>
       </DropdownMenuTrigger>

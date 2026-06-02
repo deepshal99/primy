@@ -8,7 +8,7 @@
  * is intentionally a no-op (logs a "Coming soon" message) until then.
  */
 
-import { Sparkles } from "lucide-react";
+import { Crown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -80,7 +80,7 @@ export function LimitReachedModal({
               color: "#FFB43F",
             }}
           >
-            <Sparkles className="h-4 w-4" />
+            <Crown className="h-4 w-4" />
           </div>
           <DialogTitle className="text-[17px] leading-tight tracking-tight">
             You&rsquo;ve hit your monthly limit
@@ -96,8 +96,8 @@ export function LimitReachedModal({
             className="flex items-start gap-3 px-3.5 py-3"
             style={{
               borderRadius: 8,
-              backgroundColor: "rgba(0, 0, 0, 0.02)",
-              border: "1px solid rgba(0, 0, 0, 0.04)",
+              backgroundColor: "var(--secondary)",
+              border: "1px solid var(--border)",
             }}
           >
             <div
@@ -121,20 +121,20 @@ export function LimitReachedModal({
           </Button>
           <Button
             onClick={handleUpgrade}
-            className="text-[13px] font-medium text-white transition-all"
+            className="text-[13px] font-medium text-primary-foreground transition-all"
             style={{
               borderRadius: 6,
-              backgroundColor: "#1A1815",
+              backgroundColor: "var(--primary)",
               boxShadow: "0 1px 2px rgba(24, 24, 22, 0.15)",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = "#000000";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "#1A1815";
+              e.currentTarget.style.backgroundColor = "var(--primary)";
             }}
           >
-            Upgrade to Pro &mdash; ${PRO_PRICE_USD}/mo
+            Upgrade to Pro: ${PRO_PRICE_USD}/mo
           </Button>
         </div>
       </DialogContent>

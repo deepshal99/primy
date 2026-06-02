@@ -47,7 +47,7 @@ import type {
 } from "@/lib/types";
 import { ShareModal } from "@/components/settings/ShareModal";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 // ====================================
 // -- Entity type config --
@@ -224,7 +224,7 @@ export function ProjectHome() {
 
   if (isLoadingProject) {
     return (
-      <div className="h-full overflow-y-auto bg-white" aria-label="Loading project">
+      <div className="h-full overflow-y-auto bg-background" aria-label="Loading project">
         <div className="max-w-[1100px] mx-auto px-20 py-10">
           {/* Header */}
           <Skeleton className="h-[32px] w-[280px] mb-3 rounded-md" />
@@ -247,7 +247,7 @@ export function ProjectHome() {
             {[...Array(6)].map((_, i) => (
               <div
                 key={i}
-                className="rounded-2xl overflow-hidden border border-[rgba(0,0,0,0.04)]"
+                className="rounded-2xl overflow-hidden border border-border"
                 style={{ animationDelay: `${i * 60}ms` }}
               >
                 <Skeleton
@@ -313,7 +313,7 @@ export function ProjectHome() {
   };
 
   return (
-    <div className="relative h-full overflow-y-auto bg-white">
+    <div className="relative h-full overflow-y-auto bg-background">
       <div className="max-w-[1100px] mx-auto px-20 py-10">
         {/* -- Project header (scrolls away) -- */}
         <div className="mb-8">
@@ -332,12 +332,12 @@ export function ProjectHome() {
             onSave={(description) => updateProject(project.id, { description })}
           />
           <div className="flex items-center gap-3 mt-4">
-            <div className="flex items-center gap-1.5 text-[12px] text-[#a09d96]">
+            <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
               <Clock className="w-3.5 h-3.5" />
               {timeAgo(project.updatedAt || Date.now())}
             </div>
-            <span className="text-[12px] text-[#d5d2cc]">&middot;</span>
-            <span className="text-[12px] text-[#a09d96]">{totalFiles} file{totalFiles !== 1 ? "s" : ""}</span>
+            <span className="text-[12px] text-muted-foreground/60">&middot;</span>
+            <span className="text-[12px] text-muted-foreground">{totalFiles} file{totalFiles !== 1 ? "s" : ""}</span>
           </div>
         </div>
 
@@ -345,7 +345,7 @@ export function ProjectHome() {
         <div>
           {/* Sticky filter bar */}
           {totalFiles > 0 && (
-            <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm pt-3 pb-4 -mx-3 px-3">
+            <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm pt-3 pb-4 -mx-3 px-3">
               <div className="flex items-center justify-between gap-3">
                 {/* Left: filter tabs */}
                 <div className="flex items-center gap-1.5 flex-wrap flex-1 min-w-0">
@@ -364,13 +364,13 @@ export function ProjectHome() {
                         className={cn(
                           "flex items-center gap-1.5 px-3.5 py-[6px] rounded-full text-[12px] t-normal cursor-pointer",
                           isActive
-                            ? "bg-[#1a1a2e] text-white"
-                            : "bg-white border border-[#e8e7e4] text-[#5a5852] hover:border-[#d0cfc9] hover:bg-[#f7f6f3]"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-card border border-border text-muted-foreground hover:border-border-strong hover:bg-accent"
                         )}
                         style={{ fontWeight: isActive ? 550 : 420 }}
                       >
                         {tab.label}
-                        <span className={cn("text-[10px]", isActive ? "text-white/60" : "text-[#b0ada6]")}>
+                        <span className={cn("text-[10px]", isActive ? "text-primary-foreground/60" : "text-muted-foreground/70")}>
                           {tab.count}
                         </span>
                       </button>
@@ -384,18 +384,18 @@ export function ProjectHome() {
                   <div className={cn(
                     "flex items-center rounded-full border t-slow ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden",
                     searchOpen
-                      ? "w-[220px] border-[#d0cfc9] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.04)]"
-                      : "w-[32px] border-transparent hover:bg-[#f7f6f3]"
+                      ? "w-[220px] border-border-strong bg-card shadow-[var(--shadow-card)]"
+                      : "w-[32px] border-transparent hover:bg-accent"
                   )}>
                     {searchOpen ? (
                       <>
-                        <Search className="w-3.5 h-3.5 text-[#a09d96] ml-2.5 flex-shrink-0" strokeWidth={2} />
+                        <Search className="w-3.5 h-3.5 text-muted-foreground ml-2.5 flex-shrink-0" strokeWidth={2} />
                         <input
                           ref={searchInputRef}
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           placeholder="Search files..."
-                          className="flex-1 bg-transparent outline-none text-[12px] text-[#1a1a2e] placeholder:text-[#c5c2bb] px-2 py-[6px]"
+                          className="flex-1 bg-transparent outline-none text-[12px] text-foreground placeholder:text-muted-foreground/60 px-2 py-[6px]"
                           onKeyDown={(e) => {
                             if (e.key === "Escape") {
                               setSearchQuery("");
@@ -406,7 +406,7 @@ export function ProjectHome() {
                         {searchQuery ? (
                           <button
                             onClick={() => setSearchQuery("")}
-                            className="w-6 h-6 flex items-center justify-center text-[#a09d96] hover:text-[#5a5852] mr-0.5 flex-shrink-0 cursor-pointer"
+                            className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground mr-0.5 flex-shrink-0 cursor-pointer"
                             aria-label="Clear search"
                           >
                             <X className="w-3 h-3" />
@@ -414,7 +414,7 @@ export function ProjectHome() {
                         ) : (
                           <button
                             onClick={() => { setSearchQuery(""); setSearchOpen(false); }}
-                            className="mr-1.5 flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] text-[#b0ada6] bg-[#f3f2ee] border border-[#e8e7e4] cursor-pointer"
+                            className="mr-1.5 flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground bg-secondary border border-border cursor-pointer"
                           >
                             Esc
                           </button>
@@ -426,7 +426,7 @@ export function ProjectHome() {
                           setSearchOpen(true);
                           setTimeout(() => searchInputRef.current?.focus(), 50);
                         }}
-                        className="w-[32px] h-[32px] flex items-center justify-center text-[#95928E] hover:text-[#5a5852] cursor-pointer"
+                        className="w-[32px] h-[32px] flex items-center justify-center text-icon hover:text-foreground cursor-pointer"
                         aria-label="Search files"
                         title="Search (⌘F)"
                       >
@@ -438,27 +438,27 @@ export function ProjectHome() {
                   {/* More menu: share + settings */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <button className="w-[32px] h-[32px] flex items-center justify-center rounded-full text-[#95928E] hover:text-[#5a5852] hover:bg-[#f7f6f3] transition-colors cursor-pointer" aria-label="More options">
+                      <button className="w-[32px] h-[32px] flex items-center justify-center rounded-full text-icon hover:text-foreground hover:bg-accent transition-colors cursor-pointer" aria-label="More options">
                         <MoreHorizontal className="w-4 h-4" strokeWidth={2} />
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       align="end"
                       className="w-[168px] rounded-xl p-1.5"
-                      style={{ boxShadow: "0 8px 30px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)" }}
+                      style={{ boxShadow: "var(--shadow-pane)" }}
                     >
                       <DropdownMenuItem
                         onClick={() => setShareOpen(true)}
-                        className="flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[12px] text-[#3d3d3d] cursor-pointer"
+                        className="flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[12px] text-foreground cursor-pointer"
                       >
-                        <Share2 className="w-3.5 h-3.5 text-[#9a968f]" />
+                        <Share2 className="w-3.5 h-3.5 text-muted-foreground" />
                         Share project
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        className="flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[12px] text-[#3d3d3d] cursor-pointer"
+                        className="flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[12px] text-foreground cursor-pointer"
                         onClick={() => setSettingsOpen(true)}
                       >
-                        <Settings className="w-3.5 h-3.5 text-[#9a968f]" />
+                        <Settings className="w-3.5 h-3.5 text-muted-foreground" />
                         Project settings
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -471,43 +471,28 @@ export function ProjectHome() {
           {/* Content: empty states or card grid */}
           {filteredEntities.length === 0 && searchQuery.trim() ? (
             <EmptyState
-              className="py-12"
-              icon={
-                <div className="w-10 h-10 rounded-full bg-[#f5f4f0] flex items-center justify-center">
-                  <SearchX className="w-[18px] h-[18px] text-[#b0ada6]" strokeWidth={1.75} />
-                </div>
-              }
-              heading="No matches"
+              size="md"
+              icon={SearchX}
+              title="No matches"
               description={`Nothing found for "${searchQuery.trim()}". Try a shorter query or different word.`}
             />
           ) : filteredEntities.length === 0 && filter !== "all" ? (
             <EmptyState
-              className="py-12"
-              icon={
-                <div className="w-10 h-10 rounded-full bg-[#f5f4f0] flex items-center justify-center">
-                  {filter === "ku" && <FileText className="w-[18px] h-[18px] text-[#4a7aed]" strokeWidth={1.6} />}
-                  {filter === "table" && <Table2 className="w-[18px] h-[18px] text-[#2e9e47]" strokeWidth={1.6} />}
-                  {filter === "deck" && <Presentation className="w-[18px] h-[18px] text-[#d4582a]" strokeWidth={1.6} />}
-                  {filter === "page" && <LayoutTemplate className="w-[18px] h-[18px] text-[#9061ff]" strokeWidth={1.6} />}
-                </div>
-              }
-              heading={`No ${filter === "ku" ? "documents" : filter === "table" ? "spreadsheets" : filter === "page" ? "pages" : "presentations"} yet`}
-              description="Switch to All files or create a new one."
-              action={
-                <button
-                  onClick={() => handleCreate(filter)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[12.5px] font-medium text-white bg-[#1A1815] hover:bg-black active:scale-[0.98] transition-all duration-150 shadow-[0_2px_8px_rgba(24,24,22,0.18)]"
-                >
-                  <Plus className="w-3.5 h-3.5" strokeWidth={2.25} />
-                  Create {filter === "ku" ? "document" : filter === "table" ? "spreadsheet" : filter === "page" ? "page" : "presentation"}
-                </button>
-              }
+              size="md"
+              icon={filter === "ku" ? FileText : filter === "table" ? Table2 : filter === "page" ? LayoutTemplate : Presentation}
+              title={`No ${filter === "ku" ? "documents" : filter === "table" ? "spreadsheets" : filter === "page" ? "pages" : "presentations"} yet`}
+              description="Switch to All files, or create your first one here."
+              action={{
+                label: `Create ${filter === "ku" ? "document" : filter === "table" ? "spreadsheet" : filter === "page" ? "page" : "presentation"}`,
+                onClick: () => handleCreate(filter),
+                icon: Plus,
+              }}
             />
           ) : entities.length === 0 ? (
-            /* Empty state — chip-style entity creators */
+            /* First-run / empty-after-delete — chip-style entity creators */
             <EmptyState
-              className="py-16"
-              icon={
+              size="lg"
+              illustration={
                 <div
                   className="relative w-14 h-14 flex items-center justify-center"
                   aria-hidden
@@ -516,23 +501,23 @@ export function ProjectHome() {
                   <div
                     className="absolute w-10 h-12 rounded-[8px] -rotate-[10deg] -translate-x-3 translate-y-1"
                     style={{
-                      background: "#fde8dc",
-                      border: "1px solid rgba(212, 88, 42, 0.18)",
+                      background: "rgba(255, 173, 69, 0.16)",
+                      border: "1px solid rgba(255, 173, 69, 0.30)",
                     }}
                   />
                   <div
                     className="absolute w-10 h-12 rounded-[8px] rotate-[10deg] translate-x-3 translate-y-1"
                     style={{
-                      background: "#e8f7ea",
-                      border: "1px solid rgba(46, 158, 71, 0.18)",
+                      background: "rgba(46, 158, 71, 0.14)",
+                      border: "1px solid rgba(46, 158, 71, 0.30)",
                     }}
                   />
                   <div
                     className="relative w-10 h-12 rounded-[8px]"
                     style={{
-                      background: "#f0f4fd",
-                      border: "1px solid rgba(74, 122, 237, 0.22)",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+                      background: "rgba(74, 122, 237, 0.14)",
+                      border: "1px solid rgba(74, 122, 237, 0.30)",
+                      boxShadow: "var(--shadow-card)",
                     }}
                   >
                     <div className="absolute inset-x-2 top-2.5 h-[2px] rounded-full bg-[rgba(74,122,237,0.35)]" />
@@ -541,41 +526,40 @@ export function ProjectHome() {
                   </div>
                 </div>
               }
-              heading="Your project's empty"
-              description="Add a document, spreadsheet, or deck — or describe what you want in chat and let AI build it."
-              action={
-                <div className="flex flex-wrap items-center justify-center gap-2 stagger-children">
-                  <button
-                    onClick={() => handleCreate("ku")}
-                    className="group flex items-center gap-2 px-4 py-2 rounded-full border border-[#e8e7e4] bg-white hover:border-[#4a7aed]/40 hover:bg-[#f0f4fd] active:scale-[0.98] t-fast animate-fade-in"
-                  >
-                    <FileText className="w-3.5 h-3.5 text-[#4a7aed]" strokeWidth={2} />
-                    <span className="text-[12.5px] font-medium text-[#2d2e2e]">Add document</span>
-                  </button>
-                  <button
-                    onClick={() => handleCreate("table")}
-                    className="group flex items-center gap-2 px-4 py-2 rounded-full border border-[#e8e7e4] bg-white hover:border-[#2e9e47]/40 hover:bg-[#e8f7ea] active:scale-[0.98] t-fast animate-fade-in"
-                  >
-                    <Table2 className="w-3.5 h-3.5 text-[#2e9e47]" strokeWidth={2} />
-                    <span className="text-[12.5px] font-medium text-[#2d2e2e]">Add sheet</span>
-                  </button>
-                  <button
-                    onClick={() => handleCreate("deck")}
-                    className="group flex items-center gap-2 px-4 py-2 rounded-full border border-[#e8e7e4] bg-white hover:border-[#d4582a]/40 hover:bg-[#fde8dc] active:scale-[0.98] t-fast animate-fade-in"
-                  >
-                    <Presentation className="w-3.5 h-3.5 text-[#d4582a]" strokeWidth={2} />
-                    <span className="text-[12.5px] font-medium text-[#2d2e2e]">Add deck</span>
-                  </button>
-                  <button
-                    onClick={() => handleCreate("page")}
-                    className="group flex items-center gap-2 px-4 py-2 rounded-full border border-[#e8e7e4] bg-white hover:border-[#9061ff]/40 hover:bg-[#f3eeff] active:scale-[0.98] t-fast animate-fade-in"
-                  >
-                    <LayoutTemplate className="w-3.5 h-3.5 text-[#9061ff]" strokeWidth={2} />
-                    <span className="text-[12.5px] font-medium text-[#2d2e2e]">Add page</span>
-                  </button>
-                </div>
-              }
-            />
+              title="A clean slate"
+              description="Add a document, spreadsheet, deck or page. Or describe what you want in chat and let AI build it."
+            >
+              <div className="flex flex-wrap items-center justify-center gap-2 stagger-children">
+                <button
+                  onClick={() => handleCreate("ku")}
+                  className="group flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card hover:border-[#4a7aed]/40 hover:bg-[#4a7aed]/10 active:scale-[0.98] t-fast animate-fade-in"
+                >
+                  <FileText className="w-3.5 h-3.5 text-[#4a7aed]" strokeWidth={2} />
+                  <span className="text-[12.5px] font-medium text-foreground">Add document</span>
+                </button>
+                <button
+                  onClick={() => handleCreate("table")}
+                  className="group flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card hover:border-[#2e9e47]/40 hover:bg-[#2e9e47]/10 active:scale-[0.98] t-fast animate-fade-in"
+                >
+                  <Table2 className="w-3.5 h-3.5 text-[#2e9e47]" strokeWidth={2} />
+                  <span className="text-[12.5px] font-medium text-foreground">Add sheet</span>
+                </button>
+                <button
+                  onClick={() => handleCreate("deck")}
+                  className="group flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card hover:border-[#FFAD45]/50 hover:bg-[#FFAD45]/12 active:scale-[0.98] t-fast animate-fade-in"
+                >
+                  <Presentation className="w-3.5 h-3.5 text-[#FFAD45]" strokeWidth={2} />
+                  <span className="text-[12.5px] font-medium text-foreground">Add deck</span>
+                </button>
+                <button
+                  onClick={() => handleCreate("page")}
+                  className="group flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card hover:border-[#9061ff]/40 hover:bg-[#9061ff]/10 active:scale-[0.98] t-fast animate-fade-in"
+                >
+                  <LayoutTemplate className="w-3.5 h-3.5 text-[#9061ff]" strokeWidth={2} />
+                  <span className="text-[12.5px] font-medium text-foreground">Add page</span>
+                </button>
+              </div>
+            </EmptyState>
           ) : (
             /* File cards grid */
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
@@ -604,7 +588,7 @@ export function ProjectHome() {
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button
-                            className="w-7 h-7 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all text-[#999] hover:bg-black/[0.05] hover:text-[#5a5852] data-[state=open]:opacity-100 data-[state=open]:bg-black/[0.05] data-[state=open]:text-[#5a5852]"
+                            className="w-7 h-7 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all text-muted-foreground hover:bg-accent hover:text-foreground data-[state=open]:opacity-100 data-[state=open]:bg-accent data-[state=open]:text-foreground"
                             aria-label="File options"
                           >
                             <MoreHorizontal className="w-4 h-4" />
@@ -613,13 +597,13 @@ export function ProjectHome() {
                         <DropdownMenuContent
                           align="end"
                           className="w-[148px] rounded-xl p-1.5"
-                          style={{ boxShadow: "0 8px 30px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)" }}
+                          style={{ boxShadow: "var(--shadow-pane)" }}
                         >
                           <DropdownMenuItem
                             onClick={() => handleDuplicate(entity)}
-                            className="flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[12px] text-[#3d3d3d] cursor-pointer"
+                            className="flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[12px] text-foreground cursor-pointer"
                           >
-                            <Copy className="w-3 h-3 text-[#9a968f]" />
+                            <Copy className="w-3 h-3 text-muted-foreground" />
                             Duplicate
                           </DropdownMenuItem>
                           <DropdownMenuItem
@@ -627,9 +611,9 @@ export function ProjectHome() {
                               setRenamingId(entity.id);
                               setRenameValue(entity.title);
                             }}
-                            className="flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[12px] text-[#3d3d3d] cursor-pointer"
+                            className="flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[12px] text-foreground cursor-pointer"
                           >
-                            <Pencil className="w-3 h-3 text-[#9a968f]" />
+                            <Pencil className="w-3 h-3 text-muted-foreground" />
                             Rename
                           </DropdownMenuItem>
                           <DropdownMenuSeparator className="my-1 mx-1" />
@@ -667,11 +651,11 @@ export function ProjectHome() {
                           style={{ color: config.iconColor, opacity: 0.7 }}
                           strokeWidth={1.75}
                         />
-                        <span className="text-[11px] text-[#a09d96]" style={{ fontWeight: 450 }}>
+                        <span className="text-[11px] text-muted-foreground" style={{ fontWeight: 450 }}>
                           {config.label}
                         </span>
-                        <span className="text-[11px] text-[#d5d2cc]">&middot;</span>
-                        <span className="text-[11px] text-[#b0ada6]">{timeAgo(entity.updatedAt)}</span>
+                        <span className="text-[11px] text-ink-4">&middot;</span>
+                        <span className="text-[11px] text-muted-foreground">{timeAgo(entity.updatedAt)}</span>
                       </div>
                       {/* Title */}
                       {isRenaming ? (
@@ -690,11 +674,11 @@ export function ProjectHome() {
                             if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                             if (e.key === "Escape") setRenamingId(null);
                           }}
-                          className="w-full bg-transparent outline-none border-b-2 pb-0.5 text-[14px] font-semibold text-[#1a1a2e]"
+                          className="w-full bg-transparent outline-none border-b-2 pb-0.5 text-[14px] font-semibold text-foreground"
                           style={{ borderColor: config.iconColor }}
                         />
                       ) : (
-                        <h3 className="text-[14px] text-[#1a1a2e] font-semibold leading-snug line-clamp-2">
+                        <h3 className="text-[14px] text-foreground font-semibold leading-snug line-clamp-2">
                           {entity.title}
                         </h3>
                       )}
@@ -755,7 +739,7 @@ export function ProjectHome() {
                       handleCreate(type);
                       setFabOpen(false);
                     }}
-                    className="flex items-center gap-3 pl-4 pr-5 py-2.5 rounded-2xl bg-white border border-[#e8e7e4] shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.04)] hover:border-[#d0cfc9] hover:shadow-[0_6px_24px_rgba(0,0,0,0.12)] active:scale-[0.95] t-normal cursor-pointer"
+                    className="flex items-center gap-3 pl-4 pr-5 py-2.5 rounded-2xl bg-card border border-border shadow-[var(--shadow-lift)] hover:border-border-strong hover:shadow-[var(--shadow-pane)] active:scale-[0.95] t-normal cursor-pointer"
                     style={{
                       animation: `fab-item-in 200ms ${(4 - i) * 40}ms both cubic-bezier(0.34,1.56,0.64,1)`,
                     }}
@@ -771,8 +755,8 @@ export function ProjectHome() {
                       />
                     </div>
                     <div className="text-left">
-                      <div className="text-[13px] font-medium text-[#1a1a2e] leading-tight">{config.label}</div>
-                      <div className="text-[10.5px] text-[#a09d96] leading-tight">{config.desc}</div>
+                      <div className="text-[13px] font-medium text-foreground leading-tight">{config.label}</div>
+                      <div className="text-[10.5px] text-muted-foreground leading-tight">{config.desc}</div>
                     </div>
                   </button>
                 );
@@ -784,7 +768,7 @@ export function ProjectHome() {
         {/* Main FAB button */}
         <button
           onClick={() => setFabOpen(!fabOpen)}
-          className="relative z-50 w-14 h-14 rounded-2xl bg-[#1A1815] text-white flex items-center justify-center shadow-[0_6px_24px_rgba(24,24,22,0.18),0_2px_6px_rgba(24,24,22,0.18)] hover:bg-black hover:shadow-[0_8px_30px_rgba(24,24,22,0.18)] active:scale-[0.95] t-normal cursor-pointer"
+          className="relative z-50 w-14 h-14 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-[0_6px_24px_rgba(24,24,22,0.18),0_2px_6px_rgba(24,24,22,0.18)] hover:opacity-90 hover:shadow-[0_8px_30px_rgba(24,24,22,0.18)] active:scale-[0.95] t-normal cursor-pointer"
           aria-label={fabOpen ? "Close menu" : "Create new file"}
         >
           <Plus
@@ -853,15 +837,15 @@ function ProjectSettingsDialog({
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="sm:max-w-[420px] p-0 gap-0">
-        <DialogHeader className="px-6 pt-5 pb-4 border-b border-[#e8e7e4]">
-          <DialogTitle className="text-[16px] font-semibold text-[#1a1a2e]">Project settings</DialogTitle>
+        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border">
+          <DialogTitle className="text-[16px] font-semibold text-foreground">Project settings</DialogTitle>
           <DialogDescription className="sr-only">Manage your project settings</DialogDescription>
         </DialogHeader>
 
         <div className="px-6 py-5 space-y-4">
           {/* Title */}
           <div>
-            <label className="block mb-1.5 text-[12px] font-medium text-[#6b6b80]">Project name</label>
+            <label className="block mb-1.5 text-[12px] font-medium text-muted-foreground">Project name</label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -872,19 +856,19 @@ function ProjectSettingsDialog({
 
           {/* Description */}
           <div>
-            <label className="block mb-1.5 text-[12px] font-medium text-[#6b6b80]">Description</label>
+            <label className="block mb-1.5 text-[12px] font-medium text-muted-foreground">Description</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="A brief description of this project..."
               rows={3}
-              className="w-full rounded-lg border border-[rgba(24,24,22,0.08)] bg-transparent px-3 py-2 text-[13px] text-[#171717] placeholder:text-[#B9B6AE] resize-none focus:outline-none focus:ring-2 focus:ring-[#FFB43F]/30 focus:border-[#FFB43F]/60 transition-colors"
+              className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-[var(--accent-amber)]/30 focus:border-[var(--accent-amber)]/60 transition-colors"
             />
           </div>
 
           {/* Created date */}
           {project.createdAt && (
-            <p className="text-[11px] text-[#b0ada6]">
+            <p className="text-[11px] text-muted-foreground">
               Created {new Date(project.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
             </p>
           )}
@@ -898,7 +882,7 @@ function ProjectSettingsDialog({
               "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all cursor-pointer",
               deleteConfirm
                 ? "bg-red-50 text-red-600 border border-red-200"
-                : "text-[#a09d96] hover:text-red-500 hover:bg-red-50/60"
+                : "text-muted-foreground hover:text-red-500 hover:bg-red-50/60"
             )}
           >
             {deleteConfirm ? (
@@ -919,7 +903,7 @@ function ProjectSettingsDialog({
             <Button variant="outline" size="sm" onClick={onClose} className="text-[12px]">
               Cancel
             </Button>
-            <Button size="sm" onClick={handleSave} className="text-[12px] bg-[#1A1815] hover:bg-black text-white">
+            <Button size="sm" onClick={handleSave} className="text-[12px] bg-primary hover:bg-primary/90 text-primary-foreground">
               Save changes
             </Button>
           </div>
@@ -958,7 +942,7 @@ function EditableTitle({ value, onSave }: { value: string; onSave: (v: string) =
           if (e.key === "Enter") save();
           if (e.key === "Escape") { setDraft(value); setEditing(false); }
         }}
-        className="w-full bg-transparent outline-none border-b-2 border-[#FFB43F] pb-1 text-[26px] text-[#171717] tracking-[-0.4px] font-semibold"
+        className="w-full bg-transparent outline-none border-b-2 border-[var(--accent-amber)] pb-1 text-[26px] text-foreground tracking-[-0.4px] font-semibold"
       />
     );
   }
@@ -966,7 +950,7 @@ function EditableTitle({ value, onSave }: { value: string; onSave: (v: string) =
   return (
     <h1
       onClick={() => setEditing(true)}
-      className="cursor-text rounded-lg transition-colors hover:bg-black/[0.03] -mx-2 px-2 py-1 text-[26px] text-[#1a1a2e] tracking-[-0.4px] font-semibold leading-[1.2]"
+      className="cursor-text rounded-lg transition-colors hover:bg-accent -mx-2 px-2 py-1 text-[26px] text-foreground tracking-[-0.4px] font-semibold leading-[1.2]"
       title="Click to rename"
     >
       {value}
@@ -1010,7 +994,7 @@ function EditableDescription({ value, onSave }: { value: string; onSave: (v: str
           if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); save(); }
           if (e.key === "Escape") { setDraft(value); setEditing(false); }
         }}
-        className="w-full bg-transparent outline-none border-b-2 border-[#FFB43F] pb-1 resize-none text-[14px] text-[#8a877f] leading-relaxed max-w-[520px]"
+        className="w-full bg-transparent outline-none border-b-2 border-[var(--accent-amber)] pb-1 resize-none text-[14px] text-ink-2 leading-relaxed max-w-[520px]"
         style={{ minHeight: "24px" }}
         placeholder="Add a project description..."
       />
@@ -1021,8 +1005,8 @@ function EditableDescription({ value, onSave }: { value: string; onSave: (v: str
     <p
       onClick={() => setEditing(true)}
       className={cn(
-        "cursor-text rounded-lg transition-colors hover:bg-black/[0.03] -mx-2 px-2 py-1 mt-1 text-[14px] leading-relaxed max-w-[520px]",
-        value ? "text-[#8a877f]" : "text-[#c5c2bb]"
+        "cursor-text rounded-lg transition-colors hover:bg-accent -mx-2 px-2 py-1 mt-1 text-[14px] leading-relaxed max-w-[520px]",
+        value ? "text-ink-2" : "text-ink-4"
       )}
       title="Click to edit description"
     >

@@ -943,22 +943,22 @@ function DocProse({ t }: { t: Theme }) {
     <div className="text-[15.5px] leading-[1.75]" style={{ color: t.ink2 }}>
       <p className="mb-5">
         In a competitive market, standing out isn&apos;t just about having the best product or
-        service. It&apos;s about creating a memorable brand experience — a through-line that
+        service. It&apos;s about creating a memorable brand experience, a through-line that
         carries from the first touch to the thousandth.
       </p>
       <h2 className="text-[19px] font-semibold tracking-[-0.015em] mt-9 mb-3" style={{ color: t.ink }}>Define your brand core</h2>
       <p className="mb-5">
         At the heart of your brand identity lies your mission and values. These aren&apos;t
-        words on a slide — they&apos;re the rules that decide what the brand says yes and no to.
+        words on a slide. They&apos;re the rules that decide what the brand says yes and no to.
       </p>
       <h2 className="text-[19px] font-semibold tracking-[-0.015em] mt-9 mb-3" style={{ color: t.ink }}>Visual identity</h2>
       <p className="mb-5">
         Your logo and color scheme are more than just visuals. They&apos;re the face of your
-        brand and should be consistent across every platform — a quiet confidence that builds
+        brand and should be consistent across every platform, a quiet confidence that builds
         rapport with your audience.
       </p>
       <ul className="mb-5 space-y-2 pl-5" style={{ listStyle: "disc" }}>
-        <li>Warmth over polish — human first, enterprise second.</li>
+        <li>Warmth over polish: human first, enterprise second.</li>
         <li>One accent, used with restraint.</li>
         <li>Type that breathes; generous line height.</li>
       </ul>
@@ -1029,7 +1029,7 @@ function NativeDeck({ t }: { t: Theme }) {
       >
         <div className="text-[11px] font-semibold tracking-[0.14em] uppercase opacity-90">ICICI Rebrand</div>
         <div className="text-[34px] font-bold tracking-[-0.025em] mt-2 leading-[1.05]">The approachable expert.</div>
-        <div className="text-[15px] opacity-90 mt-2">Sharp. Warm. Human. — the identity, in one line.</div>
+        <div className="text-[15px] opacity-90 mt-2">Sharp. Warm. Human. The identity, in one line.</div>
         <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full" style={{ background: "rgba(255,255,255,0.12)" }} />
       </div>
       <div className="flex gap-3">

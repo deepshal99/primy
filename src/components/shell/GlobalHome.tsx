@@ -18,12 +18,14 @@
  */
 
 import { useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, FolderPlus } from "lucide-react";
 import { useAppStore } from "@/lib/store";
+import { EmptyState as SharedEmptyState } from "@/components/ui/EmptyState";
+import { AnimatedNumber, TextReveal } from "@/components/ui/transitions";
 import type { Project } from "@/lib/types";
 
-const HEAT = "#1A1815";
-const BORDER = "rgba(0,0,0,0.08)";
+const HEAT = "var(--primary)";
+const BORDER = "var(--border)";
 
 // Stable per-project accent palette (entity + brand colors from design.ts).
 const ACCENTS = ["#FFB43F", "#2a6dfb", "#9061ff", "#42c366", "#ecb730", "#eb3424"] as const;
@@ -145,16 +147,16 @@ export function GlobalHome() {
 
       <div className="max-w-[900px] mx-auto px-12 py-9">
         <div className="flex items-start justify-between gap-4 mb-6">
-          <div>
+          <TextReveal>
             <h1 className="text-[24px] font-semibold tracking-[-0.02em]">Projects</h1>
-            <p className="text-[14px] text-[#737373] mt-1">
+            <p className="text-[14px] text-muted-foreground mt-1">
               Pick up where you left off, or start something new.
             </p>
-          </div>
+          </TextReveal>
           <button
             onClick={handleNew}
             disabled={busy}
-            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[12.5px] font-medium text-white transition-transform active:scale-[0.97] motion-reduce:transition-none flex-shrink-0 disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full text-[12.5px] font-medium text-primary-foreground transition-transform active:scale-[0.97] motion-reduce:transition-none flex-shrink-0 disabled:opacity-60"
             style={{ background: HEAT }}
           >
             <Plus size={14} /> New project
@@ -180,10 +182,10 @@ export function GlobalHome() {
                       openProject(p.id);
                     }
                   }}
-                  className="gh-card rounded-2xl bg-white p-4 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#FFB43F]/40"
+                  className="gh-card rounded-2xl bg-card p-4 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#FFB43F]/40"
                   style={{
                     border: `1px solid ${BORDER}`,
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                    boxShadow: "var(--shadow-card)",
                     // Stagger fallback (composes with .stagger-in from motion.css).
                     animationDelay: `${Math.min(i, 8) * 40}ms`,
                   }}
@@ -203,27 +205,27 @@ export function GlobalHome() {
                         {p.projectType && (
                           <span
                             className="text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0"
-                            style={{ background: "#f4f3f0", color: "#737373" }}
+                            style={{ background: "var(--secondary)", color: "var(--muted-foreground)" }}
                           >
                             {p.projectType}
                           </span>
                         )}
                       </div>
                       {p.description && (
-                        <p className="text-[12.5px] text-[#737373] mt-1 leading-snug line-clamp-1">
+                        <p className="text-[12.5px] text-muted-foreground mt-1 leading-snug line-clamp-1">
                           {p.description}
                         </p>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-3.5">
-                    <span className="text-[11.5px] text-[#a3a3a3] tabular-nums">
-                      {count} file{count !== 1 ? "s" : ""}
+                    <span className="text-[11.5px] text-muted-foreground tabular-nums">
+                      <AnimatedNumber value={count} /> file{count !== 1 ? "s" : ""}
                       {p.updatedAt ? ` · edited ${timeAgo(p.updatedAt)}` : ""}
                     </span>
                     <div
-                      className="flex items-center justify-center rounded-full text-white text-[9px] font-semibold ring-2 ring-white"
-                      style={{ width: 22, height: 22, background: "#1a1a1a" }}
+                      className="flex items-center justify-center rounded-full text-primary-foreground text-[9px] font-semibold ring-2 ring-card"
+                      style={{ width: 22, height: 22, background: "var(--ink)" }}
                       title="You"
                     >
                       {initialFor(p.title)}
@@ -237,7 +239,7 @@ export function GlobalHome() {
 
         {recent.length > 0 && (
           <div className="mt-9">
-            <span className="text-[12px] font-semibold uppercase tracking-wide text-[#a3a3a3]">
+            <span className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
               Recent activity
             </span>
             <div className="mt-3 space-y-2.5">
@@ -246,7 +248,7 @@ export function GlobalHome() {
                   key={p.id}
                   onClick={() => openProject(p.id)}
                   disabled={busy}
-                  className="flex items-center gap-3 text-[13px] w-full text-left rounded-lg px-1 py-0.5 hover:bg-[#f5f5f3] transition-colors disabled:opacity-70"
+                  className="flex items-center gap-3 text-[13px] w-full text-left rounded-lg px-1 py-0.5 hover:bg-accent transition-colors disabled:opacity-70"
                 >
                   <div
                     className="flex items-center justify-center rounded-full text-white text-[9px] font-semibold flex-shrink-0"
@@ -254,10 +256,10 @@ export function GlobalHome() {
                   >
                     {initialFor(p.title)}
                   </div>
-                  <span className="text-[#3d3d3d] truncate">
+                  <span className="text-foreground truncate">
                     <b className="font-medium">{p.title || "Untitled project"}</b> updated
                   </span>
-                  <span className="text-[#b0ada6] text-[12px] tabular-nums ml-auto flex-shrink-0">
+                  <span className="text-muted-foreground text-[12px] tabular-nums ml-auto flex-shrink-0">
                     {timeAgo(p.updatedAt)}
                   </span>
                 </button>
@@ -273,27 +275,16 @@ export function GlobalHome() {
 function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
     <div
-      className="rounded-2xl bg-white px-8 py-12 flex flex-col items-center text-center"
+      className="rounded-2xl bg-card"
       style={{ border: `1px dashed ${BORDER}` }}
     >
-      <div
-        className="flex items-center justify-center rounded-2xl text-white mb-4"
-        style={{ width: 48, height: 48, background: HEAT }}
-      >
-        <Plus size={22} />
-      </div>
-      <h3 className="text-[16px] font-semibold tracking-[-0.01em]">No projects yet</h3>
-      <p className="text-[13px] text-[#737373] mt-1 max-w-[320px]">
-        Create your first project to start drafting docs, sheets, and decks — all
-        connected through chat.
-      </p>
-      <button
-        onClick={onCreate}
-        className="mt-5 inline-flex items-center gap-1.5 h-9 px-4 rounded-full text-[13px] font-medium text-white transition-transform active:scale-[0.97]"
-        style={{ background: HEAT }}
-      >
-        <Plus size={15} /> New project
-      </button>
+      <SharedEmptyState
+        size="lg"
+        icon={FolderPlus}
+        title="Create your first project"
+        description="A project is your home for related docs, sheets, and decks, all connected through chat, so the AI always has context."
+        action={{ label: "New project", onClick: onCreate, icon: Plus }}
+      />
     </div>
   );
 }

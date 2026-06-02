@@ -242,6 +242,33 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
     if (complexRequest && (taskType === "chat" || taskType === "chat-heavy")) {
       taskType = "chat-deep";
     }
+
+    // Visual-page intent → route to the stronger model (gpt-5.5). Page design is
+    // judged on visual quality, where gpt-5.5 markedly out-designs gpt-4.1
+    // (verified A/B). Detection is deliberately tight to avoid hijacking doc/
+    // sheet requests (the model still decides whether to emit a page). Two cases:
+    //   1. Explicit page nouns ("landing page", "one-pager", "website", …)
+    //   2. "make/turn this visual / into a page" phrasing
+    //   3. Editing an already-open page (redesign/polish/etc.)
+    // useTools was captured above while taskType was still chat/chat-heavy, so the
+    // create_page tool stays available even though we switch the model here.
+    const pageIntent =
+      /\b(landing[- ]?page|one[- ]?pager|web[- ]?page|web ?site|micro[- ]?site|html page|visual page|info[- ]?graphic)\b/i.test(
+        userTextLower,
+      ) ||
+      /\b(make|turn|convert|design|build|create|render|generate)\b[\s\S]{0,40}\b(visual|into a page|as a page|a one-?pager|a web ?page|a landing page)\b/i.test(
+        userTextLower,
+      ) ||
+      (activeEntityType === "page" &&
+        /\b(redesign|re-?design|improve|polish|enhance|edit|update|change|restyle|rework|make it|spruce|fix)\b/i.test(
+          userTextLower,
+        ));
+    if (
+      pageIntent &&
+      (taskType === "chat" || taskType === "chat-heavy" || taskType === "chat-deep")
+    ) {
+      taskType = "page-generate";
+    }
     const hasSearchIntent =
       /\b(search|look up|find out|research|google|check online|latest|current|recent news)\b/i.test(textContent) ||
       /\b(how many followers|engagement rate|follower count|trending|stock price|weather)\b/i.test(textContent) ||
@@ -437,7 +464,8 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
         // Deck generation with thinking needs longest; gpt-5.x chat reasons
         // before the first token, so chat gets 45s (was 30s) to avoid killing a
         // healthy stream mid-reasoning.
-        const chunkTimeoutMs = taskType.startsWith("deck") ? 120000 : 45000;
+        const chunkTimeoutMs =
+          taskType.startsWith("deck") || taskType === "page-generate" ? 120000 : 45000;
         let lastChunkTime = Date.now();
         const timeoutCheck = setInterval(() => {
           if (clientDisconnected) {

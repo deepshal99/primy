@@ -282,7 +282,7 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
     let newValue = e.target.value;
     if (newValue.length > MAX_INPUT_LENGTH) {
       newValue = newValue.slice(0, MAX_INPUT_LENGTH);
-      toast.error("Message truncated — maximum 50,000 characters");
+      toast.error("Message truncated to a maximum of 50,000 characters");
     }
     const cursorPos = e.target.selectionStart;
     setValue(newValue);
@@ -446,9 +446,9 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
       <div
         className={cn(
           "relative t-normal flex flex-col",
-          !pill && "rounded-[20px] border border-[#e8e8ed] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)]",
+          !pill && "rounded-[20px] border border-border bg-card shadow-[0_1px_3px_rgba(0,0,0,0.02)]",
           !pill && isDragOver && "border-[#FFB43F] shadow-[0_0_0_2px_rgba(255,180,63,0.12)]",
-          !pill && !isDragOver && !disabled && "focus-within:border-[#FFB43F]/40 focus-within:shadow-[0_2px_8px_rgba(0,0,0,0.04)]",
+          !pill && !isDragOver && !disabled && "focus-within:border-[var(--accent-amber)]/40 focus-within:shadow-[var(--shadow-card)]",
           pill && "rounded-[24px] bg-[var(--input-background,#F0EFEC)]",
           pill && isDragOver && "ring-2 ring-[#FFB43F]/30",
           pill && !isDragOver && !disabled && "focus-within:ring-2 focus-within:ring-[rgba(24,24,22,0.06)]"
@@ -461,7 +461,7 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
         {/* Drag overlay */}
         {isDragOver && (
           <div className="absolute inset-0 rounded-[20px] flex items-center justify-center z-10 border-2 border-dashed pointer-events-none bg-[rgba(255,180,63,0.10)] border-[#FFB43F]">
-            <div className="flex items-center gap-2 text-[#B87426]">
+            <div className="flex items-center gap-2 text-[var(--accent-amber-deep)]">
               <Upload className="w-4 h-4" />
               <span className="text-[13px] font-medium">Drop files here</span>
             </div>
@@ -485,7 +485,7 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
             ref={mentionListRef}
             role="listbox"
             aria-label="Mention suggestions"
-            className="absolute bottom-full left-4 right-4 mb-1.5 z-20 bg-card rounded-xl border border-[#e8e7e4] shadow-[0_8px_30px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden animate-fade-in"
+            className="absolute bottom-full left-4 right-4 mb-1.5 z-20 bg-card rounded-xl border border-border shadow-[var(--shadow-pane)] overflow-hidden animate-fade-in"
           >
             <div className="max-h-[240px] overflow-y-auto py-1">
               {filteredEntities.map((entity, i) => (
@@ -495,7 +495,7 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
                   aria-selected={i === mentionIndex}
                   className={cn(
                     "w-full flex items-center gap-2.5 px-3.5 py-2 text-left transition-colors cursor-pointer",
-                    i === mentionIndex ? "bg-[#f5f4f1]" : "hover:bg-[#fafaf8]"
+                    i === mentionIndex ? "bg-accent" : "hover:bg-accent"
                   )}
                   onMouseDown={(e) => {
                     e.preventDefault(); // Prevent textarea blur
@@ -508,7 +508,7 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
                     style={{ backgroundColor: ENTITY_STYLES[entity.type].dot }}
                   />
                   <span className="text-[13px] text-foreground truncate flex-1">{entity.title}</span>
-                  <span className="text-[11px] text-[#95928E] shrink-0">{ENTITY_LABELS[entity.type]}</span>
+                  <span className="text-[11px] text-muted-foreground shrink-0">{ENTITY_LABELS[entity.type]}</span>
                 </button>
               ))}
             </div>
@@ -601,7 +601,7 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
             {disabled && onStop ? (
               <button
                 onClick={onStop}
-                className="shrink-0 rounded-full bg-[#1A1815] text-white flex items-center justify-center w-9 h-9 hover:bg-black active:scale-[0.95] t-fast cursor-pointer"
+                className="shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center w-9 h-9 hover:bg-black active:scale-[0.95] t-fast cursor-pointer"
                 title="Stop generating"
                 aria-label="Stop generating"
               >
@@ -615,8 +615,8 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
                 className={cn(
                   "shrink-0 rounded-full flex items-center justify-center w-9 h-9 t-fast",
                   canSend
-                    ? "bg-[#1A1815] text-white cursor-pointer hover:bg-black active:scale-[0.95] shadow-[0_2px_6px_rgba(24,24,22,0.20)]"
-                    : "bg-[rgba(24,24,22,0.08)] text-[#a3a3a3] cursor-not-allowed"
+                    ? "bg-primary text-primary-foreground cursor-pointer hover:bg-black active:scale-[0.95] shadow-[0_2px_6px_rgba(24,24,22,0.20)]"
+                    : "bg-muted text-[#a3a3a3] cursor-not-allowed"
                 )}
               >
                 <ArrowUp className="w-[17px] h-[17px]" strokeWidth={2.4} />
@@ -642,7 +642,7 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
             <button
               onClick={handleFileClick}
               disabled={disabled}
-              className="absolute bottom-3 left-3.5 flex items-center justify-center w-8 h-8 rounded-full border border-[#e8e8ed] bg-white text-[#737373] hover:text-[#1a1a1a] hover:border-[#dddfe3] hover:bg-[#f5f5f3] active:scale-[0.95] t-fast disabled:opacity-40 cursor-pointer"
+              className="absolute bottom-3 left-3.5 flex items-center justify-center w-8 h-8 rounded-full border border-border bg-card text-muted-foreground hover:text-foreground hover:border-border hover:bg-accent active:scale-[0.95] t-fast disabled:opacity-40 cursor-pointer"
               title="Attach files"
               aria-label="Attach files"
             >
@@ -651,7 +651,7 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
             {disabled && onStop ? (
               <button
                 onClick={onStop}
-                className="absolute bottom-3 right-3.5 w-8 h-8 rounded-full bg-[#1A1815] text-white flex items-center justify-center hover:bg-black active:scale-[0.95] t-fast cursor-pointer"
+                className="absolute bottom-3 right-3.5 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-black active:scale-[0.95] t-fast cursor-pointer"
                 title="Stop generating"
                 aria-label="Stop generating"
               >
@@ -665,8 +665,8 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
                 className={cn(
                   "absolute bottom-3 right-3.5 w-8 h-8 rounded-full flex items-center justify-center t-fast",
                   canSend
-                    ? "bg-[#1A1815] text-white cursor-pointer hover:bg-black active:scale-[0.95] shadow-[0_2px_6px_rgba(24,24,22,0.20)]"
-                    : "bg-[rgba(24,24,22,0.06)] text-[#a3a3a3] cursor-not-allowed"
+                    ? "bg-primary text-primary-foreground cursor-pointer hover:bg-black active:scale-[0.95] shadow-[0_2px_6px_rgba(24,24,22,0.20)]"
+                    : "bg-muted text-[#a3a3a3] cursor-not-allowed"
                 )}
               >
                 <ArrowUp className="w-[17px] h-[17px]" strokeWidth={2.4} />

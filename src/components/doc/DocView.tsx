@@ -592,7 +592,7 @@ export function DocView() {
               <button
                 onClick={executeAIEdit}
                 disabled={!aiEditPrompt.trim() || aiEditLoading}
-                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-[#1A1815] text-white hover:bg-black transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-colors disabled:opacity-50 flex items-center gap-1.5"
               >
                 {aiEditLoading ? (
                   <>
@@ -660,10 +660,10 @@ export function DocView() {
                 <div className="absolute inset-x-3 top-[42px] h-[2px] w-[55%] rounded-full bg-[rgba(74,122,237,0.18)]" />
               </div>
               <div>
-                <p className="text-[14px] font-medium mb-1 text-[#171717] font-heading tracking-[-0.01em]">
+                <p className="text-[14px] font-medium mb-1 text-foreground font-heading tracking-[-0.01em]">
                   Start writing or ask AI
                 </p>
-                <p className="text-[12.5px] max-w-[300px] text-[#737373] leading-relaxed">
+                <p className="text-[12.5px] max-w-[300px] text-muted-foreground leading-relaxed">
                   Click anywhere to begin, or describe what you need in chat.
                 </p>
               </div>
@@ -740,19 +740,26 @@ function DocStatusBar() {
   }, [docContent]);
 
   return (
-    <div className="flex items-center justify-between px-4 h-8 border-t border-border bg-background text-[11px] text-muted-foreground flex-shrink-0">
-      <div className="flex items-center gap-4">
-        <span>{wordCount} words</span>
-        <span>{charCount} characters</span>
+    <div
+      className="flex items-center justify-between px-5 h-7 flex-shrink-0 text-[11px] select-none"
+      style={{ borderTop: "1px solid var(--border)", color: "var(--ink-3)" }}
+    >
+      <div className="flex items-center gap-2 tabular-nums">
+        <span>{wordCount.toLocaleString()} words</span>
+        <span style={{ color: "var(--ink-4)" }}>·</span>
+        <span>{charCount.toLocaleString()} characters</span>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         {isSaving ? (
-          <span>Saving...</span>
-        ) : lastSavedAt > 0 ? (
           <>
-            <span>Auto-saved</span>
-            <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
+            <span
+              className="w-1 h-1 rounded-full"
+              style={{ backgroundColor: "var(--accent-amber)" }}
+            />
+            <span>Saving…</span>
           </>
+        ) : lastSavedAt > 0 ? (
+          <span>Saved</span>
         ) : null}
       </div>
     </div>

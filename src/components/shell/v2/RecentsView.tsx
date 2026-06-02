@@ -8,9 +8,10 @@
  */
 
 import { useMemo, useState } from "react";
-import { Clock, X, Search } from "lucide-react";
+import { Clock, X, Search, SearchX } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { ENTITY_META } from "@/lib/entityMeta";
+import { EmptyState } from "@/components/ui/EmptyState";
 import type { EntityType, RecentEntry } from "@/lib/types";
 
 const SHORT_LABEL: Record<EntityType, string> = { ku: "Doc", table: "Sheet", deck: "Deck", page: "Page" };
@@ -138,9 +139,19 @@ export function RecentsView({ onExit }: { onExit: () => void }) {
 
         {/* List */}
         {recents.length === 0 ? (
-          <EmptyState />
+          <EmptyState
+            size="lg"
+            icon={Clock}
+            title="Nothing opened yet"
+            description="Docs, sheets and decks you open will show up here so you can jump right back in, across every workspace."
+          />
         ) : filtered.length === 0 ? (
-          <div className="py-16 text-center text-[13px]" style={{ color: "var(--ink-4)" }}>No matches.</div>
+          <EmptyState
+            size="md"
+            icon={SearchX}
+            title="No matches"
+            description={`Nothing in your recents matches “${q.trim()}”. Try a shorter query.`}
+          />
         ) : (
           buckets.map((b) => (
             <section key={b.key} className="mb-7">
@@ -185,20 +196,6 @@ export function RecentsView({ onExit }: { onExit: () => void }) {
           ))
         )}
       </div>
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center text-center py-20 gap-3">
-      <span className="flex items-center justify-center w-14 h-14 rounded-full" style={{ background: "var(--accent-soft)", color: "var(--ink-4)" }}>
-        <Clock size={24} />
-      </span>
-      <div className="text-[15px] font-medium" style={{ color: "var(--ink-2)" }}>Nothing here yet</div>
-      <p className="text-[13px] max-w-[320px]" style={{ color: "var(--ink-4)" }}>
-        Docs, sheets and decks you open will show up here so you can jump right back in.
-      </p>
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { Loader2, Check, Eye, EyeOff, LogOut, ChevronDown, Sparkles } from "lucide-react";
+import { Loader2, Check, Eye, EyeOff, LogOut, ChevronDown, Crown } from "lucide-react";
 import { cn } from "@/lib/cn";
 import {
   Dialog,
@@ -461,7 +461,7 @@ function BillingTabContent() {
   let bannerTitle: string;
   if (isPro && isOnGracePeriod) {
     const days = daysRemainingInGrace ?? 0;
-    bannerTitle = `You're on Pro (founding member — ${days} day${days === 1 ? "" : "s"} remaining)`;
+    bannerTitle = `You're on Pro (founding member, ${days} day${days === 1 ? "" : "s"} remaining)`;
   } else if (isPro) {
     bannerTitle = "You're on Pro";
   } else {
@@ -475,19 +475,19 @@ function BillingTabContent() {
         className="mb-6 flex items-start gap-3 px-4 py-3.5"
         style={{
           borderRadius: 10,
-          border: "1px solid rgba(0, 0, 0, 0.06)",
-          backgroundColor: isPro ? "rgba(255, 180, 63, 0.08)" : "rgba(0, 0, 0, 0.02)",
+          border: "1px solid var(--border)",
+          backgroundColor: isPro ? "rgba(255, 180, 63, 0.08)" : "var(--secondary)",
         }}
       >
         <div
           className="mt-0.5 inline-flex h-7 w-7 flex-shrink-0 items-center justify-center"
           style={{
             borderRadius: 8,
-            backgroundColor: isPro ? "rgba(255, 180, 63, 0.14)" : "rgba(0, 0, 0, 0.04)",
-            color: isPro ? "#B87426" : "#525252",
+            backgroundColor: isPro ? "rgba(255, 180, 63, 0.14)" : "var(--muted)",
+            color: isPro ? "var(--accent-amber-deep)" : "var(--muted-foreground)",
           }}
         >
-          <Sparkles className="h-3.5 w-3.5" />
+          <Crown className="h-3.5 w-3.5" />
         </div>
         <div className="flex flex-col">
           <p className="text-[13px] font-semibold leading-tight text-foreground">
@@ -539,14 +539,14 @@ function BillingTabContent() {
               <span className="inline-block">
                 <Button
                   disabled
-                  className="text-[13px] font-medium text-white"
+                  className="text-[13px] font-medium text-primary-foreground"
                   style={{
                     borderRadius: 6,
-                    backgroundColor: "#1A1815",
+                    backgroundColor: "var(--primary)",
                     opacity: 0.55,
                   }}
                 >
-                  Upgrade to Pro &mdash; ${PRO_PRICE_USD}/mo
+                  Upgrade to Pro: ${PRO_PRICE_USD}/mo
                 </Button>
               </span>
             </TooltipTrigger>
@@ -606,7 +606,7 @@ function UsageRow({
         ) : (
           <span
             className="font-medium"
-            style={{ color: isHot ? "#B87426" : "#525252" }}
+            style={{ color: isHot ? "var(--accent-amber-deep)" : "var(--muted-foreground)" }}
           >
             {fmt(used)} <span className="text-muted-foreground">/ {fmt(limit)}</span>
           </span>
@@ -617,7 +617,7 @@ function UsageRow({
           className="h-1.5 w-full overflow-hidden"
           style={{
             borderRadius: 9999,
-            backgroundColor: "rgba(0, 0, 0, 0.05)",
+            backgroundColor: "var(--muted)",
           }}
         >
           <div
@@ -625,7 +625,7 @@ function UsageRow({
             style={{
               width: `${percent}%`,
               borderRadius: 9999,
-              backgroundColor: isHot ? "#1A1815" : "#737373",
+              backgroundColor: isHot ? "var(--primary)" : "var(--ink-3)",
             }}
           />
         </div>

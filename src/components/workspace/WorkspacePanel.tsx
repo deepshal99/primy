@@ -30,11 +30,11 @@ function PanelSkeleton() {
   return (
     <div className="h-full flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4 animate-fade-in">
-        <div className="w-[44px] h-[44px] rounded-xl bg-[#fafaf8] border border-[#e8e7e4] flex flex-col items-start justify-center gap-[4px] px-2.5">
-          <div className="content-loader-line bg-[#FFB43F]/50" style={{ width: "80%" }} />
-          <div className="content-loader-line bg-[#FFB43F]/35" style={{ width: "60%" }} />
-          <div className="content-loader-line bg-[#FFB43F]/25" style={{ width: "85%" }} />
-          <div className="content-loader-line bg-[#FFB43F]/15" style={{ width: "45%" }} />
+        <div className="w-[44px] h-[44px] rounded-xl bg-secondary border border-border flex flex-col items-start justify-center gap-[4px] px-2.5">
+          <div className="content-loader-line bg-[var(--accent-amber)]/50" style={{ width: "80%" }} />
+          <div className="content-loader-line bg-[var(--accent-amber)]/35" style={{ width: "60%" }} />
+          <div className="content-loader-line bg-[var(--accent-amber)]/25" style={{ width: "85%" }} />
+          <div className="content-loader-line bg-[var(--accent-amber)]/15" style={{ width: "45%" }} />
         </div>
         <span className="text-[12px] text-muted-foreground">Loading editor...</span>
       </div>
@@ -90,7 +90,7 @@ export function WorkspacePanel({ hideActions = false }: { hideActions?: boolean 
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="flex items-center justify-end gap-0.5 px-2.5 h-[40px] border-b border-[#f0efec] bg-white flex-shrink-0">
+      <div className="flex items-center justify-end gap-0.5 px-2.5 h-[40px] border-b border-border bg-card flex-shrink-0">
         {!isPage && <ArtifactHistoryButton />}
         <EntityShareButton />
         {!isPage && exportEl}

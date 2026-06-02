@@ -65,7 +65,7 @@ export function SlashCommandMenu({
       ref={listRef}
       role="listbox"
       aria-label="Slash command suggestions"
-      className="absolute bottom-full left-4 right-4 mb-1.5 z-20 bg-card rounded-xl border border-[#e8e7e4] shadow-[0_8px_30px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden animate-fade-in"
+      className="absolute bottom-full left-4 right-4 mb-1.5 z-20 bg-card rounded-xl border border-border shadow-[var(--shadow-pane)] overflow-hidden animate-fade-in"
     >
       <div className="max-h-[280px] overflow-y-auto py-1">
         {filtered.map((cmd, i) => {
@@ -80,7 +80,7 @@ export function SlashCommandMenu({
               data-slash-index={i}
               className={cn(
                 "w-full flex items-center gap-2.5 px-3.5 py-2 text-left transition-colors cursor-pointer",
-                i === selectedIndex ? "bg-[#f5f4f1]" : "hover:bg-[#fafaf8]",
+                i === selectedIndex ? "bg-accent" : "hover:bg-accent",
                 isProGated && "opacity-60"
               )}
               onMouseDown={(e) => {
@@ -90,15 +90,15 @@ export function SlashCommandMenu({
               onMouseEnter={() => setSelectedIndex(i)}
             >
               <Icon
-                className="w-3.5 h-3.5 text-[#525252] shrink-0"
+                className="w-3.5 h-3.5 text-icon shrink-0"
                 aria-hidden
               />
               <div className="flex flex-col min-w-0 flex-1">
                 <span className="text-[13px] text-foreground truncate">
                   /{cmd.name}{" "}
-                  <span className="text-[#95928E] font-normal">— {cmd.label}</span>
+                  <span className="text-muted-foreground font-normal">· {cmd.label}</span>
                 </span>
-                <span className="text-[11.5px] text-[#737373] truncate">
+                <span className="text-[11.5px] text-muted-foreground truncate">
                   {cmd.description}
                 </span>
               </div>
@@ -106,8 +106,8 @@ export function SlashCommandMenu({
                 <span
                   className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded uppercase tracking-wide"
                   style={{
-                    backgroundColor: isProGated ? "rgba(0,0,0,0.04)" : "#1A1815",
-                    color: isProGated ? "#737373" : "white",
+                    backgroundColor: isProGated ? "var(--muted)" : "var(--primary)",
+                    color: isProGated ? "var(--muted-foreground)" : "var(--primary-foreground)",
                   }}
                 >
                   Pro

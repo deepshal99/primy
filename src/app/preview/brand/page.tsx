@@ -77,7 +77,7 @@ export default function BrandPreview() {
           <span className="text-[22px] font-semibold tracking-[-0.03em]">Primy</span>
           <span className="ml-2 text-[12px] font-medium px-2.5 py-1 rounded-full" style={{ background: C.surface, color: C.muted, border: `1px solid ${C.border}` }}>Brand preview</span>
         </div>
-        <p className="text-[15px] mb-8" style={{ color: C.muted }}>Clean product palette — black wordmark, warm off-white surfaces, candy accents at 10%.</p>
+        <p className="text-[15px] mb-8" style={{ color: C.muted }}>Clean product palette: black wordmark, warm off-white surfaces, candy accents at 10%.</p>
 
         {/* Rainbow hero */}
         <div className="rounded-[20px] overflow-hidden mb-14 relative" style={{ border: `1px solid ${C.border}`, height: 220 }}>
@@ -121,7 +121,7 @@ export default function BrandPreview() {
           <div className="flex items-center justify-center text-[12px] font-medium" style={{ width: "20%", background: C.primary, color: C.secondary }}>20% · Ink</div>
           <div className="flex items-center justify-center text-[12px] font-medium" style={{ width: "10%", background: RAINBOW, color: "#fff" }}>10%</div>
         </div>
-        <p className="text-[12.5px] mb-14" style={{ color: C.muted }}>Surfaces and text carry the UI; accents punctuate — entity dots, AI signal, highlights.</p>
+        <p className="text-[12.5px] mb-14" style={{ color: C.muted }}>Surfaces and text carry the UI; accents punctuate: entity dots, AI signal, highlights.</p>
 
         {/* Accent pills (Pragcel-style) */}
         <SectionLabel>Accent pills</SectionLabel>
@@ -136,7 +136,7 @@ export default function BrandPreview() {
         </div>
 
         {/* Applied shell mock */}
-        <SectionLabel>Applied — workspace</SectionLabel>
+        <SectionLabel>Applied: workspace</SectionLabel>
         <div className="rounded-[18px] overflow-hidden flex" style={{ border: `1px solid ${C.border}`, height: 460, background: C.surface }}>
           {/* sidebar */}
           <div className="flex flex-col flex-shrink-0 px-3 py-4" style={{ width: 196, background: C.secondary, borderRight: `1px solid ${C.border}` }}>
@@ -161,7 +161,7 @@ export default function BrandPreview() {
           <div className="flex-1 flex flex-col min-w-0">
             <div className="flex items-center gap-3 h-[52px] px-6 flex-shrink-0">
               <span className="w-5 h-5 rounded-[6px] flex items-center justify-center" style={{ border: `1.5px solid ${C.muted}` }} />
-              <span className="text-[15px] font-semibold tracking-[-0.01em]">Acme Rebrand — Q3 Launch</span>
+              <span className="text-[15px] font-semibold tracking-[-0.01em]">Acme Rebrand: Q3 Launch</span>
               <div className="flex-1" />
               <span className="inline-flex items-center px-2.5 h-7 rounded-[8px] text-[12px] font-medium" style={{ background: C.primary, color: C.secondary }}>Share</span>
             </div>
@@ -173,7 +173,7 @@ export default function BrandPreview() {
               </div>
               <div className="grid grid-cols-3 gap-3.5">
                 <MiniCard title="Creative Brief" kind={ENTITY[0]}>
-                  <p className="text-[11.5px] leading-[1.5] line-clamp-4" style={{ color: C.muted }}>Acme reads as dated and enterprise-heavy. Reposition as the approachable expert — sharp, warm, human.</p>
+                  <p className="text-[11.5px] leading-[1.5] line-clamp-4" style={{ color: C.muted }}>Acme reads as dated and enterprise-heavy. Reposition as the approachable expert: sharp, warm, human.</p>
                 </MiniCard>
                 <MiniCard title="Launch Budget" kind={ENTITY[1]}>
                   <div className="rounded-[8px] overflow-hidden text-[10.5px]" style={{ border: `1px solid ${C.border}` }}>
@@ -192,7 +192,7 @@ export default function BrandPreview() {
         </div>
 
         <p className="text-[12.5px] mt-6" style={{ color: C.muted }}>
-          Route: <span className="font-mono" style={{ color: C.primary }}>/preview/brand</span> — nothing in the live app changed. Say the word and I’ll wire this palette into the real tokens.
+          Route: <span className="font-mono" style={{ color: C.primary }}>/preview/brand</span>. Nothing in the live app changed. Say the word and I’ll wire this palette into the real tokens.
         </p>
       </div>
     </div>

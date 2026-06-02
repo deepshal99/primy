@@ -11,7 +11,7 @@ export const GETTING_STARTED_DOC_TITLE = "Getting Started";
 
 export const GETTING_STARTED_DOC_CONTENT = `# Welcome to Primy
 
-Primy is your AI-powered workspace for creating and managing documents, spreadsheets, and presentations — all in one place.
+Primy is your AI-powered workspace for creating and managing documents, spreadsheets, and presentations, all in one place.
 
 ## How it works
 
@@ -36,8 +36,8 @@ Everything starts with a conversation. Type a message in the chat panel on the l
 ## Tips
 
 - **Mention entities** in chat with \`@\` to give the AI context about specific documents or tables.
-- **Upload files** (PDF, DOCX, XLSX, images) by dragging them into the chat — the AI can read and analyze them.
-- **Share anything** — every entity has a share button that generates a public link.
+- **Upload files** (PDF, DOCX, XLSX, images) by dragging them into the chat. The AI can read and analyze them.
+- **Share anything**: every entity has a share button that generates a public link.
 
 Happy building!
 `;
@@ -134,6 +134,6 @@ export const WELCOME_DECK_SLIDES: DeckSlide[] = [
     id: "slide-3",
     layout: "titleContent",
     title: "Get started",
-    content: "Open the chat panel and describe what you want to create. The AI will generate documents, tables, or slides — and you can refine them with follow-up messages.\n\nEverything saves automatically. Happy building!",
+    content: "Open the chat panel and describe what you want to create. The AI will generate documents, tables, or slides, and you can refine them with follow-up messages.\n\nEverything saves automatically. Happy building!",
   },
 ];

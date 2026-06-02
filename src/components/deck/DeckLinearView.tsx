@@ -14,7 +14,7 @@ import {
   Download,
   RotateCcw,
   ChevronDown,
-  Sparkles,
+  Wand2,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -172,9 +172,9 @@ export function DeckLinearView() {
           `Polished ${repaired} slide${repaired === 1 ? "" : "s"} · score ${avgBefore} → ${avgAfter}`
         );
       } else if (!auto && critiqued > 0) {
-        toast.success("Slides reviewed — all already looked great.");
+        toast.success("Slides reviewed. All already looked great.");
       } else if (!auto) {
-        toast.error("Couldn't review slides — please try again.");
+        toast.error("Couldn't review slides. Please try again.");
       }
     } catch (err) {
       if (!auto) toast.error(err instanceof Error ? err.message : "Slide polish failed.");
@@ -197,13 +197,13 @@ export function DeckLinearView() {
 
   if (!slides.length) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-[#6b6b80] gap-3">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#95928E" strokeWidth="1.5">
+      <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-3">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <rect x="2" y="3" width="20" height="14" rx="2" />
           <path d="M8 21h8M12 17v4" />
         </svg>
-        <p className="text-[15px] font-medium text-[#1a1a2e]">No slides yet</p>
-        <p className="text-[13px] text-[#95928E]">Generate a presentation to get started</p>
+        <p className="text-[15px] font-medium text-foreground">No slides yet</p>
+        <p className="text-[13px] text-muted-foreground">Generate a presentation to get started</p>
       </div>
     );
   }
@@ -211,10 +211,10 @@ export function DeckLinearView() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Compact toolbar */}
-      <div className="shrink-0 flex items-center gap-2 px-4 py-2 border-b border-[#e8e7e4] bg-white">
+      <div className="shrink-0 flex items-center gap-2 px-4 py-2 border-b border-border bg-secondary">
         <button
           onClick={() => setPresenting(true)}
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-[13px] font-semibold text-white bg-[#d4582a] rounded-lg hover:bg-[#c04d24] transition-colors active:scale-[0.95]"
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-[13px] font-semibold text-primary-foreground bg-primary rounded-lg hover:opacity-90 transition-opacity active:scale-[0.95]"
         >
           <Play size={13} fill="currentColor" />
           Present
@@ -225,7 +225,7 @@ export function DeckLinearView() {
             onClick={() => setExportOpen(!exportOpen)}
             disabled={exporting}
             className={cn(
-              "inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[#1a1a2e] bg-white border border-[#e8e7e4] rounded-lg hover:bg-[#f9f9fb] transition-colors",
+              "inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-foreground bg-card border border-border rounded-lg hover:bg-accent transition-colors",
               exporting && "opacity-60 cursor-wait"
             )}
           >
@@ -234,16 +234,16 @@ export function DeckLinearView() {
             <ChevronDown size={10} />
           </button>
           {exportOpen && (
-            <div className="absolute top-full mt-1 left-0 min-w-[140px] bg-white border border-[#e8e7e4] rounded-lg shadow-lg z-20 overflow-hidden">
+            <div className="absolute top-full mt-1 left-0 min-w-[140px] bg-card border border-border rounded-lg shadow-lg z-20 overflow-hidden">
               <button
                 onClick={handleExportPDF}
-                className="block w-full px-3.5 py-2 text-[13px] text-left text-[#1a1a2e] hover:bg-[#f5f5f3] transition-colors"
+                className="block w-full px-3.5 py-2 text-[13px] text-left text-foreground hover:bg-accent transition-colors"
               >
                 Export as PDF
               </button>
               <button
                 onClick={handleExportPPTX}
-                className="block w-full px-3.5 py-2 text-[13px] text-left text-[#1a1a2e] hover:bg-[#f5f5f3] transition-colors"
+                className="block w-full px-3.5 py-2 text-[13px] text-left text-foreground hover:bg-accent transition-colors"
               >
                 Export as PPTX
               </button>
@@ -256,29 +256,29 @@ export function DeckLinearView() {
           disabled={polishing}
           title="Render each slide, review it with AI vision, and fix contrast / overflow / layout issues"
           className={cn(
-            "inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[#1a1a2e] bg-white border border-[#e8e7e4] rounded-lg hover:bg-[#f9f9fb] transition-colors active:scale-[0.97]",
+            "inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-foreground bg-card border border-border rounded-lg hover:bg-accent transition-colors active:scale-[0.97]",
             polishing && "opacity-70 cursor-wait"
           )}
         >
-          <Sparkles size={13} className={polishing ? "animate-pulse text-[#FFB43F]" : "text-[#FFB43F]"} />
+          <Wand2 size={13} className={polishing ? "animate-pulse text-accent-amber" : "text-accent-amber"} />
           {polishing ? "Polishing…" : "Polish"}
         </button>
 
         <div className="flex-1" />
 
         {polishStatus && (
-          <span className="text-[12px] font-medium text-[#B87426] truncate max-w-[200px]">
+          <span className="text-[12px] font-medium text-[var(--accent-amber-deep)] truncate max-w-[200px]">
             {polishStatus}
           </span>
         )}
 
-        <span className="text-[12px] font-medium text-[#95928E] tabular-nums">
+        <span className="text-[12px] font-medium text-muted-foreground tabular-nums">
           {currentSlideIdx + 1} / {slides.length}
         </span>
 
         <button
           onClick={resetDeckBuilder}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[#6b6b80] hover:text-[#1a1a2e] bg-transparent border border-[#e8e7e4] rounded-lg hover:bg-[#f9f9fb] transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground bg-transparent border border-border rounded-lg hover:bg-accent transition-colors"
         >
           <RotateCcw size={13} />
           Regenerate

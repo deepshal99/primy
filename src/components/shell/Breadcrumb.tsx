@@ -25,7 +25,7 @@ import { useAppStore } from "@/lib/store";
 import type { EntityType } from "@/lib/types";
 import { ENTITY_META } from "@/lib/entityMeta";
 
-const HEAT = "#FFB43F";
+const HEAT = "var(--accent-amber)";
 
 const ENTITY = ENTITY_META;
 
@@ -113,7 +113,7 @@ export function Breadcrumb({ onGoHome }: BreadcrumbProps) {
   return (
       <nav className="flex items-center gap-0.5 text-[13.5px] pl-0.5">
         {!inProjectScope ? (
-          <span className="font-medium px-2 text-[#171717]">Projects</span>
+          <span className="font-medium px-2 text-foreground">Projects</span>
         ) : (
           <CrumbMenu
             label={project?.title || "Project"}
@@ -136,14 +136,14 @@ export function Breadcrumb({ onGoHome }: BreadcrumbProps) {
               />
             ))}
             <CrumbDivider />
-            <CrumbItem label="New project" action icon={<Plus size={13} className="text-[#737373]" />} onSelect={handleNewProject} />
-            <CrumbItem label="All projects…" action accent="#737373" onSelect={handleHome} />
+            <CrumbItem label="New project" action icon={<Plus size={13} className="text-muted-foreground" />} onSelect={handleNewProject} />
+            <CrumbItem label="All projects…" action accent="var(--muted-foreground)" onSelect={handleHome} />
           </CrumbMenu>
         )}
 
         {inFile && (
           <>
-            <span className="text-[#b9b6b0] select-none px-0.5">/</span>
+            <span className="text-muted-foreground select-none px-0.5">/</span>
             <CrumbMenu
               label={activeEntityTitle}
               open={menu === "file"}
@@ -157,7 +157,7 @@ export function Breadcrumb({ onGoHome }: BreadcrumbProps) {
                 const Icon = ENTITY[g.type].Icon;
                 return (
                   <div key={g.group}>
-                    <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wide text-[#b0ada6]">{g.group}</div>
+                    <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{g.group}</div>
                     {g.items.map((it) => (
                       <CrumbItem
                         key={it.id}
@@ -172,7 +172,7 @@ export function Breadcrumb({ onGoHome }: BreadcrumbProps) {
                 );
               })}
               <CrumbDivider />
-              <CrumbItem label="Project home" action accent="#737373" onSelect={() => { setMenu(null); goProjectHome(); }} />
+              <CrumbItem label="Project home" action accent="var(--muted-foreground)" onSelect={() => { setMenu(null); goProjectHome(); }} />
             </CrumbMenu>
           </>
         )}
@@ -228,15 +228,15 @@ function CrumbMenu({
     <div className="relative flex items-center" ref={ref} data-accent={accent}>
       {onPrimary ? (
         // Split crumb: name → primary action (project home); ▾ → switcher.
-        <div className="flex items-center rounded-[8px]" style={{ background: open ? "rgba(0,0,0,0.05)" : "transparent" }}>
+        <div className="flex items-center rounded-[8px]" style={{ background: open ? "var(--accent)" : "transparent" }}>
           <button
             onClick={onPrimary}
             title={primaryTitle}
-            className="press flex items-center gap-1.5 h-[30px] pl-2 pr-1 rounded-l-[8px] hover:bg-black/[0.05] active:scale-[0.98] transition-[background-color,transform] motion-reduce:transition-none max-w-[230px]"
+            className="press flex items-center gap-1.5 h-[30px] pl-2 pr-1 rounded-l-[8px] hover:bg-accent active:scale-[0.98] transition-[background-color,transform] motion-reduce:transition-none max-w-[230px]"
             style={{ transitionDuration: "140ms" }}
           >
             {icon}
-            <span className="truncate font-medium text-[#171717]">{label}</span>
+            <span className="truncate font-medium text-foreground">{label}</span>
           </button>
           <button
             onClick={onToggle}
@@ -244,12 +244,12 @@ function CrumbMenu({
             aria-expanded={open}
             aria-label="Switch project"
             title="Switch project"
-            className="press flex items-center justify-center h-[30px] w-[22px] rounded-r-[8px] hover:bg-black/[0.05] active:scale-[0.97] transition-[background-color,transform] motion-reduce:transition-none"
+            className="press flex items-center justify-center h-[30px] w-[22px] rounded-r-[8px] hover:bg-accent active:scale-[0.97] transition-[background-color,transform] motion-reduce:transition-none"
             style={{ transitionDuration: "140ms" }}
           >
             <ChevronDown
               size={13}
-              className="text-[#a3a3a3]"
+              className="text-muted-foreground"
               style={{ transform: open ? "rotate(180deg)" : undefined, transition: "transform .15s var(--ease-out, ease)" }}
             />
           </button>
@@ -259,14 +259,14 @@ function CrumbMenu({
           onClick={onToggle}
           aria-haspopup="menu"
           aria-expanded={open}
-          className="press flex items-center gap-1.5 h-[30px] px-2 rounded-[8px] hover:bg-black/[0.05] active:scale-[0.97] transition-[background-color,transform] motion-reduce:transition-none max-w-[260px]"
-          style={{ background: open ? "rgba(0,0,0,0.05)" : "transparent", transitionDuration: "140ms" }}
+          className="press flex items-center gap-1.5 h-[30px] px-2 rounded-[8px] hover:bg-accent active:scale-[0.97] transition-[background-color,transform] motion-reduce:transition-none max-w-[260px]"
+          style={{ background: open ? "var(--accent)" : "transparent", transitionDuration: "140ms" }}
         >
           {icon}
-          <span className="truncate font-medium text-[#171717]">{label}</span>
+          <span className="truncate font-medium text-foreground">{label}</span>
           <ChevronDown
             size={13}
-            className="text-[#a3a3a3] flex-shrink-0"
+            className="text-muted-foreground flex-shrink-0"
             style={{ transform: open ? "rotate(180deg)" : undefined, transition: "transform .15s var(--ease-out, ease)" }}
           />
         </button>
@@ -275,11 +275,11 @@ function CrumbMenu({
         <div
           role="menu"
           onClick={(e) => e.stopPropagation()}
-          className="menu-pop absolute top-[38px] left-0 w-[252px] max-h-[60vh] overflow-y-auto rounded-xl bg-white p-1.5 z-[50]"
-          style={{ transformOrigin: "top left", boxShadow: "0 12px 36px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.06)" }}
+          className="menu-pop absolute top-[38px] left-0 w-[252px] max-h-[60vh] overflow-y-auto rounded-xl bg-card p-1.5 z-[50]"
+          style={{ transformOrigin: "top left", boxShadow: "var(--shadow-pane)", border: "1px solid var(--border-strong)" }}
         >
           {heading && (
-            <div className="px-2.5 pt-1 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-[#a3a3a3]">{heading}</div>
+            <div className="px-2.5 pt-1 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">{heading}</div>
           )}
           {children}
         </div>
@@ -307,8 +307,8 @@ function CrumbItem({
     <button
       role="menuitem"
       onClick={onSelect}
-      className="w-full px-2.5 py-[7px] rounded-lg text-[12.5px] hover:bg-[#f5f5f5] transition-colors cursor-pointer flex items-center gap-2 text-left"
-      style={{ color: action ? accent ?? "#3d3d3d" : "#3d3d3d", fontWeight: action ? 500 : 400 }}
+      className="w-full px-2.5 py-[7px] rounded-lg text-[12.5px] hover:bg-accent transition-colors cursor-pointer flex items-center gap-2 text-left"
+      style={{ color: action ? accent ?? "var(--ink-2)" : "var(--ink-2)", fontWeight: action ? 500 : 400 }}
     >
       {icon}
       <span className="flex-1 truncate">{label}</span>
@@ -318,5 +318,5 @@ function CrumbItem({
 }
 
 function CrumbDivider() {
-  return <div className="h-px bg-[#f0eee9] mx-1 my-1" />;
+  return <div className="h-px bg-border mx-1 my-1" />;
 }

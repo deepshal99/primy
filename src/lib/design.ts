@@ -210,10 +210,14 @@ export const design = {
       slow: "320ms",     // layout: panel resize, drawer, view switch
       enter: "240ms",    // entrance: modals, new content appearing
     },
+    // JS mirror of the canonical CSS motion tokens (globals.css :root).
+    // Keep in sync — see documents/motion.md.
     easing: {
-      default: "cubic-bezier(0.25, 0.1, 0.25, 1)",  // smooth decel
-      spring: "cubic-bezier(0.16, 1, 0.3, 1)",       // spring overshoot for entrances
-      out: "cubic-bezier(0, 0, 0.2, 1)",             // fast exit
+      default: "cubic-bezier(0.25, 0.1, 0.25, 1)",   // gentle — hover & color only
+      spring: "cubic-bezier(0.16, 1, 0.3, 1)",        // spring overshoot — branded entrances
+      out: "cubic-bezier(0.22, 1, 0.36, 1)",          // responsive decel — default
+      inOut: "cubic-bezier(0.77, 0, 0.175, 1)",       // on-screen movement / morph
+      drawer: "cubic-bezier(0.32, 0.72, 0, 1)",       // drawer / slide-over
     },
   },
 

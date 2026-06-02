@@ -22,17 +22,17 @@ export default function AppHome() {
 
   if (status === "loading" || (status === "unauthenticated" && DEV_AUTH_BYPASS)) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-white">
+      <div className="h-screen w-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-5 animate-fade-in">
           {/* Animated doc lines — content being created */}
-          <div className="w-[52px] h-[52px] rounded-2xl bg-[#fafaf8] border border-[#e8e7e4] flex flex-col items-start justify-center gap-[5px] px-3">
-            <div className="content-loader-line bg-[#FFB43F]/60" style={{ width: "80%" }} />
-            <div className="content-loader-line bg-[#FFB43F]/40" style={{ width: "65%" }} />
-            <div className="content-loader-line bg-[#FFB43F]/30" style={{ width: "90%" }} />
-            <div className="content-loader-line bg-[#FFB43F]/20" style={{ width: "50%" }} />
-            <div className="content-loader-line bg-[#FFB43F]/15" style={{ width: "72%" }} />
+          <div className="w-[52px] h-[52px] rounded-2xl bg-secondary border border-border flex flex-col items-start justify-center gap-[5px] px-3">
+            <div className="content-loader-line bg-[var(--accent-amber)]/60" style={{ width: "80%" }} />
+            <div className="content-loader-line bg-[var(--accent-amber)]/40" style={{ width: "65%" }} />
+            <div className="content-loader-line bg-[var(--accent-amber)]/30" style={{ width: "90%" }} />
+            <div className="content-loader-line bg-[var(--accent-amber)]/20" style={{ width: "50%" }} />
+            <div className="content-loader-line bg-[var(--accent-amber)]/15" style={{ width: "72%" }} />
           </div>
-          <p className="text-[13px] text-[#95928E]">
+          <p className="text-[13px] text-muted-foreground">
             Loading Primy...
           </p>
         </div>

@@ -22,7 +22,7 @@ import { useAppStore } from "@/lib/store";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { goGlobalHome } from "@/components/shell/Breadcrumb";
 
-const HEAT = "#1A1815";
+const HEAT = "var(--ink)";
 
 export function Sidebar() {
   const currentProjectId = useAppStore((s) => s.currentProjectId);
@@ -75,11 +75,11 @@ function SidebarItem({
         style={{
           width: 40,
           height: 40,
-          color: active ? HEAT : "#7a776f",
-          background: active ? "#fff" : "transparent",
-          boxShadow: active ? "0 1px 2px rgba(0,0,0,0.06)" : undefined,
+          color: active ? HEAT : "var(--icon)",
+          background: active ? "var(--card)" : "transparent",
+          boxShadow: active ? "var(--shadow-card)" : undefined,
         }}
-        onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "rgba(0,0,0,0.045)"; }}
+        onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "var(--accent)"; }}
         onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
       >
         {icon}
@@ -88,8 +88,8 @@ function SidebarItem({
       {/* Hover label — dim dark tooltip to the right (appears on hover only). */}
       <span
         role="tooltip"
-        className="pointer-events-none absolute left-[46px] top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-md px-2 py-1 text-[11px] font-medium text-white opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-[opacity,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none"
-        style={{ background: "rgba(26,26,26,0.92)", boxShadow: "0 4px 14px rgba(0,0,0,0.18)" }}
+        className="pointer-events-none absolute left-[46px] top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-md px-2 py-1 text-[11px] font-medium text-primary-foreground opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-[opacity,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] motion-reduce:transition-none"
+        style={{ background: "var(--ink)", boxShadow: "var(--shadow-lift)" }}
       >
         {label}
       </span>

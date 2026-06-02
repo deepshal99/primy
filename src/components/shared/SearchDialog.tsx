@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Search, FileText, Table2, Presentation, CornerDownLeft, SearchX, Clock } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/cn";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 interface SearchResult {
   id: string;
@@ -170,8 +171,8 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
         )}
       >
         {/* Search input */}
-        <div className="flex items-center gap-3 h-[56px] px-5 border-b border-[#e8e8ed]">
-          <Search className="w-5 h-5 text-[#b0ada6] flex-shrink-0" />
+        <div className="flex items-center gap-3 h-[56px] px-5 border-b border-border">
+          <Search className="w-5 h-5 text-muted-foreground flex-shrink-0" />
           <input
             ref={inputRef}
             value={query}
@@ -183,7 +184,7 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
             placeholder="Search files..."
             className="flex-1 bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground/50 outline-none"
           />
-          <kbd className="hidden sm:flex items-center px-1.5 py-0.5 rounded bg-[#f0f0f0] text-[10px] text-[#999]" style={{ fontWeight: 500 }}>
+          <kbd className="hidden sm:flex items-center px-1.5 py-0.5 rounded bg-muted text-[10px] text-muted-foreground" style={{ fontWeight: 500 }}>
             esc
           </kbd>
         </div>
@@ -191,33 +192,27 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
         {/* Results */}
         <div ref={listRef} className="max-h-[400px] overflow-y-auto py-2">
           {sections.length === 0 && query.trim() && (
-            <div className="px-6 py-10 text-center animate-fade-in">
-              <div className="w-9 h-9 rounded-full bg-[#f5f4f0] flex items-center justify-center mx-auto mb-3">
-                <SearchX className="w-[16px] h-[16px] text-[#b0ada6]" strokeWidth={1.75} />
-              </div>
-              <p className="text-[13px] font-medium text-[#171717] mb-1 font-heading">No matches</p>
-              <p className="text-[12px] text-[#737373] leading-relaxed max-w-[260px] mx-auto">
-                Nothing for &ldquo;{query}&rdquo;. Try a shorter word or different spelling.
-              </p>
-            </div>
+            <EmptyState
+              size="sm"
+              icon={SearchX}
+              title="No matches"
+              description={`Nothing for “${query}”. Try a shorter word or different spelling.`}
+            />
           )}
 
           {sections.length === 0 && !query.trim() && (
-            <div className="px-6 py-10 text-center animate-fade-in">
-              <div className="w-9 h-9 rounded-full bg-[#f5f4f0] flex items-center justify-center mx-auto mb-3">
-                <Clock className="w-[16px] h-[16px] text-[#b0ada6]" strokeWidth={1.75} />
-              </div>
-              <p className="text-[13px] font-medium text-[#171717] mb-1 font-heading">No recent files</p>
-              <p className="text-[12px] text-[#737373] leading-relaxed max-w-[240px] mx-auto">
-                Type to search across your projects.
-              </p>
-            </div>
+            <EmptyState
+              size="sm"
+              icon={Clock}
+              title="No recent files"
+              description="Type to search across all your projects."
+            />
           )}
 
           {sections.map((section) => (
             <div key={section.section}>
               <div className="px-4 py-2">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-[#b0ada6]">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   {section.section}
                 </span>
               </div>
@@ -236,7 +231,7 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
                     className={cn(
                       "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors rounded-lg mx-2",
                       "max-w-[calc(100%-16px)]",
-                      isHighlighted ? "bg-[#f7f7f8]" : ""
+                      isHighlighted ? "bg-accent" : ""
                     )}
                   >
                     <Icon
@@ -249,11 +244,11 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
                         {item.title}
                       </div>
                     </div>
-                    <span className="text-xs text-[#b0ada6] flex-shrink-0">
+                    <span className="text-xs text-muted-foreground flex-shrink-0">
                       {config.label}
                     </span>
                     {isHighlighted && (
-                      <kbd className="flex items-center px-1.5 py-0.5 rounded bg-[#efeee9] text-[10px] text-[#6b6965] flex-shrink-0" style={{ fontWeight: 500 }}>
+                      <kbd className="flex items-center px-1.5 py-0.5 rounded bg-muted text-[10px] text-muted-foreground flex-shrink-0" style={{ fontWeight: 500 }}>
                         <CornerDownLeft className="w-2.5 h-2.5" strokeWidth={2} />
                       </kbd>
                     )}

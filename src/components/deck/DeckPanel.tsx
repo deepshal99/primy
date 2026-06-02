@@ -5,7 +5,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { nanoid } from "nanoid";
 import {
   Plus, Trash2, ChevronUp, ChevronDown, Copy, StickyNote,
-  LayoutTemplate, Palette, GripVertical, Play, Presentation, Sparkles,
+  LayoutTemplate, Palette, GripVertical, Play, Presentation, Wand2,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/cn";
@@ -155,11 +155,11 @@ export function DeckPanel() {
   return (
     <div className="flex h-full bg-background">
       {/* Left: Slide thumbnails */}
-      <div className="flex flex-col w-[220px] border-r border-[#e8e7e4] flex-shrink-0 bg-[#fafaf9] overflow-hidden min-h-0">
+      <div className="flex flex-col w-[220px] border-r border-border flex-shrink-0 bg-secondary overflow-hidden min-h-0">
         {/* Sidebar header */}
-        <div className="flex items-center justify-between px-4 h-12 border-b border-[#e8e7e4] flex-shrink-0">
-          <span className="text-[12px] font-semibold text-[#1a1a2e]">Slides</span>
-          <span className="text-[11px] tabular-nums text-[#95928E] font-medium">{slides.length}</span>
+        <div className="flex items-center justify-between px-4 h-12 border-b border-border flex-shrink-0">
+          <span className="text-[12px] font-semibold text-foreground">Slides</span>
+          <span className="text-[11px] tabular-nums text-muted-foreground font-medium">{slides.length}</span>
         </div>
 
         <div className="flex-1 overflow-y-auto min-h-0">
@@ -169,7 +169,7 @@ export function DeckPanel() {
                 key={slide.id}
                 className={cn(
                   "relative group rounded-xl t-normal",
-                  dragOverIdx === i && dragIdx !== i && "ring-2 ring-[#d4582a]/40",
+                  dragOverIdx === i && dragIdx !== i && "ring-2 ring-[var(--accent-amber)]/40",
                 )}
                 draggable
                 onDragStart={() => handleDragStart(i)}
@@ -180,14 +180,14 @@ export function DeckPanel() {
                 {/* Slide number badge + hover controls */}
                 <div className="flex items-center gap-1 px-1 mb-1.5">
                   <div className="flex items-center gap-1">
-                    <GripVertical className="w-3 h-3 text-[#b0ada6] opacity-0 group-hover:opacity-100 cursor-grab transition-opacity duration-150" />
+                    <GripVertical className="w-3 h-3 text-icon opacity-0 group-hover:opacity-100 cursor-grab transition-opacity duration-150" />
                     <Badge
                       variant="outline"
                       className={cn(
                         "text-[9px] px-1.5 py-0 h-4 font-semibold border t-colors",
                         i === activeIdx
-                          ? "border-[#d4582a]/40 text-[#d4582a] bg-[#d4582a]/5"
-                          : "border-[#e8e8ed] text-[#95928E]"
+                          ? "border-[var(--accent-amber)] text-[var(--accent-amber-deep)] bg-[var(--accent-amber)]/10"
+                          : "border-border text-muted-foreground"
                       )}
                     >
                       {i + 1}
@@ -200,7 +200,7 @@ export function DeckPanel() {
                         <TooltipTrigger asChild>
                           <button
                             onClick={(e) => { e.stopPropagation(); duplicateSlide(i); }}
-                            className="p-0.5 rounded text-[#95928E] hover:text-[#1a1a2e] t-colors"
+                            className="p-0.5 rounded text-muted-foreground hover:text-foreground t-colors"
                           >
                             <Copy className="w-3 h-3" />
                           </button>
@@ -211,7 +211,7 @@ export function DeckPanel() {
                         <TooltipTrigger asChild>
                           <button
                             onClick={(e) => { e.stopPropagation(); moveSlide(i, -1); }}
-                            className="p-0.5 rounded text-[#95928E] hover:text-[#1a1a2e] t-colors"
+                            className="p-0.5 rounded text-muted-foreground hover:text-foreground t-colors"
                           >
                             <ChevronUp className="w-3 h-3" />
                           </button>
@@ -222,7 +222,7 @@ export function DeckPanel() {
                         <TooltipTrigger asChild>
                           <button
                             onClick={(e) => { e.stopPropagation(); moveSlide(i, 1); }}
-                            className="p-0.5 rounded text-[#95928E] hover:text-[#1a1a2e] t-colors"
+                            className="p-0.5 rounded text-muted-foreground hover:text-foreground t-colors"
                           >
                             <ChevronDown className="w-3 h-3" />
                           </button>
@@ -237,8 +237,8 @@ export function DeckPanel() {
                   className={cn(
                     "rounded-lg overflow-hidden ring-1 t-normal cursor-pointer",
                     i === activeIdx
-                      ? "ring-2 ring-[#d4582a] shadow-md scale-[1.02]"
-                      : "ring-[#e8e8ed] hover:ring-[#d4582a]/30 hover:shadow-sm hover:-translate-y-0.5"
+                      ? "ring-2 ring-[var(--accent-blue)] shadow-md scale-[1.02]"
+                      : "ring-border hover:ring-[var(--accent-amber)]/30 hover:shadow-sm hover:-translate-y-0.5"
                   )}
                 >
                   <SlideRenderer
@@ -255,7 +255,7 @@ export function DeckPanel() {
             {/* Add slide button */}
             <button
               onClick={() => addSlide(slides.length - 1)}
-              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#d4582a]/5 text-[#d4582a] text-[11px] font-semibold t-normal hover:bg-[#d4582a]/10 hover:shadow-sm"
+              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[var(--accent-amber)]/10 text-[var(--accent-amber-deep)] text-[11px] font-semibold t-normal hover:bg-[var(--accent-amber)]/15 hover:shadow-sm"
             >
               <Plus className="w-3.5 h-3.5" />
               Add slide
@@ -267,7 +267,7 @@ export function DeckPanel() {
       {/* Center: Active slide + editor */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Toolbar */}
-        <div className="flex items-center gap-1.5 px-4 border-b border-[#e8e7e4] flex-shrink-0 h-12 bg-[#fafaf9]">
+        <div className="flex items-center gap-1.5 px-4 border-b border-border flex-shrink-0 h-12 bg-secondary">
           {activeSlide && !isHtmlSlide(activeSlide) && (
             <>
               {/* Layout + Theme group */}
@@ -277,7 +277,7 @@ export function DeckPanel() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <DropdownMenuTrigger asChild>
-                          <button className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[12px] font-medium t-colors text-[#6b6b80] hover:text-[#1a1a2e] hover:bg-[#efeee9]">
+                          <button className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[12px] font-medium t-colors text-muted-foreground hover:text-foreground hover:bg-accent">
                             <LayoutTemplate className="w-3.5 h-3.5" />
                             <span className="hidden sm:inline">{LAYOUT_OPTIONS.find(l => l.value === activeSlide.layout)?.label || "Layout"}</span>
                           </button>
@@ -306,7 +306,7 @@ export function DeckPanel() {
                 <ThemePicker currentTheme={resolvedTheme} />
               </div>
 
-              <div className="w-px h-5 bg-[#e8e8ed] mx-1.5" />
+              <div className="w-px h-5 bg-border mx-1.5" />
 
               {/* Image + Notes group */}
               <div className="flex items-center gap-1">
@@ -319,7 +319,7 @@ export function DeckPanel() {
                         onClick={() => setShowNotes(!showNotes)}
                         className={cn(
                           "flex items-center justify-center w-8 h-8 rounded-lg t-colors",
-                          showNotes ? "text-[#d4582a] bg-[#d4582a]/10" : "text-[#6b6b80] hover:text-[#1a1a2e] hover:bg-[#efeee9]"
+                          showNotes ? "text-[var(--accent-amber-deep)] bg-[var(--accent-amber)]/10" : "text-muted-foreground hover:text-foreground hover:bg-accent"
                         )}
                       >
                         <StickyNote className="w-4 h-4" />
@@ -341,7 +341,7 @@ export function DeckPanel() {
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => setShowPresentation(true)}
-                    className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium t-colors bg-[#d4582a] text-white hover:bg-[#c04d25]"
+                    className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium t-colors bg-primary text-primary-foreground hover:opacity-90"
                   >
                     <Play className="w-3.5 h-3.5" fill="currentColor" />
                     <span className="hidden sm:inline">Present</span>
@@ -351,21 +351,21 @@ export function DeckPanel() {
               </Tooltip>
             </TooltipProvider>
 
-            <div className="w-px h-4 bg-[#e8e8ed] mx-0.5" />
+            <div className="w-px h-4 bg-border mx-0.5" />
 
-            <span className="text-[11px] tabular-nums text-[#95928E] font-medium">
+            <span className="text-[11px] tabular-nums text-muted-foreground font-medium">
               {activeIdx + 1} / {slides.length}
             </span>
 
             {slides.length > 1 && (
               <>
-                <div className="w-px h-4 bg-[#e8e8ed] mx-0.5" />
+                <div className="w-px h-4 bg-border mx-0.5" />
                 <TooltipProvider delayDuration={300}>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
                         onClick={() => deleteSlide(activeIdx)}
-                        className="flex items-center justify-center w-8 h-8 rounded-lg text-[#95928E] t-colors hover:bg-red-50 hover:text-red-500"
+                        className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground t-colors hover:bg-red-50 hover:text-red-500"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -398,27 +398,27 @@ export function DeckPanel() {
             </div>
           ) : (
             <div className="flex flex-col items-center gap-4 text-center px-8">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[#fde8dc]">
-                <Presentation className="w-5 h-5 text-[#F59E0B]" strokeWidth={1.5} />
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--accent-soft)]">
+                <Presentation className="w-5 h-5 text-accent-amber" strokeWidth={1.5} />
               </div>
               <div>
-                <p className="text-[13px] font-medium mb-1.5 text-[#95928E]">
+                <p className="text-[13px] font-medium mb-1.5 text-muted-foreground">
                   No slides yet
                 </p>
-                <p className="text-[11px] text-[#b0ada6] mb-4 max-w-[260px] leading-relaxed">
+                <p className="text-[11px] text-muted-foreground mb-4 max-w-[260px] leading-relaxed">
                   Ask AI to generate a presentation from a topic, or add your first slide manually
                 </p>
                 <div className="flex items-center justify-center gap-2">
                   <button
                     onClick={() => setShowAIDialog(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-[#d4582a] text-white hover:bg-[#c04d25] transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
                   >
-                    <Sparkles className="w-3 h-3" />
+                    <Wand2 className="w-3 h-3" />
                     Generate with AI
                   </button>
                   <button
                     onClick={() => addSlide(-1)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border border-[#e8e7e4] text-[#6b6b80] hover:bg-[#f7f6f3] transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border border-border text-muted-foreground hover:bg-accent transition-colors"
                   >
                     <Plus className="w-3 h-3" />
                     Blank slide
@@ -431,13 +431,13 @@ export function DeckPanel() {
 
         {/* Notes panel */}
         {showNotes && activeSlide && (
-          <div className="border-t border-[#e8e7e4] bg-[#fafaf9] px-4 py-3 flex-shrink-0">
-            <span className="block text-[10px] font-semibold text-[#95928E] uppercase tracking-wider mb-1.5">Speaker Notes</span>
+          <div className="border-t border-border bg-secondary px-4 py-3 flex-shrink-0">
+            <span className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Speaker Notes</span>
             <textarea
               value={activeSlide.notes || ""}
               onChange={(e) => updateSlide(activeIdx, { notes: e.target.value })}
               placeholder="Add speaker notes..."
-              className="w-full h-24 text-[13px] bg-white border border-[#e8e8ed] rounded-lg px-3 py-2 outline-none resize-none focus:border-[#d4582a]/40 focus:ring-1 focus:ring-[#d4582a]/20 t-fast text-[#1a1a2e] placeholder:text-[#b0ada6]"
+              className="w-full h-24 text-[13px] bg-card border border-border rounded-lg px-3 py-2 outline-none resize-none focus:border-[var(--accent-amber)] focus:ring-1 focus:ring-[var(--accent-amber)]/30 t-fast text-foreground placeholder:text-muted-foreground"
             />
           </div>
         )}
@@ -468,7 +468,7 @@ function ThemePicker({ currentTheme }: { currentTheme: string }) {
         <Tooltip>
           <TooltipTrigger asChild>
             <PopoverTrigger asChild>
-              <button className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[12px] font-medium t-colors text-[#6b6b80] hover:text-[#1a1a2e] hover:bg-[#efeee9]">
+              <button className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-[12px] font-medium t-colors text-muted-foreground hover:text-foreground hover:bg-accent">
                 <Palette className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">{deckThemes[currentTheme]?.label || "Theme"}</span>
               </button>
@@ -479,7 +479,7 @@ function ThemePicker({ currentTheme }: { currentTheme: string }) {
       </TooltipProvider>
 
       <PopoverContent className="w-[260px] p-3" align="start" sideOffset={8}>
-        <p className="text-[11px] font-medium text-[#6b6b80] mb-2">Choose theme</p>
+        <p className="text-[11px] font-medium text-muted-foreground mb-2">Choose theme</p>
         <div className="grid grid-cols-4 gap-2">
           {activeThemeKeys.map((key) => {
             const t = deckThemes[key];
@@ -491,7 +491,7 @@ function ThemePicker({ currentTheme }: { currentTheme: string }) {
                 className={cn(
                   "flex flex-col items-center gap-1.5 p-2 rounded-lg t-fast border",
                   isActive
-                    ? "border-[#d4582a] bg-[#d4582a]/5"
+                    ? "border-[var(--accent-amber)] bg-[var(--accent-amber)]/10"
                     : "border-transparent hover:bg-muted"
                 )}
               >

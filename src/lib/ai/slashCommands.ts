@@ -18,7 +18,6 @@
  */
 import {
   FileText,
-  Sparkles,
   BarChart3,
   Mail,
   Briefcase,
@@ -346,7 +345,7 @@ After the kuops block, output 2–3 follow-up suggestions in <suggestions> (e.g.
     name: "onepager",
     label: "One-pager",
     description: "Concise one-page strategy doc with positioning, key facts, ask",
-    icon: Sparkles,
+    icon: Layout,
     tier: "pro",
     expectedOps: ["kuops"],
     systemPromptFor: (ctx) => `## Slash Command: /onepager

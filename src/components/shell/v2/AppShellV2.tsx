@@ -22,7 +22,7 @@ import {
   LayoutTemplate, MoreHorizontal, LayoutGrid, CalendarDays,
   PanelRightOpen, Sun, Moon, ArrowLeft, Settings, Check,
   Folder as FolderIcon, FolderPlus, Trash2, Pencil, FolderInput,
-  Rocket, Sparkles, Compass, Layers, Target, Box, Hexagon, Flame,
+  Rocket, Compass, Layers, Target, Box, Hexagon, Flame, Orbit,
   LogOut, ChevronsUpDown, ChevronRight, ChevronDown, Share2, Clock,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -38,6 +38,8 @@ import { DocExportMenu } from "@/components/doc/DocExportMenu";
 import { SearchDialog } from "@/components/shared/SearchDialog";
 import { RecentsView } from "@/components/shell/v2/RecentsView";
 import { QuickNotesView } from "@/components/shell/v2/QuickNotesView";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { LogoMark } from "@/components/shared/Logo";
 import { KeyboardShortcuts } from "@/components/shared/KeyboardShortcuts";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { ShareModal } from "@/components/settings/ShareModal";
@@ -52,7 +54,7 @@ const ENTITY: Record<EntityType, { Icon: typeof FileText; label: string; color: 
   deck:  { Icon: Presentation,   label: "Deck",  color: "#FFAD45", tint: "rgba(255,173,69,0.18)",  chipBg: "#FFF1DF", chipText: "#B87426" },
   page:  { Icon: LayoutTemplate, label: "Page",  color: "#8757D7", tint: "rgba(135,87,215,0.14)",  chipBg: "#F3ECFF", chipText: "#8051CC" },
 };
-const WORKSPACE_ICONS = [Rocket, Sparkles, Compass, Layers, Target, Box, Hexagon, Flame];
+const WORKSPACE_ICONS = [Rocket, Orbit, Compass, Layers, Target, Box, Hexagon, Flame];
 function hashOf(id: string): number {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
@@ -306,7 +308,7 @@ export function AppShellV2() {
       <aside data-sidebar className="hidden md:flex flex-col flex-shrink-0"
         style={{ width: 232, background: "var(--sidebar)", borderRight: "1px solid var(--border)" }}>
         <div className="flex items-center gap-2.5 px-7 h-[72px] flex-shrink-0">
-          <LogoMark />
+          <LogoMark size={22} style={{ color: "var(--ink)" }} className="flex-shrink-0" />
           <span className="text-[18px] font-semibold tracking-[-0.035em]" style={{ color: "var(--ink)" }}>Primy</span>
           <button onClick={toggleDark} title="Toggle theme"
             className="ml-auto flex items-center justify-center w-7 h-7 rounded-[7px] press" style={{ color: "var(--icon)" }}>
@@ -383,7 +385,7 @@ export function AppShellV2() {
                   </button>
                   <div className="my-1 h-px" style={{ background: "var(--border)" }} />
                   <button onClick={() => { setProfileMenu(false); signOut({ callbackUrl: "/login" }); }}
-                    className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "#d4183d" }}>
+                    className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--destructive)" }}>
                     <LogOut size={14} /> Sign out
                   </button>
                 </div>
@@ -400,13 +402,16 @@ export function AppShellV2() {
           <RecentsView onExit={() => setSystemView(null)} />
         </main>
       ) : systemView === "notes" && quickNotesProjectId ? (
-        /* Quick Notes — two-pane capture + the docked chat (so AI has the note). */
+        /* Quick Notes — rail + editor. Chat docks on the right and the editor
+           reflows beside it (no overlap), sliding in smoothly. When hidden, the
+           Show-chat toggle lives in the note header so it never covers a control. */
         <div className="flex flex-1 min-w-0" style={{ background: "var(--canvas)" }}>
           <div className="flex flex-col flex-1 min-w-0">
-            <QuickNotesView projectId={quickNotesProjectId} onExit={() => setSystemView(null)} />
+            <QuickNotesView projectId={quickNotesProjectId} onExit={() => setSystemView(null)}
+              chatHidden={!chatOpen} onShowChat={() => setChatOpen(true)} />
           </div>
           {chatOpen && (
-            <section data-chat-panel className="hidden md:flex flex-col flex-shrink-0 m-4 ml-2 rounded-[14px] overflow-hidden t-slow"
+            <section data-chat-panel className="hidden md:flex flex-col flex-shrink-0 m-4 ml-2 rounded-[14px] overflow-hidden t-slow slide-in-right"
               style={{ width: chatExpanded ? 760 : 430, background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
               <ChatPanel branded expanded={chatExpanded}
                 onToggleExpand={() => setChatExpanded((v) => !v)}
@@ -533,7 +538,7 @@ export function AppShellV2() {
             </button>
             <div className="my-1 h-px" style={{ background: "var(--border)" }} />
             <button onClick={() => { if (confirm(`Delete workspace "${wsMenu.title}"? This removes all its files.`)) { useAppStore.getState().deleteProject(wsMenu.id); } setWsMenu(null); }}
-              className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "#d4183d" }}>
+              className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--destructive)" }}>
               <Trash2 size={13} /> Delete workspace
             </button>
           </div>
@@ -658,7 +663,7 @@ function FolderSection({ projectId, folder, list, folders }: { projectId: string
                   </button>
                   <div className="my-1 h-px" style={{ background: "var(--border)" }} />
                   <button onClick={() => { setMenuOpen(false); if (confirm(`Delete folder "${folder.name}"? Its files move to Unfiled.`)) useAppStore.getState().deleteFolder(projectId, folder.id); }}
-                    className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "#d4183d" }}>
+                    className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--destructive)" }}>
                     <Trash2 size={13} /> Delete folder
                   </button>
                 </div>
@@ -681,21 +686,35 @@ function FolderSection({ projectId, folder, list, folders }: { projectId: string
 
 function EmptyProject({ projectId }: { projectId: string }) {
   return (
-    <div className="h-full flex flex-col items-center justify-center gap-5 px-8">
-      <div className="text-[15px] font-medium" style={{ color: "var(--ink-2)" }}>This workspace is empty</div>
-      <div className="flex gap-3">
-        {TYPE_ORDER.map((t) => {
-          const e = ENTITY[t.type];
-          return (
-            <button key={t.type} onClick={() => createInProject(projectId, t.type)}
-              className="flex flex-col items-center gap-2 w-28 h-28 rounded-[12px] press justify-center"
-              style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)", color: "var(--ink-2)" }}>
-              <e.Icon size={22} style={{ color: "var(--icon)" }} />
-              <span className="text-[13px] font-medium">New {e.label}</span>
-            </button>
-          );
-        })}
-      </div>
+    <div className="h-full flex items-center justify-center">
+      <EmptyState
+        size="lg"
+        illustration={
+          <div className="flex items-center justify-center w-14 h-14 rounded-[16px]"
+            style={{ background: "rgba(255,180,63,0.10)", border: "1px solid rgba(255,180,63,0.18)" }}>
+            <LogoMark size={26} style={{ color: "var(--ink)" }} />
+          </div>
+        }
+        title="Start something"
+        description="Pick a format, or just describe it in chat."
+      >
+        <div className="flex flex-wrap items-center justify-center gap-2.5 stagger-children">
+          {TYPE_ORDER.map((t) => {
+            const e = ENTITY[t.type];
+            return (
+              <button key={t.type} onClick={() => createInProject(projectId, t.type)}
+                className="group flex flex-col items-center gap-2.5 w-[104px] py-5 rounded-[14px] press lift animate-fade-in-up"
+                style={{ background: "var(--card)", border: "1px solid var(--border)", boxShadow: "var(--shadow-card)" }}>
+                <span className="flex items-center justify-center w-10 h-10 rounded-[10px] transition-transform duration-200 group-hover:scale-105"
+                  style={{ background: e.tint }}>
+                  <e.Icon size={20} strokeWidth={1.75} style={{ color: e.color }} />
+                </span>
+                <span className="text-[13px] font-medium" style={{ color: "var(--ink-2)" }}>{e.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </EmptyState>
     </div>
   );
 }
@@ -862,7 +881,7 @@ function CardMenu({ item, projectId, folders, onRename, onClose }: { item: Item;
         </div>
         <div className="my-1 h-px" style={{ background: "var(--border)" }} />
         <button onClick={() => { if (confirm(`Delete "${item.title}"?`)) deleteEntity(projectId, item); onClose(); }}
-          className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "#d4183d" }}>
+          className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--destructive)" }}>
           <Trash2 size={13} /> Delete
         </button>
       </div>
@@ -898,7 +917,7 @@ function EntityPreview({ item }: { item: Item }) {
   if (item.type === "deck") {
     return (
       <div className="flex-1 rounded-[10px] relative overflow-hidden flex items-end p-3" style={{ background: "linear-gradient(135deg, #FFF4DE, #FFBE70 52%, #8AC7EA)" }}>
-        <span className="text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ background: "rgba(255,255,255,0.8)", color: "#7a5a1f" }}>
+        <span className="text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ background: "var(--card)", color: "var(--accent-amber-deep)" }}>
           {item.slideCount ?? 0} slide{item.slideCount === 1 ? "" : "s"}
         </span>
       </div>
@@ -974,7 +993,7 @@ function NewCard({ label, onClick, pick }: { label?: string; onClick?: () => voi
       <button onClick={() => { if (pick) setOpen((v) => !v); else onClick?.(); }}
         className="w-full h-full overflow-hidden flex flex-col items-center justify-center gap-2.5 press lift"
         style={{ border: "1px solid var(--border-strong)", color: "var(--ink)", background: "linear-gradient(155deg, #FFFDFB 0%, #EEF4FF 100%)", borderRadius: s.radius }}>
-        <span className="flex items-center justify-center w-14 h-14 rounded-full bg-white" style={{ boxShadow: "var(--shadow-card)" }}>
+        <span className="flex items-center justify-center w-14 h-14 rounded-full bg-card" style={{ boxShadow: "var(--shadow-card)" }}>
           <Plus size={26} strokeWidth={1.8} style={{ color: "var(--ink-2)" }} />
         </span>
         <span className="text-[14px] font-medium">Create</span>
@@ -1102,21 +1121,10 @@ function AllProjects({ projects, onOpen, onNew, onContext }: { projects: Project
 
 /* ───────────────────────── atoms ───────────────────────── */
 
-function LogoMark() {
-  return (
-    <div className="relative w-[22px] h-[22px] flex-shrink-0" aria-hidden>
-      <span className="absolute left-0 top-[5px] w-[6px] h-[12px] rounded-r-full" style={{ background: "var(--ink)" }} />
-      <span className="absolute left-[7px] top-[2px] w-[5px] h-[18px] rounded-full rotate-[-28deg]" style={{ background: "var(--ink)" }} />
-      <span className="absolute left-[12px] top-[3px] w-[5px] h-[16px] rounded-full rotate-[28deg]" style={{ background: "var(--ink)" }} />
-      <span className="absolute right-0 top-[6px] w-[4px] h-[10px] rounded-full" style={{ background: "var(--ink)" }} />
-    </div>
-  );
-}
-
 function NavRow({ icon, label, hint, active, onClick }: { icon: React.ReactNode; label: string; hint?: string; active?: boolean; onClick: () => void }) {
   return (
     <button onClick={onClick} className="flex items-center gap-3 w-full h-[38px] px-3 rounded-full text-[13px] press hover-row"
-      style={{ color: active ? "var(--ink)" : "var(--ink-3)", background: active ? "var(--sidebar-accent)" : "transparent", fontWeight: active ? 500 : 400 }}>
+      style={{ color: active ? "var(--ink)" : "var(--ink-3)", background: active ? "var(--sidebar-accent)" : "transparent", fontWeight: active ? 550 : 450 }}>
       <span style={{ color: active ? "var(--ink)" : "var(--icon)" }}>{icon}</span>
       <span className="flex-1 text-left truncate">{label}</span>
       {hint && <span className="text-[11px] tabular-nums" style={{ color: "var(--ink-4)" }}>{hint}</span>}

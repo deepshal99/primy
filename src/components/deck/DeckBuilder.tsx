@@ -15,39 +15,39 @@ function DeckIdleView() {
             className="absolute inset-0 rounded-[10px] -rotate-[6deg] -translate-x-1.5"
             style={{
               background: "#fde8dc",
-              border: "1px solid rgba(212, 88, 42, 0.16)",
+              border: "1px solid rgba(255, 180, 63, 0.20)",
             }}
           />
           <div
             className="absolute inset-0 rounded-[10px] rotate-[3deg] translate-x-1"
             style={{
               background: "#fef0e8",
-              border: "1px solid rgba(212, 88, 42, 0.20)",
+              border: "1px solid rgba(255, 180, 63, 0.26)",
             }}
           />
           <div
             className="absolute inset-0 rounded-[10px] bg-white"
             style={{
-              border: "1px solid rgba(212, 88, 42, 0.30)",
-              boxShadow: "0 4px 12px rgba(212, 88, 42, 0.10)",
+              border: "1px solid rgba(255, 180, 63, 0.38)",
+              boxShadow: "0 4px 12px rgba(255, 180, 63, 0.12)",
             }}
           >
-            <div className="absolute inset-x-3 top-3 h-[3px] rounded-full bg-[rgba(212,88,42,0.45)]" />
-            <div className="absolute inset-x-3 top-[18px] h-[2px] w-[60%] rounded-full bg-[rgba(212,88,42,0.25)]" />
-            <div className="absolute inset-x-3 top-[26px] h-[2px] w-[80%] rounded-full bg-[rgba(212,88,42,0.18)]" />
+            <div className="absolute inset-x-3 top-3 h-[3px] rounded-full bg-[rgba(255,180,63,0.55)]" />
+            <div className="absolute inset-x-3 top-[18px] h-[2px] w-[60%] rounded-full bg-[rgba(255,180,63,0.32)]" />
+            <div className="absolute inset-x-3 top-[26px] h-[2px] w-[80%] rounded-full bg-[rgba(255,180,63,0.24)]" />
             <div className="absolute left-3 bottom-3 flex gap-1">
-              <div className="w-3 h-2 rounded-[2px] bg-[rgba(212,88,42,0.30)]" />
-              <div className="w-3 h-2 rounded-[2px] bg-[rgba(212,88,42,0.18)]" />
-              <div className="w-3 h-2 rounded-[2px] bg-[rgba(212,88,42,0.30)]" />
+              <div className="w-3 h-2 rounded-[2px] bg-[rgba(255,180,63,0.38)]" />
+              <div className="w-3 h-2 rounded-[2px] bg-[rgba(255,180,63,0.24)]" />
+              <div className="w-3 h-2 rounded-[2px] bg-[rgba(255,180,63,0.38)]" />
             </div>
           </div>
         </div>
         <div>
-          <p className="text-[15px] font-medium text-[#171717] mb-1.5 font-heading tracking-[-0.01em]">
+          <p className="text-[15px] font-medium text-foreground mb-1.5 font-heading tracking-[-0.01em]">
             Add your first slide
           </p>
-          <p className="text-[12.5px] text-[#737373] leading-relaxed">
-            Describe your deck in chat — topic, audience, style — and AI will design it for you.
+          <p className="text-[12.5px] text-muted-foreground leading-relaxed">
+            Describe your deck in chat: topic, audience, style, and AI will design it for you.
           </p>
         </div>
       </div>

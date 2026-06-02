@@ -128,9 +128,9 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
           )}
           {/* User message bubble */}
           {message.content && (
-            <div className="rounded-2xl rounded-br-md bg-[#1A1815] text-white px-4 py-3 ml-auto w-fit">
-              <p className="text-[13px] leading-relaxed whitespace-pre-wrap text-white">
-                {renderContentWithMentions(message.content, message.mentionedEntities, true)}
+            <div className="rounded-2xl rounded-br-md bg-[var(--accent-soft)] text-[var(--ink)] px-4 py-2.5 ml-auto w-fit">
+              <p className="text-[14px] leading-[1.55] whitespace-pre-wrap text-[var(--ink)] [text-wrap:pretty]">
+                {renderContentWithMentions(message.content, message.mentionedEntities, false)}
               </p>
             </div>
           )}
@@ -138,7 +138,7 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
       ) : (
         <div className="max-w-[95%] group/msg">
           {/* AI response with markdown */}
-          <div className="text-[13px] leading-[1.7] text-foreground markdown-content">
+          <div className="markdown-content">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {message.content}
             </ReactMarkdown>
@@ -157,7 +157,7 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
                   href={src.uri}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors hover:opacity-80 truncate max-w-[200px] bg-muted text-[#B87426]"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors hover:opacity-80 truncate max-w-[200px] bg-muted text-[var(--accent-amber-deep)]"
                   title={src.uri}
                 >
                   {src.title}
@@ -272,7 +272,7 @@ export function StreamingBubble({ content }: StreamingBubbleProps) {
   return (
     <div className="fade-in-up">
       {hasVisibleContent ? (
-        <div className="text-[13px] leading-[1.7] text-foreground markdown-content">
+        <div className="markdown-content">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {displayContent}
           </ReactMarkdown>
@@ -323,11 +323,11 @@ function ThinkingIndicator({ readingFiles }: { readingFiles: string[] }) {
 
 function OperationIndicator({ type }: { type: "sheet" | "doc" | "deck" | "outline" | "page" }) {
   const config = {
-    sheet: { icon: Table2, label: "Building spreadsheet", color: "#2e9e47", bg: "#e8f7ea" },
-    doc: { icon: PenLine, label: "Writing document", color: "#4a7aed", bg: "#f0f4fd" },
-    deck: { icon: FileText, label: "Building presentation", color: "#d4582a", bg: "#fde8dc" },
-    outline: { icon: ListChecks, label: "Planning slides", color: "#d4582a", bg: "#fde8dc" },
-    page: { icon: FileText, label: "Designing page", color: "#8757D7", bg: "#f1ecfb" },
+    sheet: { icon: Table2, label: "Building spreadsheet", color: "#2e9e47", bg: "rgba(46,158,71,0.14)" },
+    doc: { icon: PenLine, label: "Writing document", color: "#4a7aed", bg: "rgba(74,122,237,0.14)" },
+    deck: { icon: FileText, label: "Building presentation", color: "#FFAD45", bg: "rgba(255,173,69,0.16)" },
+    outline: { icon: ListChecks, label: "Planning slides", color: "#FFAD45", bg: "rgba(255,173,69,0.16)" },
+    page: { icon: FileText, label: "Designing page", color: "#8757D7", bg: "rgba(135,87,215,0.14)" },
   }[type];
   const Icon = config.icon;
 
@@ -354,13 +354,13 @@ function UpdateIndicator({
 }) {
   const entities: { label: string; color: string; bg: string }[] = [];
   if (hasOps.hasSheetOps || hasOps.hasTableOps)
-    entities.push({ label: "Spreadsheet", color: "#2e9e47", bg: "#e8f7ea" });
+    entities.push({ label: "Spreadsheet", color: "#2e9e47", bg: "rgba(46,158,71,0.14)" });
   if (hasOps.hasDocOps || hasOps.hasKuOps)
-    entities.push({ label: "Document", color: "#4a7aed", bg: "#f0f4fd" });
+    entities.push({ label: "Document", color: "#4a7aed", bg: "rgba(74,122,237,0.14)" });
   if (hasOps.hasDeckOps)
-    entities.push({ label: "Deck", color: "#d4582a", bg: "#fde8dc" });
+    entities.push({ label: "Deck", color: "#FFAD45", bg: "rgba(255,173,69,0.16)" });
   if (hasOps.hasPageOps)
-    entities.push({ label: "Page", color: "#8757D7", bg: "#f1ecfb" });
+    entities.push({ label: "Page", color: "#8757D7", bg: "rgba(135,87,215,0.14)" });
 
   return (
     <div className="flex flex-col gap-0 px-3.5 py-2.5 rounded-xl bg-muted border border-border">

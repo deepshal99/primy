@@ -60,7 +60,7 @@ export function SlideRenderer({ slide, theme, themeConfig, scale = 1, onClick, i
           height: 540 * scale,
           borderRadius: 8 * scale,
           boxShadow: isActive
-            ? `0 0 0 2px #3B82F6`
+            ? `0 0 0 2px var(--accent-blue)`
             : `0 ${1 * scale}px ${4 * scale}px rgba(0,0,0,0.08), 0 ${2 * scale}px ${8 * scale}px rgba(0,0,0,0.04)`,
           transition: "box-shadow 0.15s",
         }}
@@ -108,7 +108,7 @@ export function SlideRenderer({ slide, theme, themeConfig, scale = 1, onClick, i
         fontFamily: t.bodyFont,
         borderRadius: 8 * scale,
         boxShadow: isActive
-          ? `0 0 0 2px #3B82F6`
+          ? `0 0 0 2px var(--accent-blue)`
           : `0 ${1 * scale}px ${4 * scale}px rgba(0,0,0,0.08), 0 ${2 * scale}px ${8 * scale}px rgba(0,0,0,0.04)`,
         transition: "box-shadow 0.15s",
       }}

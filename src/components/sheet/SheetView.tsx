@@ -2,7 +2,7 @@
 
 import { useRef, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
-import { Upload, ClipboardPaste, Sparkles } from "lucide-react";
+import { Upload, ClipboardPaste, Wand2 } from "lucide-react";
 import { SheetAIBar } from "./SheetAIBar";
 import type { CellData, CellValue, SheetData } from "@/lib/types";
 import type { FUniver } from "@univerjs/core/lib/facade";
@@ -373,10 +373,10 @@ export function SheetView() {
               ))}
             </div>
             <div>
-              <p className="text-[14px] font-medium mb-1 text-[#171717] font-heading tracking-[-0.01em]">
+              <p className="text-[14px] font-medium mb-1 text-foreground font-heading tracking-[-0.01em]">
                 Start typing or paste data
               </p>
-              <p className="text-[12px] text-[#737373] mb-3 max-w-[300px] leading-relaxed">
+              <p className="text-[12px] text-muted-foreground mb-3 max-w-[300px] leading-relaxed">
                 Click a cell to begin, or ask AI in chat to build a sheet for you.
               </p>
               <div className="flex items-center justify-center gap-3 text-[11px] text-[#a3a3a3]">
@@ -391,7 +391,7 @@ export function SheetView() {
                 </span>
                 <span className="text-[#d4d4d4]">·</span>
                 <span className="flex items-center gap-1">
-                  <Sparkles className="w-3 h-3" strokeWidth={1.75} />
+                  <Wand2 className="w-3 h-3" strokeWidth={1.75} />
                   Ask AI
                 </span>
               </div>

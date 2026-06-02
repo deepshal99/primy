@@ -20,6 +20,8 @@ import { scoreRelevance } from "@/lib/ai/contextRelevance";
 import { emptyToolOps, applyToolCall, hasToolOps, toolIndicatorKind, summarizeOps } from "@/lib/ai/toolMapping";
 import { Maximize2, Minimize2, PanelRightClose } from "lucide-react";
 import { ENTITY_META } from "@/lib/entityMeta";
+import { LogoMark } from "@/components/shared/Logo";
+import { TextReveal } from "@/components/ui/transitions";
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 import { ExamplePrompts, ENTITY_PILLS } from "./ExamplePrompts";
@@ -37,7 +39,6 @@ interface ChatPanelProps {
 
 export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expanded }: ChatPanelProps) {
   const currentProjectId = useAppStore((s) => s.currentProjectId);
-  const projects = useAppStore((s) => s.projects);
   const messages = useAppStore((s) => s.messages);
   const isStreaming = useAppStore((s) => s.isStreaming);
   const addUserMessage = useAppStore((s) => s.addUserMessage);
@@ -350,6 +351,21 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
 
         let chunkCount = 0;
         let lastChunkAt = Date.now();
+
+        // Smooth streaming: coalesce per-token store writes into one flush per
+        // animation frame. The server emits many small text deltas; calling
+        // appendStreamChunk on every one re-renders the message list (and
+        // re-parses the markdown) dozens of times a second, which reads as
+        // jitter. Buffering to a rAF caps that at ~60fps without dropping text.
+        let pendingChunk = "";
+        let rafId: number | null = null;
+        const flushPending = () => {
+          rafId = null;
+          if (pendingChunk) {
+            appendStreamChunk(pendingChunk);
+            pendingChunk = "";
+          }
+        };
         const processLine = (line: string) => {
           const trimmed = line.trim();
           if (!trimmed.startsWith("data: ")) return;
@@ -361,7 +377,8 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
             const parsed = JSON.parse(data);
             if (parsed.text) {
               fullText += parsed.text;
-              appendStreamChunk(parsed.text);
+              pendingChunk += parsed.text;
+              if (rafId === null) rafId = requestAnimationFrame(flushPending);
             }
             if (parsed.grounding) {
               groundingSources = parsed.grounding.sources || [];
@@ -415,6 +432,13 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
           }
         } finally {
           clearInterval(stallCheck);
+          // Flush any buffered tail synchronously so the abort/partial path and
+          // the final render never miss the last frame's worth of text.
+          if (rafId !== null) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+          }
+          flushPending();
         }
 
         if (buffer.trim()) {
@@ -480,7 +504,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
             const hasFences = fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops") || fullText.includes("```deckops") || fullText.includes("```pageops") || fullText.includes("```deckoutline");
             if (hasFences) {
               console.warn("[Primy] Operation blocks found but none parsed. Raw tail:", fullText.slice(-600));
-              toast.error("AI response had formatting issues — some changes may not have been applied. Try again.");
+              toast.error("AI response had formatting issues. Some changes may not have been applied. Try again.");
             } else {
               // Claim/action reconciliation: catch the rare case where the model
               // SAYS it created/updated a Primy artifact but emitted no tool call
@@ -517,7 +541,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
           // Non-silent truncation notice: server ran out of auto-continuations
           // and the answer is still cut off. Don't let a half-answer look whole.
           if (streamTruncated) {
-            toast.warning("The response was long and may be cut off — ask the AI to continue if something's missing.");
+            toast.warning("The response was long and may be cut off. Ask the AI to continue if something's missing.");
           }
         } catch (applyError) {
           // Operation parsing or store mutation failed — still save the AI text response
@@ -601,7 +625,6 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
 
   const hasMessages = messages.length > 0;
   const isLoadingProject = useAppStore((s) => s.isLoadingProject);
-  const currentProject = currentProjectId ? projects.find((p) => p.id === currentProjectId) : null;
   const [selectedEntityType, setSelectedEntityType] = useState<EntityType | null>(null);
   const selectedEntityTypeRef = useRef<EntityType | null>(null);
   // Keep ref in sync so sendMessage callback always sees latest value
@@ -672,9 +695,9 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
           )}
         </div>
       ) : !centered ? (
-        <div className="flex items-center gap-2 px-4 h-[42px] flex-shrink-0 border-b border-[rgba(0,0,0,0.05)]">
+        <div className="flex items-center gap-2 px-4 h-[42px] flex-shrink-0 border-b border-border">
           <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#FFB43F" }} />
-          <span className="text-[13px] font-medium text-[#525252]">Assistant</span>
+          <span className="text-[13px] font-medium text-muted-foreground">Assistant</span>
         </div>
       ) : null}
         {showLanding ? (
@@ -685,15 +708,16 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
               {/* greeting anchored toward the bottom — generous breathing room under the hero */}
               <div className="mt-auto px-7 pt-7 pb-6">
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="w-7 h-7 rounded-full flex-shrink-0" style={{ background: "var(--accent-amber, #FFB43F)" }} />
+                  <span className="flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0" style={{ background: "var(--accent-amber, #FFB43F)" }}>
+                    <LogoMark size={16} style={{ color: "var(--ink, #171716)" }} />
+                  </span>
                   <span className="font-semibold text-[18px] tracking-[-0.02em]" style={{ color: "var(--ink, #171716)" }}>Primy</span>
                 </div>
                 <div className="text-[15px] leading-[1.62] space-y-[18px] [text-wrap:pretty]" style={{ color: "var(--ink, #171716)" }}>
                   <p>Hi there!</p>
-                  <p>You can use the left workspace to start creating and organizing your work. Anything you create, we can chat about here.</p>
+                  <p>Create docs, sheets, decks, and pages in the workspace on the left. Anything you make, we can work on here.</p>
                   <p style={{ color: "var(--ink-2, #3B3A37)" }}>
-                    Or, ask me to draft, summarize, or turn one file into another
-                    {currentProject ? <> — I&apos;ve got the full context for <span className="font-medium" style={{ color: "var(--ink, #171716)" }}>{currentProject.title}</span></> : null}. Drag in any file.
+                    Or just ask. I can draft, summarize, or turn one file into another. Drag in any file to start.
                   </p>
                 </div>
               </div>
@@ -712,9 +736,11 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
             </div>
             <div className="flex-shrink-0 flex flex-col items-center px-6 pt-10 pb-16">
               <div className="w-full max-w-[640px]">
-                <h1 className="font-heading text-[30px] font-semibold text-foreground text-center mb-6 tracking-[-0.03em] leading-tight">
-                  What are you working on?
-                </h1>
+                <TextReveal>
+                  <h1 className="font-heading text-[30px] font-semibold text-foreground text-center mb-6 tracking-[-0.03em] leading-tight">
+                    What are you working on?
+                  </h1>
+                </TextReveal>
                 <ChatInput
                   onSend={sendMessage}
                   disabled={isStreaming}
@@ -722,14 +748,39 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
                   onStop={stopStreaming}
                   placeholder={activePlaceholder || "Describe what you want to create..."}
                 />
-                <div className="flex items-center justify-center gap-2 mt-5">
-                  {(["ku", "table", "deck"] as const).map((t) => {
+                <div className="flex items-center justify-center gap-2 mt-6">
+                  {(["ku", "table", "deck"] as const).map((t, i) => {
                     const m = ENTITY_META[t];
                     return (
-                      <button key={t} onClick={() => handleEntityPillClick(t)}
-                        className="inline-flex items-center gap-1.5 h-[30px] pl-2.5 pr-3 rounded-full text-[13px] font-medium press"
-                        style={{ background: m.bg, color: m.color }}>
-                        <m.Icon size={13} /> {m.label}
+                      <button
+                        key={t}
+                        onClick={() => handleEntityPillClick(t)}
+                        className="group inline-flex items-center gap-1.5 h-[32px] pl-2.5 pr-3.5 rounded-full text-[13px] font-medium press animate-fade-in-up t-colors"
+                        style={{
+                          background: "var(--card, #FFFDFB)",
+                          color: "var(--ink-2, #3B3A37)",
+                          border: "1px solid var(--border, rgba(24,24,22,0.08))",
+                          animationDelay: `${120 + i * 50}ms`,
+                          animationFillMode: "both",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = "rgba(255,180,63,0.45)";
+                          e.currentTarget.style.background = "rgba(255,180,63,0.08)";
+                          e.currentTarget.style.color = "var(--ink, #171716)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = "var(--border, rgba(24,24,22,0.08))";
+                          e.currentTarget.style.background = "var(--card, #FFFDFB)";
+                          e.currentTarget.style.color = "var(--ink-2, #3B3A37)";
+                        }}
+                      >
+                        <m.Icon
+                          size={14}
+                          strokeWidth={1.8}
+                          className="opacity-60 group-hover:opacity-100 transition-opacity"
+                          style={{ color: "var(--icon, #585753)" }}
+                        />
+                        {m.label}
                       </button>
                     );
                   })}

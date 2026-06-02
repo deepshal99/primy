@@ -13,7 +13,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Primy — AI-Powered Workspace",
+  title: "Primy: AI-Powered Workspace",
   description: "Your AI-powered workspace for documents, spreadsheets, and projects.",
 };
 
@@ -24,6 +24,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        {/* Anti-FOUC: apply the saved theme to <html> before first paint so the
+            authenticated app renders in the correct mode with no flash. Public
+            marketing/auth pages are hardcoded light and ignore the .dark class. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem('primy:theme')==='dark')document.documentElement.classList.add('dark')}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="antialiased">
         <QueryProvider>
           <SessionProvider>

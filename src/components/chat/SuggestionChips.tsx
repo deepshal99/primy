@@ -5,7 +5,7 @@ import {
   FileText,
   Table2,
   Presentation,
-  Sparkles,
+  Plus,
   PenLine,
   BarChart3,
   ListChecks,
@@ -40,7 +40,7 @@ const ICON_RULES: { keywords: string[]; icon: LucideIcon }[] = [
   { keywords: ["layout", "arrange", "organize", "grid"], icon: LayoutGrid },
   { keywords: ["idea", "suggest", "brainstorm", "think"], icon: Lightbulb },
   // Generic creation (last — catches "create", "build", "generate", "add", "new")
-  { keywords: ["add", "insert", "create", "new", "build", "generate"], icon: Sparkles },
+  { keywords: ["add", "insert", "create", "new", "build", "generate"], icon: Plus },
 ];
 
 function getIconForSuggestion(text: string): LucideIcon {
@@ -50,7 +50,7 @@ function getIconForSuggestion(text: string): LucideIcon {
       return rule.icon;
     }
   }
-  return Sparkles;
+  return Plus;
 }
 
 // -- Default suggestions: sensible, variable count --
@@ -113,7 +113,7 @@ export function SuggestionChips({ suggestions }: SuggestionChipsProps) {
           <button
             key={i}
             onClick={() => handleClick(suggestion)}
-            className="group flex items-center gap-1.5 px-3 py-[7px] rounded-xl border border-[#e8e7e4] text-[12px] leading-snug text-[#737373] font-medium t-fast hover:border-[#FFB43F]/40 hover:text-[#B87426] hover:bg-[rgba(255,180,63,0.08)] text-left w-fit animate-fade-in active:scale-[0.98]"
+            className="group flex items-center gap-1.5 px-3 py-[7px] rounded-xl border border-border text-[12px] leading-snug text-muted-foreground font-medium t-fast hover:border-[var(--accent-amber)]/40 hover:text-[var(--accent-amber-deep)] hover:bg-[var(--accent-amber)]/8 text-left w-fit animate-fade-in active:scale-[0.98]"
             style={{ animationDelay: `${i * 60}ms`, animationFillMode: "both" }}
             role="listitem"
           >

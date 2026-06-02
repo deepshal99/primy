@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
 import type { PlateEditor } from "platejs/react";
-import { Wand2, Expand, Minimize2, ListChecks, Loader2, RotateCcw, X } from "lucide-react";
-import { MarkdownPlugin } from "@platejs/markdown";
+import { Pencil, ChevronsUpDown, ChevronsDownUp, MessageSquare, Loader2, RotateCcw, X, ArrowUp } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/cn";
 import { useAppStore } from "@/lib/store";
@@ -14,34 +13,65 @@ interface SelectionBubbleProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
-type BubbleState = "idle" | "selecting" | "acting" | "streaming" | "result";
+type BubbleState = "idle" | "selecting" | "asking" | "acting" | "streaming" | "result";
 
-const ACTIONS = [
-  { key: "improve", label: "Improve", icon: Wand2, color: "#7c5cb8", bg: "#f3eefb" },
-  { key: "expand", label: "Expand", icon: Expand, color: "#3b6ad8", bg: "#edf2fd" },
-  { key: "shorten", label: "Shorten", icon: Minimize2, color: "#d97706", bg: "#fef6e7" },
-  { key: "format", label: "Format", icon: ListChecks, color: "#2e9e47", bg: "#eef8f0" },
-] as const;
+// Inline actions are CONTEXT-AWARE: the set adapts to what's being edited. A
+// prose document gets writing edits; an HTML page gets copy edits; a sheet gets
+// data tidy-ups. (The bubble mounts in the Plate editor today — the registry
+// keeps the other surfaces' sets ready as inline AI expands to them.)
+type Surface = "doc" | "page" | "sheet";
+type InlineAction = { key: string; label: string; icon: typeof Pencil; color: string; bg: string };
+
+const ACTION_SETS: Record<Surface, InlineAction[]> = {
+  doc: [
+    { key: "improve", label: "Improve", icon: Pencil, color: "#7c5cb8", bg: "#f3eefb" },
+    { key: "expand", label: "Expand", icon: ChevronsUpDown, color: "#3b6ad8", bg: "#edf2fd" },
+    { key: "shorten", label: "Shorten", icon: ChevronsDownUp, color: "#d97706", bg: "#fef6e7" },
+  ],
+  page: [
+    { key: "improve", label: "Improve copy", icon: Pencil, color: "#7c5cb8", bg: "#f3eefb" },
+    { key: "punchier", label: "Punchier", icon: ChevronsUpDown, color: "#3b6ad8", bg: "#edf2fd" },
+    { key: "shorten", label: "Shorten", icon: ChevronsDownUp, color: "#d97706", bg: "#fef6e7" },
+  ],
+  sheet: [
+    { key: "improve", label: "Clean up", icon: Pencil, color: "#7c5cb8", bg: "#f3eefb" },
+    { key: "shorten", label: "Shorten", icon: ChevronsDownUp, color: "#d97706", bg: "#fef6e7" },
+  ],
+};
+
+// "Ask AI" — the free-text path, shared across every surface. Kept separate so
+// it renders as a distinct affordance (opens an input rather than a fixed prompt).
+const ASK = { key: "ask", label: "Ask AI", icon: MessageSquare, color: "#7c5cb8", bg: "#f3eefb" } as const;
 
 const PROMPTS: Record<string, string> = {
-  improve: "Improve this text for clarity, grammar, and readability. Keep the same meaning and approximate length.",
-  expand: "Expand on this text with more detail, examples, or elaboration. Keep the same tone.",
-  shorten: "Make this text more concise. Remove unnecessary words while preserving the core meaning.",
-  format: "Improve the formatting of this text. Add appropriate markdown formatting like headings, bold, lists where helpful.",
+  improve: "Improve this text for clarity, grammar, and flow. Keep the meaning and approximate length.",
+  expand: "Expand this with more detail, examples, or elaboration. Keep the same tone.",
+  shorten: "Make this more concise. Cut filler while preserving the core meaning.",
+  punchier: "Rewrite this to be punchier and more compelling, while staying concise.",
 };
 
 export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) {
   const [state, setState] = useState<BubbleState>("idle");
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; belowTop: number } | null>(null);
   const [flipped, setFlipped] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const [streamResult, setStreamResult] = useState("");
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
+  const [askInput, setAskInput] = useState("");
   const [animateIn, setAnimateIn] = useState(false);
+  // Persistent highlight rectangles over the selection — painted by us so the
+  // selection stays visible even after focus moves to the Ask-AI input (which
+  // collapses the browser's native ::selection).
+  const [selRects, setSelRects] = useState<{ top: number; left: number; width: number; height: number }[] | null>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
+  const askInputRef = useRef<HTMLInputElement>(null);
   const selectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedSelectionRef = useRef<TSelection>(null);
+
+  const currentEntityType = useAppStore((s) => s.currentEntityType);
+  const surface: Surface = currentEntityType === "page" ? "page" : currentEntityType === "table" ? "sheet" : "doc";
+  const actions = ACTION_SETS[surface];
 
   const hideBubble = useCallback(() => {
     setAnimateIn(false);
@@ -52,6 +82,8 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
       setStreamResult("");
       setActiveAction(null);
       setHoveredAction(null);
+      setAskInput("");
+      setSelRects(null);
       savedSelectionRef.current = null;
     }, 200);
   }, []);
@@ -59,7 +91,7 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
   // Track selection changes with 500ms delay
   useEffect(() => {
     const checkSelection = () => {
-      if (state === "acting" || state === "streaming" || state === "result") return;
+      if (state === "asking" || state === "acting" || state === "streaming" || state === "result") return;
 
       if (selectionTimerRef.current) {
         clearTimeout(selectionTimerRef.current);
@@ -111,6 +143,9 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
             const top = shouldFlip
               ? rect.bottom - containerRect.top + container.scrollTop + 12
               : rawTop;
+            // Result/streaming cards always render BELOW the selection so they
+            // grow downward (natural) and never clip behind the top toolbar.
+            const belowTop = rect.bottom - containerRect.top + container.scrollTop + 10;
 
             const containerWidth = containerRect.width;
             const BUBBLE_HALF_WIDTH = 140;
@@ -119,7 +154,17 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
               Math.min(rect.left - containerRect.left + rect.width / 2, containerWidth - BUBBLE_HALF_WIDTH)
             );
 
-            setPos({ top, left });
+            // Capture every client rect of the selection (multi-line → several),
+            // in container-relative coords, so we can paint a persistent highlight.
+            const rects = Array.from(range.getClientRects()).map((rr) => ({
+              top: rr.top - containerRect.top + container.scrollTop,
+              left: rr.left - containerRect.left + container.scrollLeft,
+              width: rr.width,
+              height: rr.height,
+            }));
+            setSelRects(rects.length ? rects : null);
+
+            setPos({ top, left, belowTop });
             setFlipped(shouldFlip);
             setSelectedText(freshText.trim());
             // Save editor selection for replace — may be null if Slate hasn't synced yet
@@ -187,9 +232,10 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
     };
   }, [state, hideBubble]);
 
-  const runAction = useCallback(
-    async (actionKey: string) => {
-      if (!selectedText || !PROMPTS[actionKey]) return;
+  const run = useCallback(
+    async (instruction: string, actionKey: string) => {
+      const text = selectedText.trim();
+      if (!text || !instruction.trim()) return;
 
       setState("acting");
       setActiveAction(actionKey);
@@ -203,7 +249,7 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
             messages: [
               {
                 role: "user",
-                content: `Edit this text according to the instruction. Return ONLY the edited text, nothing else. Do not wrap in markdown fences.\n\nText: "${selectedText}"\n\nInstruction: ${PROMPTS[actionKey]}`,
+                content: `Edit this text according to the instruction. Return ONLY the edited text — no quotes, no commentary, no markdown fences.\n\nText: "${text}"\n\nInstruction: ${instruction}`,
               },
             ],
             sheetData: useAppStore.getState().sheets,
@@ -218,6 +264,10 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
         const decoder = new TextDecoder();
         let result = "";
         let buffer = "";
+        // Coalesce per-token state writes into one paint per frame so the card
+        // grows smoothly instead of thrashing on every chunk.
+        let frame: number | null = null;
+        const flush = () => { frame = null; setStreamResult(result); };
 
         while (true) {
           const { done, value } = await reader.read();
@@ -234,17 +284,22 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
               const parsed = JSON.parse(data);
               if (parsed.text) {
                 result += parsed.text;
-                setStreamResult(result);
+                if (frame === null) frame = requestAnimationFrame(flush);
               }
             } catch {
               // skip
             }
           }
         }
+        if (frame !== null) cancelAnimationFrame(frame);
 
         let cleaned = result.trim();
         if (cleaned.startsWith("```")) {
           cleaned = cleaned.replace(/^```\w*\n?/, "").replace(/\n?```$/, "").trim();
+        }
+        // Models sometimes wrap the whole answer in quotes — strip one wrapping pair.
+        if (cleaned.length > 1 && cleaned.startsWith('"') && cleaned.endsWith('"')) {
+          cleaned = cleaned.slice(1, -1).trim();
         }
         setStreamResult(cleaned);
         setState("result");
@@ -257,30 +312,23 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
     [selectedText]
   );
 
+  const submitAsk = useCallback(() => {
+    const q = askInput.trim();
+    if (q) run(q, "ask");
+  }, [askInput, run]);
+
   const handleReplace = useCallback(() => {
     if (!streamResult) return;
 
     try {
       const sel = savedSelectionRef.current;
       if (sel) {
-        editor.tf.select(sel);
-        editor.tf.delete();
-
-        // For "format" action, deserialize markdown into Slate nodes
-        if (activeAction === "format") {
-          try {
-            const nodes = editor.getApi(MarkdownPlugin).markdown.deserialize(streamResult);
-            if (nodes && nodes.length > 0) {
-              editor.tf.insertNodes(nodes);
-            } else {
-              editor.tf.insertText(streamResult);
-            }
-          } catch {
-            editor.tf.insertText(streamResult);
-          }
-        } else {
-          editor.tf.insertText(streamResult);
-        }
+        // Replace the range in a single op. insertText over an expanded range
+        // deletes it and inserts inheriting the formatting at the range start —
+        // so the new text keeps the original weight/marks instead of resetting.
+        editor.tf.insertText(streamResult, { at: sel });
+      } else {
+        editor.tf.insertText(streamResult);
       }
     } catch {
       try {
@@ -291,7 +339,7 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
     }
 
     hideBubble();
-  }, [editor, streamResult, activeAction, hideBubble]);
+  }, [editor, streamResult, hideBubble]);
 
   const handleRetry = useCallback(() => {
     setStreamResult("");
@@ -301,26 +349,49 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
 
   if (state === "idle" || !pos) return null;
 
-  const activeData = ACTIONS.find((a) => a.key === activeAction);
-  const isProcessing = state === "acting" || state === "streaming";
+  const activeData = [...actions, ASK].find((a) => a.key === activeAction);
   const isActing = state === "acting";
+  // Card-like states (input / loading / streaming / result) render BELOW the
+  // selection and grow downward — natural, and never clipped by the top toolbar.
+  const isCard = state === "asking" || state === "acting" || state === "streaming" || state === "result";
 
   return (
-    <div
-      ref={bubbleRef}
-      className="absolute z-50"
-      style={{
-        top: `${pos.top}px`,
-        left: `${pos.left}px`,
-        transform: flipped ? "translate(-50%, 0)" : "translate(-50%, -100%)",
-      }}
-    >
+    <>
+      {/* Persistent selection highlight — keeps the text visibly selected while
+          the toolbar / Ask-AI box is open, even after the input takes focus. */}
+      {selRects && state !== "selecting" && (
+        <div className="absolute inset-0 z-40 pointer-events-none" aria-hidden>
+          {selRects.map((r, i) => (
+            <div
+              key={i}
+              className="absolute rounded-[2px]"
+              style={{
+                top: `${r.top}px`,
+                left: `${r.left}px`,
+                width: `${r.width}px`,
+                height: `${r.height}px`,
+                background: "rgba(66,133,244,0.18)",
+                boxShadow: "inset 0 0 0 1px rgba(66,133,244,0.12)",
+              }}
+            />
+          ))}
+        </div>
+      )}
+      <div
+        ref={bubbleRef}
+        className="absolute z-50"
+        style={{
+          top: `${isCard ? pos.belowTop : pos.top}px`,
+          left: `${pos.left}px`,
+          transform: (isCard || flipped) ? "translate(-50%, 0)" : "translate(-50%, -100%)",
+        }}
+      >
       <div
         className={cn(
           "transition-all duration-[var(--duration-fast)] ease-[cubic-bezier(0.175,0.885,0.32,1.275)]",
           animateIn ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-1 scale-[0.92]"
         )}
-        style={{ transformOrigin: flipped ? "center top" : "center bottom" }}
+        style={{ transformOrigin: (isCard || flipped) ? "center top" : "center bottom" }}
       >
         {isActing ? (
           /* Compact loading pill while waiting for stream */
@@ -355,7 +426,7 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
               <div className="flex items-center gap-1.5 px-3 py-2 border-t border-border">
                 <button
                   onClick={handleReplace}
-                  className="flex-1 h-[30px] bg-[#1A1815] text-white rounded-lg text-[12px] font-medium hover:bg-black t-colors cursor-pointer"
+                  className="flex-1 h-[30px] bg-primary text-primary-foreground rounded-lg text-[12px] font-medium hover:opacity-90 t-colors cursor-pointer"
                 >
                   Replace
                 </button>
@@ -376,21 +447,62 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
               </div>
             )}
           </div>
+        ) : state === "asking" ? (
+          /* Ask AI — free-text instruction box */
+          <div className="flex flex-col items-center">
+            <div
+              className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-xl bg-card border border-border shadow-[0_8px_30px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.06)]"
+              style={{ width: "clamp(280px, 42vw, 360px)" }}
+            >
+              <ASK.icon className="w-4 h-4 flex-shrink-0" style={{ color: ASK.color }} strokeWidth={2} />
+              <input
+                ref={askInputRef}
+                autoFocus
+                value={askInput}
+                onChange={(e) => setAskInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); submitAsk(); }
+                  if (e.key === "Escape") { e.preventDefault(); setState("selecting"); }
+                }}
+                placeholder="Tell AI what to do with this…"
+                className="flex-1 min-w-0 bg-transparent outline-none text-[13px] text-foreground placeholder:text-muted-foreground"
+              />
+              <button
+                onClick={submitAsk}
+                disabled={!askInput.trim()}
+                title="Run"
+                className="w-7 h-7 rounded-lg flex items-center justify-center bg-primary text-primary-foreground disabled:opacity-35 hover:opacity-90 t-colors cursor-pointer"
+              >
+                <ArrowUp className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            {!flipped ? (
+              <svg width="14" height="7" viewBox="0 0 14 7" fill="none" className="mt-[-0.5px]">
+                <path d="M5.586 5.586a2 2 0 002.828 0L14 0H0l5.586 5.586z" fill="white" />
+                <path d="M0 0l5.586 5.586a2 2 0 002.828 0L14 0" stroke="var(--border)" strokeWidth="1" fill="none" />
+              </svg>
+            ) : (
+              <svg width="14" height="7" viewBox="0 0 14 7" fill="none" className="mb-[-0.5px] rotate-180 order-first">
+                <path d="M5.586 5.586a2 2 0 002.828 0L14 0H0l5.586 5.586z" fill="white" />
+                <path d="M0 0l5.586 5.586a2 2 0 002.828 0L14 0" stroke="var(--border)" strokeWidth="1" fill="none" />
+              </svg>
+            )}
+          </div>
         ) : (
           /* Floating toolbar */
           <div className="flex flex-col items-center">
             <div className="flex items-center rounded-xl overflow-hidden bg-card border border-border shadow-[0_8px_30px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.06)] p-1 gap-[3px]">
-              {ACTIONS.map((action) => {
+              {actions.map((action) => {
                 const isHovered = hoveredAction === action.key;
                 return (
                   <button
                     key={action.key}
-                    className="h-[30px] px-2.5 flex items-center gap-1.5 rounded-lg t-colors active:scale-[0.98] cursor-pointer"
+                    className="h-[30px] px-2.5 flex items-center gap-1.5 rounded-lg t-colors active:scale-[0.98] cursor-pointer whitespace-nowrap"
                     style={{
                       background: isHovered ? action.bg : "transparent",
                       color: isHovered ? action.color : "#6b6b80",
                     }}
-                    onClick={() => runAction(action.key)}
+                    onClick={() => run(PROMPTS[action.key], action.key)}
                     onMouseEnter={() => setHoveredAction(action.key)}
                     onMouseLeave={() => setHoveredAction(null)}
                   >
@@ -399,6 +511,21 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
                   </button>
                 );
               })}
+              {/* divider + Ask AI (free-text) */}
+              <div className="w-px h-5 mx-0.5 flex-shrink-0" style={{ background: "var(--border)" }} />
+              <button
+                className="h-[30px] px-2.5 flex items-center gap-1.5 rounded-lg t-colors active:scale-[0.98] cursor-pointer whitespace-nowrap"
+                style={{
+                  background: hoveredAction === ASK.key ? ASK.bg : "transparent",
+                  color: hoveredAction === ASK.key ? ASK.color : "#6b6b80",
+                }}
+                onClick={() => { setAskInput(""); setState("asking"); }}
+                onMouseEnter={() => setHoveredAction(ASK.key)}
+                onMouseLeave={() => setHoveredAction(null)}
+              >
+                <ASK.icon className="w-3.5 h-3.5" strokeWidth={2} />
+                <span className="text-[12px] font-medium">{ASK.label}</span>
+              </button>
             </div>
 
             {!flipped && (
@@ -416,6 +543,7 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }

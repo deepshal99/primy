@@ -69,6 +69,7 @@ Model selection is task-keyed (registry in `src/lib/ai/modelRouter.ts`). Each ta
 | `chat` | openai | gpt-4.1 | 16,384 |
 | `chat-heavy` (>30KB context) | openai | gpt-4.1 | 32,768 |
 | `chat-deep` (complex reasoning) | openai | gpt-5.5 (effort: medium, verbosity: low) | 32,768 |
+| `page-generate` (visual HTML page intent) | openai | gpt-5-mini (effort: medium, verbosity: high) | 32,768 |
 | `deck-generate` | openai | gpt-4.1 | 32,768 |
 | `deck-edit` | openai | gpt-4.1 | 32,768 |
 | `deck-critique` | openai | gpt-4.1 | 2,048 |
@@ -76,7 +77,7 @@ Model selection is task-keyed (registry in `src/lib/ai/modelRouter.ts`). Each ta
 | `summarize` | openai | gpt-4.1 | 4,096 |
 | `embedding` | openai | text-embedding-3-small | — |
 
-`getModelConfig(task, contextSizeBytes?)` auto-promotes `chat` → `chat-heavy` past the 30KB threshold. **`OPENAI_API_KEY` is required.** `GEMINI_API_KEY` is still read for a lazily-created Google client, but no task routes to Google today (effectively dormant).
+`getModelConfig(task, contextSizeBytes?)` auto-promotes `chat` → `chat-heavy` past the 30KB threshold. The chat route also escalates by **intent**: complex-reasoning phrasing → `chat-deep`, and **visual-page intent** ("landing page", "one-pager", "make this visual", editing an open page) → `page-generate` (gpt-5-mini, verbosity high — benchmarked ~6× cheaper / ~40% faster than gpt-5.5 at near-equal design quality; both reasoning models far out-design gpt-4.1). `useTools` is captured before this escalation, so the `create_page` tool stays available. **`OPENAI_API_KEY` is required.** `GEMINI_API_KEY` is still read for a lazily-created Google client, but no task routes to Google today (effectively dormant).
 
 ### AI Operation Flow
 
@@ -117,6 +118,7 @@ This is the largest file in the codebase. All client-side state lives in a singl
 - `src/components/shell/v2/AppShellV2.tsx` — **Active shell** (Strut overhaul). Default; legacy `src/components/AppShell.tsx` still reachable via `/app?shell=v1`
 - `src/components/shell/v2/RecentsView.tsx` / `QuickNotesView.tsx` — the two global surfaces
 - `src/lib/auth.ts` — NextAuth v5 config (credentials, throttle, tokenVersion revocation, dev-admin bypass)
+- `src/components/ui/transitions/` — drop-in micro-interaction primitives (`IconSwap`, `AnimatedNumber`, `TextReveal`) wrapping verbatim [transitions.dev](https://transitions.dev) snippets. CSS lives in the "transitions.dev primitives" block in `globals.css` (namespaced `t-*`, reduced-motion guarded; kept separate from the in-house `motion.css` layer). The `transitions-dev` skill (`transitions reveal|review|apply`) drives adding more.
 
 ### API Routes
 
@@ -146,6 +148,7 @@ File uploads go directly to Vercel Blob from the client (no `/api/upload` route)
 Strut-inspired warm shell (overhaul locked 1 Jun 2026; reference `/preview/strut`). CSS variables in `globals.css`. Tokens in `src/lib/design.ts`. Full action plan: `docs/superpowers/specs/2026-06-01-primy-strut-overhaul-action-plan.md`.
 
 - **Brand**: **black wordmark + ink `#1A1815`** primary fill (white text on it). The brand is NOT orange anymore — the legacy `#fa5d19`/`#ff4a00` oranges were swept out across the codebase.
+- **Brand mark**: the canonical Primy glyph is the four ink bars in `LogoMark` (`src/components/shared/Logo.tsx`, scalable SVG via `currentColor`). Use it for brand/AI identity moments (sidebar header, chat "Primy" avatar, empty-state chips). **Never use the lucide `Sparkles` star icon anywhere — it is banned.** For AI-action affordances use `Wand2`; for premium/Pro badges use `Crown`; for generic "create/new" use `Plus`.
 - **Warm accent (amber)**: `#FFB43F` — AI signal, highlights, soft pills, active dots. For amber **text** on light, use the readable deep amber `#B87426` (never `#FFB43F` for text — too light).
 - **Candy accents** (used as **workspace identity dots**, not entity coding): blue `#4285F4`, pink `#F073A7`, purple `#8757D7`, teal `#67CEC8`. Blue `#4285F4` is the interactive/active/link color.
 - **Fonts**: Inter (UI/body, weights 400/450/500/600/700 — headings use 500), Geist Mono (code)
@@ -157,6 +160,15 @@ Strut-inspired warm shell (overhaul locked 1 Jun 2026; reference `/preview/strut
 - **Radius**: Pixel-based — 4/6/8/12/16/full. Buttons+inputs=6-8px, cards=12px, panes/modals=14px.
 
 Reach for tokens (`var(--ink)`, `var(--accent-amber)`, `var(--card)`, …) — never hardcode the old oranges. Color signals **workspace identity** (the per-project dot), not entity type; entity icons stay monochrome.
+
+### Motion (MANDATORY for any animation work)
+
+**`documents/motion.md` is the canonical motion ruleset** — read it before adding or changing any transition/animation. It is grounded in the `emil-design-eng` skill + `transitions-dev` skill. Essentials:
+
+- **One token source:** `--duration-*` / `--ease-*` are declared ONCE in `globals.css :root`. Never re-declare them (that silently shadows). `motion.css` and `design.ts` only reference them.
+- **One CSS home + helpers:** every reusable motion class lives in `src/styles/motion.css` (`.press`/`.lift`/`.menu-pop`/`.hover-row`/`.stagger-in`/`.icon-swap`/`.success-pop`/`.shake` + the `t-icon-swap`/`t-digit-group`/`t-stagger` primitives). The React helpers in `src/components/ui/transitions/*` (`IconSwap`/`AnimatedNumber`/`TextReveal`) are typed wrappers over those `t-*` classes — not a second system.
+- **Hard rules:** animate only `transform`/`opacity`/`filter`; no `transition: all`; never `scale(0)` entries; no `ease-in` on UI; UI < 300ms (320ms ceiling); exits faster than enters; popovers origin-aware (modals centered); every movement rule degrades under `prefers-reduced-motion`; gate hover behind `(hover:hover)`.
+- **Enforce:** run `npm run lint:motion` (`scripts/check-motion.mjs`) before shipping motion changes — it must stay at 0 errors.
 
 ## Environment Variables
 
@@ -178,6 +190,7 @@ Required in `.env.local`:
 - Spreadsheet data uses Fortune Sheet's `celldata[]` format (sparse array of `{r, c, v}` objects), not 2D arrays
 - The `sheetVersion` counter must be incremented after any programmatic sheet mutation to trigger re-render
 - File uploads: max 100MB per file, max 10 files per message. Supported: PDF, DOCX, XLSX, CSV, TXT, MD, JSON, images, ZIP
+- **No em-dashes in interface copy (MANDATORY).** Never use `—` (U+2014) in any user-facing UI string we author: labels, titles, placeholders, tooltips, toasts, empty states, marketing/auth copy, metadata. Use a comma, colon, period, or parentheses instead — never a bare hyphen swap. This rule covers chrome only; do NOT strip em-dashes from user-generated content (documents, notes, sheet cells) or from code comments. AI system-prompt files (`src/lib/ai/*`) are out of scope.
 
 ## Product & Strategy Documents
 
@@ -186,6 +199,7 @@ The `/documents/` folder contains living reference docs that inform all developm
 - **`documents/platform-docs.md`** — Complete feature inventory: every screen, interaction, and capability described in detail. The single source of truth for what the product does.
 - **`documents/ICPs.md`** — Ideal Customer Profiles: dossiers on each customer archetype (solo founders, marketers, SMB operators, students). Use to guide UX, copy, and feature prioritization.
 - **`documents/styleguide.md`** — Visual style guide: colors, typography, spacing, component patterns, and the overall visual feel. All UI must be compliant.
+- **`documents/motion.md`** — Canonical motion & transition ruleset (tokens, decision framework, pattern→primitive map, enforcement). Read before any animation work; enforced via `npm run lint:motion`.
 - **`documents/vision.md`** — Product vision and roadmap with milestones (v1.1 → v2.0). Gives exploratory work guidance and context.
 - **`documents/data-reference.md`** — Domain data relationships, implicit business logic, and entity hierarchies not expressed in the DB schema alone.
 

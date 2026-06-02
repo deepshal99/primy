@@ -146,14 +146,24 @@
   --font-body: 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Motion tokens — single system for all animations */
-  --duration-fast: 120ms;    /* micro-interactions: hover, active, toggle */
-  --duration-normal: 200ms;  /* standard: fade, scale, color change */
-  --duration-slow: 320ms;    /* layout: panel resize, drawer, view switch */
-  --duration-enter: 240ms;   /* entrance: modals, new content appearing */
-  --ease-default: cubic-bezier(0.25, 0.1, 0.25, 1);      /* smooth decel */
-  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);           /* spring overshoot for entrances */
-  --ease-out: cubic-bezier(0, 0, 0.2, 1);                 /* fast exit */
+  /* ═══════════════════════════════════════════════════════════════
+     Motion tokens — THE single source of truth for all animation.
+     Full ruleset + decision framework: documents/motion.md.
+     Do not re-declare these anywhere else (motion.css references them).
+     ─────────────────────────────────────────────────────────────── */
+  /* Durations — pick by what is moving, not by taste. Keep UI < 300ms. */
+  --duration-fast: 120ms;    /* press, hover, toggle, color — 100×/day actions */
+  --duration-normal: 200ms;  /* fade, scale, icon/text swap, tooltip, dropdown */
+  --duration-enter: 240ms;   /* entrance: modals, new content, list items */
+  --duration-slow: 320ms;    /* layout: panel resize, drawer, view switch, hero */
+  /* Easings — strong custom curves (built-in CSS easings lack punch).
+     entering/exiting → ease-out · moving/morphing → ease-in-out
+     hover/color → default · drawers/slide-overs → drawer */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);             /* responsive decel — entrances, feedback, swaps */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);           /* spring overshoot — branded entrances */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);         /* on-screen movement / morph */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);          /* iOS-like drawer / slide-over */
+  --ease-default: cubic-bezier(0.25, 0.1, 0.25, 1);       /* gentle — hover & color only */
 }
 
 
@@ -521,7 +531,9 @@ html, body { height: 100%; margin: 0; padding: 0; }
   100% { background-position: -200% center; }
 }
 .shimmer-text {
-  background: linear-gradient(90deg, #857F76 0%, #857F76 40%, #3B3A37 50%, #857F76 60%, #857F76 100%);
+  /* Token-based so the moving highlight reads in BOTH themes: base = muted ink,
+     highlight = stronger ink. Light → dark sweep; dark → light sweep. */
+  background: linear-gradient(90deg, var(--ink-3) 0%, var(--ink-3) 40%, var(--ink-2) 50%, var(--ink-3) 60%, var(--ink-3) 100%);
   background-size: 300% auto;
   -webkit-background-clip: text;
   background-clip: text;
@@ -538,6 +550,9 @@ html, body { height: 100%; margin: 0; padding: 0; }
   background-color: rgba(0, 0, 0, 0.06);
   position: relative;
   overflow: hidden;
+}
+.dark .skeleton-base {
+  background-color: rgba(255, 252, 245, 0.08);
 }
 
 @keyframes skeletonPulse {
@@ -702,12 +717,18 @@ html, body { height: 100%; margin: 0; padding: 0; }
 .hover-row:hover { background-color: var(--accent); }
 
 /* ── Transition utilities ─────────────
-   Use these instead of raw transition-all duration-N.
-   Keeps every interactive element feeling the same.
+   Use these instead of raw `transition: all duration-N`.
+   Enumerate the safe (transform/opacity/color/shadow) properties so
+   layout props never animate by accident — see documents/motion.md.
    ─────────────────────────────────────── */
-.t-fast    { transition: all var(--duration-fast) var(--ease-default); }
-.t-normal  { transition: all var(--duration-normal) var(--ease-default); }
-.t-slow    { transition: all var(--duration-slow) var(--ease-spring); }
+.t-fast,
+.t-normal,
+.t-slow {
+  transition-property: transform, opacity, color, background-color, border-color, box-shadow, fill, stroke;
+}
+.t-fast    { transition-duration: var(--duration-fast);   transition-timing-function: var(--ease-default); }
+.t-normal  { transition-duration: var(--duration-normal); transition-timing-function: var(--ease-default); }
+.t-slow    { transition-duration: var(--duration-slow);   transition-timing-function: var(--ease-spring); }
 .t-colors  { transition: color var(--duration-fast) var(--ease-default),
                           background-color var(--duration-fast) var(--ease-default),
                           border-color var(--duration-fast) var(--ease-default); }
@@ -756,6 +777,8 @@ input:-webkit-autofill:active {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #E0E0E0; border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: #CCCCCC; }
+.dark ::-webkit-scrollbar-thumb { background: rgba(255, 252, 245, 0.18); }
+.dark ::-webkit-scrollbar-thumb:hover { background: rgba(255, 252, 245, 0.28); }
 
 /* V2 scroll — scrollbar appears ONLY while scrolling (.is-scrolling toggled
    by a JS listener), fully transparent on idle. */
@@ -776,73 +799,107 @@ input:-webkit-autofill:active {
 .chat-scroll:hover { scrollbar-color: rgba(0,0,0,0.12) transparent; }
 .chat-scroll:hover::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); }
 .chat-scroll:hover::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
+.dark .chat-scroll:hover { scrollbar-color: rgba(255,252,245,0.18) transparent; }
+.dark .chat-scroll:hover::-webkit-scrollbar-thumb { background: rgba(255,252,245,0.18); }
+.dark .chat-scroll:hover::-webkit-scrollbar-thumb:hover { background: rgba(255,252,245,0.3); }
 
 /* ═══════════════════════════════════════
    Markdown Chat Content
    ═══════════════════════════════════════ */
 
-.markdown-content { font-family: var(--font-body); }
+/* Chat answer typography — tuned to read like Claude / ChatGPT: a comfortable
+   ~14.5px body, real vertical rhythm between blocks (not the old 0.3em slab),
+   strong heading + bold contrast, and edge-trimmed first/last margins so the
+   bubble hugs its content. Sizes are em-relative to the base so the whole
+   block scales from one knob. */
+.markdown-content {
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  line-height: 1.68;
+  letter-spacing: -0.011em;
+  color: var(--ink, var(--foreground));
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  word-break: break-word;
+}
+.markdown-content > :first-child { margin-top: 0; }
+.markdown-content > :last-child { margin-bottom: 0; }
 
 .markdown-content h1,
 .markdown-content h2,
-.markdown-content h3 {
+.markdown-content h3,
+.markdown-content h4 {
   font-family: var(--font-heading);
-  margin-top: 0.8em;
-  margin-bottom: 0.3em;
   font-weight: 600;
-  color: var(--foreground);
+  color: var(--ink, var(--foreground));
+  letter-spacing: -0.018em;
+  line-height: 1.3;
+  margin: 1.4em 0 0.5em;
+  text-wrap: balance;
 }
+.markdown-content h1 { font-size: 1.3em; }
+.markdown-content h2 { font-size: 1.15em; }
+.markdown-content h3 { font-size: 1.02em; }
+.markdown-content h4 { font-size: 0.95em; color: var(--ink-2, var(--muted-foreground)); }
 
-.markdown-content h1 { font-size: 1.1rem; letter-spacing: -0.02em; line-height: 1.3; }
-.markdown-content h2 { font-size: 1rem; letter-spacing: -0.015em; line-height: 1.35; }
-.markdown-content h3 { font-size: 0.9rem; letter-spacing: -0.01em; line-height: 1.4; }
+.markdown-content p { margin: 0 0 0.85em; line-height: 1.68; text-wrap: pretty; }
 
-.markdown-content p { margin: 0.3em 0; line-height: 1.65; color: var(--foreground); }
-.markdown-content ul { margin: 0.3em 0; padding-left: 1.3em; list-style-type: disc; }
-.markdown-content ol { margin: 0.3em 0; padding-left: 1.3em; list-style-type: decimal; }
+.markdown-content ul,
+.markdown-content ol { margin: 0.2em 0 0.9em; padding-left: 1.35em; }
+.markdown-content ul { list-style-type: disc; }
+.markdown-content ol { list-style-type: decimal; }
+.markdown-content ul ul, .markdown-content ol ol,
+.markdown-content ul ol, .markdown-content ol ul { margin: 0.25em 0; }
 .markdown-content ul ul { list-style-type: circle; }
 .markdown-content ol ol { list-style-type: lower-alpha; }
-.markdown-content li { margin: 0.15em 0; line-height: 1.6; color: var(--foreground); }
-.markdown-content li::marker { color: var(--muted-foreground); }
+.markdown-content li { margin: 0.28em 0; line-height: 1.6; padding-left: 0.1em; }
+.markdown-content li::marker { color: var(--ink-muted, var(--muted-foreground)); }
+.markdown-content li > p { margin: 0 0 0.3em; }
+/* a list that follows its own lead-in line shouldn't double-space */
+.markdown-content p + ul, .markdown-content p + ol { margin-top: -0.45em; }
+
+.markdown-content strong { color: var(--ink, var(--foreground)); font-weight: 650; }
+.markdown-content em { font-style: italic; }
 
 .markdown-content code {
-  background: var(--muted);
-  padding: 0.15em 0.45em;
+  background: var(--accent-soft, var(--muted));
+  padding: 0.12em 0.42em;
   border-radius: 5px;
-  font-size: 0.82em;
+  font-size: 0.85em;
   font-family: var(--font-mono);
-  color: var(--accent-foreground);
+  color: var(--ink-2, var(--accent-foreground));
+  border: 1px solid var(--border-faint, transparent);
 }
 
 .markdown-content pre {
-  background: var(--muted);
-  padding: 0.85em 1.1em;
-  border-radius: 10px;
+  background: var(--card, var(--muted));
+  padding: 0.9em 1.05em;
+  border-radius: 11px;
   overflow-x: auto;
-  margin: 0.6em 0;
+  margin: 0.7em 0 1em;
   border: 1px solid var(--border);
+  box-shadow: var(--shadow-card, none);
 }
+.markdown-content pre code { background: none; padding: 0; border: none; white-space: pre; color: var(--foreground); font-size: 0.82em; line-height: 1.62; }
 
-.markdown-content pre code { background: none; padding: 0; color: var(--foreground); font-size: 0.82em; line-height: 1.6; }
+.markdown-content table { border-collapse: collapse; margin: 0.5em 0 1em; width: 100%; font-size: 0.9em; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.markdown-content th, .markdown-content td { border-bottom: 1px solid var(--border); padding: 0.5em 0.75em; text-align: left; }
+.markdown-content th { background: var(--accent-soft, var(--muted)); font-weight: 600; font-family: var(--font-heading); color: var(--ink-2, var(--muted-foreground)); }
+.markdown-content tr:last-child td { border-bottom: none; }
+.markdown-content td { color: var(--ink-2, var(--muted-foreground)); }
 
-.markdown-content table { border-collapse: collapse; margin: 0.5em 0; width: 100%; font-size: 0.85em; }
-.markdown-content th, .markdown-content td { border: 1px solid var(--border); padding: 0.45em 0.7em; text-align: left; }
-.markdown-content th { background: var(--muted); font-weight: 600; font-family: var(--font-heading); font-size: 0.92em; color: var(--muted-foreground); }
-.markdown-content td { color: var(--muted-foreground); }
-
-.markdown-content a { color: var(--accent-blue); text-decoration: none; }
+.markdown-content a { color: var(--accent-blue, #4285F4); text-decoration: none; font-weight: 500; text-underline-offset: 2px; }
 .markdown-content a:hover { text-decoration: underline; }
 
-.markdown-content blockquote {
-  border-left: 2px solid var(--border);
-  padding-left: 0.85em;
-  margin: 0.5em 0;
-  color: var(--muted-foreground);
-  font-style: italic;
-}
+.markdown-content hr { border: none; border-top: 1px solid var(--border); margin: 1.2em 0; }
 
-.markdown-content strong { color: var(--foreground); font-weight: 600; }
-.markdown-content em { color: var(--muted-foreground); font-style: italic; }
+.markdown-content blockquote {
+  border-left: 2.5px solid var(--accent-amber, var(--border));
+  padding: 0.1em 0 0.1em 0.95em;
+  margin: 0.6em 0 1em;
+  color: var(--ink-3, var(--muted-foreground));
+}
+.markdown-content blockquote p { margin: 0.2em 0; }
 
 /* ═══════════════════════════════════════
    Document Editor (Plate.js)

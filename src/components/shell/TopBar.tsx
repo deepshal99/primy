@@ -47,7 +47,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-const HEAT = "#1A1815";
+const HEAT = "var(--ink)";
 
 export function TopBar() {
   const { data: session } = useSession();
@@ -99,9 +99,9 @@ export function TopBar() {
             (row pad-left 10 + sidebar 52/2 = 36; logo 30 wide → margin-left 21). */}
         <button
           onClick={goGlobalHome}
-          title="Projects — all your projects"
+          title="Projects: all your projects"
           aria-label="Projects"
-          className="press flex items-center justify-center rounded-[9px] text-white font-bold flex-shrink-0 active:scale-[0.97] transition-transform motion-reduce:transition-none"
+          className="press flex items-center justify-center rounded-[9px] text-primary-foreground font-bold flex-shrink-0 active:scale-[0.97] transition-transform motion-reduce:transition-none"
           style={{ width: 30, height: 30, marginLeft: 21, background: HEAT, fontSize: 15, transitionDuration: "140ms", transitionTimingFunction: "var(--ease-out, cubic-bezier(0.23,1,0.32,1))" }}
         >
           D
@@ -124,18 +124,18 @@ export function TopBar() {
               <IconGhost title="Redo" disabled={!canRedo} onClick={redo}>
                 <Redo2 size={15} />
               </IconGhost>
-              <div className="w-px h-5 mx-1" style={{ background: "rgba(0,0,0,0.1)" }} />
+              <div className="w-px h-5 mx-1" style={{ background: "var(--border-strong)" }} />
             </>
           )}
 
           {inProjectScope && (
             <button
               onClick={() => setBrainOpen(true)}
-              title="Project Brain — what Primy knows about this project"
-              className="press flex items-center gap-1.5 h-[30px] px-2.5 rounded-[8px] text-[12.5px] font-medium text-[#525252] hover:bg-black/[0.05] active:scale-[0.97] transition-[background-color,transform] motion-reduce:transition-none"
+              title="Project Brain: what Primy knows about this project"
+              className="press flex items-center gap-1.5 h-[30px] px-2.5 rounded-[8px] text-[12.5px] font-medium text-muted-foreground hover:bg-accent active:scale-[0.97] transition-[background-color,transform] motion-reduce:transition-none"
               style={{ transitionDuration: "140ms" }}
             >
-              <Brain size={14} className="text-[#9061ff]" />
+              <Brain size={14} className="text-accent-purple" />
               Brain
             </button>
           )}
@@ -144,7 +144,7 @@ export function TopBar() {
             <button
               onClick={() => setShareOpen(true)}
               title="Share project"
-              className="press flex items-center gap-1.5 h-[30px] px-3 rounded-[8px] text-[12.5px] font-medium text-white active:scale-[0.97] transition-transform motion-reduce:transition-none"
+              className="press flex items-center gap-1.5 h-[30px] px-3 rounded-[8px] text-[12.5px] font-medium text-primary-foreground active:scale-[0.97] transition-transform motion-reduce:transition-none"
               style={{ background: HEAT, transitionDuration: "140ms" }}
             >
               <Share2 size={13} />
@@ -157,10 +157,10 @@ export function TopBar() {
               <button
                 aria-label="Profile menu"
                 className={cn(
-                  "press flex items-center justify-center rounded-full text-white text-[11px] font-semibold ml-1 overflow-hidden active:scale-[0.97] transition-transform motion-reduce:transition-none",
-                  profileOpen && "ring-2 ring-[#b0ada6]/40 ring-offset-1"
+                  "press flex items-center justify-center rounded-full text-primary-foreground text-[11px] font-semibold ml-1 overflow-hidden active:scale-[0.97] transition-transform motion-reduce:transition-none",
+                  profileOpen && "ring-2 ring-[var(--border-strong)] ring-offset-1"
                 )}
-                style={{ width: 28, height: 28, background: "#1a1a1a", transitionDuration: "140ms" }}
+                style={{ width: 28, height: 28, background: "var(--ink)", transitionDuration: "140ms" }}
               >
                 {session?.user?.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -174,30 +174,30 @@ export function TopBar() {
               side="bottom"
               align="end"
               sideOffset={10}
-              className="menu-pop w-[200px] p-1.5 rounded-xl border border-[#e8e7e4]"
-              style={{ boxShadow: "0 8px 30px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.06)" }}
+              className="menu-pop w-[200px] p-1.5 rounded-xl border border-border"
+              style={{ boxShadow: "var(--shadow-pane)" }}
             >
               <div className="flex items-center gap-2.5 px-2.5 py-2 mb-1">
-                <div className="flex items-center justify-center rounded-full bg-[#e8e6e0] flex-shrink-0" style={{ width: 32, height: 32 }}>
-                  <span className="text-[#5a5852] text-[11px]" style={{ fontWeight: 600 }}>{initials}</span>
+                <div className="flex items-center justify-center rounded-full bg-secondary flex-shrink-0" style={{ width: 32, height: 32 }}>
+                  <span className="text-muted-foreground text-[11px]" style={{ fontWeight: 600 }}>{initials}</span>
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[12.5px] text-[#2d2e2e] truncate" style={{ fontWeight: 550 }}>{session?.user?.name || "User"}</div>
-                  <div className="text-[11px] text-[#9a968f] truncate">{session?.user?.email || ""}</div>
+                  <div className="text-[12.5px] text-foreground truncate" style={{ fontWeight: 550 }}>{session?.user?.name || "User"}</div>
+                  <div className="text-[11px] text-muted-foreground truncate">{session?.user?.email || ""}</div>
                 </div>
               </div>
-              <div className="h-px bg-[#f0eee9] mx-1 mb-1" />
+              <div className="h-px bg-border mx-1 mb-1" />
               <button
                 onClick={() => { setProfileOpen(false); setSettingsOpen(true); }}
-                className="w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[12px] text-[#3d3d3d] hover:bg-[#f5f4f1] transition-colors text-left active:scale-[0.99]"
+                className="w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[12px] text-foreground hover:bg-accent transition-colors text-left active:scale-[0.99]"
               >
-                <Settings className="w-3.5 h-3.5 text-[#9a968f]" strokeWidth={1.75} />
+                <Settings className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.75} />
                 Settings
               </button>
-              <div className="h-px bg-[#f0eee9] mx-1 my-1" />
+              <div className="h-px bg-border mx-1 my-1" />
               <button
                 onClick={() => { setProfileOpen(false); signOut({ callbackUrl: "/login" }); }}
-                className="w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[12px] text-[#d4183d] hover:bg-red-50 transition-colors text-left active:scale-[0.99]"
+                className="w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[12px] text-[var(--destructive)] hover:bg-red-50 transition-colors text-left active:scale-[0.99]"
               >
                 <LogOut className="w-3.5 h-3.5" strokeWidth={1.75} />
                 Sign out
@@ -248,7 +248,7 @@ function SaveIndicator({
   // error > saving > saved
   if (saveError) {
     return (
-      <div className="icon-swap flex items-center gap-1.5 ml-1.5 text-[#d4183d] motion-safe:animate-[topbarShake_320ms_ease]" title={saveError}>
+      <div className="icon-swap flex items-center gap-1.5 ml-1.5 text-[var(--destructive)] motion-safe:animate-[topbarShake_320ms_ease]" title={saveError}>
         <CloudOff size={13} />
         <span className="text-[11.5px]">Save failed</span>
         <style jsx global>{`
@@ -267,7 +267,7 @@ function SaveIndicator({
 
   if (isSaving) {
     return (
-      <div className="icon-swap flex items-center gap-1.5 ml-1.5 text-[#9a968f]">
+      <div className="icon-swap flex items-center gap-1.5 ml-1.5 text-muted-foreground">
         <Loader2 size={13} className="motion-safe:animate-spin" />
         <span className="text-[11.5px]">Saving…</span>
       </div>
@@ -275,10 +275,10 @@ function SaveIndicator({
   }
 
   return (
-    <div className="success-pop flex items-center gap-1.5 ml-1.5 text-[#9a968f]" title={lastSavedAt ? `Saved ${new Date(lastSavedAt).toLocaleTimeString()}` : "Saved"}>
+    <div className="success-pop flex items-center gap-1.5 ml-1.5 text-muted-foreground" title={lastSavedAt ? `Saved ${new Date(lastSavedAt).toLocaleTimeString()}` : "Saved"}>
       <span className="relative inline-flex items-center justify-center" style={{ width: 14, height: 14 }}>
         <Cloud size={13} />
-        <Check size={8} strokeWidth={3} className="absolute" style={{ color: "#2e9e47" }} />
+        <Check size={8} strokeWidth={3} className="absolute" style={{ color: "var(--color-success, #2e9e47)" }} />
       </span>
       <span className="text-[11.5px]">Saved</span>
     </div>
@@ -322,17 +322,17 @@ function BrainPanel({ open, onClose, projectId }: { open: boolean; onClose: () =
 
       {/* Panel */}
       <aside
-        className="panel-reveal absolute top-0 right-0 h-full w-[min(380px,90vw)] bg-white flex flex-col motion-safe:animate-[brainSlide_240ms_var(--ease-drawer,cubic-bezier(0.32,0.72,0,1))]"
-        style={{ boxShadow: "-12px 0 40px rgba(0,0,0,0.12)" }}
+        className="panel-reveal absolute top-0 right-0 h-full w-[min(380px,90vw)] bg-card flex flex-col motion-safe:animate-[brainSlide_240ms_var(--ease-drawer,cubic-bezier(0.32,0.72,0,1))]"
+        style={{ boxShadow: "var(--shadow-pane)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 px-5 flex-shrink-0" style={{ height: 56, borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
-          <Brain size={16} className="text-[#9061ff]" />
+        <div className="flex items-center gap-2 px-5 flex-shrink-0" style={{ height: 56, borderBottom: "1px solid var(--border)" }}>
+          <Brain size={16} className="text-accent-purple" />
           <span className="text-[14px] font-semibold tracking-[-0.01em] flex-1 truncate">Project Brain</span>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="press flex items-center justify-center rounded-md text-[#9a968f] hover:bg-black/[0.05] active:scale-[0.97] transition-[background-color,transform] motion-reduce:transition-none"
+            className="press flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent active:scale-[0.97] transition-[background-color,transform] motion-reduce:transition-none"
             style={{ width: 28, height: 28, transitionDuration: "140ms" }}
           >
             <X size={15} />
@@ -340,8 +340,8 @@ function BrainPanel({ open, onClose, projectId }: { open: boolean; onClose: () =
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          <div className="text-[12.5px] text-[#737373] leading-relaxed">
-            What Primy knows about <b className="font-medium text-[#171717]">{project.title}</b>.
+          <div className="text-[12.5px] text-muted-foreground leading-relaxed">
+            What Primy knows about <b className="font-medium text-foreground">{project.title}</b>.
           </div>
 
           {/* Context */}
@@ -349,27 +349,27 @@ function BrainPanel({ open, onClose, projectId }: { open: boolean; onClose: () =
             <div className="mt-4 space-y-3">
               {context.map((c) => (
                 <div key={c.label}>
-                  <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[#a3a3a3]">{c.label}</div>
-                  <p className="text-[13px] text-[#3d3d3d] mt-1 leading-snug whitespace-pre-wrap">{c.value}</p>
+                  <div className="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground">{c.label}</div>
+                  <p className="text-[13px] text-foreground mt-1 leading-snug whitespace-pre-wrap">{c.value}</p>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="mt-4 rounded-xl px-3.5 py-3 text-[12.5px] text-[#737373]" style={{ background: "#faf9f7", border: "1px solid rgba(0,0,0,0.05)" }}>
+            <div className="mt-4 rounded-xl px-3.5 py-3 text-[12.5px] text-muted-foreground" style={{ background: "var(--secondary)", border: "1px solid var(--border)" }}>
               No project context yet. Chat with Primy and it will learn the purpose, audience, and voice over time.
             </div>
           )}
 
           {/* Files */}
           <div className="mt-6">
-            <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[#a3a3a3] mb-2">Files</div>
+            <div className="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">Files</div>
             <div className="grid grid-cols-2 gap-2">
               {counts.map(({ label, n, color, Icon }) => (
-                <div key={label} className="flex items-center gap-2.5 rounded-xl px-3 py-2.5" style={{ border: "1px solid rgba(0,0,0,0.05)" }}>
+                <div key={label} className="flex items-center gap-2.5 rounded-xl px-3 py-2.5" style={{ border: "1px solid var(--border)" }}>
                   <Icon size={15} style={{ color, opacity: 0.85 }} />
                   <div className="min-w-0">
                     <div className="text-[15px] font-semibold tabular-nums leading-none">{n}</div>
-                    <div className="text-[11px] text-[#a3a3a3] mt-0.5">{label}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{label}</div>
                   </div>
                 </div>
               ))}
@@ -416,8 +416,8 @@ function IconGhost({
       className={cn(
         "press flex items-center justify-center rounded-[8px] transition-[background-color,transform] motion-reduce:transition-none",
         disabled
-          ? "text-[#cfccc6] cursor-default"
-          : "text-[#737373] hover:bg-black/[0.05] active:scale-[0.97] cursor-pointer"
+          ? "text-muted-foreground/60 cursor-default"
+          : "text-muted-foreground hover:bg-accent active:scale-[0.97] cursor-pointer"
       )}
       style={{ width: 30, height: 30, transitionDuration: "140ms" }}
     >

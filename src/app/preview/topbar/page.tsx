@@ -51,15 +51,15 @@ const ENTITY = {
 } as const;
 
 const FILES = [
-  { id: "p1", type: "page" as const, title: "Acme Rebrand — Visual", meta: "edited 11m ago · DE" },
+  { id: "p1", type: "page" as const, title: "Acme Rebrand: Visual", meta: "edited 11m ago · DE" },
   { id: "d1", type: "deck" as const, title: "Kickoff Deck", meta: "edited 26m ago · DE" },
   { id: "s1", type: "sheet" as const, title: "Launch Budget", meta: "edited 31m ago · MC" },
   { id: "k1", type: "doc" as const, title: "Creative Brief", meta: "edited 41m ago · DE" },
 ];
 
 const PROJECTS = [
-  { name: "Acme Rebrand — Q3 Launch", accent: "#ff4a00", initial: "A", purpose: "Rebrand strategy, launch budget, and the kickoff deck.", meta: "4 files · edited 11m ago", members: ["DE", "MC"], status: "Active" },
-  { name: "Product Strategy 2026", accent: "#2a6dfb", initial: "P", purpose: "Three bets, one north star — activated teams.", meta: "4 files · edited 2h ago", members: ["DE"], status: "Active" },
+  { name: "Acme Rebrand: Q3 Launch", accent: "#ff4a00", initial: "A", purpose: "Rebrand strategy, launch budget, and the kickoff deck.", meta: "4 files · edited 11m ago", members: ["DE", "MC"], status: "Active" },
+  { name: "Product Strategy 2026", accent: "#2a6dfb", initial: "P", purpose: "Three bets, one north star, activated teams.", meta: "4 files · edited 2h ago", members: ["DE"], status: "Active" },
   { name: "Content Engine", accent: "#9061ff", initial: "C", purpose: "Plan, produce, and report from one place.", meta: "4 files · edited 2h ago", members: ["DE"], status: "Active" },
 ];
 
@@ -84,7 +84,7 @@ export default function TopBarPreview() {
       <header className="flex items-center gap-2.5 pl-4 pr-3 flex-shrink-0" style={{ height: 56 }}>
         <button
           onClick={(e) => { e.stopPropagation(); setView("projects"); }}
-          title="Home — all projects"
+          title="Home: all projects"
           className="flex items-center justify-center rounded-[9px] text-white font-bold flex-shrink-0 active:scale-95 transition-transform"
           style={{ width: 30, height: 30, background: HEAT, fontSize: 15 }}
         >
@@ -97,13 +97,13 @@ export default function TopBarPreview() {
             <span className="font-medium px-2 text-[#171717]">Home</span>
           ) : (
             <BreadcrumbButton
-              label="Acme Rebrand — Q3 Launch"
+              label="Acme Rebrand: Q3 Launch"
               open={projectDd}
               onToggle={(e) => { e.stopPropagation(); setProjectDd((v) => !v); setFileDd(false); }}
               accent={HEAT}
               heading="Switch project"
               items={[
-                { label: "Acme Rebrand — Q3 Launch", current: true, onSelect: () => setView("project") },
+                { label: "Acme Rebrand: Q3 Launch", current: true, onSelect: () => setView("project") },
                 { label: "Product Strategy 2026", onSelect: () => setView("project") },
                 { label: "Content Engine", onSelect: () => setView("project") },
                 { label: "All projects…", action: true, accent: "#737373", onSelect: () => setView("projects") },
@@ -114,14 +114,14 @@ export default function TopBarPreview() {
             <>
               <span className="text-[#b9b6b0] select-none px-0.5">/</span>
               <BreadcrumbButton
-                label="Acme Rebrand — Visual"
+                label="Acme Rebrand: Visual"
                 open={fileDd}
                 onToggle={(e) => { e.stopPropagation(); setFileDd((v) => !v); setProjectDd(false); }}
                 accent="#9061ff"
                 icon={<LayoutTemplate size={13} className="text-[#9061ff]" />}
                 heading="Open files"
                 items={[
-                  { label: "Acme Rebrand — Visual", current: true, icon: "page" },
+                  { label: "Acme Rebrand: Visual", current: true, icon: "page" },
                   { label: "Launch Budget", icon: "sheet" },
                   { label: "All files…", action: true, accent: "#737373" },
                 ]}
@@ -148,7 +148,7 @@ export default function TopBarPreview() {
             </>
           )}
           {inProjectScope && (
-            <button className="flex items-center gap-1.5 h-[30px] px-2.5 rounded-[8px] text-[12.5px] font-medium text-[#525252] hover:bg-black/[0.05] transition-colors" title="Project Brain — what Primy knows about this project">
+            <button className="flex items-center gap-1.5 h-[30px] px-2.5 rounded-[8px] text-[12.5px] font-medium text-[#525252] hover:bg-black/[0.05] transition-colors" title="Project Brain: what Primy knows about this project">
               <Brain size={14} className="text-[#9061ff]" />
               Brain
             </button>
@@ -181,7 +181,7 @@ export default function TopBarPreview() {
             <div className="rounded-xl px-3.5 py-3 text-[13.5px] leading-relaxed text-[#2d2d2d]" style={{ background: "#faf9f7", border: `1px solid ${BORDER_FAINT}` }}>
               {view === "projects"
                 ? <>Welcome back, Deepak. Pick a project to dive in, or tell me what you want to build.</>
-                : <>Hi! I&apos;ve got the full context for <b>Acme Rebrand</b> — the brief, budget, and deck. What do you want to work on?</>}
+                : <>Hi! I&apos;ve got the full context for <b>Acme Rebrand</b>: the brief, budget, and deck. What do you want to work on?</>}
             </div>
             <div className="flex flex-col gap-1.5 mt-3">
               {(view === "projects"
@@ -272,7 +272,7 @@ function GlobalHomeView({ onOpenProject }: { onOpenProject: () => void }) {
           <span className="text-[12px] font-semibold uppercase tracking-wide text-[#a3a3a3]">Recent activity</span>
           <div className="mt-3 space-y-2.5">
             {[
-              ["DE", "created the Acme Rebrand — Visual page", "11m ago"],
+              ["DE", "created the Acme Rebrand: Visual page", "11m ago"],
               ["MC", "edited Launch Budget", "31m ago"],
               ["DE", "created Product Strategy 2026", "2h ago"],
             ].map(([who, what, when], i) => (
@@ -298,11 +298,11 @@ function ProjectHomeView({ onOpenFile }: { onOpenFile: () => void }) {
           <div>
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full" style={{ background: HEAT }} />
-              <h1 className="text-[24px] font-semibold tracking-[-0.02em]">Acme Rebrand — Q3 Launch</h1>
+              <h1 className="text-[24px] font-semibold tracking-[-0.02em]">Acme Rebrand: Q3 Launch</h1>
               <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#eafaef", color: "#2e9e47" }}>Active</span>
             </div>
             <p className="text-[14px] text-[#525252] mt-1.5 max-w-[560px]">
-              The approachable expert: rebrand strategy, launch budget, and the kickoff deck — one source of truth.
+              The approachable expert: rebrand strategy, launch budget, and the kickoff deck, one source of truth.
             </p>
             <div className="flex items-center gap-2 mt-3 text-[12px] text-[#a3a3a3]">
               <span>Client: Acme Inc.</span><span>·</span><span>Launch Sept 30</span><span>·</span>
@@ -363,7 +363,7 @@ function FileView() {
         <div className="max-w-[640px] mx-auto px-7 py-8">
           <div className="rounded-2xl px-7 py-7 text-white relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${HEAT} 0%, #ff7a45 100%)` }}>
             <div className="text-[11px] font-semibold tracking-[0.12em] uppercase opacity-90">Creative Brief</div>
-            <div className="text-[26px] font-bold tracking-[-0.02em] mt-2">Acme Rebrand — at a glance</div>
+            <div className="text-[26px] font-bold tracking-[-0.02em] mt-2">Acme Rebrand at a glance</div>
             <div className="text-[14px] opacity-90 mt-1.5">The approachable expert: sharp, warm, human.</div>
             <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full" style={{ background: "rgba(255,255,255,0.12)" }} />
           </div>

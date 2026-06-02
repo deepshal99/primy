@@ -37,7 +37,7 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
         return (
           <div
             key={att.id}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-white/20 bg-white/10"
+            className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-border bg-card"
           >
             {att.previewUrl ? (
               <img
@@ -46,12 +46,12 @@ export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
                 className="w-6 h-6 rounded object-cover"
               />
             ) : (
-              <Icon className="w-3 h-3 opacity-70" strokeWidth={1.5} />
+              <Icon className="w-3 h-3 text-icon" strokeWidth={1.5} />
             )}
-            <span className="text-[11px] font-medium truncate max-w-[100px] opacity-90">
+            <span className="text-[11px] font-medium truncate max-w-[100px] text-foreground">
               {att.name}
             </span>
-            <span className="text-[10px] px-1 py-0.5 rounded bg-white/10 font-medium uppercase opacity-60">
+            <span className="text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-medium uppercase">
               {labelMap[att.type] || att.type}
             </span>
           </div>

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
@@ -180,19 +180,19 @@ export function VersionHistoryPanel({
         className="max-w-[560px] p-0 gap-0 overflow-hidden"
         style={{ borderRadius: 12 }}
       >
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-[rgba(0,0,0,0.06)]">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
           <div className="flex items-center gap-2.5">
             <div
-              className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#fafaf8] border border-[rgba(0,0,0,0.06)]"
+              className="flex items-center justify-center w-8 h-8 rounded-lg bg-secondary border border-border"
               aria-hidden
             >
-              <History className="w-4 h-4 text-[#525252]" />
+              <History className="w-4 h-4 text-icon" />
             </div>
             <div className="flex flex-col">
-              <DialogTitle className="text-[15px] font-medium text-[#171717] leading-tight">
+              <DialogTitle className="text-[15px] font-medium text-foreground leading-tight">
                 Version history
               </DialogTitle>
-              <DialogDescription className="text-[12.5px] text-[#737373] leading-tight mt-0.5">
+              <DialogDescription className="text-[12.5px] text-muted-foreground leading-tight mt-0.5">
                 Restore any version of this {noun}. Primy saves a version after
                 each AI edit.
               </DialogDescription>
@@ -203,12 +203,12 @@ export function VersionHistoryPanel({
         <div className="flex flex-col max-h-[60vh]">
           {/* Save row */}
           {getCurrentContent && (
-            <div className="px-6 py-4 border-b border-[rgba(0,0,0,0.06)] bg-[#fafaf8]/40">
+            <div className="px-6 py-4 border-b border-border bg-secondary/40">
               <div className="flex items-center gap-2">
                 <Input
                   value={labelInput}
                   onChange={(e) => setLabelInput(e.target.value)}
-                  placeholder="Label (optional) — e.g. before client review"
+                  placeholder="Label (optional), e.g. before client review"
                   className="flex-1 h-9 text-[13px]"
                   disabled={saving}
                   maxLength={100}
@@ -217,7 +217,7 @@ export function VersionHistoryPanel({
                   onClick={handleSaveNow}
                   disabled={saving}
                   className="h-9 px-3 text-[13px] gap-1.5"
-                  style={{ backgroundColor: "#1A1815", color: "white" }}
+                  style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }}
                 >
                   <Save className="w-3.5 h-3.5" />
                   {saving ? "Saving…" : "Save version now"}
@@ -246,13 +246,12 @@ export function VersionHistoryPanel({
             )}
 
             {!loading && list.length === 0 && (
-              <div className="py-8">
-                <EmptyState
-                  icon={<Clock className="w-7 h-7 text-[#a3a3a3]" />}
-                  heading="No saved versions yet"
-                  description={`Primy will save a version automatically after the next AI edit to this ${noun}.`}
-                />
-              </div>
+              <EmptyState
+                size="sm"
+                icon={Clock}
+                title="No saved versions yet"
+                description={`Primy saves a version automatically after the next AI edit to this ${noun}.`}
+              />
             )}
 
             {!loading && list.length > 0 && (
@@ -260,23 +259,23 @@ export function VersionHistoryPanel({
                 {list.map((snap) => (
                   <li
                     key={snap.id}
-                    className="group flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-[#fafaf8] transition-colors"
+                    className="group flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-accent transition-colors"
                   >
                     <div
-                      className="flex items-center justify-center w-8 h-8 rounded-md bg-[#fafaf8] border border-[rgba(0,0,0,0.06)] shrink-0"
+                      className="flex items-center justify-center w-8 h-8 rounded-md bg-secondary border border-border shrink-0"
                       aria-hidden
                     >
-                      <Clock className="w-3.5 h-3.5 text-[#737373]" />
+                      <Clock className="w-3.5 h-3.5 text-icon" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div
-                        className="text-[13px] text-[#171717] font-medium truncate"
+                        className="text-[13px] text-foreground font-medium truncate"
                         title={snap.label ?? formatAbsolute(snap.createdAt)}
                       >
                         {snap.label || "Auto-saved"}
                       </div>
                       <div
-                        className="text-[12px] text-[#737373] truncate"
+                        className="text-[12px] text-muted-foreground truncate"
                         title={formatAbsolute(snap.createdAt)}
                       >
                         {formatRelative(snap.createdAt, now)}

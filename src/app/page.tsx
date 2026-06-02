@@ -5,12 +5,12 @@ import {
   FileText,
   Sheet,
   Presentation,
-  Sparkles,
   Layers,
   Brain,
   Upload,
   Check,
 } from "lucide-react";
+import { LogoMark } from "@/components/shared/Logo";
 import { MarketingNav } from "@/components/marketing/MarketingNav";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { CTAButton } from "@/components/marketing/CTAButton";
@@ -21,9 +21,9 @@ export const dynamic = "force-static";
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Primy — The AI workspace for docs, sheets, and decks",
+  title: "Primy: The AI workspace for docs, sheets, and decks",
   description:
-    "Chat to create and edit docs, sheets, and decks. Drag in any file. Project memory keeps everything connected — so you never copy-paste from ChatGPT again.",
+    "Chat to create and edit docs, sheets, and decks. Drag in any file. Project memory keeps everything connected, so you never copy-paste from ChatGPT again.",
 };
 
 /* ──────────────────────────────────────────────
@@ -68,7 +68,7 @@ function Hero() {
                 className="w-1.5 h-1.5 rounded-full"
                 style={{ backgroundColor: "#FFB43F" }}
               />
-              <span>Now in beta — Pro free for 60 days</span>
+              <span>Now in beta. Pro free for 60 days</span>
             </div>
 
             <h1
@@ -84,13 +84,13 @@ function Hero() {
 
             <p className="mt-6 max-w-[520px] text-[16px] leading-[1.6] text-[#525252]">
               Chat to create and edit them all. Drag in any file.
-              Project memory keeps everything connected — so you
+              Project memory keeps everything connected, so you
               never copy-paste from ChatGPT again.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <CTAButton href="/login?mode=signup" variant="primary" size="lg">
-                Get started — free
+                Get started, free
                 <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.25} />
               </CTAButton>
               <CTAButton href="/pricing" variant="ghost" size="lg">
@@ -280,7 +280,7 @@ function ValueProps() {
       icon: Layers,
       title: "One workspace",
       body:
-        'Docs, sheets, and decks live together. No more "where did I save that?" — every artifact lives inside the project that produced it.',
+        'Docs, sheets, and decks live together. No more "where did I save that?" Every artifact lives inside the project that produced it.',
     },
     {
       icon: Brain,
@@ -292,7 +292,7 @@ function ValueProps() {
       icon: Upload,
       title: "Drag in anything",
       body:
-        "PDFs, spreadsheets, voice memos, screenshots. AI reads them all and builds with full context — never starting from a blank page.",
+        "PDFs, spreadsheets, voice memos, screenshots. AI reads them all and builds with full context, never starting from a blank page.",
     },
   ];
 
@@ -350,7 +350,7 @@ function KillerDemo() {
           </h2>
           <p className="mt-4 text-[15px] text-[#525252] max-w-[560px] mx-auto leading-relaxed">
             Most AI tools forget what you did yesterday. Primy remembers
-            every file and every artifact in the project — so the second
+            every file and every artifact in the project, so the second
             ask is faster than the first.
           </p>
         </div>
@@ -435,7 +435,7 @@ function KillerDemo() {
             style={{ borderColor: "rgba(255,180,63,0.20)" }}
           >
             <div className="flex items-center gap-2 mb-6">
-              <Sparkles className="w-3.5 h-3.5" style={{ color: "#FFB43F" }} strokeWidth={2.25} />
+              <LogoMark size={14} style={{ color: "#171716" }} />
               <span
                 className="text-[11px] font-medium uppercase tracking-[0.08em]"
                 style={{ color: "#B87426" }}
@@ -539,7 +539,7 @@ function Artifacts() {
             tint="rgba(42,109,251,0.06)"
             icon={FileText}
             type="Documents"
-            pitch="Briefs, proposals, status updates — drafted with Plate-grade rich text."
+            pitch="Briefs, proposals, status updates, drafted with Plate-grade rich text."
             preview={<DocPreview />}
           />
           <ArtifactCard

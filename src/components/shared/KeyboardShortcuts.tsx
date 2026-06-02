@@ -48,17 +48,17 @@ export function KeyboardShortcuts() {
     >
       <div className="absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity duration-150" />
       <div
-        className="relative w-full max-w-[380px] rounded-2xl border border-[#e8e8ed] bg-white p-6 animate-scale-in mx-4"
-        style={{ boxShadow: "0 8px 30px rgba(0,0,0,0.08)" }}
+        className="relative w-full max-w-[380px] rounded-2xl border border-border bg-card p-6 animate-scale-in mx-4"
+        style={{ boxShadow: "var(--shadow-pane)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-heading-lg font-heading text-[#1a1a2e]">
+          <h3 className="text-heading-lg font-heading text-foreground">
             Keyboard Shortcuts
           </h3>
           <button
             onClick={() => setOpen(false)}
-            className="w-6 h-6 flex items-center justify-center rounded-md text-[#95928E] hover:bg-[#f5f4f0] t-colors"
+            className="w-6 h-6 flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent t-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -70,14 +70,14 @@ export function KeyboardShortcuts() {
               key={shortcut.desc}
               className="flex items-center justify-between py-1.5"
             >
-              <span className="text-body-sm text-[#6b6b80]">
+              <span className="text-body-sm text-muted-foreground">
                 {shortcut.desc}
               </span>
               <div className="flex items-center gap-1">
                 {shortcut.keys.map((key) => (
                   <kbd
                     key={key}
-                    className="px-1.5 py-0.5 rounded-md border border-[#e8e8ed] bg-[#f5f5f3] text-[#6b6b80] text-label font-medium min-w-[24px] text-center"
+                    className="px-1.5 py-0.5 rounded-md border border-border bg-muted text-muted-foreground text-label font-medium min-w-[24px] text-center"
                   >
                     {key}
                   </kbd>
@@ -87,7 +87,7 @@ export function KeyboardShortcuts() {
           ))}
         </div>
 
-        <p className="text-label mt-5 text-center text-[#95928E]">
+        <p className="text-label mt-5 text-center text-muted-foreground">
           Use Ctrl on Windows/Linux instead of {"\u2318"}
         </p>
       </div>

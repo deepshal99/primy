@@ -177,7 +177,7 @@ export function DocExportMenu() {
       <DropdownMenuTrigger asChild>
         <button
           disabled={!hasContent}
-          className="w-[30px] h-[30px] flex items-center justify-center rounded-lg text-[#a3a3a3] hover:text-[#525252] hover:bg-black/[0.04] active:scale-[0.95] transition-colors duration-150 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+          className="w-[30px] h-[30px] flex items-center justify-center rounded-lg text-icon hover:text-foreground hover:bg-accent active:scale-[0.95] transition-colors duration-150 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
           title="Export"
         >
           <Download className="w-[14px] h-[14px]" />
@@ -193,12 +193,12 @@ export function DocExportMenu() {
           <span className="text-[12.5px]" style={{ fontWeight: 450 }}>Word (.docx)</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={downloadMarkdown} className="gap-2.5 px-2.5 py-1.5 rounded-md cursor-pointer">
-          <FileText className="w-3.5 h-3.5 text-[#525252] flex-shrink-0" />
+          <FileText className="w-3.5 h-3.5 text-icon flex-shrink-0" />
           <span className="text-[12.5px]" style={{ fontWeight: 450 }}>Markdown</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator className="my-1" />
         <DropdownMenuItem onClick={copyToClipboard} className="gap-2.5 px-2.5 py-1.5 rounded-md cursor-pointer">
-          <Copy className="w-3.5 h-3.5 text-[#525252] flex-shrink-0" />
+          <Copy className="w-3.5 h-3.5 text-icon flex-shrink-0" />
           <span className="text-[12.5px]" style={{ fontWeight: 450 }}>Copy text</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
