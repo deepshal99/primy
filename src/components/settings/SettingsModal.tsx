@@ -135,8 +135,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       setPwError("Enter your current password");
       return;
     }
-    if (newPassword.length < 6) {
-      setPwError("New password must be at least 6 characters");
+    if (newPassword.length < 8) {
+      setPwError("New password must be at least 8 characters");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -156,14 +156,16 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         setPwError(data.error || "Failed to change password");
         return;
       }
+      // Changing the password revokes all sessions (tokenVersion bump), so sign
+      // out gracefully and send the user to log in fresh — rather than letting
+      // their session drop on its own a few seconds later.
       setPwSuccess(true);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       setTimeout(() => {
-        setPwSuccess(false);
-        setPasswordOpen(false);
-      }, 2000);
+        signOut({ callbackUrl: "/login" });
+      }, 1500);
     } catch {
       setPwError("Network error");
     } finally {

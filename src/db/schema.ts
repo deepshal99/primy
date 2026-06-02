@@ -24,6 +24,9 @@ export const users = pgTable("users", {
   name: varchar("name", { length: 255 }).notNull(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  // Bumped on password reset/change and "log out everywhere"; the JWT carries
+  // the value it was minted with, and a stale value invalidates the session.
+  tokenVersion: integer("token_version").notNull().default(0),
   hasOnboarded: boolean("has_onboarded").default(false).notNull(),
   plan: varchar("plan", { length: 20 }).notNull().default("free"), // "free" | "pro"
   proUntil: timestamp("pro_until"), // nullable — promo / founding-member grace

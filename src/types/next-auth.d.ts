@@ -25,5 +25,9 @@ declare module "next-auth/jwt" {
     id?: string;
     plan?: string;
     proUntil?: string | null;
+    /** users.tokenVersion the token was minted with; a stale value revokes it. */
+    tv?: number;
+    /** epoch ms of the last DB revalidation (cadence-cached). */
+    tvCheckedAt?: number;
   }
 }

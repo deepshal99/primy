@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { users, passwordResetTokens } from "@/db/schema";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and, gt, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { validatePassword } from "@/lib/authPolicy";
@@ -59,9 +59,11 @@ export async function POST(req: Request) {
     // Hash new password and update user
     const passwordHash = await bcrypt.hash(password, 12);
 
+    // Bumping tokenVersion revokes every existing session for this user — the
+    // whole point of a reset after a suspected takeover.
     await db
       .update(users)
-      .set({ passwordHash })
+      .set({ passwordHash, tokenVersion: sql`${users.tokenVersion} + 1` })
       .where(eq(users.id, resetToken.userId));
 
     // Delete ALL tokens for this user

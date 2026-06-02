@@ -82,13 +82,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           return { id: newUser.id, name: newUser.name, email: newUser.email };
         } else {
+          // Local dev convenience: the dev-only admin (admin@*.local) bypasses
+          // the brute-force throttle so repeated auto-logins / hot reloads never
+          // lock the developer out. Gated to non-production AND dev-only emails;
+          // the production backstop above already blocks these accounts in prod,
+          // so real users always go through the full throttle below.
+          const devBypass =
+            process.env.NODE_ENV !== "production" && isDevOnlyEmail(email);
+
           // Brute-force / credential-stuffing throttle (durable, per-email AND
           // per-IP). Checked BEFORE any work so a locked account/IP is cheap.
           const eKey = emailKey(email);
           const iKey = ipKey(getClientIp(request));
-          const lock = Math.max(await lockedSeconds(eKey), await lockedSeconds(iKey));
-          if (lock > 0) {
-            throw new Error(`Too many attempts. Try again in ${Math.ceil(lock / 60)} min.`);
+          if (!devBypass) {
+            const lock = Math.max(await lockedSeconds(eKey), await lockedSeconds(iKey));
+            if (lock > 0) {
+              throw new Error(`Too many attempts. Try again in ${Math.ceil(lock / 60)} min.`);
+            }
           }
 
           // Always run a bcrypt compare (against a dummy hash when the user is
@@ -127,34 +137,43 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     // subscription events, withPlanLimit could be optimized to read from
     // the session directly.
     async jwt({ token, user, trigger }) {
+      // Initial sign-in: mint the token with id + current plan + tokenVersion.
       if (user) {
-        token.id = user.id;
-        token.name = user.name;
-        // Fetch plan + proUntil on initial sign-in so the token carries
-        // them from the start.
         const [dbUser] = await db
-          .select({ plan: users.plan, proUntil: users.proUntil })
+          .select({ name: users.name, plan: users.plan, proUntil: users.proUntil, tokenVersion: users.tokenVersion })
           .from(users)
           .where(eq(users.id, user.id as string))
           .limit(1);
-        if (dbUser) {
-          token.plan = dbUser.plan;
-          token.proUntil = dbUser.proUntil ? dbUser.proUntil.toISOString() : null;
-        }
+        token.id = user.id;
+        token.name = dbUser?.name ?? (user.name as string);
+        token.plan = dbUser?.plan;
+        token.proUntil = dbUser?.proUntil ? dbUser.proUntil.toISOString() : null;
+        token.tv = dbUser?.tokenVersion ?? 0;
+        token.tvCheckedAt = Date.now();
+        return token;
       }
-      // When client calls update() after name change (or plan upgrade),
-      // refresh from DB so the session reflects the new state.
-      if (trigger === "update" && token.id) {
+
+      // Every subsequent request: re-validate against the DB on a short cadence
+      // (not every call, to bound DB load). This is what makes a password reset
+      // / "log out everywhere" invalidate stolen tokens — within ~30s — and
+      // keeps plan/proUntil fresh. Force a check when the client calls update().
+      const REVALIDATE_MS = 30_000;
+      const lastChecked = typeof token.tvCheckedAt === "number" ? token.tvCheckedAt : 0;
+      const stale = trigger === "update" || Date.now() - lastChecked > REVALIDATE_MS;
+      if (token.id && stale) {
         const [dbUser] = await db
-          .select({ name: users.name, plan: users.plan, proUntil: users.proUntil })
+          .select({ name: users.name, plan: users.plan, proUntil: users.proUntil, tokenVersion: users.tokenVersion })
           .from(users)
           .where(eq(users.id, token.id as string))
           .limit(1);
-        if (dbUser) {
-          token.name = dbUser.name;
-          token.plan = dbUser.plan;
-          token.proUntil = dbUser.proUntil ? dbUser.proUntil.toISOString() : null;
+        // User deleted, or token version bumped → revoke by stripping identity.
+        if (!dbUser || dbUser.tokenVersion !== token.tv) {
+          return {};
         }
+        token.name = dbUser.name;
+        token.plan = dbUser.plan;
+        token.proUntil = dbUser.proUntil ? dbUser.proUntil.toISOString() : null;
+        token.tvCheckedAt = Date.now();
       }
       return token;
     },

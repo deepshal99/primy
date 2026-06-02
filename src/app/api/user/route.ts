@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { effectivePlan, isOnGracePeriod } from "@/lib/billing";
 import { validatePassword } from "@/lib/authPolicy";
@@ -117,9 +117,12 @@ export async function PATCH(req: Request) {
       }
 
       const newHash = await bcrypt.hash(newPassword, 12);
+      // Bump tokenVersion so a password change revokes ALL sessions (the secure
+      // default — any compromised session is killed). The client signs out and
+      // sends the user to log in again.
       await db
         .update(users)
-        .set({ passwordHash: newHash })
+        .set({ passwordHash: newHash, tokenVersion: sql`${users.tokenVersion} + 1` })
         .where(eq(users.id, session.user.id));
 
       return Response.json({ success: true });
