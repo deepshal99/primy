@@ -85,6 +85,10 @@ export async function POST(req: Request) {
     // Send email via Resend
     const resetUrl = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}`;
 
+    // Send the email best-effort. A misconfigured/unreachable mailer must NOT
+    // surface a 500 — that would both break UX and leak (via status) that this
+    // email exists. The token is already stored; the user can retry.
+    try {
     await getResend().emails.send({
       from: process.env.RESEND_FROM_EMAIL || "Primy <noreply@primy.ai>",
       to: user.email,
@@ -124,6 +128,9 @@ export async function POST(req: Request) {
         </html>
       `,
     });
+    } catch (mailErr) {
+      console.error("[API] forgot-password: email send failed:", mailErr instanceof Error ? mailErr.message : mailErr);
+    }
 
     return successResponse;
   } catch (error) {

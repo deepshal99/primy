@@ -27,3 +27,31 @@ export function validatePassword(password: unknown): string | null {
 export function isDevOnlyEmail(email: string): boolean {
   return /@[a-z0-9.-]*\.local$/i.test(email);
 }
+
+/**
+ * Reject passwords known to be compromised, via HaveIBeenPwned's k-anonymity
+ * range API — only the first 5 chars of the SHA-1 ever leave the server, never
+ * the password. FAILS OPEN: if HIBP is unreachable, we allow the password
+ * rather than block signups on a third-party outage.
+ */
+export async function isBreachedPassword(password: string): Promise<boolean> {
+  try {
+    const { createHash } = await import("crypto");
+    const sha1 = createHash("sha1").update(password).digest("hex").toUpperCase();
+    const prefix = sha1.slice(0, 5);
+    const suffix = sha1.slice(5);
+    const res = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+      headers: { "Add-Padding": "true" },
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return false;
+    const body = await res.text();
+    for (const line of body.split("\n")) {
+      const [hashSuffix, count] = line.split(":");
+      if (hashSuffix?.trim() === suffix && Number(count) > 0) return true;
+    }
+    return false;
+  } catch {
+    return false; // fail open
+  }
+}

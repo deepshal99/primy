@@ -3,7 +3,7 @@ import { users, passwordResetTokens } from "@/db/schema";
 import { eq, and, gt, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { validatePassword } from "@/lib/authPolicy";
+import { validatePassword, isBreachedPassword } from "@/lib/authPolicy";
 
 export async function POST(req: Request) {
   try {
@@ -32,6 +32,12 @@ export async function POST(req: Request) {
     const pwError = validatePassword(password);
     if (pwError || typeof password !== "string") {
       return Response.json({ error: pwError ?? "Password is required" }, { status: 400 });
+    }
+    if (await isBreachedPassword(password)) {
+      return Response.json(
+        { error: "This password has appeared in a data breach. Please choose a different one." },
+        { status: 400 },
+      );
     }
 
     // Look up valid, non-expired token

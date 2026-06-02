@@ -5,7 +5,7 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
-import { validatePassword, isDevOnlyEmail } from "@/lib/authPolicy";
+import { validatePassword, isDevOnlyEmail, isBreachedPassword } from "@/lib/authPolicy";
 import { emailKey, ipKey, lockedSeconds, recordFailure, clearAttempts, THRESHOLDS } from "@/lib/authThrottle";
 
 function getClientIp(request: Request | undefined): string {
@@ -56,6 +56,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (mode === "signup") {
           const pwError = validatePassword(password);
           if (pwError) throw new Error(pwError);
+          if (await isBreachedPassword(password)) {
+            throw new Error("This password has appeared in a data breach. Please choose a different one.");
+          }
 
           // Check if email already exists. (Sign-up necessarily reveals whether
           // an email is taken — that's an accepted UX tradeoff, mitigated by

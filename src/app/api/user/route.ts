@@ -4,7 +4,7 @@ import { users } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { effectivePlan, isOnGracePeriod } from "@/lib/billing";
-import { validatePassword } from "@/lib/authPolicy";
+import { validatePassword, isBreachedPassword } from "@/lib/authPolicy";
 
 export async function GET() {
   try {
@@ -99,6 +99,12 @@ export async function PATCH(req: Request) {
       const pwError = validatePassword(newPassword);
       if (pwError) {
         return Response.json({ error: pwError }, { status: 400 });
+      }
+      if (await isBreachedPassword(String(newPassword))) {
+        return Response.json(
+          { error: "This password has appeared in a data breach. Please choose a different one." },
+          { status: 400 },
+        );
       }
 
       const [user] = await db
