@@ -370,6 +370,48 @@ export function parseTableOperations(fullText: string): TableOperation[] {
 
 // ── HTML Page Operations Parser ──
 
+/**
+ * Find balanced top-level JSON values (arrays `[...]` or objects `{...}`) in
+ * free text, string-aware so brackets inside HTML/string values don't break the
+ * walk. Captures only OUTERMOST spans (continues past a matched span), so a
+ * `{ ...slides:[...] }` object isn't split at its inner array. Used to salvage
+ * operation blocks the model emitted WITHOUT the required fence.
+ */
+function extractBareJsonValues(fullText: string): string[] {
+  const spans: string[] = [];
+  let i = 0;
+  while (i < fullText.length) {
+    const open = fullText[i];
+    if (open !== "[" && open !== "{") { i++; continue; }
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    let j = i;
+    for (; j < fullText.length; j++) {
+      const ch = fullText[j];
+      if (inString) {
+        if (escape) escape = false;
+        else if (ch === "\\") escape = true;
+        else if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') inString = true;
+      else if (ch === "[" || ch === "{") depth++;
+      else if (ch === "]" || ch === "}") {
+        depth--;
+        if (depth === 0) break;
+      }
+    }
+    if (depth === 0 && j > i) {
+      spans.push(fullText.slice(i, j + 1));
+      i = j + 1;
+    } else {
+      i++;
+    }
+  }
+  return spans;
+}
+
 export function parsePageOperations(fullText: string): PageOperation[] {
   const blocks = extractFencedBlocks(fullText, "pageops");
   const operations: PageOperation[] = [];
@@ -386,6 +428,29 @@ export function parsePageOperations(fullText: string): PageOperation[] {
       }
     } else {
       if (process.env.NODE_ENV !== "production") console.warn("[Primy] Failed to parse pageops block:", block.slice(0, 200));
+    }
+  }
+
+  // Fenceless salvage: the model sometimes emits a bare `[{ "type": "CREATE",
+  // "html": "..." }]` array with no ```pageops fence, which would otherwise be
+  // dropped silently (the user sees the JSON but no page is ever created).
+  if (operations.length === 0) {
+    for (const raw of extractBareJsonValues(fullText)) {
+      if (!raw.includes('"html"') || !raw.includes('"type"')) continue;
+      const parsed = parseHtmlDeckopsBlock(raw); // HTML-aware JSON recovery
+      const ops: any[] = Array.isArray(parsed)
+        ? parsed
+        : parsed && parsed.type
+          ? [parsed]
+          : [];
+      for (const op of ops) {
+        if (!op || typeof op.type !== "string") continue;
+        if ((op.type === "CREATE" || op.type === "UPDATE") && typeof op.html !== "string") continue;
+        operations.push(op as PageOperation);
+      }
+    }
+    if (operations.length > 0) {
+      console.warn("[Primy] Recovered pageops from an unfenced JSON array (model omitted the ```pageops fence)");
     }
   }
 
@@ -581,6 +646,35 @@ export function parseDeckOperations(fullText: string): DeckOperation[] {
           console.debug("[Primy] Last-resort extraction recovered", recovered.type === "CREATE" ? recovered.slides?.length : 0, "slides");
         }
       }
+    }
+  }
+
+  // Fenceless salvage: recover a deck the model emitted as a bare
+  // `{ "type": "CREATE", "slides": [...] }` object/array with no ```deckops
+  // fence (same silent-drop class as pages). Keyed on "slides" + "html" so it
+  // can't misfire on unrelated JSON in the reply.
+  if (operations.length === 0) {
+    for (const raw of extractBareJsonValues(fullText)) {
+      if (!raw.includes('"slides"') || !raw.includes('"html"')) continue;
+      const parsed = parseHtmlDeckopsBlock(raw);
+      const ops: any[] = Array.isArray(parsed)
+        ? parsed.filter((item: any) => item?.type)
+        : parsed && parsed.type
+          ? [parsed]
+          : [];
+      for (const op of ops) {
+        if (op.type === "CREATE" || op.type === "UPDATE") {
+          if (Array.isArray(op.slides)) {
+            op.slides = op.slides
+              .map((slide: any) => ('html' in slide && !('layout' in slide) ? normalizeHtmlSlide(slide) : slide))
+              .filter(Boolean);
+          }
+        }
+        operations.push(op as DeckOperation);
+      }
+    }
+    if (operations.length > 0) {
+      console.warn("[Primy] Recovered deckops from an unfenced JSON value (model omitted the ```deckops fence)");
     }
   }
 
@@ -798,7 +892,7 @@ export function validateThemeConfig(raw: unknown): ThemeConfig | null {
 export function extractDisplayText(fullText: string): string {
   // Strip operation fenced blocks; convert deckoutline to readable markdown
   let result = fullText;
-  for (const tag of ["sheetops", "docops", "kuops", "tableops", "deckops", "deckoutline"]) {
+  for (const tag of ["sheetops", "docops", "kuops", "tableops", "deckops", "pageops", "deckoutline"]) {
     const openPattern = new RegExp("```" + tag + "\\s*\\n?", "g");
     let openMatch: RegExpExecArray | null;
     const ranges: [number, number, string][] = []; // [start, end, replacement]

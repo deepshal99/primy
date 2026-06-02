@@ -50,3 +50,30 @@ describe("parsePageOperations — truncation salvage", () => {
     expect(() => parsePageOperations(truncated)).not.toThrow();
   });
 });
+
+describe("parsePageOperations — fenceless salvage", () => {
+  test("recovers a CREATE the model emitted as a bare array with no ```pageops fence", () => {
+    // Reproduces the live failure: the page op was printed as raw JSON with no
+    // fence, so the fence-only parser dropped it and the user saw no page.
+    const unfenced = [
+      "Here's a fun, colorful HTML visual page showcasing the stats.",
+      "",
+      '[{ "type": "CREATE", "title": "IPL 2024 — Insane Stats", "html": "<!doctype html><html><body><h1>Stats</h1><p style=\\"color:red\\">287/3</p></body></html>" }]',
+      "",
+      "This page is ready to link from your site.",
+    ].join("\n");
+
+    const ops = parsePageOperations(unfenced);
+    expect(ops).toHaveLength(1);
+    expect(ops[0].type).toBe("CREATE");
+    if (ops[0].type === "CREATE") {
+      expect(ops[0].title).toBe("IPL 2024 — Insane Stats");
+      expect(ops[0].html).toContain("287/3");
+    }
+  });
+
+  test("does not double-create when the page IS properly fenced", () => {
+    const fenced = '```pageops\n[{"type":"CREATE","title":"T","html":"<!doctype html><html></html>"}]\n```';
+    expect(parsePageOperations(fenced)).toHaveLength(1);
+  });
+});
