@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Primy AI is an AI-powered workspace where users create and manage documents, spreadsheets, and presentation decks — all connected through a chat-based AI assistant. OpenAI is the primary provider for chat. Google (Gemini) is used only for deck generation/editing where it performs better. Both are required.
+Primy AI is an AI-powered workspace where users create and manage documents, spreadsheets, presentation decks, and HTML pages — all connected through a chat-based AI assistant. **OpenAI is the sole provider currently routed** (chat, deck generate/edit/critique, title, summarize, embeddings); a Google/Gemini client is still wired but no task routes to it today. Beyond the per-project workspace, two global surfaces sit in the sidebar: **Recents** (cross-workspace "jump back in") and **Quick Note** (frictionless capture into a dedicated Quick Notes workspace).
 
 ## Strategy & Positioning
 
@@ -19,10 +19,16 @@ See `docs/superpowers/specs/2026-05-01-primy-v1-strategy.md` for full strategic 
 npm run dev          # Start dev server (Next.js 16 + Turbopack)
 npm run build        # Production build
 npm run lint         # ESLint
+npm run test         # Vitest (watch)
+npm run test:run     # Vitest (single run, CI)
+npm run dev:admin    # Seed/refresh the local dev admin (admin@primy.local / admin)
+npm run seed:demo    # Seed demo data
+npm run migrate:ssot # Apply team-SSOT schema
+npm run migrate:grace# Grant founding-member grace
 npx drizzle-kit push # Push schema changes to Neon PostgreSQL
 ```
 
-No test framework is configured. There are no unit tests.
+**Testing**: Vitest is configured (`tests/`, ~14 files incl. `lib/deck/*`, `lib/billing/*`, `parseAIResponse`, `projectAccess`, `opPromotion`, `plans`). Run `npm run test:run` before shipping. There is no E2E suite — feature verification is done by driving the running app in a browser.
 
 ## Tech Stack
 
@@ -32,46 +38,52 @@ No test framework is configured. There are no unit tests.
 - **Auth**: NextAuth v5 (credentials + JWT)
 - **State**: Zustand v5 + Immer (client-side, debounced sync to server)
 - **Server state**: TanStack Query v5
-- **AI**: Vercel AI SDK 6 (`ai` + `@ai-sdk/openai` + `@ai-sdk/google`) — dual-provider support, currently using OpenAI
+- **AI**: Vercel AI SDK 6 (`ai` + `@ai-sdk/openai` + `@ai-sdk/google`) — dual-provider capable; **only OpenAI is routed today**
 - **Sheets**: Univer (Fortune Sheet migration complete)
-- **Docs**: Plate.js v52 (Slate-based rich text)
+- **Docs**: Plate.js v52 (Slate-based rich text) — also backs Quick Notes
 - **Inline Mermaid**: Plate.js fenced-code rendering
-- **Decks**: Custom slide system with pptxgenjs export + Puppeteer PDF
+- **Decks**: Custom slide system with pptxgenjs export + Puppeteer/Chromium PDF; an agentic **deck-refine** pipeline (critique → repair) is in progress (`src/lib/ai/deck/`, `src/lib/deck/`, `/api/deck-refine`)
+- **Auth hardening**: revocable sessions via `tokenVersion`, durable login throttle, breached-password check, password reset, "log out everywhere"
 
 ## Architecture
 
 ### Entity System
 
-Three entity types live inside a **Project**:
+Four entity types live inside a **Project**:
 
 | Entity | Type Key | DB Table | Content Format |
 |--------|----------|----------|----------------|
 | Document | `ku` (KnowledgeUnit) | `knowledgeUnits` | Plate.js JSON / Markdown |
 | Spreadsheet | `table` | `projectTables` | Univer `celldata[]` (jsonb) |
 | Deck | `deck` | `projectDecks` | `DeckSlide[]` with ThemeConfig (jsonb) |
+| Page | `page` | `projectPages` | Sanitized HTML + editable fields |
+
+Entities can be grouped into **Folders** within a project, and a Document can be moved across workspaces (the Quick Note → "Move to workspace" promote path).
 
 ### AI Provider & Model Routing
 
-Model selection is task-keyed (registry in `src/lib/ai/modelRouter.ts`). Each task is hard-mapped to the best provider for that workload — there is no global `AI_PROVIDER` switch:
+Model selection is task-keyed (registry in `src/lib/ai/modelRouter.ts`). Each task is hard-mapped to a model — there is no global `AI_PROVIDER` switch. **Everything currently routes to OpenAI** (the registry is the source of truth; the header comment in that file predates this and is itself being kept honest):
 
 | Task | Provider | Model | Max Output |
 |------|----------|-------|------------|
-| Chat (small context, <30KB) | openai | gpt-4.1-mini | 8,192 |
-| Chat (>30KB context) | openai | gpt-4.1 | 16,384 |
-| Deck generate | google | gemini-3.1-pro-preview | 65,536 |
-| Deck edit | google | gemini-3.1-pro-preview | 32,768 |
-| Title / Web search | openai | gpt-4.1-mini | 256 / 8,192 |
-| Summarize | openai | gpt-4.1 | 4,096 |
-| Embedding | openai | text-embedding-3-small | — |
+| `chat` | openai | gpt-4.1 | 16,384 |
+| `chat-heavy` (>30KB context) | openai | gpt-4.1 | 32,768 |
+| `chat-deep` (complex reasoning) | openai | gpt-5.5 (effort: medium, verbosity: low) | 32,768 |
+| `deck-generate` | openai | gpt-4.1 | 32,768 |
+| `deck-edit` | openai | gpt-4.1 | 32,768 |
+| `deck-critique` | openai | gpt-4.1 | 2,048 |
+| `title` / `web-search` | openai | gpt-4.1-mini | 256 / 8,192 |
+| `summarize` | openai | gpt-4.1 | 4,096 |
+| `embedding` | openai | text-embedding-3-small | — |
 
-Both `OPENAI_API_KEY` and `GEMINI_API_KEY` are required.
+`getModelConfig(task, contextSizeBytes?)` auto-promotes `chat` → `chat-heavy` past the 30KB threshold. **`OPENAI_API_KEY` is required.** `GEMINI_API_KEY` is still read for a lazily-created Google client, but no task routes to Google today (effectively dormant).
 
 ### AI Operation Flow
 
 1. User sends message → `POST /api/chat` with context injection (sheet CSV, doc content, project memory)
 2. `modelRouter.ts` selects model by task and context size (>30KB routes to heavier model for chat)
 3. AI streams response with JSON operations inside fenced blocks
-4. `parseAIResponse.ts` extracts operations from block types: `sheetops`, `docops`, `kuops`, `tableops`, `deckops`
+4. `parseAIResponse.ts` extracts operations from block types: `sheetops`, `docops`, `kuops`, `tableops`, `deckops`, `pageops`
 5. `finishStreaming()` in the store applies operations, opens new entity tabs, triggers debounced save
 
 ### Context Injection
@@ -80,11 +92,17 @@ Both `OPENAI_API_KEY` and `GEMINI_API_KEY` are required.
 
 ### State Management (`src/lib/store.ts`)
 
-This is the largest file (~78KB). All client-side state lives in a single Zustand store with Immer for immutable updates. Key patterns:
+This is the largest file in the codebase. All client-side state lives in a single Zustand store with Immer for immutable updates. Key patterns:
 - **Debounced save**: Projects save after 2000ms of inactivity, sheets after 800ms
 - **Version tracking**: `sheetVersion` counter forces Fortune Sheet remount after AI operations
 - **Undo/redo**: Snapshot-based, stored in Zustand state
-- **Entity CRUD**: `addKnowledgeUnit()`, `addTable()`, `addDeck()` + corresponding update/delete
+- **Entity CRUD**: `createKnowledgeUnit()` / `createTable()` / `createDeck()` / `createPage()` + `open*`/`rename*`/`delete*` per type
+- **Recents**: `recents[]` (localStorage, cap 40, deduped) recorded in every `open*` path; `recordRecent`/`removeRecent`
+- **Quick Note**: `ensureQuickNotesProject()` lazily provisions one dedicated "Quick Notes" workspace; `createQuickNote()` and `moveKnowledgeUnitToProject()` (optimistic promote, background server sync)
+
+### Navigation surfaces (V2 shell)
+
+`AppShellV2` (the active shell) renders three things in the main area, by precedence: a **system view** (`systemView: "recents" | "notes" | null`), then the per-project board/editor, then the full-screen chat hero when no project is open. The sidebar nav rows are **Quick Note**, **Recents**, **Search** (⌘K) — the old dead "Inbox" row was removed. The Quick Notes workspace is hidden from the Workspaces tree and surfaced only via the pinned Quick Note row.
 
 ### Key Files
 
@@ -93,27 +111,35 @@ This is the largest file (~78KB). All client-side state lives in a single Zustan
 - `src/lib/design.ts` — Design token system (import as `design`)
 - `src/lib/ai/systemPrompt.ts` — 27KB master system prompt with routing rules for all operation types
 - `src/lib/ai/parseAIResponse.ts` — Fenced block JSON extraction with fallback strategies
-- `src/lib/ai/modelRouter.ts` — Dual-provider model selection logic (OpenAI + Google)
-- `src/app/api/chat/route.ts` — Main streaming chat endpoint (supports both providers)
+- `src/lib/ai/modelRouter.ts` — Task-keyed model registry (OpenAI today; Google client dormant)
+- `src/app/api/chat/route.ts` — Main streaming chat endpoint
 - `src/db/schema.ts` — Drizzle PostgreSQL table definitions
-- `src/components/AppShell.tsx` — Main layout: sidebar + chat panel + workspace
+- `src/components/shell/v2/AppShellV2.tsx` — **Active shell** (Strut overhaul). Default; legacy `src/components/AppShell.tsx` still reachable via `/app?shell=v1`
+- `src/components/shell/v2/RecentsView.tsx` / `QuickNotesView.tsx` — the two global surfaces
+- `src/lib/auth.ts` — NextAuth v5 config (credentials, throttle, tokenVersion revocation, dev-admin bypass)
 
 ### API Routes
 
 - `POST /api/chat` — Streaming AI response (SSE) with full context
 - `GET/POST /api/projects` — Project listing and creation
-- `GET/PUT/DELETE /api/projects/[id]` — Project fetch, update, and delete (debounced save target)
+- `GET/PUT/DELETE /api/projects/[id]` — Project fetch, update, delete (debounced save target; KU/table/deck/page upserts, deletes, folder + entity-folder moves)
 - `GET /api/projects/[id]/messages` — Paginated message history
-- `POST /api/projects/[id]/share` — Generate/revoke share token
+- `POST /api/projects/[id]/share` — Generate/revoke project share token
+- `GET/POST /api/projects/[id]/members` — Team membership (SSOT access control)
+- `POST /api/deck-refine` — Agentic deck critique/repair pass (WIP)
 - `POST /api/extract` — File text extraction (PDF, DOCX, XLSX, ZIP)
 - `POST /api/embeddings` — Generate embeddings for semantic search
-- `POST /api/deck-ai` — Dedicated deck AI generation
-- `POST /api/export/pdf` — Server-side PDF generation (Puppeteer)
-- `POST /api/upload` — File upload to Vercel blob storage
+- `POST /api/export/pdf` — Server-side PDF generation (Puppeteer/Chromium)
 - `POST /api/unsplash` — Search Unsplash for deck images
+- `*/api/snapshots/[type]/[id]/...` — Artifact version history + restore
 - `GET /api/share/[token]` — Public sharing (no auth required)
+- `GET /api/usage` — Plan usage counters
 - `POST /api/title` — Auto-generate project title from content
-- `GET /api/user` — Current user profile
+- `GET /api/user` · `POST /api/user/logout-all` — Profile; revoke all sessions
+- `*/api/auth/[...nextauth]` · `/api/auth/forgot-password` · `/api/auth/reset-password` — Auth
+- `GET /api/cron/prune-snapshots` — Scheduled snapshot pruning
+
+File uploads go directly to Vercel Blob from the client (no `/api/upload` route); `src/db/schema.ts` tracks blob usage for orphan recovery.
 
 ## Design System
 
@@ -138,8 +164,10 @@ Required in `.env.local`:
 - `DATABASE_URL` — Neon PostgreSQL connection string
 - `NEXTAUTH_SECRET` — JWT signing secret
 - `NEXTAUTH_URL` — App URL (e.g. `http://localhost:3000`)
-- `OPENAI_API_KEY` — OpenAI API key (required — primary provider for chat, title, summarize, embeddings)
-- `GEMINI_API_KEY` — Google AI API key (required — used for deck generate/edit only)
+- `OPENAI_API_KEY` — OpenAI API key (**required** — the only provider currently routed: chat, deck, title, summarize, embeddings)
+- `GEMINI_API_KEY` — Google AI API key (read for a dormant Google client; no task routes to it today)
+- `BLOB_READ_WRITE_TOKEN` — Vercel Blob storage
+- `NEXT_PUBLIC_DEV_AUTH_BYPASS` — dev only; auto-signs-in as the dev admin. **Never set in production.**
 
 ## Conventions
 
@@ -184,7 +212,7 @@ Solo founders, marketers, SMB operators, and students who need to create documen
 - **References**: Linear (clean, fast, sharp UI), Pitch.com (polished, warm, presentation-quality)
 - **Anti-references**: Google Docs (bland, institutional, dated)
 - **Theme**: Warm near-white surfaces, black brand + amber accent, generous whitespace, alpha-based borders. A `.dark` palette exists for the shell chrome (editors/chat are light-only for now).
-- **Typography**: Degular for headings (warmth + character), Inter for body (clarity + readability), JetBrains Mono for code
+- **Typography**: Inter for both headings (weight 500) and body (clarity + readability), Geist Mono for code. (The earlier Degular/JetBrains-Mono direction was dropped in the locked overhaul.)
 - **Motion**: Spring-based entrances, fast micro-interactions (120ms), staggered reveals. Always respect `prefers-reduced-motion`.
 
 ### Design Principles

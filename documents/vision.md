@@ -13,8 +13,20 @@ Primy is the AI workspace for docs, sheets, and decks. Drag in any file, get art
 - Documents (Plate.js rich text)
 - Spreadsheets (Univer)
 - Presentation Decks (HTML slide engine)
+- Pages (sanitized HTML entity)
 - AI chat with full project context injection
-- Project-based organization
+- Project-based organization, with Folders + cross-workspace move
+- **Recents** — global, cross-workspace "jump back in" surface
+- **Quick Note** — frictionless capture into a dedicated Quick Notes workspace; promote ("Move to workspace") into any project
+- Auth hardening: revocable sessions, login throttle, breached-password check, password reset
+- Snapshot/version history + restore; team workspaces (SSOT access control); plan/usage metering
+
+## Recently shipped (Jun 2026)
+- Replaced the dead "Inbox" nav with **Recents**; turned "Quick Note" from an empty-project spawner into real capture.
+- AI provider routing simplified — **OpenAI for all tasks** (deck moved off Gemini); a Google client stays wired but dormant.
+
+## In progress
+- Agentic **deck-refine** pipeline (critique → repair) — `src/lib/ai/deck/`, `/api/deck-refine` ("Primy Studio" deck-100x plan).
 
 ## Planned Milestones
 

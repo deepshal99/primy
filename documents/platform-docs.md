@@ -58,17 +58,35 @@ Three entity types live inside a **Project**:
 
 ## 4. App Shell & Navigation
 
-### AppShell Component
+> **Active shell: `AppShellV2`** (`src/components/shell/v2/AppShellV2.tsx`) — the Strut-inspired overhaul, default since Jun 2026. The legacy `AppShell` below is still reachable via `/app?shell=v1` but is not the product. Toggle persists in `localStorage` (`primy:shellV2`).
+
+### AppShellV2 (current)
+
+- **Structure**: 232px sidebar · main area · docked collapsible chat card; full light + dark chrome.
+- **Sidebar**: brand + theme toggle; nav rows **Quick Note**, **Recents**, **Search (⌘K)**; a Workspaces tree (project → folders → entities); account menu. (The old "Inbox" row was removed.)
+- **Main area precedence**: a **system view** (`systemView: "recents" | "notes" | null`) → per-project board/timeline or entity editor → full-screen chat hero (no project open).
+- **View toggle** (per project): board / timeline.
+
+### Global surfaces
+
+**Recents** (`src/components/shell/v2/RecentsView.tsx`):
+- Cross-workspace list of recently opened entities, date-bucketed (Today / Yesterday / This week / Earlier).
+- Type filter (All/Docs/Sheets/Decks/Pages) + live text filter; hover-to-remove; keyboard open.
+- Backed by `store.recents` (localStorage, cap 40, deduped), recorded in every `open*` path; self-heals (prunes rows whose entity was deleted).
+
+**Quick Note** (`src/components/shell/v2/QuickNotesView.tsx`):
+- One-click capture into a single lazily-provisioned **Quick Notes** workspace (hidden from the Workspaces tree).
+- Notes rail (auto-title from first line, search, delete) + the real Plate editor + docked AI chat.
+- **Move to workspace**: promotes a note into any real project (optimistic, id-preserving; server sync in background).
+- No whiteboard — inline Mermaid covers quick diagrams (deliberate non-goal).
+
+### Legacy AppShell (v1, `?shell=v1`)
 
 - **Path**: `src/components/AppShell.tsx`
 - **Structure**: 3-panel layout with view mode detection
-- **Main panels**:
-  - NavRail: Collapsible left sidebar with project access, settings, logout
-  - ChatPanel: Right chat interface with message history
-  - WorkspacePanel: Center editor for documents, sheets, decks
+- **Main panels**: NavRail (left), ChatPanel (right), WorkspacePanel (center)
 
-### View Modes
-
+**Legacy view modes:**
 1. **Chat mode**: Only ChatPanel visible (no entity selected)
 2. **Project mode**: NavRail + ChatPanel + ProjectHome (entity list overview)
 3. **Editor mode**: NavRail + ChatPanel + WorkspacePanel (entity open for editing)
@@ -368,13 +386,17 @@ Three entity types live inside a **Project**:
 
 ### AI Model Selection
 
-- **Chat (small context)**: openai/gpt-4.1-mini (8K output)
-- **Chat (>30KB context)**: openai/gpt-4.1 (16K output)
-- **Deck generation**: google/gemini-3.1-pro-preview (65K output, with thinking + grounded search)
-- **Deck editing**: google/gemini-3.1-pro-preview (32K output)
+All tasks currently route to **OpenAI** (registry in `src/lib/ai/modelRouter.ts`):
+
+- **Chat**: openai/gpt-4.1 (16K output) → auto-promotes to 32K past a 30KB context threshold
+- **Chat (deep reasoning)**: openai/gpt-5.5 (32K, effort medium / verbosity low)
+- **Deck generate / edit**: openai/gpt-4.1 (32K) — moved off Gemini
+- **Deck critique**: openai/gpt-4.1 (2K)
 - **Title / Web search**: openai/gpt-4.1-mini
 - **Summarize**: openai/gpt-4.1
 - **Embeddings**: openai/text-embedding-3-small
+
+A Google/Gemini client remains wired (`GEMINI_API_KEY`) but no task routes to it today.
 
 ### Web Search Integration
 
@@ -441,29 +463,37 @@ Three entity types live inside a **Project**:
 ### Protected Routes
 
 - `GET/POST /api/projects` — List/create projects
-- `GET/PUT/DELETE /api/projects/[id]` — Fetch/update/delete project
+- `GET/PUT/DELETE /api/projects/[id]` — Fetch/update/delete project (entity upserts/deletes, folder + entity-folder moves)
 - `GET /api/projects/[id]/messages` — Paginated message history
 - `POST /api/projects/[id]/share` — Generate/revoke share token
+- `GET/POST /api/projects/[id]/members` — Team membership (SSOT access)
 - `POST /api/chat` — Stream AI response (SSE)
-- `POST /api/upload` — Upload file to blob storage
+- `POST /api/deck-refine` — Agentic deck critique/repair (WIP)
 - `POST /api/extract` — Extract text from file
 - `POST /api/embeddings` — Generate embeddings
-- `POST /api/export/pdf` — Generate PDF (Puppeteer)
-- `POST /api/deck-ai` — Dedicated deck AI generation
+- `POST /api/export/pdf` — Generate PDF (Puppeteer/Chromium)
+- `*/api/snapshots/[type]/[id]/...` — Version history + restore
+- `GET /api/usage` — Plan usage counters
 - `POST /api/title` — Auto-generate project title
 - `POST /api/unsplash` — Search Unsplash for deck images
-- `GET /api/user` — Current user profile
+- `GET /api/user` · `POST /api/user/logout-all` — Profile; revoke all sessions
+- `GET /api/cron/prune-snapshots` — Scheduled snapshot pruning
+
+File uploads go directly to Vercel Blob from the client (no `/api/upload` route).
 
 ## 16. Database Schema
 
 ### Core Tables
 
-- **Users**: id, email, name, passwordHash, createdAt
+- **Users**: id, email, name, passwordHash, plan, proUntil, tokenVersion (session revocation), hasOnboarded, createdAt
 - **Projects**: id, userId, title, description, projectType, shareToken, createdAt, updatedAt
-- **KnowledgeUnits**: id, projectId, title, content, shareToken, createdAt, updatedAt, embedding
-- **ProjectTables**: id, projectId, title, sheets (JSONB), shareToken, createdAt, updatedAt, embedding
-- **ProjectDecks**: id, projectId, title, theme, style (JSONB), slides (JSONB), shareToken, createdAt, updatedAt, embedding
+- **Folders**: id, projectId, name, color, position — in-project grouping
+- **KnowledgeUnits**: id, projectId, folderId, title, content, shareToken, createdAt, updatedAt, embedding
+- **ProjectTables**: id, projectId, folderId, title, sheets (JSONB), shareToken, createdAt, updatedAt, embedding
+- **ProjectDecks**: id, projectId, folderId, title, theme, style (JSONB), slides (JSONB), shareToken, createdAt, updatedAt, embedding
+- **ProjectPages**: id, projectId, folderId, title, html, editableFields (JSONB), shareToken, createdAt, updatedAt
 - **Messages**: id, projectId, role, content, timestamp, attachments (JSONB), groundingSources (JSONB)
+- Plus: team membership / access (SSOT), snapshots (version history), blob usage tracking
 
 ## 17. Error Handling & Feedback
 
