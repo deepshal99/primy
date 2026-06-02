@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
+import { DialRoot } from "dialkit";
 import { AppToaster } from "@/components/ui/AppToaster";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
+import "dialkit/styles.css";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -29,6 +31,7 @@ export default function RootLayout({
           </SessionProvider>
         </QueryProvider>
         <AppToaster />
+        <DialRoot position="bottom-right" defaultOpen={false} />
       </body>
     </html>
   );
