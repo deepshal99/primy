@@ -12,9 +12,18 @@
  *
  * The cron at /api/cron/prune-snapshots handles plan retention as a
  * safety net; this debounce is just to avoid hot-loop noise.
+ *
+ * New-artifact race: a snapshot fired right after an AI op creates a
+ * brand-new entity can 404, because the server only learns about the
+ * entity via the debounced project save (~2s later). The POST checks
+ * access by looking the artifact up in the DB, so until that save lands
+ * the artifact "doesn't exist" and the first version is lost. We retry a
+ * 404 a couple of times, spaced past the save debounce, to ride this out.
  */
 
 const DEBOUNCE_MS = 2 * 60 * 1000; // 2 minutes
+const RETRY_DELAY_MS = 3000; // > the ~2s debounced project save in the store
+const MAX_RETRIES = 2; // enough to outlast a slow save without retry storms
 
 type ArtifactType = "ku" | "table" | "deck";
 
@@ -44,17 +53,33 @@ export function scheduleSnapshot(opts: ScheduleSnapshotOptions): void {
   // a retry storm against the same artifact.
   lastFiredAt.set(k, now);
 
+  postSnapshot(opts, k, 0);
+}
+
+/**
+ * Fire one POST; on a 404 (artifact not persisted server-side yet — the
+ * new-artifact race described above) retry a bounded number of times,
+ * spaced past the store's save debounce. Other failures are logged once.
+ */
+function postSnapshot(opts: ScheduleSnapshotOptions, k: string, attempt: number): void {
   fetch(`/api/snapshots/${opts.type}/${opts.id}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content: opts.content, label: opts.label ?? null }),
   })
-    .then(async (res) => {
-      if (!res.ok) {
-        console.warn(`[snapshots] POST failed (${res.status}) for ${k}`);
+    .then((res) => {
+      if (res.ok) return;
+      if (res.status === 404 && attempt < MAX_RETRIES) {
+        setTimeout(() => postSnapshot(opts, k, attempt + 1), RETRY_DELAY_MS);
+        return;
       }
+      console.warn(`[snapshots] POST failed (${res.status}) for ${k}`);
     })
     .catch((err) => {
+      if (attempt < MAX_RETRIES) {
+        setTimeout(() => postSnapshot(opts, k, attempt + 1), RETRY_DELAY_MS);
+        return;
+      }
       console.warn(`[snapshots] POST error for ${k}:`, err);
     });
 }
