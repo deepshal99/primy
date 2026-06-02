@@ -33,6 +33,7 @@ export const users = pgTable("users", {
   gatewayCustomerId: varchar("gateway_customer_id", { length: 100 }),
   gatewaySubscriptionId: varchar("gateway_subscription_id", { length: 100 }),
   planRenewsAt: timestamp("plan_renews_at"),
+  isSuperAdmin: boolean("is_super_admin").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -64,6 +65,10 @@ export const projects = pgTable(
     client: varchar("client", { length: 255 }), // agency projects
     timeline: varchar("timeline", { length: 255 }), // due date / timeframe (free text)
     status: varchar("status", { length: 20 }).notNull().default("active"), // active | archived
+    visibility: varchar("visibility", { length: 10 }).notNull().default("private"), // private | org
+    orgId: text("org_id"), // set when shared to an org
+    archivedAt: timestamp("archived_at"), // owner-archived; hidden from active board
+    deletedAt: timestamp("deleted_at"), // soft delete -> Trash
     shareToken: varchar("share_token", { length: 32 }).unique(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -71,6 +76,8 @@ export const projects = pgTable(
   (table) => [
     index("projects_user_id_idx").on(table.userId),
     index("projects_share_token_idx").on(table.shareToken),
+    index("projects_org_id_idx").on(table.orgId),
+    index("projects_visibility_idx").on(table.visibility),
   ]
 );
 
@@ -91,6 +98,7 @@ export const folders = pgTable(
     position: integer("position").notNull().default(0),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at"), // soft delete -> Trash
   },
   (table) => [index("folders_project_id_idx").on(table.projectId)]
 );
@@ -109,6 +117,7 @@ export const knowledgeUnits = pgTable(
     shareToken: varchar("share_token", { length: 32 }).unique(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at"), // soft delete -> Trash
   },
   (table) => [
     index("ku_project_id_idx").on(table.projectId),
@@ -130,6 +139,7 @@ export const projectTables = pgTable(
     shareToken: varchar("share_token", { length: 32 }).unique(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at"), // soft delete -> Trash
   },
   (table) => [
     index("pt_project_id_idx").on(table.projectId),
@@ -153,6 +163,7 @@ export const projectDecks = pgTable(
     shareToken: varchar("share_token", { length: 32 }).unique(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at"), // soft delete -> Trash
   },
   (table) => [
     index("pdk_project_id_idx").on(table.projectId),
@@ -182,6 +193,7 @@ export const projectPages = pgTable(
     shareToken: varchar("share_token", { length: 32 }).unique(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    deletedAt: timestamp("deleted_at"), // soft delete -> Trash
   },
   (table) => [
     index("pp_project_id_idx").on(table.projectId),
@@ -404,4 +416,75 @@ export const migrationLogs = pgTable(
     artifactUrl: varchar("artifact_url", { length: 500 }),
     runAt: timestamp("run_at").defaultNow().notNull(),
   }
+);
+
+// ── Organizations (the company tier) ──
+//
+// A user belongs to at most one org (enforced in app logic + a unique index
+// on (orgId, userId)). The org's plan is inherited by all members via
+// effectivePlan (orgPlan). ownerId is the creating user.
+export const organizations = pgTable(
+  "organizations",
+  {
+    id: text("id").primaryKey(), // nanoid
+    name: varchar("name", { length: 200 }).notNull(),
+    slug: varchar("slug", { length: 100 }).notNull().unique(),
+    plan: varchar("plan", { length: 20 }).notNull().default("free"), // free | pro
+    proUntil: timestamp("pro_until"), // org grace override
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("orgs_owner_idx").on(table.ownerId)]
+);
+
+// ── Org Members ──
+// roles: owner | admin | member. One active membership per user (enforced in
+// app logic; unique index guards duplicate rows per org).
+export const orgMembers = pgTable(
+  "org_members",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: varchar("role", { length: 20 }).notNull().default("member"), // owner | admin | member
+    status: varchar("status", { length: 20 }).notNull().default("active"), // active | pending | removed
+    invitedBy: text("invited_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("org_members_org_user_idx").on(table.orgId, table.userId),
+    index("org_members_user_idx").on(table.userId),
+    index("org_members_org_idx").on(table.orgId),
+  ]
+);
+
+// ── Token Usage Log (AI cost telemetry) ──
+//
+// One row per AI call. Token counts come straight from the provider
+// response. Powers /admin spend views and future usage-based billing.
+export const tokenUsageLog = pgTable(
+  "token_usage_log",
+  {
+    id: text("id").primaryKey(), // nanoid
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    orgId: text("org_id"), // nullable; the user's org at call time
+    task: varchar("task", { length: 40 }).notNull(), // chat | deck-generate | ...
+    model: varchar("model", { length: 60 }).notNull(),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    estCostCents: integer("est_cost_cents").notNull().default(0),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("token_log_user_idx").on(table.userId, table.createdAt),
+    index("token_log_org_idx").on(table.orgId, table.createdAt),
+  ]
 );
