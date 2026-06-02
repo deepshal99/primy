@@ -15,6 +15,7 @@ export type AITask =
   | "chat-deep"     // complex reasoning (strategy/analysis) — deeper, slower
   | "deck-generate" // deck generation
   | "deck-edit"     // deck editing
+  | "deck-critique" // vision critique of a rendered slide (image in)
   | "title"         // auto-generate project title
   | "web-search"    // web search calls
   | "summarize"     // summarization
@@ -55,6 +56,7 @@ const MODEL_REGISTRY: Record<AITask, ModelConfig> = {
   "chat-deep":     { provider: "openai", model: "gpt-5.5",               maxOutputTokens: 32768, reasoningEffort: "medium", verbosity: "low" },
   "deck-generate": { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 32768  },
   "deck-edit":     { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 32768  },
+  "deck-critique": { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 2048   },
   "title":         { provider: "openai", model: "gpt-4.1-mini",          maxOutputTokens: 256    },
   "web-search":    { provider: "openai", model: "gpt-4.1-mini",          maxOutputTokens: 8192   },
   "summarize":     { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 4096   },

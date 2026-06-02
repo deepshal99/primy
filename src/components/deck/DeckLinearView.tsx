@@ -7,25 +7,50 @@ import { isHtmlSlide } from "@/lib/types";
 import type { HtmlDeckSlide } from "@/lib/types";
 import { PresentationMode } from "./PresentationMode";
 import { exportDeckToPDF, exportDeckToPPTX } from "./deckExport";
+import { refineDeckSlides } from "@/lib/deck/refineClient";
+import { toast } from "sonner";
 import {
   Play,
   Download,
   RotateCcw,
   ChevronDown,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+
+/** Build a short brand/style hint for the critique's brand-fit judging. */
+function brandContextFrom(
+  theme: string,
+  style: { label?: string; accent?: string; headingFont?: string; bodyFont?: string } | null
+): string {
+  if (style) {
+    const bits = [
+      style.label ? `${style.label} style` : null,
+      style.accent ? `accent ${style.accent}` : null,
+      style.headingFont ? `${style.headingFont} headings` : null,
+    ].filter(Boolean);
+    if (bits.length) return bits.join(", ");
+  }
+  return `${theme} theme`;
+}
 
 export function DeckLinearView() {
   const slides = useAppStore((s) => s.deckSlides);
   const theme = useAppStore((s) => s.deckTheme);
   const style = useAppStore((s) => s.deckStyle);
   const updateDeckSlides = useAppStore((s) => s.updateDeckSlides);
+  const applyRefinedSlides = useAppStore((s) => s.applyRefinedSlides);
   const resetDeckBuilder = useAppStore((s) => s.resetDeckBuilder);
+  const currentEntityId = useAppStore((s) => s.currentEntityId);
+  const pendingDeckPolishId = useAppStore((s) => s.pendingDeckPolishId);
+  const clearPendingDeckPolish = useAppStore((s) => s.clearPendingDeckPolish);
 
   const [presenting, setPresenting] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [currentSlideIdx, setCurrentSlideIdx] = useState(0);
   const [exporting, setExporting] = useState(false);
+  const [polishing, setPolishing] = useState(false);
+  const [polishStatus, setPolishStatus] = useState<string | null>(null);
 
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -111,6 +136,65 @@ export function DeckLinearView() {
     }
   }, [slides, theme, style]);
 
+  // Render → vision-critique → repair each slide, then merge the polished HTML.
+  // `auto` runs (background, post-generation) stay quiet on no-op/failure and
+  // are not metered against the user's plan.
+  const handlePolish = useCallback(async (auto = false) => {
+    if (polishing) return;
+    // Slide ids (slide-1, slide-2…) are per-deck, NOT globally unique. Pin the
+    // deck we started on so a mid-run deck switch can't merge these polished
+    // slides into a different deck that happens to share the same ids.
+    const startDeckId = useAppStore.getState().currentEntityId;
+    setPolishing(true);
+    setPolishStatus("Rendering slides…");
+    try {
+      const result = await refineDeckSlides(slides, {
+        auto,
+        brandContext: brandContextFrom(theme, style),
+        onProgress: (e) => {
+          if (e.stage === "render") setPolishStatus("Rendering slides…");
+          else if (e.stage === "critique")
+            setPolishStatus(`Reviewing slide ${(e.index ?? 0) + 1}/${e.total ?? slides.length}…`);
+          else if (e.stage === "repair")
+            setPolishStatus(`Polishing slide ${(e.index ?? 0) + 1} (pass ${e.round ?? 1})…`);
+        },
+      });
+      if (!result) {
+        if (!auto) toast.info("No HTML slides to polish yet.");
+        return;
+      }
+      // Bail if the user navigated to a different deck while we worked.
+      if (useAppStore.getState().currentEntityId !== startDeckId) return;
+      applyRefinedSlides(result.slides);
+      const { repaired, avgBefore, avgAfter, critiqued } = result.summary;
+      if (repaired > 0) {
+        toast.success(
+          `Polished ${repaired} slide${repaired === 1 ? "" : "s"} · score ${avgBefore} → ${avgAfter}`
+        );
+      } else if (!auto && critiqued > 0) {
+        toast.success("Slides reviewed — all already looked great.");
+      } else if (!auto) {
+        toast.error("Couldn't review slides — please try again.");
+      }
+    } catch (err) {
+      if (!auto) toast.error(err instanceof Error ? err.message : "Slide polish failed.");
+    } finally {
+      setPolishing(false);
+      setPolishStatus(null);
+    }
+  }, [polishing, slides, theme, style, applyRefinedSlides]);
+
+  // Auto-run the polish pass ONCE for a freshly-generated deck (non-blocking:
+  // the deck is already visible; it quietly improves in the background).
+  const autoStartedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!pendingDeckPolishId || pendingDeckPolishId !== currentEntityId) return;
+    if (polishing || autoStartedRef.current === pendingDeckPolishId) return;
+    autoStartedRef.current = pendingDeckPolishId;
+    clearPendingDeckPolish(); // consume the flag before running (prevents re-fire)
+    void handlePolish(true);
+  }, [pendingDeckPolishId, currentEntityId, polishing, clearPendingDeckPolish, handlePolish]);
+
   if (!slides.length) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-[#6b6b80] gap-3">
@@ -167,7 +251,26 @@ export function DeckLinearView() {
           )}
         </div>
 
+        <button
+          onClick={() => handlePolish(false)}
+          disabled={polishing}
+          title="Render each slide, review it with AI vision, and fix contrast / overflow / layout issues"
+          className={cn(
+            "inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[#1a1a2e] bg-white border border-[#e8e7e4] rounded-lg hover:bg-[#f9f9fb] transition-colors active:scale-[0.97]",
+            polishing && "opacity-70 cursor-wait"
+          )}
+        >
+          <Sparkles size={13} className={polishing ? "animate-pulse text-[#FFB43F]" : "text-[#FFB43F]"} />
+          {polishing ? "Polishing…" : "Polish"}
+        </button>
+
         <div className="flex-1" />
+
+        {polishStatus && (
+          <span className="text-[12px] font-medium text-[#B87426] truncate max-w-[200px]">
+            {polishStatus}
+          </span>
+        )}
 
         <span className="text-[12px] font-medium text-[#95928E] tabular-nums">
           {currentSlideIdx + 1} / {slides.length}

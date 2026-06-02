@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { launchBrowser, newGuardedPage } from "@/lib/deck/chromium";
 
 export const maxDuration = 30;
 
@@ -21,68 +22,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing html field" }, { status: 400 });
     }
 
-    let puppeteer: typeof import("puppeteer-core");
+    let browser: Awaited<ReturnType<typeof launchBrowser>>;
     try {
-      puppeteer = await import("puppeteer-core");
-    } catch {
-      return NextResponse.json({ error: "PDF generation dependencies not available" }, { status: 500 });
+      // Export bakes images to data: URIs beforehand, so it needs NO external
+      // network — the guarded page below uses the default empty allowlist.
+      browser = await launchBrowser({ width: 1920, height: 1080 });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Chromium binary not available";
+      return NextResponse.json({ error: message }, { status: 500 });
     }
 
-    // In production (serverless), use @sparticuz/chromium for the bundled binary.
-    // In development, use the local Chrome installation.
-    let executablePath: string;
-    let launchArgs: string[] = [];
-    const isDev = process.env.NODE_ENV === "development";
-
-    if (isDev) {
-      // Try common local Chrome paths
-      const { existsSync } = await import("fs");
-      const localPaths = [
-        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-        "/usr/bin/google-chrome",
-        "/usr/bin/chromium-browser",
-        "/usr/bin/chromium",
-      ];
-      const found = localPaths.find((p) => existsSync(p));
-      if (!found) {
-        return NextResponse.json({ error: "No local Chrome found. Install Google Chrome for PDF export in dev." }, { status: 500 });
-      }
-      executablePath = found;
-      launchArgs = ["--no-sandbox", "--disable-setuid-sandbox"];
-    } else {
-      try {
-        const chromium = (await import("@sparticuz/chromium")).default;
-        executablePath = await chromium.executablePath();
-        launchArgs = chromium.args;
-      } catch {
-        return NextResponse.json({ error: "Chromium binary not available" }, { status: 500 });
-      }
-      if (!executablePath) {
-        return NextResponse.json({ error: "Chromium binary not available" }, { status: 500 });
-      }
-    }
-
-    const browser = await puppeteer.launch({
-      args: launchArgs,
-      defaultViewport: { width: 1920, height: 1080 },
-      executablePath,
-      headless: true,
-    });
-
     try {
-      const page = await browser.newPage();
-
-      // Block all outbound network requests to prevent SSRF via injected HTML.
-      // Only allow data: URIs and blob: URIs for inline images.
-      await page.setRequestInterception(true);
-      page.on("request", (interceptedRequest) => {
-        const url = interceptedRequest.url();
-        if (url.startsWith("data:") || url.startsWith("blob:")) {
-          interceptedRequest.continue();
-        } else {
-          interceptedRequest.abort("blockedbyclient");
-        }
-      });
+      const page = await newGuardedPage(browser);
 
       // Cap HTML size to prevent memory abuse (2MB is generous for any slide deck)
       const MAX_HTML_SIZE = 2 * 1024 * 1024;

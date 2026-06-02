@@ -377,6 +377,28 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
     // Convert UIMessages to model messages for streamText
     const modelMessages = await convertToModelMessages(aiMessages);
 
+    // Inline image data URLs as raw bytes. AI SDK 6.x routes any file part
+    // whose `data` is a string URL through its download path, which only
+    // permits http/https — a `data:` URL throws "URL scheme must be http or
+    // https, got data:". Decoding to a Uint8Array up-front skips the download
+    // entirely; the provider re-encodes the bytes when building its request.
+    for (const m of modelMessages) {
+      if (!Array.isArray(m.content)) continue;
+      for (const part of m.content) {
+        if (
+          part.type === "file" &&
+          typeof part.data === "string" &&
+          part.data.startsWith("data:")
+        ) {
+          const comma = part.data.indexOf(",");
+          if (comma === -1) continue;
+          const header = part.data.slice(5, comma); // e.g. "image/png;base64"
+          part.data = Buffer.from(part.data.slice(comma + 1), "base64");
+          if (!part.mediaType) part.mediaType = header.split(";")[0];
+        }
+      }
+    }
+
     // Ordered model candidates — the route tries each until one streams text,
     // so a transient provider error never dead-ends as "No response".
     const candidates = getModelCandidates(taskType, contextSize);
