@@ -149,7 +149,18 @@ export function MessageList() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingContent, suggestions]);
+  }, [messages, streamingContent]);
+
+  // Suggestion chips render just above bottomRef. A *smooth* scroll here would
+  // animate the chips up over ~300ms — if the user clicks during that window the
+  // mousedown/mouseup land on different targets and the click is dropped. Scroll
+  // them into view instantly (settles within a frame) so the chip stays put.
+  useEffect(() => {
+    if (suggestions.length === 0) return;
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "instant" });
+    });
+  }, [suggestions]);
 
   // Loading state — server fetch in progress, no messages yet
   if (isLoadingProject && messages.length === 0 && !isStreaming) {

@@ -11,6 +11,7 @@ import {
   PenLine,
   Globe,
   RotateCcw,
+  ListChecks,
 } from "lucide-react";
 import { Message, EntityType } from "@/lib/types";
 import { useAppStore } from "@/lib/store";
@@ -248,16 +249,18 @@ export function StreamingBubble({ content }: StreamingBubbleProps) {
   // model writes in the past tense ("Created X") and would read as "done" while
   // the work is still in flight. The confirmation prose returns on the final
   // settled message once the artifact actually exists.
-  const indicatorType: "sheet" | "doc" | "deck" | "page" | null =
+  const indicatorType: "sheet" | "doc" | "deck" | "outline" | "page" | null =
     streamingAction === "sheet" || hasSheetOps || hasTableOps
       ? "sheet"
       : streamingAction === "page" || hasPageOps
         ? "page"
-        : hasDeckOps || hasOutline
+        : hasDeckOps
           ? "deck"
-          : streamingAction === "doc" || hasDocOps || hasKuOps
-            ? "doc"
-            : null;
+          : hasOutline
+            ? "outline"
+            : streamingAction === "doc" || hasDocOps || hasKuOps
+              ? "doc"
+              : null;
   if (indicatorType) {
     return (
       <div className="fade-in-up">
@@ -318,11 +321,12 @@ function ThinkingIndicator({ readingFiles }: { readingFiles: string[] }) {
 
 /* -- Inline operation indicator (during streaming) -- */
 
-function OperationIndicator({ type }: { type: "sheet" | "doc" | "deck" | "page" }) {
+function OperationIndicator({ type }: { type: "sheet" | "doc" | "deck" | "outline" | "page" }) {
   const config = {
     sheet: { icon: Table2, label: "Building spreadsheet", color: "#2e9e47", bg: "#e8f7ea" },
     doc: { icon: PenLine, label: "Writing document", color: "#4a7aed", bg: "#f0f4fd" },
     deck: { icon: FileText, label: "Building presentation", color: "#d4582a", bg: "#fde8dc" },
+    outline: { icon: ListChecks, label: "Planning slides", color: "#d4582a", bg: "#fde8dc" },
     page: { icon: FileText, label: "Designing page", color: "#8757D7", bg: "#f1ecfb" },
   }[type];
   const Icon = config.icon;

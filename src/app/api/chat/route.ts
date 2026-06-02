@@ -82,32 +82,63 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
     }
 
     const contextSize = estimateContextSize({ sheetData, docContent, projectContext, messages });
-    // Upgrade to Gemini 3.1 Pro for deck generation/editing
-    let taskType: AITask = "chat";
-    if (deckPhase === "generating") {
-      taskType = "deck-generate";
-    } else if (deckPhase === "idle") {
-      // deckPhase is "idle" by default — including for users who never want a deck.
-      // Only escalate to deck-generate when the request is unambiguously about a deck:
-      //   1) the user explicitly mentions deck/presentation/slides/pitch deck, OR
-      //   2) the user is approving an outline that the assistant just proposed.
-      // Generic verbs like "generate" or "yes" must NOT hijack sheet/doc requests.
+
+    // ── Deck phase resolution ──────────────────────────────────────────
+    // `deckPhase` arrives verbatim from the client store, but in the pure
+    // chat flow the client has NO affordance to advance "idle" → "generating"
+    // (the theme picker that used to set it is now an optional popover). If we
+    // trusted the client value we'd stay "idle" forever: the model keeps
+    // following the idle-phase instructions (gather & outline) and re-emits the
+    // outline on every "generate" instead of producing deckops slides.
+    //
+    // So we DERIVE the effective phase here and inject THAT into the prompt.
+    // We advance idle → generating only once the assistant has already shown an
+    // outline AND the user's latest message asks to generate / approves it —
+    // generic chatter must not hijack sheet/doc requests.
+    let effectiveDeckPhase: string = deckPhase || "idle";
+    if (effectiveDeckPhase === "idle") {
       const lastMsg = messages[messages.length - 1];
       const lastContent = typeof lastMsg?.content === "string" ? lastMsg.content.toLowerCase() : "";
 
-      const explicitDeckMention = /\b(deck|presentation|pitch deck|slideshow|powerpoint|pptx|keynote|slide(s| deck))\b/.test(lastContent);
+      // Only consider advancing when the thread is actually about a deck — this
+      // keeps "yes"/"generate" from hijacking a sheet/doc conversation.
+      const deckConversation = messages.some(
+        (m: any) =>
+          typeof m?.content === "string" &&
+          /\b(deck|presentation|pitch deck|slideshow|powerpoint|pptx|keynote|slide(s| deck)?)\b/i.test(m.content)
+      );
 
-      // Approval signals only count when the previous assistant message contained a deckoutline block.
-      const prevAssistant = messages.slice(0, -1).reverse().find((m: any) => m?.role === "assistant");
-      const prevAssistantContent = typeof prevAssistant?.content === "string" ? prevAssistant.content : "";
-      const prevHasOutline = prevAssistantContent.includes("```deckoutline");
-      const approvalSignals = ["go ahead", "looks good", "let's go", "approved", "looks great", "do it", "proceed", "generate now", "start generating"];
-      const isApproval = approvalSignals.some(s => lastContent.includes(s));
+      // Has a prior assistant turn already presented a slide outline? Accept the
+      // deckoutline fenced block OR a prose outline (≥3 "[Category]" labels, the
+      // shape the model actually emits in chat).
+      const outlineShown =
+        deckConversation &&
+        messages.slice(0, -1).some((m: any) => {
+          if (m?.role !== "assistant" || typeof m.content !== "string") return false;
+          if (m.content.includes("```deckoutline")) return true;
+          return (m.content.match(/\[[A-Z][a-zA-Z]{2,}\]/g)?.length ?? 0) >= 3;
+        });
 
-      if (explicitDeckMention || (isApproval && prevHasOutline)) {
-        taskType = "deck-generate";
+      // Generate / approve intent in the latest user message. This only fires
+      // when a deck outline was ALREADY shown in a deck conversation (see
+      // `outlineShown` gate above), so generic approvals here can't hijack a
+      // sheet/doc thread. Outline-editing verbs ("add", "remove", "move",
+      // "swap") are deliberately excluded — those keep the deck in outlining.
+      const wantsGeneration =
+        /\b(generate|build( it)?|create( it)?|make( it)?|render|produce( it)?|proceed|go ahead|let'?s go|do it|start|draft it|approved?|looks good|looks great|perfect|sounds good|ship it|yes|yep|yeah|sure|okay|ok|go for it|continue)\b/.test(
+          lastContent
+        );
+
+      if (outlineShown && wantsGeneration) {
+        effectiveDeckPhase = "generating";
       }
-    } else if (deckPhase === "viewing" && activeEntityType === "deck") {
+    }
+
+    // Upgrade to Gemini 3.1 Pro for deck generation/editing
+    let taskType: AITask = "chat";
+    if (effectiveDeckPhase === "generating") {
+      taskType = "deck-generate";
+    } else if (effectiveDeckPhase === "viewing" && activeEntityType === "deck") {
       taskType = "deck-edit";
     }
     if (taskType === "chat" && contextSize && contextSize > 30 * 1024) {
@@ -248,9 +279,10 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
       textContent += `\n\n<active_entity type="${typeLabel}" title="${activeEntityTitle}" id="${activeEntityId}">\n[Currently viewing: "${activeEntityTitle}" (${typeLabel})]\n${entityContent}\n</active_entity>`;
     }
 
-    // Inject deck phase for conversational presentation flow
-    if (deckPhase) {
-      textContent += `\n\n<deck_phase>${deckPhase}</deck_phase>`;
+    // Inject the SERVER-DERIVED deck phase (see resolution above) — not the raw
+    // client value — so the model actually switches to slide generation.
+    if (effectiveDeckPhase) {
+      textContent += `\n\n<deck_phase>${effectiveDeckPhase}</deck_phase>`;
     }
 
     textContent += `\n\n<current_sheet_data>\n${sheetContext}\n</current_sheet_data>`;

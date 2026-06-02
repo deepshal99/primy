@@ -2,7 +2,46 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
+import { openEntity } from "@/lib/entityLinks";
+import type { EntityType } from "@/lib/types";
 import { Code2, Eye, Maximize2, X } from "lucide-react";
+
+/**
+ * Injected into the previewed page so internal entity links open the entity
+ * IN-APP instead of navigating to a route that doesn't exist (e.g. /doc/<id>,
+ * which 404s). Runs inside the sandboxed (cross-origin) iframe, so it talks to
+ * the parent purely via postMessage. Recognises both the canonical
+ * `drafta://<type>/<id>` scheme and the legacy `/doc|/table|/deck|/page/<id>`
+ * paths the model sometimes emits, mapping doc→ku and sheet→table.
+ */
+const ENTITY_LINK_INTERCEPTOR = `<script>(function(){
+  function resolve(href){
+    if(!href) return null;
+    var m = href.match(/^(?:drafta:|primy:)\\/\\/(ku|table|deck|page)\\/([\\w-]+)/i);
+    if(m) return { type: m[1].toLowerCase(), id: m[2] };
+    m = href.match(/^\\/(doc|document|ku|table|sheet|deck|page)\\/([\\w-]+)/i);
+    if(m){ var t = m[1].toLowerCase(); if(t==='doc'||t==='document') t='ku'; else if(t==='sheet') t='table'; return { type: t, id: m[2] }; }
+    return null;
+  }
+  document.addEventListener('click', function(e){
+    var a = e.target && e.target.closest ? e.target.closest('a') : null;
+    if(!a) return;
+    var ref = resolve(a.getAttribute('href'));
+    if(!ref) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try { parent.postMessage({ source:'primy-page', type:'open-entity', entityType: ref.type, entityId: ref.id }, '*'); } catch(_){}
+  }, true);
+})();</script>`;
+
+/** Append the link interceptor to the page markup without mutating what's saved. */
+function withLinkInterceptor(html: string): string {
+  if (!html) return html;
+  const idx = html.lastIndexOf("</body>");
+  return idx === -1
+    ? html + ENTITY_LINK_INTERCEPTOR
+    : html.slice(0, idx) + ENTITY_LINK_INTERCEPTOR + html.slice(idx);
+}
 
 /**
  * Renders an HTML "visual document" page. The markup is shown in a sandboxed
@@ -37,6 +76,22 @@ export function PagePanel() {
     return () => window.removeEventListener("keydown", onKey);
   }, [present]);
 
+  // Entity-link clicks inside the previewed page arrive as postMessages from the
+  // sandboxed iframe (see ENTITY_LINK_INTERCEPTOR). Open the target in-app rather
+  // than letting the link 404 in a new tab.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      const data = e.data;
+      if (!data || data.source !== "primy-page" || data.type !== "open-entity") return;
+      const type = data.entityType as EntityType;
+      const id = typeof data.entityId === "string" ? data.entityId : "";
+      if (!id || (type !== "ku" && type !== "table" && type !== "deck" && type !== "page")) return;
+      openEntity(type, id);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
   const hasContent = pageHtml.trim().length > 0;
 
   const frame = (
@@ -44,7 +99,7 @@ export function PagePanel() {
       // key forces a fresh document when content changes (avoids stale scripts)
       key={pageVersion}
       title="HTML page preview"
-      srcDoc={pageHtml}
+      srcDoc={withLinkInterceptor(pageHtml)}
       sandbox="allow-scripts allow-popups allow-forms"
       className="w-full h-full border-0 bg-white"
     />

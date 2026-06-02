@@ -462,7 +462,17 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
           const kuOps = toolOps.ku.length ? toolOps.ku : parseKuOperations(fullText);
           const tableOps = toolOps.table.length ? toolOps.table : parseTableOperations(fullText);
           const deckOps = parseDeckOperations(fullText);
-          const pageOps = toolOps.page.length ? toolOps.page : parsePageOperations(fullText);
+          let pageOps = toolOps.page.length ? toolOps.page : parsePageOperations(fullText);
+          // De-dup: a deck and a page are mutually exclusive deliverables. When
+          // the model emits BOTH a deck CREATE and a page CREATE in one response
+          // it has rendered the same slides twice — the deck once in the Decks
+          // section and again as a Page. Drop the redundant page CREATE so the
+          // deck doesn't appear in two places. (UPDATE/RENAME/DELETE page ops
+          // target existing pages and are left untouched.)
+          if (deckOps.some((o) => o.type === "CREATE") && pageOps.some((o) => o.type === "CREATE")) {
+            console.warn("[Primy] Suppressing duplicate page CREATE — deck CREATE present in the same response.");
+            pageOps = pageOps.filter((o) => o.type !== "CREATE");
+          }
           const suggestions = parseSuggestions(fullText);
           const outlineItems = parseDeckOutlineItems(fullText);
           const hasAnyOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || deckOps.length > 0 || pageOps.length > 0;
