@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { Loader2, Check, Eye, EyeOff, LogOut, ChevronDown, Crown } from "lucide-react";
+import { Loader2, Check, Eye, EyeOff, LogOut, ChevronDown, Crown, Sun, Moon, Monitor } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useTheme, type Theme } from "@/lib/theme";
 import {
   Dialog,
   DialogContent,
@@ -12,12 +13,19 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePlanInfo } from "@/hooks/usePlanInfo";
 import { PRO_PRICE_USD } from "@/lib/plans";
+import { TeamTabContent } from "@/components/settings/TeamTabContent";
+
+/** One field style for the whole modal — soft fill, hairline border, amber focus. */
+const FIELD =
+  "w-full h-10 rounded-[10px] px-3 text-[13px] text-foreground placeholder:text-muted-foreground outline-none border transition-[border-color,box-shadow] focus:ring-2 focus:ring-[var(--accent-amber)]/25 focus:border-[var(--accent-amber)]/55";
+const FIELD_STYLE: React.CSSProperties = {
+  background: "var(--input-background)",
+  borderColor: "var(--border)",
+};
 
 interface SettingsModalProps {
   open: boolean;
@@ -50,7 +58,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [loading, setLoading] = useState(true);
 
   // Active tab
-  const [activeTab, setActiveTab] = useState<"account" | "billing">("account");
+  const [activeTab, setActiveTab] = useState<"account" | "team" | "billing">("account");
 
   // Fetch user data on open
   useEffect(() => {
@@ -175,39 +183,40 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="sm:max-w-[480px] p-0 gap-0">
-        <DialogHeader className="px-6 pt-5 pb-3 border-b border-border">
-          <DialogTitle>Settings</DialogTitle>
+      <DialogContent
+        className="sm:max-w-[460px] p-0 gap-0 overflow-hidden border-0 shadow-none"
+        style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)", borderRadius: 14 }}
+      >
+        <DialogHeader className="px-6 pt-5 pb-0 space-y-0">
+          <DialogTitle className="text-[16px] font-semibold tracking-[-0.01em]" style={{ color: "var(--ink)" }}>
+            Settings
+          </DialogTitle>
           <DialogDescription className="sr-only">Manage your account settings</DialogDescription>
         </DialogHeader>
 
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setActiveTab(v as "account" | "billing")}
-          className="gap-0"
-        >
-          <div className="px-6 pt-4 pb-3 border-b border-border">
-            <TabsList className="bg-muted h-8 w-full grid grid-cols-2 p-0.5" style={{ borderRadius: 8 }}>
-              <TabsTrigger
-                value="account"
-                className="text-[12px] font-medium tabular-nums"
-                style={{ borderRadius: 6 }}
+        {/* Tab rail — underline tabs in the warm shell language */}
+        <div className="px-6 mt-3.5 flex items-center gap-5" style={{ borderBottom: "1px solid var(--border)" }}>
+          {(["account", "team", "billing"] as const).map((t) => {
+            const active = activeTab === t;
+            return (
+              <button
+                key={t}
+                onClick={() => setActiveTab(t)}
+                className="relative -mb-px pb-2.5 text-[13px] font-medium press transition-colors"
+                style={{ color: active ? "var(--ink)" : "var(--ink-3)" }}
               >
-                Account
-              </TabsTrigger>
-              <TabsTrigger
-                value="billing"
-                className="text-[12px] font-medium tabular-nums"
-                style={{ borderRadius: 6 }}
-              >
-                Billing
-              </TabsTrigger>
-            </TabsList>
-          </div>
+                {t === "account" ? "Account" : t === "team" ? "Team" : "Billing"}
+                {active && (
+                  <span className="absolute left-0 right-0 bottom-0 h-[2px] rounded-full" style={{ background: "var(--ink)" }} />
+                )}
+              </button>
+            );
+          })}
+        </div>
 
-          <div className="px-6 py-5 max-h-[70vh] overflow-y-auto">
-            <TabsContent value="account" className="m-0">
-              {loading ? (
+        <div className="px-6 py-5 max-h-[70vh] overflow-y-auto v2-scroll">
+            {activeTab === "account" && (
+              loading ? (
                 <div className="space-y-5" aria-label="Loading account">
                   {/* Avatar + name + email row */}
                   <div className="flex items-center gap-3">
@@ -235,197 +244,138 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 </div>
               ) : (
                 <>
-                  {/* Profile section */}
-                  <div className="mb-6">
-                    <SectionLabel>Profile</SectionLabel>
-
-                    <div className="flex items-center gap-3 mb-5">
-                      <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-semibold flex-shrink-0 bg-[var(--color-brand-subtle)] text-[var(--color-brand)]">
-                        {initials}
-                      </div>
-                      <div>
-                        <p className="text-[15px] font-semibold text-foreground">{name}</p>
-                        <p className="text-[13px] text-muted-foreground">{email}</p>
-                      </div>
+                  {/* Profile */}
+                  <div className="flex items-center gap-3.5 mb-7">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-[15px] font-semibold flex-shrink-0 text-white" style={{ background: "var(--accent-purple)" }}>
+                      {initials}
                     </div>
+                    <div className="min-w-0">
+                      <p className="text-[15px] font-semibold tracking-[-0.01em] text-foreground truncate">{name || "You"}</p>
+                      <p className="text-[12.5px] text-muted-foreground truncate">
+                        {email}{createdAt ? `  ·  since ${createdAt}` : ""}
+                      </p>
+                    </div>
+                  </div>
 
-                    <FieldLabel>Name</FieldLabel>
-                    <div className="flex gap-2 mb-1">
-                      <Input
+                  {/* Account group — inline-editable rows */}
+                  <SectionLabel>Account</SectionLabel>
+                  <div className="rounded-[12px] overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                    <div className="flex items-center gap-3 px-3.5 h-[52px]">
+                      <span className="text-[13px] flex-shrink-0" style={{ color: "var(--ink-2)", width: 88 }}>Name</span>
+                      <input
                         type="text"
                         value={name}
-                        onChange={(e) => {
-                          setName(e.target.value);
-                          setNameError("");
-                          setNameSuccess(false);
-                        }}
-                        className="flex-1 text-[13px]"
+                        onChange={(e) => { setName(e.target.value); setNameError(""); setNameSuccess(false); }}
+                        onBlur={handleSaveName}
+                        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                        placeholder="Your name"
+                        className="flex-1 min-w-0 bg-transparent outline-none text-[13px] text-right text-foreground placeholder:text-muted-foreground"
                       />
-                      <Button
-                        onClick={handleSaveName}
-                        disabled={nameSaving || name.trim() === session?.user?.name}
-                        size="sm"
-                      >
+                      <span className="w-4 flex-shrink-0 flex items-center justify-center">
                         {nameSaving ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
                         ) : nameSuccess ? (
-                          <Check className="w-3.5 h-3.5" />
-                        ) : (
-                          "Save"
-                        )}
-                      </Button>
+                          <Check className="w-3.5 h-3.5" style={{ color: "var(--color-success)" }} />
+                        ) : null}
+                      </span>
                     </div>
-                    {nameError && (
-                      <p className="text-xs mt-1 text-destructive">{nameError}</p>
-                    )}
-
-                    <FieldLabel className="mt-4">Email</FieldLabel>
-                    <div className="px-3 py-2 rounded-lg text-[13px] bg-muted text-muted-foreground border border-border">
-                      {email}
+                    <div className="h-px" style={{ background: "var(--border)" }} />
+                    <div className="flex items-center gap-3 px-3.5 h-[52px]">
+                      <span className="text-[13px] flex-shrink-0" style={{ color: "var(--ink-2)", width: 88 }}>Email</span>
+                      <span className="flex-1 min-w-0 text-[13px] text-right text-muted-foreground truncate">{email}</span>
                     </div>
-
-                    {createdAt && (
-                      <p className="mt-3 text-xs text-muted-foreground/60">
-                        Member since {createdAt}
-                      </p>
-                    )}
                   </div>
+                  {nameError && (
+                    <p className="text-xs mt-2 text-destructive">{nameError}</p>
+                  )}
 
-                  <div className="h-px mb-6 bg-border" />
-
-                  {/* Security section */}
-                  <div className="mb-6">
-                    <SectionLabel>Security</SectionLabel>
-
+                  {/* Preferences group */}
+                  <SectionLabel className="mt-7">Preferences</SectionLabel>
+                  <div className="rounded-[12px] overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                    <div className="flex items-center gap-3 px-3.5 h-[52px]">
+                      <span className="text-[13px]" style={{ color: "var(--ink-2)" }}>Theme</span>
+                      <div className="flex-1" />
+                      <ThemeRowControl />
+                    </div>
+                    <div className="h-px" style={{ background: "var(--border)" }} />
                     <button
-                      onClick={() => {
-                        setPasswordOpen(!passwordOpen);
-                        setPwError("");
-                        setPwSuccess(false);
-                      }}
-                      className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors text-[13px] font-medium text-foreground bg-muted hover:bg-accent"
+                      onClick={() => { setPasswordOpen(!passwordOpen); setPwError(""); setPwSuccess(false); }}
+                      className="w-full flex items-center gap-3 px-3.5 h-[52px] hover-row text-left press"
                     >
-                      Change password
-                      <ChevronDown
-                        className={cn(
-                          "w-4 h-4 text-muted-foreground transition-transform",
-                          passwordOpen && "rotate-180"
-                        )}
-                      />
+                      <span className="text-[13px]" style={{ color: "var(--ink-2)" }}>Password</span>
+                      <div className="flex-1" />
+                      <span className="text-[12.5px] text-muted-foreground">Change</span>
+                      <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", passwordOpen && "rotate-180")} />
                     </button>
-
-                    {passwordOpen && (
-                      <div className="mt-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
-                        <div>
-                          <FieldLabel>Current password</FieldLabel>
-                          <div className="relative">
-                            <Input
-                              type={showCurrentPw ? "text" : "password"}
-                              value={currentPassword}
-                              onChange={(e) => {
-                                setCurrentPassword(e.target.value);
-                                setPwError("");
-                              }}
-                              className="pr-9 text-[13px]"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowCurrentPw(!showCurrentPw)}
-                              className="absolute right-2.5 top-1/2 -translate-y-1/2"
-                            >
-                              {showCurrentPw ? (
-                                <EyeOff className="w-3.5 h-3.5 text-muted-foreground" />
-                              ) : (
-                                <Eye className="w-3.5 h-3.5 text-muted-foreground" />
-                              )}
-                            </button>
-                          </div>
-                        </div>
-
-                        <div>
-                          <FieldLabel>New password</FieldLabel>
-                          <div className="relative">
-                            <Input
-                              type={showNewPw ? "text" : "password"}
-                              value={newPassword}
-                              onChange={(e) => {
-                                setNewPassword(e.target.value);
-                                setPwError("");
-                              }}
-                              placeholder="Min 6 characters"
-                              className="pr-9 text-[13px]"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowNewPw(!showNewPw)}
-                              className="absolute right-2.5 top-1/2 -translate-y-1/2"
-                            >
-                              {showNewPw ? (
-                                <EyeOff className="w-3.5 h-3.5 text-muted-foreground" />
-                              ) : (
-                                <Eye className="w-3.5 h-3.5 text-muted-foreground" />
-                              )}
-                            </button>
-                          </div>
-                        </div>
-
-                        <div>
-                          <FieldLabel>Confirm new password</FieldLabel>
-                          <Input
-                            type="password"
-                            value={confirmPassword}
-                            onChange={(e) => {
-                              setConfirmPassword(e.target.value);
-                              setPwError("");
-                            }}
-                            className="text-[13px]"
-                          />
-                        </div>
-
-                        {pwError && (
-                          <p className="text-xs text-destructive">{pwError}</p>
-                        )}
-
-                        {pwSuccess && (
-                          <p className="text-xs text-emerald-500">
-                            Password changed successfully
-                          </p>
-                        )}
-
-                        <Button
-                          onClick={handleChangePassword}
-                          disabled={pwSaving}
-                          size="sm"
-                        >
-                          {pwSaving ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            "Update password"
-                          )}
-                        </Button>
-                      </div>
-                    )}
                   </div>
 
-                  <div className="h-px mb-4 bg-border" />
+                  {/* Password change — expands below the group */}
+                  {passwordOpen && (
+                    <div className="mt-3 space-y-2.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                      <div className="relative">
+                        <input
+                          type={showCurrentPw ? "text" : "password"}
+                          value={currentPassword}
+                          onChange={(e) => { setCurrentPassword(e.target.value); setPwError(""); }}
+                          placeholder="Current password"
+                          className={cn(FIELD, "pr-9")}
+                          style={FIELD_STYLE}
+                        />
+                        <button type="button" onClick={() => setShowCurrentPw(!showCurrentPw)} className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                          {showCurrentPw ? <EyeOff className="w-3.5 h-3.5 text-muted-foreground" /> : <Eye className="w-3.5 h-3.5 text-muted-foreground" />}
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type={showNewPw ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => { setNewPassword(e.target.value); setPwError(""); }}
+                          placeholder="New password (min 6 characters)"
+                          className={cn(FIELD, "pr-9")}
+                          style={FIELD_STYLE}
+                        />
+                        <button type="button" onClick={() => setShowNewPw(!showNewPw)} className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                          {showNewPw ? <EyeOff className="w-3.5 h-3.5 text-muted-foreground" /> : <Eye className="w-3.5 h-3.5 text-muted-foreground" />}
+                        </button>
+                      </div>
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => { setConfirmPassword(e.target.value); setPwError(""); }}
+                        placeholder="Confirm new password"
+                        className={FIELD}
+                        style={FIELD_STYLE}
+                      />
+                      {pwError && <p className="text-xs text-destructive">{pwError}</p>}
+                      {pwSuccess && <p className="text-xs" style={{ color: "var(--color-success)" }}>Password changed successfully</p>}
+                      <button
+                        onClick={handleChangePassword}
+                        disabled={pwSaving}
+                        className="w-full h-10 rounded-[10px] text-[13px] font-medium press disabled:opacity-40 disabled:pointer-events-none inline-flex items-center justify-center"
+                        style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}
+                      >
+                        {pwSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Update password"}
+                      </button>
+                    </div>
+                  )}
 
                   {/* Sign out */}
                   <button
                     onClick={() => signOut({ callbackUrl: "/login" })}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-[13px] font-medium text-destructive transition-colors hover:bg-destructive/10"
+                    className="mt-7 w-full flex items-center justify-center gap-2 h-10 rounded-[10px] text-[13px] font-medium hover-row press"
+                    style={{ color: "var(--destructive)" }}
                   >
                     <LogOut className="w-4 h-4" />
                     Sign out
                   </button>
                 </>
-              )}
-            </TabsContent>
+              )
+            )}
 
-            <TabsContent value="billing" className="m-0">
-              <BillingTabContent />
-            </TabsContent>
+            {activeTab === "team" && <TeamTabContent />}
+
+            {activeTab === "billing" && <BillingTabContent />}
           </div>
-        </Tabs>
       </DialogContent>
     </Dialog>
   );
@@ -647,24 +597,47 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(decimals)} ${units[unit]}`;
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+/** Compact icon segmented control for the Theme row (Light / Dark / System). */
+function ThemeRowControl() {
+  const { theme, setTheme } = useTheme();
+  const options: { value: Theme; label: string; Icon: typeof Sun }[] = [
+    { value: "light", label: "Light", Icon: Sun },
+    { value: "dark", label: "Dark", Icon: Moon },
+    { value: "system", label: "System", Icon: Monitor },
+  ];
   return (
-    <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+    <div className="flex items-center gap-[3px] p-[3px]" style={{ background: "var(--secondary)", borderRadius: 9 }} role="radiogroup" aria-label="Theme">
+      {options.map(({ value, label, Icon }) => {
+        const active = theme === value;
+        return (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            title={label}
+            onClick={() => setTheme(value)}
+            className="flex items-center justify-center w-[30px] h-[26px] press"
+            style={{
+              borderRadius: 6,
+              background: active ? "var(--card)" : "transparent",
+              boxShadow: active ? "var(--shadow-card)" : "none",
+              color: active ? "var(--ink)" : "var(--ink-3)",
+            }}
+          >
+            <Icon className="h-[15px] w-[15px]" strokeWidth={1.9} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SectionLabel({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <p className={cn("mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground", className)}>
       {children}
     </p>
   );
 }
 
-function FieldLabel({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <label className={cn("block mb-1.5 text-xs font-medium text-muted-foreground", className)}>
-      {children}
-    </label>
-  );
-}
