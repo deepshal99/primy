@@ -495,6 +495,20 @@ export interface UndoSnapshot {
 
 // ═══ App State ═══
 
+/**
+ * A lightweight, cross-workspace pointer to an entity the user recently opened.
+ * Stored client-side (localStorage) and snapshotted at open-time so the Recents
+ * surface works even for workspaces whose full content hasn't been fetched yet.
+ */
+export interface RecentEntry {
+  entityId: string;
+  type: EntityType;
+  projectId: string;
+  projectTitle: string;
+  title: string;
+  openedAt: number;
+}
+
 export interface AppState {
   // Active view (flat fields synced to current project entity)
   messages: Message[];
@@ -509,6 +523,8 @@ export interface AppState {
   deckVersion: number;
   deckPhase: DeckPhase;
   deckStyle: ThemeConfig | null;
+  /** Id of a freshly-generated deck awaiting its one-time background polish pass. */
+  pendingDeckPolishId: string | null;
   pageHtml: string;
   pageEditableFields: PageEditableField[];
   pageVersion: number;
@@ -548,6 +564,11 @@ export interface AppState {
 
   // Open file tabs
   openTabs: { id: string; type: EntityType; title: string }[];
+
+  // Recents — cross-workspace list of recently opened entities (newest first).
+  recents: RecentEntry[];
+  /** The dedicated "Quick Notes" workspace id, if it has been provisioned. */
+  quickNotesProjectId: string | null;
 
   // AI-modified entity highlights
   aiModifiedEntityIds: string[];
@@ -629,6 +650,10 @@ export interface AppState {
   renameDeck: (projectId: string, deckId: string, title: string) => void;
   openDeck: (deckId: string) => void;
   updateDeckSlides: (slides: (DeckSlide | HtmlDeckSlide)[]) => void;
+  /** Merge polished HTML from the refine pass into existing slides by id (preserves editableFields), then force a remount. */
+  applyRefinedSlides: (refined: { id: string; html: string }[]) => void;
+  /** Clear the pending background-polish flag (consumed by the deck view). */
+  clearPendingDeckPolish: () => void;
   updateDeckTheme: (theme: DeckTheme) => void;
   setDeckPhase: (phase: DeckPhase) => void;
   updateDeckStyle: (style: ThemeConfig | null) => void;
@@ -642,6 +667,18 @@ export interface AppState {
   openPage: (pageId: string) => void;
   updatePageHtml: (html: string) => void;
   applyPageOperations: (operations: PageOperation[]) => void;
+
+  // Recents + Quick Note
+  /** Record (or bump to top) an entity in the cross-workspace recents list. */
+  recordRecent: (entityId: string, type: EntityType) => void;
+  /** Remove a single entry from recents (the row's ⋯ → Remove). */
+  removeRecent: (entityId: string) => void;
+  /** Ensure the dedicated "Quick Notes" workspace exists; returns its id. */
+  ensureQuickNotesProject: () => string;
+  /** Create a fresh quick note (a doc in the Quick Notes workspace) and open it. */
+  createQuickNote: () => void;
+  /** Promote a note: move a KnowledgeUnit to another workspace (id preserved). */
+  moveKnowledgeUnitToProject: (kuId: string, targetProjectId: string) => Promise<void>;
 
   // Tab management
   closeTab: (id: string) => void;

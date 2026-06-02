@@ -23,7 +23,7 @@ import {
   PanelRightOpen, Sun, Moon, ArrowLeft, Settings, Check,
   Folder as FolderIcon, FolderPlus, Trash2, Pencil, FolderInput,
   Rocket, Sparkles, Compass, Layers, Target, Box, Hexagon, Flame,
-  LogOut, ChevronsUpDown, ChevronRight, ChevronDown, Share2,
+  LogOut, ChevronsUpDown, ChevronRight, ChevronDown, Share2, Clock,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useAppStore } from "@/lib/store";
@@ -36,6 +36,8 @@ import { ArtifactHistoryButton } from "@/components/snapshots/ArtifactHistoryBut
 import { ExportMenu } from "@/components/sheet/ExportMenu";
 import { DocExportMenu } from "@/components/doc/DocExportMenu";
 import { SearchDialog } from "@/components/shared/SearchDialog";
+import { RecentsView } from "@/components/shell/v2/RecentsView";
+import { QuickNotesView } from "@/components/shell/v2/QuickNotesView";
 import { KeyboardShortcuts } from "@/components/shared/KeyboardShortcuts";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { ShareModal } from "@/components/settings/ShareModal";
@@ -221,7 +223,12 @@ export function AppShellV2() {
   const loadProjects = useAppStore((s) => s.loadProjects);
   const switchProject = useAppStore((s) => s.switchProject);
   const createProject = useAppStore((s) => s.createProject);
+  const ensureQuickNotesProject = useAppStore((s) => s.ensureQuickNotesProject);
+  const quickNotesProjectId = useAppStore((s) => s.quickNotesProjectId);
 
+  // Global "system" surfaces that sit outside any single workspace. When set,
+  // they take over the main area (the Workspaces tree + chat dock stay put).
+  const [systemView, setSystemView] = useState<null | "recents" | "notes">(null);
   const [dark, toggleDark] = useDarkMode();
   const [view, setView] = useState<ViewMode>("board");
   const [chatOpen, setChatOpen] = useState(true);
@@ -237,6 +244,20 @@ export function AppShellV2() {
   const bodyScroll = useScrollReveal<HTMLDivElement>();
 
   const project = projects.find((p) => p.id === currentProjectId);
+  // The Quick Notes workspace is surfaced via the pinned nav row — keep it out
+  // of the Workspaces tree so it never clutters the real project list.
+  const workspaceList = projects.filter((p) => p.id !== quickNotesProjectId);
+
+  // Open the Quick Notes surface: provision the workspace if needed, make it
+  // active (so the editor + autosave target it), then show the notes view.
+  const openQuickNotes = () => {
+    const pid = ensureQuickNotesProject();
+    if (useAppStore.getState().currentProjectId !== pid) switchProject(pid);
+    setSystemView("notes");
+  };
+  // Switching to a real workspace (or making a new one) always leaves a system view.
+  const goWorkspace = (id: string) => { setSystemView(null); switchProject(id); };
+  const newWorkspace = () => { setSystemView(null); createProject("Untitled project"); };
 
   // ── Onboarding gate (mirrors legacy AppShell) ──
   const userQuery = useQuery({ queryKey: ["user"], queryFn: fetchUserForGate, staleTime: 5 * 60 * 1000 });
@@ -255,11 +276,17 @@ export function AppShellV2() {
     window.addEventListener("primy:open-search", open);
     const key = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setSearchOpen(true); }
-      if ((e.metaKey || e.ctrlKey) && e.key === "n") { e.preventDefault(); createProject("Untitled project"); }
+      if ((e.metaKey || e.ctrlKey) && e.key === "n") { e.preventDefault(); setSystemView(null); createProject("Untitled project"); }
     };
     window.addEventListener("keydown", key);
     return () => { window.removeEventListener("primy:open-search", open); window.removeEventListener("keydown", key); };
   }, [createProject]);
+
+  // Defensive: if the notes surface is open without a provisioned workspace
+  // (e.g. cleared storage mid-session), provision it once.
+  useEffect(() => {
+    if (systemView === "notes" && !quickNotesProjectId) ensureQuickNotesProject();
+  }, [systemView, quickNotesProjectId, ensureQuickNotesProject]);
 
   const needsOnboarding = userQuery.data && userQuery.data.hasOnboarded === false;
   if (userQuery.isLoading || needsOnboarding) {
@@ -288,25 +315,25 @@ export function AppShellV2() {
         </div>
 
         <div className="px-4 pb-2">
-          <NavRow icon={<Inbox size={17} />} label="Inbox" onClick={() => {}} />
-          <NavRow icon={<PenLine size={17} />} label="Quick Note" onClick={() => createProject("Untitled project")} />
+          <NavRow icon={<PenLine size={17} />} label="Quick Note" active={systemView === "notes"} onClick={openQuickNotes} />
+          <NavRow icon={<Clock size={17} />} label="Recents" active={systemView === "recents"} onClick={() => setSystemView("recents")} />
           <NavRow icon={<Search size={17} />} label="Search" hint="⌘K" onClick={() => setSearchOpen(true)} />
         </div>
 
         <div ref={sidebarScroll} className="flex-1 overflow-y-auto px-4 pt-4 min-h-0 v2-scroll">
           <div className="flex items-center justify-between px-2 mb-2.5">
             <span className="text-[13px] font-medium" style={{ color: "var(--ink-3)" }}>Workspaces</span>
-            <button onClick={() => createProject("Untitled project")}
+            <button onClick={newWorkspace}
               className="flex items-center justify-center w-5 h-5 rounded-[5px] press" style={{ color: "var(--icon)" }} title="New project">
               <Plus size={15} />
             </button>
           </div>
 
-          {projects.length === 0 && (
+          {workspaceList.length === 0 && (
             <div className="px-2 py-3 text-[12px]" style={{ color: "var(--ink-4)" }}>No workspaces yet.</div>
           )}
 
-          {projects.map((p) => {
+          {workspaceList.map((p) => {
             const isActive = p.id === currentProjectId;
             if (renamingWs === p.id) {
               return (
@@ -320,7 +347,7 @@ export function AppShellV2() {
             }
             return (
               <button key={p.id}
-                onClick={() => switchProject(p.id)}
+                onClick={() => goWorkspace(p.id)}
                 onContextMenu={(ev) => { ev.preventDefault(); setWsMenu({ id: p.id, title: p.title || "Untitled", x: ev.clientX, y: ev.clientY }); }}
                 className="flex items-center w-full h-[36px] px-3 mb-0.5 rounded-full press hover-row text-left text-[13px]"
                 style={{ background: isActive ? "var(--sidebar-accent)" : "transparent", color: isActive ? "var(--ink)" : "var(--ink-2)", fontWeight: isActive ? 500 : 400 }}>
@@ -367,7 +394,27 @@ export function AppShellV2() {
       </aside>
 
       {/* ───── Main area ───── */}
-      {!currentProjectId ? (
+      {systemView === "recents" ? (
+        /* Recents — a global navigator; no docked chat, just the list. */
+        <main className="flex-1 min-w-0 flex flex-col" style={{ background: "var(--canvas)" }}>
+          <RecentsView onExit={() => setSystemView(null)} />
+        </main>
+      ) : systemView === "notes" && quickNotesProjectId ? (
+        /* Quick Notes — two-pane capture + the docked chat (so AI has the note). */
+        <div className="flex flex-1 min-w-0" style={{ background: "var(--canvas)" }}>
+          <div className="flex flex-col flex-1 min-w-0">
+            <QuickNotesView projectId={quickNotesProjectId} onExit={() => setSystemView(null)} />
+          </div>
+          {chatOpen && (
+            <section data-chat-panel className="hidden md:flex flex-col flex-shrink-0 m-4 ml-2 rounded-[14px] overflow-hidden t-slow"
+              style={{ width: chatExpanded ? 760 : 430, background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
+              <ChatPanel branded expanded={chatExpanded}
+                onToggleExpand={() => setChatExpanded((v) => !v)}
+                onCollapse={() => { setChatExpanded(false); setChatOpen(false); }} />
+            </section>
+          )}
+        </div>
+      ) : !currentProjectId ? (
         /* No project → full-screen, ChatGPT-style chat (no board, no docked card) */
         <main className="flex-1 min-w-0 flex flex-col" style={{ background: "var(--canvas)" }}>
           <ChatPanel centered branded />
@@ -1066,10 +1113,11 @@ function LogoMark() {
   );
 }
 
-function NavRow({ icon, label, hint, onClick }: { icon: React.ReactNode; label: string; hint?: string; onClick: () => void }) {
+function NavRow({ icon, label, hint, active, onClick }: { icon: React.ReactNode; label: string; hint?: string; active?: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="flex items-center gap-3 w-full h-[38px] px-3 rounded-full text-[13px] press hover-row" style={{ color: "var(--ink-3)" }}>
-      <span style={{ color: "var(--icon)" }}>{icon}</span>
+    <button onClick={onClick} className="flex items-center gap-3 w-full h-[38px] px-3 rounded-full text-[13px] press hover-row"
+      style={{ color: active ? "var(--ink)" : "var(--ink-3)", background: active ? "var(--sidebar-accent)" : "transparent", fontWeight: active ? 500 : 400 }}>
+      <span style={{ color: active ? "var(--ink)" : "var(--icon)" }}>{icon}</span>
       <span className="flex-1 text-left truncate">{label}</span>
       {hint && <span className="text-[11px] tabular-nums" style={{ color: "var(--ink-4)" }}>{hint}</span>}
     </button>

@@ -27,6 +27,7 @@ import {
   PageEditableField,
   EntityType,
   ThemeConfig,
+  RecentEntry,
 } from "@/lib/types";
 import { applyPageOps } from "@/lib/ai/pageOperations";
 import { promoteOrphanOps } from "@/lib/ai/opPromotion";
@@ -128,6 +129,52 @@ function saveProjectsToStorage(projects: Project[]) {
   }
 }
 
+// ── Recents persistence (cross-workspace, client-side) ──
+
+const RECENTS_KEY = "primy_recents";
+const RECENTS_MAX = 40;
+const QUICKNOTES_KEY = "primy_quicknotes_pid";
+
+function loadRecentsFromStorage(): RecentEntry[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(RECENTS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentsToStorage(recents: RecentEntry[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(RECENTS_KEY, JSON.stringify(recents.slice(0, RECENTS_MAX)));
+  } catch {
+    /* recents are non-critical — never surface a quota error for them */
+  }
+}
+
+function loadQuickNotesId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(QUICKNOTES_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveQuickNotesId(id: string) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(QUICKNOTES_KEY, id);
+  } catch {
+    /* non-critical */
+  }
+}
+
+const QUICKNOTES_TITLE = "Quick Notes";
+
 // ── Background embedding generation ──
 
 function generateEntityEmbedding(entityId: string, projectId: string, text: string) {
@@ -212,6 +259,9 @@ export const useAppStore = create<AppState>()(
   deckVersion: 0,
   deckPhase: "idle" as DeckPhase,
   deckStyle: null as ThemeConfig | null,
+  // Set to a freshly-generated deck's id so the deck view auto-runs the
+  // render→critique→repair polish pass once. Cleared after it fires.
+  pendingDeckPolishId: null as string | null,
   pageHtml: "",
   pageEditableFields: [] as PageEditableField[],
   pageVersion: 0,
@@ -248,6 +298,8 @@ export const useAppStore = create<AppState>()(
   projectsFullyLoaded: {},
   isLoadingProject: false,
   openTabs: [],
+  recents: loadRecentsFromStorage(),
+  quickNotesProjectId: loadQuickNotesId(),
 
   // ── Chat Actions ──
 
@@ -393,6 +445,7 @@ export const useAppStore = create<AppState>()(
     let newDeckVersion = state.deckVersion;
     let newDeckPhase = state.deckPhase;
     let newDeckStyle = state.deckStyle;
+    let newPendingDeckPolishId = state.pendingDeckPolishId;
 
     // Page flat fields
     let newPageHtml = state.pageHtml;
@@ -650,6 +703,10 @@ export const useAppStore = create<AppState>()(
                 newDeckVersion = state.deckVersion + 1;
                 // Transition to viewing phase after generation
                 newDeckPhase = "viewing";
+                // Queue a background polish pass for freshly-generated HTML decks.
+                if (newDeck.slides.some((s) => isHtmlSlide(s))) {
+                  newPendingDeckPolishId = newDeck.id;
+                }
                 if (!newOpenTabs.some((t) => t.id === newDeck.id)) {
                   newOpenTabs = [...newOpenTabs, { id: newDeck.id, type: "deck" as const, title: newDeck.title }];
                 }
@@ -838,6 +895,7 @@ export const useAppStore = create<AppState>()(
       deckVersion: newDeckVersion,
       deckPhase: newDeckPhase,
       deckStyle: newDeckStyle,
+      pendingDeckPolishId: newPendingDeckPolishId,
       pageHtml: newPageHtml,
       pageEditableFields: newPageEditableFields,
       pageVersion: newPageVersion,
@@ -1449,6 +1507,104 @@ export const useAppStore = create<AppState>()(
   },
 
   // ══════════════════════════════════
+  // ── Recents + Quick Note ──
+  // ══════════════════════════════════
+
+  recordRecent: (entityId, type) => {
+    const state = get();
+    // Resolve a fresh title + owning workspace from the live projects so the
+    // snapshot is accurate even after a rename. Bail quietly if not found.
+    let projectId = "", projectTitle = "", title = "";
+    if (type === "ku") { const f = findKnowledgeUnit(state.projects, entityId); if (!f) return; projectId = f.project.id; projectTitle = f.project.title || "Untitled"; title = f.ku.title; }
+    else if (type === "table") { const f = findTable(state.projects, entityId); if (!f) return; projectId = f.project.id; projectTitle = f.project.title || "Untitled"; title = f.table.title; }
+    else if (type === "deck") { const f = findDeck(state.projects, entityId); if (!f) return; projectId = f.project.id; projectTitle = f.project.title || "Untitled"; title = f.deck.title; }
+    else { const f = findPage(state.projects, entityId); if (!f) return; projectId = f.project.id; projectTitle = f.project.title || "Untitled"; title = f.page.title; }
+
+    const entry: RecentEntry = { entityId, type, projectId, projectTitle, title, openedAt: Date.now() };
+    const next = [entry, ...state.recents.filter((r) => r.entityId !== entityId)].slice(0, RECENTS_MAX);
+    set({ recents: next });
+    saveRecentsToStorage(next);
+  },
+
+  removeRecent: (entityId) => {
+    const next = get().recents.filter((r) => r.entityId !== entityId);
+    set({ recents: next });
+    saveRecentsToStorage(next);
+  },
+
+  ensureQuickNotesProject: () => {
+    const state = get();
+    // 1) Known id, still present → use it.
+    const known = state.quickNotesProjectId;
+    if (known && state.projects.some((p) => p.id === known)) return known;
+    // 2) Adopt an existing workspace literally titled "Quick Notes" (survives a
+    //    cleared localStorage or a fresh device once projects have loaded).
+    const existing = state.projects.find((p) => p.title === QUICKNOTES_TITLE);
+    if (existing) {
+      set({ quickNotesProjectId: existing.id });
+      saveQuickNotesId(existing.id);
+      return existing.id;
+    }
+    // 3) Provision it. createProject switches to it and marks it fully loaded.
+    const p = get().createProject(QUICKNOTES_TITLE);
+    set({ quickNotesProjectId: p.id });
+    saveQuickNotesId(p.id);
+    return p.id;
+  },
+
+  createQuickNote: () => {
+    const pid = get().ensureQuickNotesProject();
+    // Make the Quick Notes workspace active so the editor + autosave target it.
+    if (get().currentProjectId !== pid) get().switchProject(pid);
+    const ku = get().createKnowledgeUnit(pid, "");
+    get().openKnowledgeUnit(ku.id);
+  },
+
+  moveKnowledgeUnitToProject: async (kuId, targetProjectId) => {
+    const state = get();
+    const src = findKnowledgeUnit(state.projects, kuId);
+    if (!src) return;
+    const sourceProjectId = src.project.id;
+    const target = state.projects.find((p) => p.id === targetProjectId);
+    if (!target || sourceProjectId === targetProjectId) return;
+
+    // Flush any pending edits so the content we move is the latest.
+    if (state.currentEntityId === kuId) get().saveCurrentEntity();
+    const fresh = findKnowledgeUnit(get().projects, kuId);
+    const movedKu: KnowledgeUnit = { ...(fresh?.ku ?? src.ku), projectId: targetProjectId, folderId: null, updatedAt: Date.now() };
+
+    const after = get();
+    const updated = after.projects.map((p) => {
+      if (p.id === sourceProjectId) return { ...p, knowledgeUnits: p.knowledgeUnits.filter((k) => k.id !== kuId) };
+      if (p.id === targetProjectId) return { ...p, knowledgeUnits: [...p.knowledgeUnits.filter((k) => k.id !== kuId), movedKu], updatedAt: movedKu.updatedAt };
+      return p;
+    });
+    const recents = after.recents.map((r) => (r.entityId === kuId ? { ...r, projectId: targetProjectId, projectTitle: target.title || "Untitled" } : r));
+
+    set({
+      projects: updated,
+      recents,
+      openTabs: after.openTabs.filter((t) => t.id !== kuId),
+      // If the moved note is the open entity, drop it from the active view; the
+      // caller decides where to navigate next.
+      currentEntityId: after.currentEntityId === kuId ? null : after.currentEntityId,
+      currentEntityType: after.currentEntityId === kuId ? null : after.currentEntityType,
+    });
+    saveProjectsToStorage(updated);
+    saveRecentsToStorage(recents);
+
+    // Server: delete from the source FIRST (the row's PK is the entity id, so it
+    // must be gone before it can be re-inserted under the target project), then
+    // upsert into the target. Ordered + awaited so a reload can't drop it.
+    try {
+      await updateProjectOnServer(sourceProjectId, { deletedKnowledgeUnitIds: [kuId] });
+      await updateProjectOnServer(targetProjectId, { knowledgeUnits: [{ id: kuId, title: movedKu.title, content: movedKu.content }] });
+    } catch {
+      /* local state already reflects the move; a later save reconciles */
+    }
+  },
+
+  // ══════════════════════════════════
   // ── Folder CRUD (in-project grouping) ──
   // ══════════════════════════════════
 
@@ -1716,6 +1872,7 @@ export const useAppStore = create<AppState>()(
       workspaceOpen: true,
       openTabs: newTabs,
     });
+    get().recordRecent(found.ku.id, "ku");
   },
 
   // ══════════════════════════════════
@@ -1904,6 +2061,7 @@ export const useAppStore = create<AppState>()(
       workspaceOpen: true,
       openTabs: newTabs,
     });
+    get().recordRecent(found.table.id, "table");
   },
 
   // ══════════════════════════════════
@@ -2071,12 +2229,28 @@ export const useAppStore = create<AppState>()(
       workspaceOpen: true,
       openTabs: newTabs,
     });
+    get().recordRecent(found.deck.id, "deck");
   },
 
   updateDeckSlides: (slides) => {
     set({ deckSlides: slides });
     scheduleDebouncedSave();
   },
+
+  applyRefinedSlides: (refined) => {
+    const byId = new Map(refined.map((r) => [r.id, r.html]));
+    const state = get();
+    const merged = state.deckSlides.map((slide) => {
+      const html = byId.get(slide.id);
+      // Only HTML slides are refined; merge new html, keep editableFields/notes.
+      if (html && isHtmlSlide(slide)) return { ...slide, html };
+      return slide;
+    });
+    set({ deckSlides: merged, deckVersion: state.deckVersion + 1 });
+    scheduleDebouncedSave();
+  },
+
+  clearPendingDeckPolish: () => set({ pendingDeckPolishId: null }),
 
   updateDeckTheme: (theme) => {
     set({ deckTheme: theme });
@@ -2255,6 +2429,7 @@ export const useAppStore = create<AppState>()(
       workspaceOpen: true,
       openTabs: newTabs,
     });
+    get().recordRecent(found.page.id, "page");
   },
 
   updatePageHtml: (html) => {
