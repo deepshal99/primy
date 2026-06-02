@@ -34,6 +34,7 @@ import {
   getProjectAccess,
   requireProjectAccess,
   ProjectAccessError,
+  listAccessibleProjectIds,
 } from "@/lib/projectAccess";
 
 beforeEach(() => {
@@ -111,5 +112,68 @@ describe("requireProjectAccess — role gating", () => {
     await expect(requireProjectAccess("p1", "u1", "viewer")).rejects.toMatchObject({
       status: 404,
     });
+  });
+});
+
+describe("getProjectAccess — org visibility", () => {
+  test("non-member, project visibility='org' and user in that org → viewer", async () => {
+    queue = [
+      [], // projectMembers miss
+      [{ userId: "creator", visibility: "org", orgId: "o1", deletedAt: null }],
+      [{ orgId: "o1" }], // user is in org o1
+    ];
+    const access = await getProjectAccess("p1", "u1");
+    expect(access).toMatchObject({ role: "viewer", legacy: false });
+  });
+
+  test("non-member, project visibility='org' but user NOT in that org → null", async () => {
+    queue = [
+      [],
+      [{ userId: "creator", visibility: "org", orgId: "o1", deletedAt: null }],
+      [], // not in org
+    ];
+    const access = await getProjectAccess("p1", "u1");
+    expect(access).toBeNull();
+  });
+
+  test("non-member, private project → null (no org leak)", async () => {
+    queue = [
+      [],
+      [{ userId: "creator", visibility: "private", orgId: null, deletedAt: null }],
+    ];
+    const access = await getProjectAccess("p1", "u1");
+    expect(access).toBeNull();
+  });
+
+  test("soft-deleted project → null even for the creator", async () => {
+    queue = [
+      [],
+      [{ userId: "u1", visibility: "private", orgId: null, deletedAt: new Date() }],
+    ];
+    const access = await getProjectAccess("p1", "u1");
+    expect(access).toBeNull();
+  });
+});
+
+describe("listAccessibleProjectIds — org + soft-delete", () => {
+  test("merges member rows, legacy-owned, and org-shared; dedupes", async () => {
+    queue = [
+      [{ projectId: "p1" }], // membership rows
+      [{ id: "p2" }], // legacy-owned (not deleted)
+      [{ orgId: "o1" }], // user's org
+      [{ id: "p2" }, { id: "p3" }], // org-shared, non-deleted (p2 dupe)
+    ];
+    const ids = await listAccessibleProjectIds("u1");
+    expect([...ids].sort()).toEqual(["p1", "p2", "p3"]);
+  });
+
+  test("no org → just member + legacy-owned", async () => {
+    queue = [
+      [{ projectId: "p1" }],
+      [{ id: "p2" }],
+      [], // no org membership
+    ];
+    const ids = await listAccessibleProjectIds("u1");
+    expect([...ids].sort()).toEqual(["p1", "p2"]);
   });
 });

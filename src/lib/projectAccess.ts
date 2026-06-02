@@ -1,6 +1,6 @@
 import { db } from "@/db";
-import { projects, projectMembers } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { projects, projectMembers, orgMembers } from "@/db/schema";
+import { and, eq, isNull } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
 // ── Project access control ──
@@ -56,15 +56,44 @@ export async function getProjectAccess(
     return { projectId, userId, role: member.role as ProjectRole, legacy: false };
   }
 
-  // Legacy fallback: the original creator is an implicit owner.
+  // Legacy + org-visibility fallback. Read the project's owner pointer,
+  // visibility, org, and soft-delete state in one row.
   const [project] = await db
-    .select({ userId: projects.userId })
+    .select({
+      userId: projects.userId,
+      visibility: projects.visibility,
+      orgId: projects.orgId,
+      deletedAt: projects.deletedAt,
+    })
     .from(projects)
     .where(eq(projects.id, projectId))
     .limit(1);
 
-  if (project && project.userId === userId) {
+  if (!project) return null;
+  // Soft-deleted projects are inaccessible via the normal path (Trash only).
+  if (project.deletedAt) return null;
+
+  // The original creator is an implicit owner.
+  if (project.userId === userId) {
     return { projectId, userId, role: "owner", legacy: true };
+  }
+
+  // Org-shared: any active member of the project's org gets viewer access.
+  if (project.visibility === "org" && project.orgId) {
+    const [orgRow] = await db
+      .select({ orgId: orgMembers.orgId })
+      .from(orgMembers)
+      .where(
+        and(
+          eq(orgMembers.orgId, project.orgId),
+          eq(orgMembers.userId, userId),
+          eq(orgMembers.status, "active")
+        )
+      )
+      .limit(1);
+    if (orgRow) {
+      return { projectId, userId, role: "viewer", legacy: false };
+    }
   }
 
   return null;
@@ -130,16 +159,42 @@ export async function addProjectOwner(
  * legacy-owned projects (projects.userId). Used by the project list endpoint.
  */
 export async function listAccessibleProjectIds(userId: string): Promise<string[]> {
+  // 1) Active memberships, 2) legacy-owned (non-deleted).
   const [memberRows, ownedRows] = await Promise.all([
     db
       .select({ projectId: projectMembers.projectId })
       .from(projectMembers)
       .where(and(eq(projectMembers.userId, userId), eq(projectMembers.status, "active"))),
-    db.select({ id: projects.id }).from(projects).where(eq(projects.userId, userId)),
+    db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.userId, userId), isNull(projects.deletedAt))),
   ]);
 
   const ids = new Set<string>();
   for (const r of memberRows) ids.add(r.projectId);
   for (const r of ownedRows) ids.add(r.id);
+
+  // 3) Org-shared, non-deleted projects of the user's org.
+  const [orgRow] = await db
+    .select({ orgId: orgMembers.orgId })
+    .from(orgMembers)
+    .where(and(eq(orgMembers.userId, userId), eq(orgMembers.status, "active")))
+    .limit(1);
+
+  if (orgRow) {
+    const orgProjects = await db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(
+        and(
+          eq(projects.orgId, orgRow.orgId),
+          eq(projects.visibility, "org"),
+          isNull(projects.deletedAt)
+        )
+      );
+    for (const r of orgProjects) ids.add(r.id);
+  }
+
   return [...ids];
 }
