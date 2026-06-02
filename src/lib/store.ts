@@ -1560,7 +1560,7 @@ export const useAppStore = create<AppState>()(
     get().openKnowledgeUnit(ku.id);
   },
 
-  moveKnowledgeUnitToProject: async (kuId, targetProjectId) => {
+  moveKnowledgeUnitToProject: (kuId, targetProjectId) => {
     const state = get();
     const src = findKnowledgeUnit(state.projects, kuId);
     if (!src) return;
@@ -1581,27 +1581,39 @@ export const useAppStore = create<AppState>()(
     });
     const recents = after.recents.map((r) => (r.entityId === kuId ? { ...r, projectId: targetProjectId, projectTitle: target.title || "Untitled" } : r));
 
+    // Optimistic: apply locally and let the caller navigate immediately. If the
+    // target isn't fully loaded yet, pin it as "loaded" so an auto-load can't
+    // replace its entities (and drop the just-moved note) before the server has
+    // it; we run a reconciling load ourselves once the upsert lands.
+    const wasLoaded = !!after.projectsFullyLoaded[targetProjectId];
     set({
       projects: updated,
       recents,
       openTabs: after.openTabs.filter((t) => t.id !== kuId),
-      // If the moved note is the open entity, drop it from the active view; the
-      // caller decides where to navigate next.
       currentEntityId: after.currentEntityId === kuId ? null : after.currentEntityId,
       currentEntityType: after.currentEntityId === kuId ? null : after.currentEntityType,
+      projectsFullyLoaded: wasLoaded ? after.projectsFullyLoaded : { ...after.projectsFullyLoaded, [targetProjectId]: true },
     });
     saveProjectsToStorage(updated);
     saveRecentsToStorage(recents);
 
-    // Server: delete from the source FIRST (the row's PK is the entity id, so it
-    // must be gone before it can be re-inserted under the target project), then
-    // upsert into the target. Ordered + awaited so a reload can't drop it.
-    try {
-      await updateProjectOnServer(sourceProjectId, { deletedKnowledgeUnitIds: [kuId] });
-      await updateProjectOnServer(targetProjectId, { knowledgeUnits: [{ id: kuId, title: movedKu.title, content: movedKu.content }] });
-    } catch {
-      /* local state already reflects the move; a later save reconciles */
-    }
+    // Server sync runs in the background so the UI moves instantly. Delete from
+    // the source FIRST (the row PK is the entity id, so it must be gone before
+    // it can be re-inserted under the target), then upsert into the target.
+    (async () => {
+      try {
+        await updateProjectOnServer(sourceProjectId, { deletedKnowledgeUnitIds: [kuId] });
+        await updateProjectOnServer(targetProjectId, { knowledgeUnits: [{ id: kuId, title: movedKu.title, content: movedKu.content }] });
+        // Now that the server has the note, pull the target's full content
+        // (its other entities weren't loaded if we pinned it above).
+        if (!wasLoaded) {
+          set({ projectsFullyLoaded: { ...get().projectsFullyLoaded, [targetProjectId]: false } });
+          await get().loadFullProject(targetProjectId);
+        }
+      } catch {
+        toast.error("Couldn't sync the move — it's saved locally");
+      }
+    })();
   },
 
   // ══════════════════════════════════

@@ -65,14 +65,16 @@ export function QuickNotesView({ projectId, onExit }: { projectId: string; onExi
   // Workspaces a note can be promoted into (everything except Quick Notes itself).
   const targets = useMemo(() => projects.filter((p) => p.id !== projectId), [projects, projectId]);
 
-  async function moveTo(targetId: string, targetTitle: string) {
-    const noteId = useAppStore.getState().currentEntityId;
+  function moveTo(targetId: string, targetTitle: string) {
+    const s = useAppStore.getState();
+    const noteId = s.currentEntityId;
     if (!noteId) return;
     setMoveOpen(false);
-    await useAppStore.getState().moveKnowledgeUnitToProject(noteId, targetId);
-    // Land the user on the promoted note in its new home.
-    useAppStore.getState().switchProject(targetId);
-    useAppStore.getState().openKnowledgeUnit(noteId);
+    // Local move is synchronous + optimistic; server sync runs in the
+    // background, so navigation lands the user on the note instantly.
+    s.moveKnowledgeUnitToProject(noteId, targetId);
+    s.switchProject(targetId);
+    s.openKnowledgeUnit(noteId);
     onExit();
     toast.success(`Moved to ${targetTitle || "workspace"}`);
   }

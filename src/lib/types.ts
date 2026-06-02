@@ -677,8 +677,9 @@ export interface AppState {
   ensureQuickNotesProject: () => string;
   /** Create a fresh quick note (a doc in the Quick Notes workspace) and open it. */
   createQuickNote: () => void;
-  /** Promote a note: move a KnowledgeUnit to another workspace (id preserved). */
-  moveKnowledgeUnitToProject: (kuId: string, targetProjectId: string) => Promise<void>;
+  /** Promote a note: move a KnowledgeUnit to another workspace (id preserved).
+   *  Applies locally + optimistically; the server sync runs in the background. */
+  moveKnowledgeUnitToProject: (kuId: string, targetProjectId: string) => void;
 
   // Tab management
   closeTab: (id: string) => void;
