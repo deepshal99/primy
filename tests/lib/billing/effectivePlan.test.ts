@@ -49,6 +49,36 @@ describe("effectivePlan", () => {
   });
 });
 
+describe("effectivePlan — org inheritance", () => {
+  test("free user in a pro org → 'pro'", () => {
+    expect(
+      effectivePlan({ plan: "free", proUntil: null, orgPlan: "pro", orgProUntil: null }, NOW)
+    ).toBe("pro");
+  });
+
+  test("free user in a free org → 'free'", () => {
+    expect(
+      effectivePlan({ plan: "free", proUntil: null, orgPlan: "free", orgProUntil: null }, NOW)
+    ).toBe("free");
+  });
+
+  test("free user, org on grace (orgProUntil future) → 'pro'", () => {
+    expect(
+      effectivePlan({ plan: "free", proUntil: null, orgPlan: "free", orgProUntil: FUTURE }, NOW)
+    ).toBe("pro");
+  });
+
+  test("free user, org grace expired → 'free'", () => {
+    expect(
+      effectivePlan({ plan: "free", proUntil: null, orgPlan: "free", orgProUntil: PAST }, NOW)
+    ).toBe("free");
+  });
+
+  test("no org fields (undefined) behaves exactly as before → 'free'", () => {
+    expect(effectivePlan({ plan: "free", proUntil: null }, NOW)).toBe("free");
+  });
+});
+
 describe("isOnGracePeriod", () => {
   test("true only when plan='free' AND proUntil > now", () => {
     expect(isOnGracePeriod({ plan: "free", proUntil: FUTURE }, NOW)).toBe(true);
