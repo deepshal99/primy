@@ -7,6 +7,7 @@ import { PRIMY_TOOLS, TOOL_ROUTING_PROMPT } from "@/lib/ai/primyTools";
 import { withPlanLimit, type PlanCtx } from "@/lib/billing";
 import { getSlashCommand } from "@/lib/ai/slashCommands";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { logTokenUsage } from "@/lib/ai/tokenUsage";
 import "@/lib/env";
 
 // Allow longer processing for deck generation and file-heavy requests
@@ -489,6 +490,8 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
         let lastError: unknown = null;
         let accumulatedText = "";          // full assistant text across continuations
         let finishReason: string | null = null;
+        let usageIn = 0;                   // accumulated input tokens (telemetry)
+        let usageOut = 0;                  // accumulated output tokens (telemetry)
 
         // Build provider options per candidate. gpt-5.x reasoning/verbosity is
         // applied ONLY when the candidate carries them — the gpt-4.1 fallback
@@ -564,6 +567,12 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
             } else if (part.type === "finish") {
               // fullStream emits a terminal finish part with the stop reason.
               localFinish = (part as { finishReason?: string }).finishReason ?? null;
+              // Accumulate token usage across candidates + continuations (telemetry).
+              const u = (part as { totalUsage?: { inputTokens?: number; outputTokens?: number } }).totalUsage;
+              if (u) {
+                usageIn += u.inputTokens ?? 0;
+                usageOut += u.outputTokens ?? 0;
+              }
             } else if (part.type === "error") {
               // fullStream surfaces provider failures as an error part
               throw part.error instanceof Error ? part.error : new Error(String(part.error));
@@ -672,6 +681,18 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
           if (!clientDisconnected) {
             const truncated = finishReason === "length";
             safeEnqueue(encoder.encode(`data: ${JSON.stringify({ meta: { finishReason, truncated } })}\n\n`));
+          }
+
+          // Record AI cost telemetry before closing so the write isn't cut off
+          // when the serverless instance freezes post-response. Non-fatal.
+          if (chosen && (usageIn > 0 || usageOut > 0)) {
+            await logTokenUsage({
+              userId: ctx.userId,
+              task: taskType,
+              model: chosen.modelId,
+              inputTokens: usageIn,
+              outputTokens: usageOut,
+            });
           }
 
           safeEnqueue(encoder.encode("data: [DONE]\n\n"));

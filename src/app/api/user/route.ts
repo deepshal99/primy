@@ -5,6 +5,7 @@ import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { effectivePlan, isOnGracePeriod } from "@/lib/billing";
 import { validatePassword, isBreachedPassword } from "@/lib/authPolicy";
+import { seedStarterWorkspace } from "@/lib/onboarding/seedStarter";
 
 export async function GET() {
   try {
@@ -69,10 +70,22 @@ export async function PATCH(req: Request) {
           { status: 400 }
         );
       }
+      // Read the current flag so we seed the starter workspace exactly once,
+      // on the false→true transition (a repeat PATCH must not re-seed).
+      const [current] = await db
+        .select({ hasOnboarded: users.hasOnboarded })
+        .from(users)
+        .where(eq(users.id, session.user.id))
+        .limit(1);
+
       await db
         .update(users)
         .set({ hasOnboarded: true })
         .where(eq(users.id, session.user.id));
+
+      if (!current?.hasOnboarded) {
+        await seedStarterWorkspace(session.user.id);
+      }
 
       return Response.json({ success: true, hasOnboarded: true });
     }
