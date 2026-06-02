@@ -141,6 +141,20 @@ Everything depends on this; build first, on one track.
 
 ---
 
+### W8 — Environments & deployment pipeline (dev → preview → prod)
+**Why now:** once a real team is on it, "edit prod directly" is over. We need the dev/preview/prod ecosystem with per-PR preview URLs and safe migrations. The full design already exists in **`2026-06-02-environments-and-deployment-guide.md`** — this workstream is its *execution*.
+**Missing (per that guide):** versioned migrations (still on `drizzle-kit push`), CI checks, health route, Sentry/Analytics wiring, branch protection.
+**Design / build items (code = I do):**
+- **Migrations:** add `db:generate`/`db:migrate`, **baseline** the current schema, mark applied on existing DBs, wire `db:migrate` into the deploy step. *(Hard prerequisite for shipping the W0 schema changes safely.)*
+- **CI:** `.github/workflows/ci.yml` — on PR: `npm ci` → typecheck → `next build` → `vitest run`; on push to `main`: migrate then deploy. Branch protection on `main`.
+- **Health + config:** `/api/health` route; per-environment `.env.example`; short `RUNBOOK.md`.
+- **Observability:** Sentry + Vercel Analytics/Speed Insights (overlaps W7).
+**Dashboard items (you do, ~30–45 min, exact clicks in the guide):** Neon project + branches + Vercel integration (per-PR DB branches = your staging); Vercel project import + per-target env vars + domain; GitHub branch protection.
+**Mapping:** local (feature branches, Neon `dev`) → **Preview** (per-PR, ephemeral Neon branch, `*.vercel.app`) → **Production** (`main`, Neon `production`, `primy.app`). One Vercel project, Production/Preview *targets*, separate prod OpenAI key with a spend cap.
+**Acceptance:** a PR spins up a preview URL on its own DB branch; CI gates merge; merging to `main` migrates + deploys prod; `vercel rollback` tested once.
+
+> **Sequencing note:** W8's **migration baseline is a hard prerequisite for W0** — the org/visibility/trash schema changes must ship as reviewed, versioned migrations, not `drizzle-kit push`. So W8's migration setup is part of **Phase 0**, before any schema change lands. CI + observability + dashboard setup run in parallel with Phase 1.
+
 ## 5. Out of scope (parked — by decision)
 - Real payments / checkout / Upgrade-funnel UI (revenue model = after the test; see `2026-06-02-revenue-model-plan.md`).
 - Turning on `ENFORCE_PLAN_LIMITS` / storage gating / metering decks+embeddings.
@@ -154,8 +168,8 @@ Everything depends on this; build first, on one track.
 
 ## 6. Build sequencing & multi-agent orchestration
 
-**Phase 0 — Foundation (sequential, single track): W0.**
-Schema + access control + plan inheritance + token-log table + start writing `activityEvents`. One careful track; everything below depends on it. Land + migrate before fan-out.
+**Phase 0 — Foundation (sequential, single track): W8 migration baseline → W0.**
+First set up versioned migrations (W8: `db:generate`/`db:migrate` + baseline) so the new schema ships reviewably. Then W0: schema + access control + plan inheritance + token-log table + start writing `activityEvents`. One careful track; everything below depends on it. Land + migrate before fan-out.
 
 **Phase 1 — Parallel fan-out (agent team, on top of W0):**
 - Agent A → **W1** Org management (UI + API).
