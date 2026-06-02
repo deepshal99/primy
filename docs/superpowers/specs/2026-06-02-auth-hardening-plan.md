@@ -24,13 +24,14 @@ Goal: auth that can't be brute-forced, enumerated, forged, or DoS'd, and degrade
 
 ---
 
-## 🔜 Remaining — prioritized
+## ✅ Also done (commits `c02eb58`, `4101543`)
+- **Session revocation via `tokenVersion`** (was the top P0): `users.token_version` minted into the JWT; the `jwt` callback re-validates against the DB on a 30s cadence and revokes on mismatch. Password **reset** and **change** bump it (change-password UI now signs out → login). `POST /api/user/logout-all` for explicit "log out everywhere". Verified: session dies ~30s after a version bump.
+- **Breached-password check** (HIBP k-anonymity) on signup/reset/change — fails open.
+- **forgot-password mailer** is best-effort (no 500 / no enumeration on a mailer outage).
+- **`NEXT_PUBLIC_DEV_AUTH_BYPASS=true` refused in production** (runtime guard, skips build phase).
+- **Case-insensitive email uniqueness** index (`users_email_lower_idx`).
 
-### P0 — Session revocation (`tokenVersion`) — *do next*
-Today a stolen JWT is valid up to 7 days and a **password reset does NOT kill existing sessions** (stateless JWT). For account-takeover recovery this is the gap that matters.
-- Add `users.tokenVersion int default 0`. Embed it in the JWT (`jwt` callback). In the `session`/`jwt` callback, compare the token's version to the DB (one indexed read) and reject on mismatch.
-- Bump `tokenVersion` on: password reset, password change, and an explicit **"log out everywhere"** button.
-- Cost: +1 indexed read per authenticated request. Mitigate with the Neon **pooler** (below) and/or a short in-memory cache keyed by userId.
+## 🔜 Remaining — prioritized
 
 ### P0 — Neon pooled connection (availability at scale)
 `db/index.ts` uses the `neon()` HTTP driver with no pool. Hot paths fire multiple sequential queries (forgot-password = 4; the jwt callback hits DB). At 1000+ concurrent this can exhaust Neon's ceiling and stall auth.
