@@ -330,7 +330,9 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
 
     const el = e.target;
     el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 180) + "px";
+    // Cap matches the variant's maxHeight so the box stops growing exactly where
+    // the scrollbar takes over — pill docks compactly, the hero gets more room.
+    el.style.height = Math.min(el.scrollHeight, pill ? 140 : 180) + "px";
   };
 
   // -- File handling --
@@ -443,7 +445,7 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
     <div className={cn("px-3 pb-4 pt-2", centered && "px-0", pill && "px-4 pb-4 pt-1")}>
       <div
         className={cn(
-          "relative t-normal",
+          "relative t-normal flex flex-col",
           !pill && "rounded-[20px] border border-[#e8e8ed] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)]",
           !pill && isDragOver && "border-[#FFB43F] shadow-[0_0_0_2px_rgba(255,180,63,0.12)]",
           !pill && !isDragOver && !disabled && "focus-within:border-[#FFB43F]/40 focus-within:shadow-[0_2px_8px_rgba(0,0,0,0.04)]",
@@ -556,23 +558,6 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
           </div>
         )}
 
-        {/* Textarea */}
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={handleInput}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          placeholder={placeholderProp || (pill ? "Ask anything..." : "Ask anything... (type @ to mention)")}
-          rows={1}
-          aria-label="Chat message"
-          className={cn(
-            "w-full bg-transparent resize-none outline-none text-foreground tracking-[-0.01em] placeholder:text-[#a3a3a3]",
-            pill ? "pl-[46px] pr-[46px] py-[14px] text-[14px] leading-[1.4]" : "px-5 pt-4 pb-14 text-[14px]"
-          )}
-          style={pill ? { minHeight: 24, maxHeight: 140 } : { minHeight: 100, maxHeight: 180 }}
-        />
-
         {/* Hidden file input */}
         <input
           ref={fileInputRef}
@@ -584,50 +569,110 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
           aria-label="Upload files"
         />
 
-        {/* Plus button -- bottom left */}
-        <button
-          onClick={handleFileClick}
-          disabled={disabled}
-          className={cn(
-            "absolute flex items-center justify-center active:scale-[0.95] t-fast disabled:opacity-40 cursor-pointer",
-            pill
-              ? "left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full text-[#6E6E73] hover:text-[#1a1a1a] hover:bg-[rgba(24,24,22,0.05)]"
-              : "bottom-3 left-3.5 w-8 h-8 rounded-full border border-[#e8e8ed] bg-white text-[#737373] hover:text-[#1a1a1a] hover:border-[#dddfe3] hover:bg-[#f5f5f3]"
-          )}
-          title="Attach files"
-          aria-label="Attach files"
-        >
-          <Plus className="w-[18px] h-[18px]" strokeWidth={1.9} />
-        </button>
-
-        {/* Send / Stop button -- bottom right */}
-        {disabled && onStop ? (
-          <button
-            onClick={onStop}
-            className={cn(
-              "absolute rounded-full bg-[#1A1815] text-white flex items-center justify-center hover:bg-black active:scale-[0.95] t-fast cursor-pointer",
-              pill ? "right-2 top-1/2 -translate-y-1/2 w-9 h-9" : "bottom-3 right-3.5 w-8 h-8"
+        {/* Attach (+) button — shared across variants, styled per layout. */}
+        {pill ? (
+          /* Pill: a single flex-end action row. `items-end` keeps the + and
+             send pinned to the BOTTOM line as the textarea grows, so they never
+             float in the vertical middle and text is never hidden behind them.
+             The textarea is a flex child (not absolutely overlaid), so wrapping
+             stays consistent on every line — no ragged right edge. */
+          <div className="flex items-end gap-1.5 px-2 py-2">
+            <button
+              onClick={handleFileClick}
+              disabled={disabled}
+              className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full text-[#6E6E73] hover:text-[#1a1a1a] hover:bg-[rgba(24,24,22,0.06)] active:scale-[0.95] t-fast disabled:opacity-40 cursor-pointer"
+              title="Attach files"
+              aria-label="Attach files"
+            >
+              <Plus className="w-[18px] h-[18px]" strokeWidth={1.9} />
+            </button>
+            <textarea
+              ref={textareaRef}
+              value={value}
+              onChange={handleInput}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              placeholder={placeholderProp || "Ask anything..."}
+              rows={1}
+              aria-label="Chat message"
+              className="flex-1 min-w-0 self-center bg-transparent resize-none outline-none text-foreground tracking-[-0.01em] placeholder:text-[#a3a3a3] text-[14px] leading-[1.45] py-[7px] chat-scroll"
+              style={{ minHeight: 22, maxHeight: 140 }}
+            />
+            {disabled && onStop ? (
+              <button
+                onClick={onStop}
+                className="shrink-0 rounded-full bg-[#1A1815] text-white flex items-center justify-center w-9 h-9 hover:bg-black active:scale-[0.95] t-fast cursor-pointer"
+                title="Stop generating"
+                aria-label="Stop generating"
+              >
+                <Square className="w-3 h-3 rounded-[1px]" fill="currentColor" strokeWidth={0} />
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={!canSend}
+                aria-label="Send message"
+                className={cn(
+                  "shrink-0 rounded-full flex items-center justify-center w-9 h-9 t-fast",
+                  canSend
+                    ? "bg-[#1A1815] text-white cursor-pointer hover:bg-black active:scale-[0.95] shadow-[0_2px_6px_rgba(24,24,22,0.20)]"
+                    : "bg-[rgba(24,24,22,0.08)] text-[#a3a3a3] cursor-not-allowed"
+                )}
+              >
+                <ArrowUp className="w-[17px] h-[17px]" strokeWidth={2.4} />
+              </button>
             )}
-            title="Stop generating"
-            aria-label="Stop generating"
-          >
-            <Square className="w-3 h-3 rounded-[1px]" fill="currentColor" strokeWidth={0} />
-          </button>
+          </div>
         ) : (
-          <button
-            onClick={handleSubmit}
-            disabled={!canSend}
-            aria-label="Send message"
-            className={cn(
-              "absolute rounded-full flex items-center justify-center t-fast",
-              pill ? "right-2 top-1/2 -translate-y-1/2 w-9 h-9" : "bottom-3 right-3.5 w-8 h-8",
-              canSend
-                ? "bg-[#1A1815] text-white cursor-pointer hover:bg-black active:scale-[0.95] shadow-[0_2px_6px_rgba(24,24,22,0.20)]"
-                : "bg-[rgba(24,24,22,0.06)] text-[#a3a3a3] cursor-not-allowed"
+          /* Hero (non-pill): roomy box, text flows full-width with the action
+             controls anchored along the bottom edge. */
+          <>
+            <textarea
+              ref={textareaRef}
+              value={value}
+              onChange={handleInput}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              placeholder={placeholderProp || "Ask anything... (type @ to mention)"}
+              rows={1}
+              aria-label="Chat message"
+              className="w-full bg-transparent resize-none outline-none text-foreground tracking-[-0.01em] placeholder:text-[#a3a3a3] px-5 pt-4 pb-14 text-[14px] chat-scroll"
+              style={{ minHeight: 100, maxHeight: 180 }}
+            />
+            <button
+              onClick={handleFileClick}
+              disabled={disabled}
+              className="absolute bottom-3 left-3.5 flex items-center justify-center w-8 h-8 rounded-full border border-[#e8e8ed] bg-white text-[#737373] hover:text-[#1a1a1a] hover:border-[#dddfe3] hover:bg-[#f5f5f3] active:scale-[0.95] t-fast disabled:opacity-40 cursor-pointer"
+              title="Attach files"
+              aria-label="Attach files"
+            >
+              <Plus className="w-[18px] h-[18px]" strokeWidth={1.9} />
+            </button>
+            {disabled && onStop ? (
+              <button
+                onClick={onStop}
+                className="absolute bottom-3 right-3.5 w-8 h-8 rounded-full bg-[#1A1815] text-white flex items-center justify-center hover:bg-black active:scale-[0.95] t-fast cursor-pointer"
+                title="Stop generating"
+                aria-label="Stop generating"
+              >
+                <Square className="w-3 h-3 rounded-[1px]" fill="currentColor" strokeWidth={0} />
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={!canSend}
+                aria-label="Send message"
+                className={cn(
+                  "absolute bottom-3 right-3.5 w-8 h-8 rounded-full flex items-center justify-center t-fast",
+                  canSend
+                    ? "bg-[#1A1815] text-white cursor-pointer hover:bg-black active:scale-[0.95] shadow-[0_2px_6px_rgba(24,24,22,0.20)]"
+                    : "bg-[rgba(24,24,22,0.06)] text-[#a3a3a3] cursor-not-allowed"
+                )}
+              >
+                <ArrowUp className="w-[17px] h-[17px]" strokeWidth={2.4} />
+              </button>
             )}
-          >
-            <ArrowUp className="w-[17px] h-[17px]" strokeWidth={2.4} />
-          </button>
+          </>
         )}
       </div>
     </div>
