@@ -47,6 +47,7 @@ import type {
   ProjectPage,
 } from "@/lib/types";
 import { ShareModal } from "@/components/settings/ShareModal";
+import { ProjectActivity } from "@/components/workspace/ProjectActivity";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 
@@ -342,6 +343,9 @@ export function ProjectHome() {
             <span className="text-[12px] text-muted-foreground">{totalFiles} file{totalFiles !== 1 ? "s" : ""}</span>
           </div>
         </div>
+
+        {/* -- Recent activity (renders only when there's activity) -- */}
+        <ProjectActivity projectId={project.id} />
 
         {/* -- Files section -- */}
         <div>

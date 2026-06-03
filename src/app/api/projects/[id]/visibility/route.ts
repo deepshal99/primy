@@ -4,6 +4,7 @@ import { projects } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireProjectAccess, accessErrorResponse } from "@/lib/projectAccess";
 import { getUserOrg } from "@/lib/org/orgAccess";
+import { logActivity } from "@/lib/activity";
 
 /**
  * Project visibility — the private ↔ org share toggle.
@@ -80,6 +81,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         .update(projects)
         .set({ visibility: "org", orgId: org.orgId, updatedAt: new Date() })
         .where(eq(projects.id, id));
+      await logActivity({ projectId: id, actorId: userId, verb: "shared" });
       return Response.json({ visibility: "org", orgId: org.orgId });
     }
 
@@ -88,6 +90,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         .update(projects)
         .set({ visibility: "private", orgId: null, updatedAt: new Date() })
         .where(eq(projects.id, id));
+      await logActivity({ projectId: id, actorId: userId, verb: "unshared" });
       return Response.json({ visibility: "private", orgId: null });
     }
 

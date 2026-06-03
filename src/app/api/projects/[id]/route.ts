@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import { eq, and, inArray, desc, sql, isNull } from "drizzle-orm";
 import { ensureUserExists } from "@/lib/db/ensureUser";
+import { logActivity } from "@/lib/activity";
 import {
   requireProjectAccess,
   accessErrorResponse,
@@ -327,6 +328,7 @@ export async function PUT(
             title: ku.title,
             content: ku.content || "",
           });
+          await logActivity({ projectId: id, actorId: session.user.id, verb: "created", entityType: "ku", entityId: ku.id, meta: { title: ku.title } });
         }
       }
     }
@@ -356,6 +358,7 @@ export async function PUT(
             title: table.title,
             sheets: table.sheets || [],
           });
+          await logActivity({ projectId: id, actorId: session.user.id, verb: "created", entityType: "table", entityId: table.id, meta: { title: table.title } });
         }
       }
     }
@@ -415,6 +418,7 @@ export async function PUT(
             style: deck.style || null,
             slides: deck.slides || [],
           });
+          await logActivity({ projectId: id, actorId: session.user.id, verb: "created", entityType: "deck", entityId: deck.id, meta: { title: deck.title } });
         }
       }
     }
@@ -460,6 +464,7 @@ export async function PUT(
             editableFields: page.editableFields || [],
             sourceKuId: page.sourceKuId || null,
           });
+          await logActivity({ projectId: id, actorId: session.user.id, verb: "created", entityType: "page", entityId: page.id, meta: { title: page.title || "Untitled Page" } });
         }
       }
     }

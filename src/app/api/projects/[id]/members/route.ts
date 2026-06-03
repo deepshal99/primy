@@ -4,6 +4,7 @@ import { projectMembers, users } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { requireProjectAccess, accessErrorResponse, type ProjectRole } from "@/lib/projectAccess";
+import { logActivity } from "@/lib/activity";
 
 /**
  * Project membership management.
@@ -129,6 +130,8 @@ export async function POST(
         invitedBy: userId,
       });
     }
+
+    await logActivity({ projectId: id, actorId: userId, verb: "invited", meta: { email, role } });
 
     return Response.json({ success: true, userId: target.id, role });
   } catch (error) {
