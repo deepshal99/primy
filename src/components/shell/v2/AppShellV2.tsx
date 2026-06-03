@@ -13,13 +13,13 @@
  * Gated by useShellV2(); the legacy AppShell stays available via /app?shell=v1.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import {
-  Inbox, PenLine, Search, Plus, FileText, Table2, Presentation,
+  PenLine, Search, Plus, FileText, Table2, Presentation,
   LayoutTemplate, MoreHorizontal, LayoutGrid, CalendarDays,
   PanelRightOpen, Sun, Moon, ArrowLeft, Settings, Check,
   Folder as FolderIcon, FolderPlus, Trash2, Pencil, FolderInput,
@@ -27,6 +27,7 @@ import {
   LogOut, ChevronsUpDown, ChevronRight, ChevronDown, Share2, Clock,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { createPortal } from "react-dom";
 import { useAppStore } from "@/lib/store";
 import { useDarkMode } from "@/lib/useShellV2";
 import { BoardStyleProvider, useBoardStyle } from "@/lib/dials/boardStyle";
@@ -38,6 +39,7 @@ import { ExportMenu } from "@/components/sheet/ExportMenu";
 import { DocExportMenu } from "@/components/doc/DocExportMenu";
 import { SearchDialog } from "@/components/shared/SearchDialog";
 import { RecentsView } from "@/components/shell/v2/RecentsView";
+import { ComingSoonModal } from "@/components/shell/v2/ComingSoonModal";
 import { QuickNotesView } from "@/components/shell/v2/QuickNotesView";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LogoMark } from "@/components/shared/Logo";
@@ -85,6 +87,27 @@ function relTime(ts: number): string {
 }
 
 type ViewMode = "board" | "timeline";
+type GroupMode = "folders" | "type";
+
+/* Persist a small string preference to localStorage. Starts at `fallback` (so
+   server and first client paint agree — no hydration mismatch), then hydrates
+   the stored value on mount. Writes are validated against `valid`. */
+function usePersistentPref<T extends string>(key: string, fallback: T, valid: readonly T[]): [T, (v: T) => void] {
+  const [val, setVal] = useState<T>(fallback);
+  useEffect(() => {
+    try {
+      const v = window.localStorage.getItem(key);
+      if (v && (valid as readonly string[]).includes(v)) setVal(v as T);
+    } catch { /* ignore */ }
+    // valid is a stable literal at call sites; key is the real dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  const set = useCallback((v: T) => {
+    setVal(v);
+    try { window.localStorage.setItem(key, v); } catch { /* ignore */ }
+  }, [key]);
+  return [val, set];
+}
 type Item = {
   id: string; type: EntityType; title: string; updatedAt: number; folderId?: string | null;
   excerpt?: string;        // doc / page: plain-text prose preview
@@ -234,10 +257,12 @@ export function AppShellV2() {
   // they take over the main area (the Workspaces tree + chat dock stay put).
   const [systemView, setSystemView] = useState<null | "recents" | "notes">(null);
   const [dark, toggleDark] = useDarkMode();
-  const [view, setView] = useState<ViewMode>("board");
+  const [view, setView] = usePersistentPref<ViewMode>("primy:board:view", "board", ["board", "timeline"]);
+  const [groupBy, setGroupBy] = usePersistentPref<GroupMode>("primy:board:group", "folders", ["folders", "type"]);
   const [chatOpen, setChatOpen] = useState(true);
   const [chatExpanded, setChatExpanded] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [comingSoonOpen, setComingSoonOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [wsMenu, setWsMenu] = useState<{ id: string; title: string; x: number; y: number } | null>(null);
   const [shareWs, setShareWs] = useState<{ id: string; title: string } | null>(null);
@@ -322,6 +347,7 @@ export function AppShellV2() {
           <NavRow icon={<PenLine size={17} />} label="Quick Note" active={systemView === "notes"} onClick={openQuickNotes} />
           <NavRow icon={<Clock size={17} />} label="Recents" active={systemView === "recents"} onClick={() => setSystemView("recents")} />
           <NavRow icon={<Search size={17} />} label="Search" hint="⌘K" onClick={() => setSearchOpen(true)} />
+          <NavRow icon={<Rocket size={17} />} label="What's next" onClick={() => setComingSoonOpen(true)} />
         </div>
 
         <div ref={sidebarScroll} className="flex-1 overflow-y-auto px-4 pt-4 min-h-0 v2-scroll">
@@ -430,7 +456,8 @@ export function AppShellV2() {
       <div className="flex flex-1 min-w-0" style={{ background: "var(--canvas)" }}>
         <div className="flex flex-col flex-1 min-w-0">
           {/* topbar */}
-          <header className="flex items-center gap-3 pl-7 pr-5 flex-shrink-0" style={{ height: 60 }}>
+          <header className="flex items-center gap-3 pl-7 pr-5 flex-shrink-0"
+            style={{ height: 60, borderBottom: currentProjectId && !currentEntityId ? "1px solid var(--border)" : undefined }}>
             {currentProjectId && currentEntityId ? (
               <button onClick={() => useAppStore.getState().goToProjectHome()}
                 className="flex items-center gap-1.5 h-8 pl-1.5 pr-2.5 rounded-[8px] press text-[13px] hover-row" style={{ color: "var(--ink-2)" }}>
@@ -463,9 +490,10 @@ export function AppShellV2() {
               </div>
             )}
 
-            {/* Project board → view toggle only (create + folders live in the board) */}
+            {/* Project board → group-by (board only) + view toggle */}
             {currentProjectId && !currentEntityId && (
               <>
+                {view === "board" && <GroupByMenu value={groupBy} onChange={setGroupBy} />}
                 <div className="inline-flex items-center rounded-full p-1 mr-1" style={{ background: "var(--accent-soft)" }}>
                   {([["board", LayoutGrid], ["timeline", CalendarDays]] as const).map(([m, Ic]) => {
                     const on = view === m;
@@ -498,7 +526,7 @@ export function AppShellV2() {
                 </div>
               </div>
             ) : (
-              <ProjectBody project={project} view={view} />
+              <ProjectBody project={project} view={view} groupBy={groupBy} />
             )}
           </div>
         </div>
@@ -548,6 +576,7 @@ export function AppShellV2() {
       )}
 
       <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <ComingSoonModal open={comingSoonOpen} onClose={() => setComingSoonOpen(false)} />
       {settingsOpen && <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />}
       {shareWs && (
         <ShareModal
@@ -590,7 +619,7 @@ function createInProject(projectId: string, type: EntityType) {
 
 /* ───────────────────────── project body (board/kanban/timeline) ───────────────────────── */
 
-function ProjectBody({ project, view }: { project: Project | undefined; view: ViewMode }) {
+function ProjectBody({ project, view, groupBy }: { project: Project | undefined; view: ViewMode; groupBy: GroupMode }) {
   const items = useMemo(() => projectItems(project), [project]);
   if (!project) return null;
   const folders = (project.folders || []).slice().sort((a, b) => a.position - b.position);
@@ -602,40 +631,119 @@ function ProjectBody({ project, view }: { project: Project | undefined; view: Vi
       <div className="pt-2">
         {empty ? <EmptyProject projectId={project.id} />
           : view === "timeline" ? <TimelineView projectId={project.id} items={items} folders={folders} />
-          : folders.length > 0 ? <FolderBoardView projectId={project.id} items={items} folders={folders} />
-          : <BoardView projectId={project.id} items={items} folders={folders} />}
+          : groupBy === "type" ? <TypeBoardView projectId={project.id} items={items} folders={folders} />
+          : <FolderBoardView projectId={project.id} items={items} folders={folders} />}
       </div>
     </BoardStyleProvider>
   );
 }
 
-function FolderBoardView({ projectId, items, folders }: { projectId: string; items: Item[]; folders: Folder[] }) {
-  const unfiled = items.filter((i) => !i.folderId || !folders.some((f) => f.id === i.folderId));
+/* Group-by control for the board. A deliberate choice between organising by
+   folder (default) or by entity type — not an automatic flip based on whether
+   a folder happens to exist (that jump felt off). Board-only; timeline ignores it. */
+function GroupByMenu({ value, onChange }: { value: GroupMode; onChange: (m: GroupMode) => void }) {
+  const [open, setOpen] = useState(false);
+  const opts: { key: GroupMode; label: string; Icon: typeof FolderIcon }[] = [
+    { key: "folders", label: "Folders", Icon: FolderIcon },
+    { key: "type", label: "Type", Icon: Layers },
+  ];
+  const active = opts.find((o) => o.key === value)!;
+  return (
+    <div className="relative mr-1.5">
+      <button onClick={() => setOpen((v) => !v)} title="Group files by"
+        className="flex items-center gap-1.5 h-8 pl-2.5 pr-2 rounded-[8px] press hover-row text-[13px] font-medium" style={{ color: "var(--ink-2)" }}>
+        <active.Icon size={14} style={{ color: "var(--icon)" }} />
+        <span>{active.label}</span>
+        <ChevronDown size={13} style={{ color: "var(--ink-4)" }} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-9 z-50 w-40 rounded-[11px] p-1.5 menu-pop"
+            style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
+            {opts.map((o) => (
+              <button key={o.key} onClick={() => { onChange(o.key); setOpen(false); }}
+                className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: value === o.key ? "var(--ink)" : "var(--ink-2)" }}>
+                <o.Icon size={14} style={{ color: "var(--icon)" }} /> {o.label}
+                {value === o.key && <Check size={13} className="ml-auto" style={{ color: "var(--accent-amber)" }} />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* Board grouped by entity type (Docs / Sheets / Decks / Pages). Same section
+   shape as the folder board, so switching group modes never shifts the layout.
+   No folder footer here — folders only render under the "Folders" grouping. */
+function TypeBoardView({ projectId, items, folders }: { projectId: string; items: Item[]; folders: Folder[] }) {
   return (
     <div>
-      {folders.map((f) => {
+      {TYPE_ORDER.map((t, idx) => {
+        const list = items.filter((i) => i.type === t.type);
+        const TIcon = ENTITY[t.type].Icon;
+        return (
+          <section key={t.type} style={{ borderTop: idx === 0 ? undefined : "1px solid var(--border)" }}>
+            <div className="flex items-center gap-2.5 h-[72px] px-8">
+              <TIcon size={16} style={{ color: t.color }} />
+              <span className="text-[15px] font-semibold tracking-[-0.005em]" style={{ color: "var(--ink)" }}>{t.label}</span>
+              {list.length > 0 && <span className="text-[12px] tabular-nums" style={{ color: "var(--ink-4)" }}>{list.length}</span>}
+              <div className="flex-1" />
+              <CreateButton label={t.label} onClick={() => createInProject(projectId, t.type)} />
+            </div>
+            {list.length > 0 && (
+              <div className="grid gap-4 px-9 pb-10" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(216px, 1fr))" }}>
+                {list.map((it, i) => <EntityCard key={it.id} item={it} projectId={projectId} folders={folders} index={i} />)}
+              </div>
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+/* The one and only board layout. Folders (if any) render as sections, and
+   everything not in a folder collects into a single catch-all. We never switch
+   between a "type" layout and a "folder" layout — that jump felt jarring; the
+   board always has the same shape, a folder is just one more section. */
+function FolderBoardView({ projectId, items, folders }: { projectId: string; items: Item[]; folders: Folder[] }) {
+  const unfiled = items.filter((i) => !i.folderId || !folders.some((f) => f.id === i.folderId));
+  const hasFolders = folders.length > 0;
+  return (
+    <div>
+      {folders.map((f, idx) => {
         const list = items.filter((i) => i.folderId === f.id);
-        return <FolderSection key={f.id} projectId={projectId} folder={f} list={list} folders={folders} />;
+        return <FolderSection key={f.id} projectId={projectId} folder={f} list={list} folders={folders} first={idx === 0} />;
       })}
       {unfiled.length > 0 && (
-        <FolderSection projectId={projectId} folder={null} list={unfiled} folders={folders} />
+        // With folders present this is the leftover bucket ("Others"); with none
+        // it's simply every file ("All files"). Same component, honest label.
+        <FolderSection projectId={projectId} folder={null} list={unfiled} folders={folders}
+          label={hasFolders ? "Others" : "All files"} first={!hasFolders} />
       )}
       <BoardFooter projectId={projectId} />
     </div>
   );
 }
 
-function FolderSection({ projectId, folder, list, folders }: { projectId: string; folder: Folder | null; list: Item[]; folders: Folder[] }) {
+function FolderSection({ projectId, folder, list, folders, label, first }: { projectId: string; folder: Folder | null; list: Item[]; folders: Folder[]; label?: string; first?: boolean }) {
   const [renaming, setRenaming] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [name, setName] = useState(folder?.name ?? "");
   const color = folder?.color ?? "#9A968D";
   return (
-    <section style={{ borderTop: "1px solid var(--border)" }}>
+    // The top divider lives on the topbar (stable across board/timeline); only
+    // sections after the first carry a separator, so we never double the line.
+    <section style={{ borderTop: first ? undefined : "1px solid var(--border)" }}>
       <div className="flex items-center gap-2.5 h-[72px] group px-8">
-        <span className="flex-shrink-0" style={{ color }}>
-          {folder ? <FolderIcon size={16} /> : <Inbox size={16} />}
-        </span>
+        {folder && (
+          <span className="flex-shrink-0" style={{ color }}>
+            <FolderIcon size={16} />
+          </span>
+        )}
         {folder && renaming ? (
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)}
             onBlur={() => { setRenaming(false); if (name.trim() && name !== folder.name) useAppStore.getState().renameFolder(projectId, folder.id, name.trim()); }}
@@ -643,7 +751,7 @@ function FolderSection({ projectId, folder, list, folders }: { projectId: string
             className="text-[15px] font-semibold tracking-[-0.005em] bg-transparent outline-none border-b" style={{ color: "var(--ink)", borderColor: color }} />
         ) : (
           <button onDoubleClick={() => folder && setRenaming(true)} className="text-[15px] font-semibold tracking-[-0.005em]" style={{ color: "var(--ink)" }}>
-            {folder ? folder.name : "Unfiled"}
+            {folder ? folder.name : (label ?? "Others")}
           </button>
         )}
         <span className="text-[12px] tabular-nums" style={{ color: "var(--ink-4)" }}>{list.length}</span>
@@ -664,7 +772,7 @@ function FolderSection({ projectId, folder, list, folders }: { projectId: string
                     <Pencil size={13} /> Rename
                   </button>
                   <div className="my-1 h-px" style={{ background: "var(--border)" }} />
-                  <button onClick={() => { setMenuOpen(false); confirmDialog({ title: `Delete folder "${folder.name}"?`, message: "Its files move to Unfiled (they are not deleted).", confirmLabel: "Delete folder", tone: "danger" }).then((ok) => { if (ok) useAppStore.getState().deleteFolder(projectId, folder.id); }); }}
+                  <button onClick={() => { setMenuOpen(false); confirmDialog({ title: `Delete folder "${folder.name}"?`, message: "Its files move to Others (they are not deleted).", confirmLabel: "Delete folder", tone: "danger" }).then((ok) => { if (ok) useAppStore.getState().deleteFolder(projectId, folder.id); }); }}
                     className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--destructive)" }}>
                     <Trash2 size={13} /> Delete folder
                   </button>
@@ -715,36 +823,6 @@ function EmptyProject({ projectId }: { projectId: string }) {
           })}
         </div>
       </EmptyState>
-    </div>
-  );
-}
-
-function BoardView({ projectId, items, folders }: { projectId: string; items: Item[]; folders: Folder[] }) {
-  return (
-    <div>
-      {TYPE_ORDER.map((t) => {
-        const list = items.filter((i) => i.type === t.type);
-        // Every type section is always shown so its Create tile is always
-        // reachable — this is how you make a sheet/deck/page (no top-bar action).
-        const TIcon = ENTITY[t.type].Icon;
-        return (
-          <section key={t.type} style={{ borderTop: "1px solid var(--border)" }}>
-            <div className="flex items-center gap-2.5 h-[72px] px-8">
-              <TIcon size={16} style={{ color: t.color }} />
-              <span className="text-[15px] font-semibold tracking-[-0.005em]" style={{ color: "var(--ink)" }}>{t.label}</span>
-              {list.length > 0 && <span className="text-[12px] tabular-nums" style={{ color: "var(--ink-4)" }}>{list.length}</span>}
-              <div className="flex-1" />
-              <CreateButton label={t.label} onClick={() => createInProject(projectId, t.type)} />
-            </div>
-            {list.length > 0 && (
-              <div className="grid gap-4 px-9 pb-10" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(216px, 1fr))" }}>
-                {list.map((it, i) => <EntityCard key={it.id} item={it} projectId={projectId} folders={folders} index={i} />)}
-              </div>
-            )}
-          </section>
-        );
-      })}
-      <BoardFooter projectId={projectId} />
     </div>
   );
 }
@@ -846,8 +924,39 @@ function EntityCard({ item, projectId, folders, index = 0 }: { item: Item; proje
 
 function CardMenu({ item, projectId, folders, onRename, onClose }: { item: Item; projectId: string; folders: Folder[]; onRename: () => void; onClose: () => void }) {
   const [showMove, setShowMove] = useState(false);
+  const moveRef = useRef<HTMLButtonElement>(null);
+  const [movePos, setMovePos] = useState<{ top: number; left: number } | null>(null);
   const pane = { background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" } as const;
   const move = (folderId: string | null) => { useAppStore.getState().moveEntityToFolder(projectId, item.id, item.type, folderId); onClose(); };
+
+  // The "Move to" flyout is a normal nested popover, but positioned in viewport
+  // space and portaled to <body> so it renders above any scroll container and
+  // flips to whichever side has room. That's what keeps a side-opening submenu
+  // from ever being clipped — not flattening it.
+  const openMove = () => {
+    if (showMove) { setShowMove(false); return; }
+    const el = moveRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const W = 192, GAP = 6, PAD = 8;
+    const H = (folders.length + 2) * 32 + 14; // Unfiled + folders + New folder
+    let left = r.left - GAP - W;              // prefer opening to the left
+    if (left < PAD) left = r.right + GAP;     // no room → flip to the right
+    left = Math.min(left, window.innerWidth - PAD - W);
+    const top = Math.max(PAD, Math.min(r.top, window.innerHeight - PAD - H));
+    setMovePos({ top, left });
+    setShowMove(true);
+  };
+
+  // A fixed popover would drift from its trigger on scroll/resize — close it.
+  useEffect(() => {
+    if (!showMove) return;
+    const close = () => setShowMove(false);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => { window.removeEventListener("scroll", close, true); window.removeEventListener("resize", close); };
+  }, [showMove]);
+
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
@@ -855,35 +964,32 @@ function CardMenu({ item, projectId, folders, onRename, onClose }: { item: Item;
         <button onClick={onRename} className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--ink-2)" }}>
           <Pencil size={13} /> Rename
         </button>
-        {/* Move to — expands inline (downward) rather than flying out sideways,
-            so it can never be clipped by the body scroll container's overflow.
-            Side-flyout submenus are the clip-prone pattern; avoid them here. */}
-        <div>
-          <button onClick={() => setShowMove((v) => !v)}
-            className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row"
-            style={{ color: "var(--ink-2)", background: showMove ? "var(--sidebar-accent)" : undefined }}>
-            <FolderInput size={13} /> Move to
-            <ChevronRight size={14} className="ml-auto transition-transform duration-200" style={{ color: "var(--ink-4)", transform: showMove ? "rotate(90deg)" : "none" }} />
-          </button>
-          {showMove && (
-            <div className="mt-0.5 ml-2.5 pl-2 border-l" style={{ borderColor: "var(--border)" }}>
-              <button onClick={() => move(null)} className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: item.folderId ? "var(--ink-2)" : "var(--ink)" }}>
-                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: "var(--ink-4)" }} /> Unfiled
-                {!item.folderId && <Check size={13} className="ml-auto flex-shrink-0" style={{ color: "var(--accent-amber)" }} />}
+        <button ref={moveRef} onClick={openMove}
+          className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row"
+          style={{ color: "var(--ink-2)", background: showMove ? "var(--sidebar-accent)" : undefined }}>
+          <FolderInput size={13} /> Move to
+          <ChevronRight size={14} className="ml-auto" style={{ color: "var(--ink-4)" }} />
+        </button>
+        {showMove && movePos && createPortal(
+          <div className="fixed z-[60] w-48 rounded-[11px] p-1.5 menu-pop" style={{ ...pane, top: movePos.top, left: movePos.left }}>
+            <button onClick={() => move(null)} className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: item.folderId ? "var(--ink-2)" : "var(--ink)" }}>
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: "var(--ink-4)" }} /> Unfiled
+              {!item.folderId && <Check size={13} className="ml-auto flex-shrink-0" style={{ color: "var(--accent-amber)" }} />}
+            </button>
+            {folders.map((f) => (
+              <button key={f.id} onClick={() => move(f.id)} className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--ink-2)" }}>
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: f.color }} /> <span className="truncate">{f.name}</span>
+                {item.folderId === f.id && <Check size={13} className="ml-auto flex-shrink-0" style={{ color: "var(--accent-amber)" }} />}
               </button>
-              {folders.map((f) => (
-                <button key={f.id} onClick={() => move(f.id)} className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--ink-2)" }}>
-                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: f.color }} /> <span className="truncate">{f.name}</span>
-                  {item.folderId === f.id && <Check size={13} className="ml-auto flex-shrink-0" style={{ color: "var(--accent-amber)" }} />}
-                </button>
-              ))}
-              <button onClick={() => { const f = useAppStore.getState().createFolder(projectId); useAppStore.getState().moveEntityToFolder(projectId, item.id, item.type, f.id); onClose(); }}
-                className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--ink-3)" }}>
-                <Plus size={13} /> New folder
-              </button>
-            </div>
-          )}
-        </div>
+            ))}
+            <div className="my-1 h-px" style={{ background: "var(--border)" }} />
+            <button onClick={() => { const f = useAppStore.getState().createFolder(projectId); useAppStore.getState().moveEntityToFolder(projectId, item.id, item.type, f.id); onClose(); }}
+              className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--ink-3)" }}>
+              <Plus size={13} /> New folder
+            </button>
+          </div>,
+          document.body
+        )}
         <div className="my-1 h-px" style={{ background: "var(--border)" }} />
         <button onClick={() => { onClose(); confirmDialog({ title: `Delete "${item.title || "Untitled"}"?`, message: "This cannot be undone.", confirmLabel: "Delete", tone: "danger" }).then((ok) => { if (ok) deleteEntity(projectId, item); }); }}
           className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--destructive)" }}>
