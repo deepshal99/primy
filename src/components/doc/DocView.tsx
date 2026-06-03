@@ -129,14 +129,18 @@ function ImageElement({ attributes, children, element }: any) {
   );
 
   const toggleSize = useCallback(() => {
-    if (width && width < 700) {
+    // Read the live rendered width, not the `width` state (seeded once at mount,
+    // can desync after an AI setValue reuses this instance).
+    const img = containerRef.current?.querySelector("img");
+    const current = img?.offsetWidth ?? (typeof element.width === "number" ? element.width : undefined);
+    if (current && current < 700) {
       setWidth(undefined); // full width
       updateNode({ width: undefined });
     } else {
       setWidth(400);
       updateNode({ width: 400 });
     }
-  }, [width, updateNode]);
+  }, [element, updateNode]);
 
   const justifyClass =
     align === "left" ? "justify-start" : align === "right" ? "justify-end" : "justify-center";

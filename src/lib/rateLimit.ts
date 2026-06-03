@@ -7,6 +7,17 @@
  *
  * A background interval purges fully-expired entries every 60 seconds
  * to prevent unbounded memory growth.
+ *
+ * ⚠️ SCOPE: this store is PER SERVERLESS INSTANCE. Limits are therefore
+ * best-effort, not global — a caller spread across N warm instances effectively
+ * gets up to N× the limit. This is acceptable as a secondary guard:
+ *   - chat is also bounded GLOBALLY by the DB usage meter (withPlanLimit), so
+ *     its real cap doesn't depend on this limiter;
+ *   - the security-relevant ones (share-token enumeration, extract, deck-refine)
+ *     rely on it for friction, not a hard ceiling.
+ * For a hard global ceiling, back this with a shared store (Upstash/KV) and make
+ * the check async. Deferred until that store is provisioned — wiring it now would
+ * be inert (falls back to this map) until the env is set.
  */
 
 interface RateLimitResult {

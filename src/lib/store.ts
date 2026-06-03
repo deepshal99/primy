@@ -54,6 +54,12 @@ import {
 let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 const SAVE_DEBOUNCE_MS = 2000;
 
+// In-flight full-project loads, keyed by id, so two concurrent callers
+// (switchProject's un-awaited load + an explicit openProject) share one fetch
+// instead of racing two. `projectsFullyLoaded` only flips AFTER the fetch, so it
+// can't dedupe on its own.
+const inFlightFullLoads = new Map<string, Promise<void>>();
+
 // ── Per-project streaming mirror ──
 // Streams live in `streamSessions` keyed by project. The flat `isStreaming`/
 // `streamingContent`/`aiPhase`/`streamingAction`/`readingFiles` fields are a
@@ -3003,7 +3009,11 @@ export const useAppStore = create<AppState>()(
     const state = get();
     // Skip if already fully loaded
     if (state.projectsFullyLoaded[id]) return;
+    // Coalesce with any in-flight load for the same id.
+    const existing = inFlightFullLoads.get(id);
+    if (existing) return existing;
 
+    const run = (async () => {
     set({ isLoadingProject: true });
     try {
       const fullProject = await fetchFullProject(id);
@@ -3040,6 +3050,13 @@ export const useAppStore = create<AppState>()(
     } catch (err) {
       console.error("[Store] Failed to load full project:", err);
       set({ isLoadingProject: false });
+    }
+    })();
+    inFlightFullLoads.set(id, run);
+    try {
+      await run;
+    } finally {
+      inFlightFullLoads.delete(id);
     }
   },
 

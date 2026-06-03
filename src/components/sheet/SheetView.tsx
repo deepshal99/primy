@@ -299,13 +299,17 @@ export function SheetView() {
         saveTimer = null;
       }
       if (univerRef.current) {
+        const myApi = univerRef.current.univerAPI;
         try {
-          univerRef.current.univerAPI.dispose();
+          myApi.dispose();
         } catch {
           // Ignore disposal errors
         }
         univerRef.current = null;
-        univerApiRef = null;
+        // Only clear the shared ref if it still points at THIS instance — on a
+        // rapid remount the next instance may have already claimed it, and we
+        // must not null the live API out from under SheetAIBar.
+        if (univerApiRef === myApi) univerApiRef = null;
       }
     };
   // Remount when sheetVersion or entity changes
