@@ -12,7 +12,7 @@ import { nanoid } from "nanoid";
 
 const WELCOME_DOC = `# 👋 Welcome to Primy
 
-Primy is your AI workspace for **docs, sheets, and decks** — all in one place, all connected.
+Primy is your AI workspace for **docs, sheets, and decks**: all in one place, all connected.
 
 ## Try it now
 Open the chat and ask for anything:
@@ -20,22 +20,22 @@ Open the chat and ask for anything:
 - "Build a 3-month content calendar as a sheet"
 - "Make a 6-slide pitch deck for it"
 
-Primy creates the doc, sheet, or deck for you — and you edit it like a normal editor.
+Primy creates the doc, sheet, or deck for you, then you edit it like a normal editor.
 
 ## What's where
-- **Sidebar** — your workspaces (projects) and files.
-- **Quick Note** — frictionless personal capture. Always private to you.
-- **Recents** — jump back into anything you touched.
-- **⌘K** — search across everything.
+- **Sidebar**: your workspaces (projects) and files.
+- **Quick Note**: frictionless personal capture. Always private to you.
+- **Recents**: jump back into anything you touched.
+- **⌘K**: search across everything.
 
 ## Private vs shared
-Every project starts **private** — only you can see it. When it's ready, share it with your team or generate a public link. You stay in control.
+Every project starts **private**, only you can see it. When it's ready, share it with your team or generate a public link. You stay in control.
 
 ## Why this beats the old way
-No more "ask AI → download the file → reshare → someone edits → now it's out of date." Your docs, sheets, and decks live here, stay current, and your team works on the same thing.
+No more "ask AI, download the file, reshare, someone edits, now it's out of date." Your docs, sheets, and decks live here, stay current, and your team works on the same thing.
 
 ---
-*This is a sample to get you started — edit or delete it anytime. (Deleting moves it to Trash; you can restore it.)*
+*This is a sample to get you started. Edit or delete it anytime. (Deleting moves it to Trash; you can restore it.)*
 `;
 
 /**

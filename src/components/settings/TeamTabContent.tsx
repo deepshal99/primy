@@ -112,7 +112,7 @@ export function TeamTabContent() {
       {isOwner ? (
         <DangerButton
           label="Delete organization"
-          confirmLabel="Delete it — this can't be undone"
+          confirmLabel="Delete it, this can't be undone"
           onConfirm={() =>
             deleteOrg.mutate(undefined, {
               onSuccess: () => toast.success("Organization deleted"),
