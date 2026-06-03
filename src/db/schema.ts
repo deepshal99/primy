@@ -29,7 +29,7 @@ export const users = pgTable("users", {
   // the value it was minted with, and a stale value invalidates the session.
   tokenVersion: integer("token_version").notNull().default(0),
   hasOnboarded: boolean("has_onboarded").default(false).notNull(),
-  plan: varchar("plan", { length: 20 }).notNull().default("free"), // "free" | "pro"
+  plan: varchar("plan", { length: 20 }).$type<"free" | "pro">().notNull().default("free"),
   proUntil: timestamp("pro_until"), // nullable — promo / founding-member grace
   gatewayCustomerId: varchar("gateway_customer_id", { length: 100 }),
   gatewaySubscriptionId: varchar("gateway_subscription_id", { length: 100 }),
@@ -65,8 +65,8 @@ export const projects = pgTable(
     keyFacts: text("key_facts"),
     client: varchar("client", { length: 255 }), // agency projects
     timeline: varchar("timeline", { length: 255 }), // due date / timeframe (free text)
-    status: varchar("status", { length: 20 }).notNull().default("active"), // active | archived
-    visibility: varchar("visibility", { length: 10 }).notNull().default("private"), // private | org
+    status: varchar("status", { length: 20 }).$type<"active" | "archived">().notNull().default("active"),
+    visibility: varchar("visibility", { length: 10 }).$type<"private" | "org">().notNull().default("private"),
     orgId: text("org_id"), // set when shared to an org
     archivedAt: timestamp("archived_at"), // owner-archived; hidden from active board
     deletedAt: timestamp("deleted_at"), // soft delete -> Trash
@@ -236,7 +236,7 @@ export const messages = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    role: varchar("role", { length: 20 }).notNull(), // "user" | "assistant"
+    role: varchar("role", { length: 20 }).$type<"user" | "assistant">().notNull(),
     content: text("content").notNull(),
     attachments: jsonb("attachments")
       .$type<Array<Pick<FileAttachment, "id" | "name" | "type" | "mimeType" | "size" | "previewUrl">>>()
@@ -317,7 +317,7 @@ export const artifactSnapshots = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    artifactType: varchar("artifact_type", { length: 20 }).notNull(), // "ku" | "table" | "deck" | "page"
+    artifactType: varchar("artifact_type", { length: 20 }).$type<"ku" | "table" | "deck" | "page">().notNull(),
     artifactId: text("artifact_id").notNull(),
     label: varchar("label", { length: 100 }), // "after AI edit", "manual save", etc.
     content: jsonb("content").notNull(),
@@ -346,9 +346,9 @@ export const projectMembers = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    role: varchar("role", { length: 20 }).notNull().default("editor"),
+    role: varchar("role", { length: 20 }).$type<"owner" | "editor" | "commenter" | "viewer">().notNull().default("editor"),
     invitedBy: text("invited_by").references(() => users.id, { onDelete: "set null" }),
-    status: varchar("status", { length: 20 }).notNull().default("active"), // active | pending | removed
+    status: varchar("status", { length: 20 }).$type<"active" | "pending" | "removed">().notNull().default("active"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
@@ -370,9 +370,9 @@ export const shareLinks = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     entityId: text("entity_id"), // null = whole-project link
-    entityType: varchar("entity_type", { length: 20 }), // ku | table | deck | page
+    entityType: varchar("entity_type", { length: 20 }).$type<"ku" | "table" | "deck" | "page">(), // null = whole-project link
     token: varchar("token", { length: 32 }).notNull().unique(),
-    permission: varchar("permission", { length: 10 }).notNull().default("view"), // view | edit
+    permission: varchar("permission", { length: 10 }).$type<"view" | "edit">().notNull().default("view"),
     createdBy: text("created_by").references(() => users.id, { onDelete: "set null" }),
     expiresAt: timestamp("expires_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -446,7 +446,7 @@ export const organizations = pgTable(
     id: text("id").primaryKey(), // nanoid
     name: varchar("name", { length: 200 }).notNull(),
     slug: varchar("slug", { length: 100 }).notNull().unique(),
-    plan: varchar("plan", { length: 20 }).notNull().default("free"), // free | pro
+    plan: varchar("plan", { length: 20 }).$type<"free" | "pro">().notNull().default("free"),
     proUntil: timestamp("pro_until"), // org grace override
     ownerId: text("owner_id")
       .notNull()
@@ -469,8 +469,8 @@ export const orgMembers = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    role: varchar("role", { length: 20 }).notNull().default("member"), // owner | admin | member
-    status: varchar("status", { length: 20 }).notNull().default("active"), // active | pending | removed
+    role: varchar("role", { length: 20 }).$type<"owner" | "admin" | "member">().notNull().default("member"),
+    status: varchar("status", { length: 20 }).$type<"active" | "pending" | "removed">().notNull().default("active"),
     invitedBy: text("invited_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
