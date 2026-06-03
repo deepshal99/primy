@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { sanitizeSlideHtml, extractGoogleFontUrls, enforceSlideContrast, scopeSlideRootCss } from "./sanitizeSlideHtml";
+import { sanitizeSlideHtml, extractGoogleFontUrls, enforceSlideContrast } from "./sanitizeSlideHtml";
 import { resolveImageQuery } from "@/lib/imageCache";
 import type { HtmlDeckSlide } from "@/lib/types";
 
@@ -26,12 +26,21 @@ export function HtmlSlideRenderer({
   editable = false,
 }: HtmlSlideRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const shadowRef = useRef<ShadowRoot | null>(null);
   const fontsLoadedRef = useRef<Set<string>>(new Set());
-  const slideDomId = `slide-${slide.id}`;
-  const sanitizedHtml = scopeSlideRootCss(
-    sanitizeSlideHtml(enforceSlideContrast(slide.html)),
-    slideDomId
-  );
+  const sanitizedHtml = sanitizeSlideHtml(enforceSlideContrast(slide.html));
+
+  // Render the slide into a shadow root so its CSS (`:root`, bare `body`/`h1`
+  // selectors, etc.) is fully encapsulated and can't restyle the app shell.
+  // (@font-face from document <head> still applies inside the shadow tree.)
+  useEffect(() => {
+    const host = containerRef.current;
+    if (!host) return;
+    if (!shadowRef.current) {
+      shadowRef.current = host.attachShadow({ mode: "open" });
+    }
+    shadowRef.current.innerHTML = sanitizedHtml;
+  }, [sanitizedHtml]);
 
   // Preload Google Fonts from the HTML
   useEffect(() => {
@@ -48,11 +57,11 @@ export function HtmlSlideRenderer({
 
   // Resolve data-image-query attributes into background images
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    const root = shadowRef.current;
+    if (!root) return;
     let cancelled = false;
 
-    const els = container.querySelectorAll<HTMLElement>("[data-image-query]");
+    const els = root.querySelectorAll<HTMLElement>("[data-image-query]");
     if (els.length === 0) return;
 
     const promises = Array.from(els).map(async (el) => {
@@ -75,7 +84,12 @@ export function HtmlSlideRenderer({
         onClick?.();
         return;
       }
-      const target = (e.target as HTMLElement).closest("[data-field]") as HTMLElement | null;
+      // Clicks originate inside the shadow tree, so e.target is retargeted to
+      // the host. Walk the composed path to find the real [data-field] element.
+      const path = e.nativeEvent.composedPath();
+      const target = path.find(
+        (n): n is HTMLElement => n instanceof HTMLElement && n.hasAttribute("data-field")
+      );
       if (!target) {
         onClick?.();
         return;
@@ -110,7 +124,6 @@ export function HtmlSlideRenderer({
     >
       <div
         ref={containerRef}
-        id={slideDomId}
         onClick={handleClick}
         style={{
           width: SLIDE_W,
@@ -120,7 +133,6 @@ export function HtmlSlideRenderer({
           overflow: "hidden",
           position: "relative",
         }}
-        dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
       />
       {isActive && (
         <div

@@ -1,10 +1,27 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { DeckSlide, HtmlDeckSlide, isHtmlSlide } from "@/lib/types";
 import type { ThemeConfig } from "@/lib/types";
 import { getThemeConfig, loadThemeFonts, loadThemeFontsFromConfig } from "./deckThemes";
-import { sanitizeSlideHtml, enforceSlideContrast, scopeSlideRootCss } from "./sanitizeSlideHtml";
+import { sanitizeSlideHtml, enforceSlideContrast } from "./sanitizeSlideHtml";
+
+/**
+ * Render raw slide HTML inside a shadow root so its CSS can't leak into the app
+ * shell (`:root`, bare `body`/`h1` selectors stay contained). @font-face rules
+ * loaded in document <head> still apply inside the shadow tree.
+ */
+function ShadowSlide({ html, style }: { html: string; style: React.CSSProperties }) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const shadowRef = useRef<ShadowRoot | null>(null);
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    if (!shadowRef.current) shadowRef.current = host.attachShadow({ mode: "open" });
+    shadowRef.current.innerHTML = html;
+  }, [html]);
+  return <div ref={hostRef} style={style} />;
+}
 
 export interface SlideEditHandlers {
   onTitleChange: (value: string) => void;
@@ -65,19 +82,13 @@ export function SlideRenderer({ slide, theme, themeConfig, scale = 1, onClick, i
           transition: "box-shadow 0.15s",
         }}
       >
-        <div
-          id={`slide-${slide.id}`}
+        <ShadowSlide
+          html={sanitizeSlideHtml(enforceSlideContrast(slide.html))}
           style={{
             transform: `scale(${scale})`,
             transformOrigin: "top left",
             width: 960,
             height: 540,
-          }}
-          dangerouslySetInnerHTML={{
-            __html: scopeSlideRootCss(
-              sanitizeSlideHtml(enforceSlideContrast(slide.html)),
-              `slide-${slide.id}`
-            ),
           }}
         />
       </div>
