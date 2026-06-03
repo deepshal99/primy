@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Link2, Check, Copy, Loader2, X, UserPlus, Trash2 } from "lucide-react";
+import { Link2, Check, Copy, Loader2, X, UserPlus, Trash2, Building2 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { IconSwap } from "@/components/ui/transitions";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
+import { useOrg } from "@/hooks/useOrg";
 
 interface Member {
   userId: string;
@@ -54,6 +55,32 @@ export function ShareModal({
   const [inviteRole, setInviteRole] = useState("editor");
   const [inviting, setInviting] = useState(false);
 
+  // ── Org-wide sharing (project mode only) ──
+  const { org } = useOrg();
+  const [visibility, setVisibility] = useState<"private" | "org">("private");
+  const [visBusy, setVisBusy] = useState(false);
+
+  const toggleOrgShare = async () => {
+    if (!org) return;
+    const next = visibility === "org" ? "private" : "org";
+    setVisBusy(true);
+    try {
+      const res = await fetch(`/api/projects/${entityId}/visibility`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visibility: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Couldn't update sharing");
+      setVisibility(next);
+      toast.success(next === "org" ? `Shared with ${org.name}` : "Now private");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't update sharing");
+    } finally {
+      setVisBusy(false);
+    }
+  };
+
   const fetchMembers = useCallback(async () => {
     if (!showMembers) return;
     setMembersLoading(true);
@@ -73,6 +100,14 @@ export function ShareModal({
   useEffect(() => {
     if (open && showMembers) fetchMembers();
   }, [open, showMembers, fetchMembers]);
+
+  useEffect(() => {
+    if (!open || !showMembers) return;
+    fetch(`/api/projects/${entityId}/visibility`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.visibility === "org" || d?.visibility === "private") setVisibility(d.visibility); })
+      .catch(() => {});
+  }, [open, showMembers, entityId]);
 
   const handleInvite = async () => {
     const email = inviteEmail.trim();
@@ -259,6 +294,37 @@ export function ShareModal({
                 />
                 {copied ? "Copied" : "Copy"}
               </button>
+            </div>
+          )}
+
+          {/* Org-wide sharing (project mode, owner, org exists) */}
+          {showMembers && isOwner && org && (
+            <div className="mt-6 pt-5 border-t border-border">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-start gap-2.5 min-w-0">
+                  <Building2 className="w-4 h-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
+                  <div className="min-w-0">
+                    <div className="text-[14px] text-foreground font-medium truncate">Share with {org.name}</div>
+                    <div className="text-[12px] text-muted-foreground mt-0.5">Everyone in your organization can open it</div>
+                  </div>
+                </div>
+                <button
+                  onClick={toggleOrgShare}
+                  disabled={visBusy}
+                  className="relative w-11 h-6 rounded-full flex-shrink-0 transition-colors duration-200 cursor-pointer"
+                  style={{ background: visibility === "org" ? "var(--primary)" : "var(--border-strong)" }}
+                  aria-label={visibility === "org" ? "Make private" : "Share with organization"}
+                >
+                  {visBusy ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary-foreground" />
+                  ) : (
+                    <div
+                      className="absolute top-[2px] w-5 h-5 rounded-full bg-card t-normal"
+                      style={{ left: visibility === "org" ? "22px" : "2px", boxShadow: "0 1px 3px rgba(0,0,0,0.15)" }}
+                    />
+                  )}
+                </button>
+              </div>
             </div>
           )}
 
