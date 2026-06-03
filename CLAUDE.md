@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Primy AI is an AI-powered workspace where users create and manage documents, spreadsheets, presentation decks, and HTML pages — all connected through a chat-based AI assistant. **OpenAI is the sole provider currently routed** (chat, deck generate/edit/critique, title, summarize, embeddings); a Google/Gemini client is still wired but no task routes to it today. Beyond the per-project workspace, two global surfaces sit in the sidebar: **Recents** (cross-workspace "jump back in") and **Quick Note** (frictionless capture into a dedicated Quick Notes workspace).
+Primy AI is an AI-powered workspace where users create and manage documents, spreadsheets, presentation decks, and HTML pages — all connected through a chat-based AI assistant. **OpenAI is the sole provider currently routed** (chat, deck generate/edit/critique, title, summarize, embeddings); a Google/Gemini client is still wired but no task routes to it today. Beyond the per-project workspace, two global surfaces sit in the sidebar: **Library** (your workspaces lensed by ownership: "Created by me" vs "Shared with me") and **Quick Note** (frictionless capture into a dedicated Quick Notes workspace).
 
 ## Strategy & Positioning
 
@@ -103,7 +103,7 @@ This is the largest file in the codebase. All client-side state lives in a singl
 
 ### Navigation surfaces (V2 shell)
 
-`AppShellV2` (the active shell) renders three things in the main area, by precedence: a **system view** (`systemView: "recents" | "notes" | null`), then the per-project board/editor, then the full-screen chat hero when no project is open. The sidebar nav rows are **Quick Note**, **Recents**, **Search** (⌘K) — the old dead "Inbox" row was removed. The Quick Notes workspace is hidden from the Workspaces tree and surfaced only via the pinned Quick Note row.
+`AppShellV2` (the active shell) renders three things in the main area, by precedence: a **system view** (`systemView: "library" | "notes" | "trash" | null`), then the per-project board/editor, then the full-screen chat hero when no project is open. The sidebar nav rows are **Quick Note**, **Library**, **Search** (⌘K), **What's next**, **Trash**. The Quick Notes workspace is hidden from the Workspaces tree and surfaced only via the pinned Quick Note row. **Library** (`LibraryView`) is a workspace gallery split into "Created by me" / "Shared with me" using ownership from the list endpoint (`isOwner`/`ownerName`/`orgId` on `projects`); each card summarizes its contents (entity counts). It replaced the old Recents surface. File-level "created by me" (inside shared workspaces) is a fast-follow needing a per-entity `createdBy` column.
 
 ### Key Files
 
@@ -116,7 +116,7 @@ This is the largest file in the codebase. All client-side state lives in a singl
 - `src/app/api/chat/route.ts` — Main streaming chat endpoint
 - `src/db/schema.ts` — Drizzle PostgreSQL table definitions
 - `src/components/shell/v2/AppShellV2.tsx` — **Active shell** (Strut overhaul). Default; legacy `src/components/AppShell.tsx` still reachable via `/app?shell=v1`
-- `src/components/shell/v2/RecentsView.tsx` / `QuickNotesView.tsx` — the two global surfaces
+- `src/components/shell/v2/LibraryView.tsx` / `QuickNotesView.tsx` — the two global surfaces
 - `src/lib/auth.ts` — NextAuth v5 config (credentials, throttle, tokenVersion revocation, dev-admin bypass)
 - `src/components/ui/transitions/` — drop-in micro-interaction primitives (`IconSwap`, `AnimatedNumber`, `TextReveal`) wrapping verbatim [transitions.dev](https://transitions.dev) snippets. CSS lives in the "transitions.dev primitives" block in `globals.css` (namespaced `t-*`, reduced-motion guarded; kept separate from the in-house `motion.css` layer). The `transitions-dev` skill (`transitions reveal|review|apply`) drives adding more.
 

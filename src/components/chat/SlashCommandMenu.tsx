@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import { Crown } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { SLASH_COMMANDS, type SlashCommand } from "@/lib/ai/slashCommands";
@@ -65,23 +66,24 @@ export function SlashCommandMenu({
       ref={listRef}
       role="listbox"
       aria-label="Slash command suggestions"
-      className="absolute bottom-full left-4 right-4 mb-1.5 z-20 bg-card rounded-xl border border-border shadow-[var(--shadow-pane)] overflow-hidden animate-fade-in"
+      className="absolute bottom-full left-4 right-4 mb-1.5 z-20 bg-card rounded-[14px] border border-border shadow-[var(--shadow-pane)] overflow-hidden menu-pop"
     >
-      <div className="max-h-[280px] overflow-y-auto py-1">
+      <div className="max-h-[300px] overflow-y-auto flex flex-col gap-0.5 p-1.5">
         {filtered.map((cmd, i) => {
           const Icon: LucideIcon = cmd.icon;
           const isProGated = cmd.tier === "pro" && effectivePlan === "free";
+          const selected = i === selectedIndex;
           return (
             <button
               key={cmd.name}
               type="button"
               role="option"
-              aria-selected={i === selectedIndex}
+              aria-selected={selected}
               data-slash-index={i}
               className={cn(
-                "w-full flex items-center gap-2.5 px-3.5 py-2 text-left transition-colors cursor-pointer",
-                i === selectedIndex ? "bg-accent" : "hover:bg-accent",
-                isProGated && "opacity-60"
+                "w-full flex items-center gap-3 px-2 py-2 rounded-[10px] text-left t-colors cursor-pointer",
+                selected ? "bg-accent" : "hover:bg-accent",
+                isProGated && "opacity-55"
               )}
               onMouseDown={(e) => {
                 e.preventDefault();
@@ -89,27 +91,37 @@ export function SlashCommandMenu({
               }}
               onMouseEnter={() => setSelectedIndex(i)}
             >
-              <Icon
-                className="w-3.5 h-3.5 text-icon shrink-0"
-                aria-hidden
-              />
+              {/* Neutral icon tile — calm structure, monochrome per the design
+                  system. Lifts to card on the active row so it stays distinct. */}
+              <span
+                className={cn(
+                  "w-8 h-8 rounded-[8px] flex items-center justify-center shrink-0 t-colors",
+                  selected ? "bg-card" : "bg-muted"
+                )}
+              >
+                <Icon className="w-[17px] h-[17px] text-icon" strokeWidth={1.7} aria-hidden />
+              </span>
               <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-[13px] text-foreground truncate">
-                  /{cmd.name}{" "}
-                  <span className="text-muted-foreground font-normal">· {cmd.label}</span>
+                <span className="text-[13px] font-medium text-foreground truncate leading-tight">
+                  /{cmd.name}
                 </span>
-                <span className="text-[11.5px] text-muted-foreground truncate">
+                <span className="text-[11.5px] text-muted-foreground truncate leading-snug mt-0.5">
                   {cmd.description}
                 </span>
               </div>
               {cmd.tier === "pro" && (
                 <span
-                  className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded uppercase tracking-wide"
+                  className="shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
                   style={{
-                    backgroundColor: isProGated ? "var(--muted)" : "var(--primary)",
-                    color: isProGated ? "var(--muted-foreground)" : "var(--primary-foreground)",
+                    backgroundColor: isProGated
+                      ? "var(--muted)"
+                      : "rgba(255,180,63,0.16)",
+                    color: isProGated
+                      ? "var(--muted-foreground)"
+                      : "var(--accent-amber-deep)",
                   }}
                 >
+                  <Crown className="w-2.5 h-2.5" strokeWidth={2} />
                   Pro
                 </span>
               )}

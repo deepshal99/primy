@@ -1072,9 +1072,12 @@ input:-webkit-autofill:active {
    ═══════════════════════════════════════ */
 
 .primy-toast-icon {
-  width: 22px;
-  height: 22px;
-  margin: 0;
+  /* !important beats sonner's own `[data-sonner-toast][data-styled] [data-icon]`
+     rule (specificity 0,3,0), which otherwise forces the disc to 16px and adds
+     a right margin — leaving the glyph cramped and off-centre. */
+  width: 22px !important;
+  height: 22px !important;
+  margin: 0 !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1082,6 +1085,13 @@ input:-webkit-autofill:active {
   background: rgba(255, 255, 255, 0.08);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
   flex-shrink: 0;
+  align-self: center;
+}
+
+/* Kill sonner's --toast-svg-margin-* on the inner glyph so it sits dead-centre
+   in the disc (sonner targets `[data-icon] svg` directly). */
+.primy-toast-icon svg {
+  margin: 0 !important;
 }
 
 /* The lucide glyph inside the disc — pops in with scale + blur (polish spec). */

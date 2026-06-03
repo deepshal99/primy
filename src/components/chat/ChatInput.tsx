@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { ArrowUp, Plus, Upload, Square, X } from "lucide-react";
+import { ArrowUp, Plus, Upload, Square } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
 import { FileAttachment, EntityType } from "@/lib/types";
@@ -22,26 +22,78 @@ import { ENTITY_META } from "@/lib/entityMeta";
 
 const MAX_INPUT_LENGTH = 50_000; // 50K chars — prevents enormous pastes from blowing up context
 
-// Sourced from the canonical ENTITY_META so colors never drift from the rest
-// of the app (these used to hardcode doc=#4a7aed while the breadcrumb used #2a6dfb).
-const ENTITY_STYLES: Record<EntityType, { text: string; bg: string; dot: string }> = {
-  ku: { text: ENTITY_META.ku.color, bg: ENTITY_META.ku.bg, dot: ENTITY_META.ku.color },
-  table: { text: ENTITY_META.table.color, bg: ENTITY_META.table.bg, dot: ENTITY_META.table.color },
-  deck: { text: ENTITY_META.deck.color, bg: ENTITY_META.deck.bg, dot: ENTITY_META.deck.color },
-  page: { text: ENTITY_META.page.color, bg: ENTITY_META.page.bg, dot: ENTITY_META.page.color },
-};
-
-const ENTITY_LABELS: Record<EntityType, string> = {
-  ku: ENTITY_META.ku.label,
-  table: ENTITY_META.table.label,
-  deck: ENTITY_META.deck.label,
-  page: ENTITY_META.page.label,
+// Short type tags shown on the right of each mention suggestion. The full
+// ENTITY_META labels ("Spreadsheet", "Presentation") are too long for the
+// narrow dropdown and clip; these stay readable at a glance.
+const ENTITY_SHORT: Record<EntityType, string> = {
+  ku: "Doc",
+  table: "Sheet",
+  deck: "Deck",
+  page: "Page",
 };
 
 interface MentionEntity {
   id: string;
   type: EntityType;
   title: string;
+}
+
+/**
+ * Splits the raw input text into plain runs and highlighted @mention chips
+ * for the mirror overlay. Font metrics MUST stay identical to the textarea
+ * (same weight / size / spacing) — the chip is background-only (no padding,
+ * radius faked via a same-color box-shadow spread) so it never shifts the
+ * caret or wrapping.
+ */
+function renderMentionSegments(
+  text: string,
+  entities: MentionEntity[]
+): React.ReactNode[] {
+  if (entities.length === 0) return [text];
+  const nodes: React.ReactNode[] = [];
+  let remaining = text;
+  let key = 0;
+  while (remaining.length > 0) {
+    let earliest = Infinity;
+    let matched: MentionEntity | null = null;
+    let pattern = "";
+    for (const e of entities) {
+      const p = `@${e.title}`;
+      const i = remaining.indexOf(p);
+      if (i !== -1 && i < earliest) {
+        earliest = i;
+        matched = e;
+        pattern = p;
+      }
+    }
+    if (!matched || earliest === Infinity) {
+      nodes.push(remaining);
+      break;
+    }
+    if (earliest > 0) nodes.push(remaining.slice(0, earliest));
+    const meta = ENTITY_META[matched.type];
+    nodes.push(
+      <span
+        key={key++}
+        style={{
+          backgroundColor: meta.bg,
+          color: "var(--ink)",
+          borderRadius: 4,
+          // Flat highlight that hugs the glyph box exactly — no box-shadow/padding
+          // that would (a) get clipped by the overlay's overflow-hidden at line
+          // edges or (b) desync the transparent textarea's caret. `clone` makes a
+          // mention that wraps render as a clean chip on each line instead of one
+          // broken box.
+          WebkitBoxDecorationBreak: "clone",
+          boxDecorationBreak: "clone",
+        }}
+      >
+        {pattern}
+      </span>
+    );
+    remaining = remaining.slice(earliest + pattern.length);
+  }
+  return nodes;
 }
 
 interface ChatInputProps {
@@ -69,6 +121,27 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
   const mentionListRef = useRef<HTMLDivElement>(null);
+  // Mirror layer that paints @mentions as chips behind the (transparent)
+  // textarea. Kept scroll-synced so the highlight tracks the caret 1:1.
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  const syncOverlayScroll = useCallback(() => {
+    const el = overlayRef.current;
+    if (el) el.style.transform = `translateY(${-(textareaRef.current?.scrollTop ?? 0)}px)`;
+  }, []);
+
+  // Recompute the textarea height from its content. Must be called after any
+  // PROGRAMMATIC value change (mention / slash insert) too — those bypass the
+  // onChange resize, so a multi-line insert would otherwise stay clipped.
+  const autoSizeTextarea = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    // Cap matches the variant's maxHeight so the box stops growing exactly where
+    // the scrollbar takes over — pill docks compactly, the hero gets more room.
+    el.style.height = Math.min(el.scrollHeight, pill ? 140 : 180) + "px";
+    syncOverlayScroll();
+  }, [pill, syncOverlayScroll]);
 
   // Listen for global focus-chat event (Cmd+/)
   useEffect(() => {
@@ -157,10 +230,11 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
         if (ta) {
           ta.focus();
           ta.setSelectionRange(next.length, next.length);
+          autoSizeTextarea();
         }
       }, 0);
     },
-    [value]
+    [value, autoSizeTextarea]
   );
 
   const selectMention = useCallback(
@@ -183,15 +257,12 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
           const cursorPos = before.length + entity.title.length + 2; // +2 for @ and space
           ta.focus();
           ta.setSelectionRange(cursorPos, cursorPos);
+          autoSizeTextarea();
         }
       });
     },
-    [value, mentionStart, dismissMention]
+    [value, mentionStart, dismissMention, autoSizeTextarea]
   );
-
-  const removeMention = useCallback((id: string) => {
-    setMentionedEntities((prev) => prev.filter((e) => e.id !== id));
-  }, []);
 
   const handleSubmit = useCallback(() => {
     const trimmed = value.trim();
@@ -287,6 +358,11 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
     const cursorPos = e.target.selectionStart;
     setValue(newValue);
 
+    // Keep tracked mentions in sync with the text. If the user deletes an
+    // "@Title" from the textarea, drop it — otherwise the entity stays
+    // attached invisibly and is sent even though it's no longer written.
+    setMentionedEntities((prev) => prev.filter((ent) => newValue.includes(`@${ent.title}`)));
+
     // Detect @ mention
     if (cursorPos > 0) {
       // Scan backwards from cursor to find @
@@ -328,11 +404,7 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
       setSlashQuery(null);
     }
 
-    const el = e.target;
-    el.style.height = "auto";
-    // Cap matches the variant's maxHeight so the box stops growing exactly where
-    // the scrollbar takes over — pill docks compactly, the hero gets more room.
-    el.style.height = Math.min(el.scrollHeight, pill ? 140 : 180) + "px";
+    autoSizeTextarea();
   };
 
   // -- File handling --
@@ -485,16 +557,16 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
             ref={mentionListRef}
             role="listbox"
             aria-label="Mention suggestions"
-            className="absolute bottom-full left-4 right-4 mb-1.5 z-20 bg-card rounded-xl border border-border shadow-[var(--shadow-pane)] overflow-hidden animate-fade-in"
+            className="absolute bottom-full left-4 right-4 mb-1.5 z-20 bg-card rounded-xl border border-border shadow-[var(--shadow-pane)] overflow-hidden menu-pop"
           >
-            <div className="max-h-[240px] overflow-y-auto py-1">
+            <div className="max-h-[240px] overflow-y-auto p-1">
               {filteredEntities.map((entity, i) => (
                 <button
                   key={entity.id}
                   role="option"
                   aria-selected={i === mentionIndex}
                   className={cn(
-                    "w-full flex items-center gap-2.5 px-3.5 py-2 text-left transition-colors cursor-pointer",
+                    "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left t-colors cursor-pointer",
                     i === mentionIndex ? "bg-accent" : "hover:bg-accent"
                   )}
                   onMouseDown={(e) => {
@@ -503,12 +575,12 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
                   }}
                   onMouseEnter={() => setMentionIndex(i)}
                 >
-                  <span
-                    className="w-2 h-2 rounded-full shrink-0"
-                    style={{ backgroundColor: ENTITY_STYLES[entity.type].dot }}
-                  />
+                  {(() => {
+                    const EIcon = ENTITY_META[entity.type].Icon;
+                    return <EIcon className="w-4 h-4 text-icon shrink-0" strokeWidth={1.6} aria-hidden />;
+                  })()}
                   <span className="text-[13px] text-foreground truncate flex-1">{entity.title}</span>
-                  <span className="text-[11px] text-muted-foreground shrink-0">{ENTITY_LABELS[entity.type]}</span>
+                  <span className="text-[11px] text-muted-foreground shrink-0">{ENTITY_SHORT[entity.type]}</span>
                 </button>
               ))}
             </div>
@@ -525,36 +597,6 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
                 onRemove={removePendingAttachment}
               />
             ))}
-          </div>
-        )}
-
-        {/* Mentioned entity pills */}
-        {mentionedEntities.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 px-4 pt-3 pb-0">
-            {mentionedEntities.map((entity) => {
-              const style = ENTITY_STYLES[entity.type];
-              return (
-                <span
-                  key={entity.id}
-                  className="inline-flex items-center gap-1.5 h-6 pl-2 pr-1 rounded-full text-[11px] font-medium"
-                  style={{ backgroundColor: style.bg, color: style.text }}
-                >
-                  <span
-                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: style.dot }}
-                  />
-                  {entity.title}
-                  <button
-                    onClick={() => removeMention(entity.id)}
-                    aria-label={`Remove ${entity.title}`}
-                    className="w-4 h-4 rounded-full flex items-center justify-center hover:opacity-60 transition-opacity cursor-pointer"
-                    style={{ color: style.text }}
-                  >
-                    <X className="w-2.5 h-2.5" />
-                  </button>
-                </span>
-              );
-            })}
           </div>
         )}
 
@@ -586,18 +628,31 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
             >
               <Plus className="w-[18px] h-[18px]" strokeWidth={1.9} />
             </button>
-            <textarea
-              ref={textareaRef}
-              value={value}
-              onChange={handleInput}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              placeholder={placeholderProp || "Ask anything..."}
-              rows={1}
-              aria-label="Chat message"
-              className="flex-1 min-w-0 self-center bg-transparent resize-none outline-none text-foreground tracking-[-0.01em] placeholder:text-[#a3a3a3] text-[14px] leading-[1.45] py-[7px] chat-scroll"
-              style={{ minHeight: 22, maxHeight: 140 }}
-            />
+            <div className="relative flex-1 min-w-0 self-center">
+              {/* Mention highlight mirror — sits behind the transparent textarea
+                  and paints @mentions as tinted chips while typing. */}
+              <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden select-none">
+                <div
+                  ref={overlayRef}
+                  className="text-[14px] leading-[1.45] tracking-[-0.01em] py-[7px] whitespace-pre-wrap break-words text-foreground"
+                >
+                  {renderMentionSegments(value, mentionedEntities)}
+                </div>
+              </div>
+              <textarea
+                ref={textareaRef}
+                value={value}
+                onChange={handleInput}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                onScroll={syncOverlayScroll}
+                placeholder={placeholderProp || "Ask anything..."}
+                rows={1}
+                aria-label="Chat message"
+                className="relative w-full bg-transparent resize-none outline-none text-transparent caret-[var(--ink)] tracking-[-0.01em] placeholder:text-[#a3a3a3] text-[14px] leading-[1.45] py-[7px] chat-scroll"
+                style={{ minHeight: 22, maxHeight: 140 }}
+              />
+            </div>
             {disabled && onStop ? (
               <button
                 onClick={onStop}
@@ -627,18 +682,30 @@ export function ChatInput({ onSend, disabled, centered, onStop, placeholder: pla
           /* Hero (non-pill): roomy box, text flows full-width with the action
              controls anchored along the bottom edge. */
           <>
-            <textarea
-              ref={textareaRef}
-              value={value}
-              onChange={handleInput}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              placeholder={placeholderProp || "Ask anything... (type @ to mention)"}
-              rows={1}
-              aria-label="Chat message"
-              className="w-full bg-transparent resize-none outline-none text-foreground tracking-[-0.01em] placeholder:text-[#a3a3a3] px-5 pt-4 pb-14 text-[14px] chat-scroll"
-              style={{ minHeight: 100, maxHeight: 180 }}
-            />
+            <div className="relative w-full">
+              {/* Mention highlight mirror — see pill variant. */}
+              <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden select-none">
+                <div
+                  ref={overlayRef}
+                  className="px-5 pt-4 pb-14 text-[14px] leading-[1.5] tracking-[-0.01em] whitespace-pre-wrap break-words text-foreground"
+                >
+                  {renderMentionSegments(value, mentionedEntities)}
+                </div>
+              </div>
+              <textarea
+                ref={textareaRef}
+                value={value}
+                onChange={handleInput}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                onScroll={syncOverlayScroll}
+                placeholder={placeholderProp || "Ask anything... (type @ to mention)"}
+                rows={1}
+                aria-label="Chat message"
+                className="relative w-full bg-transparent resize-none outline-none text-transparent caret-[var(--ink)] tracking-[-0.01em] placeholder:text-[#a3a3a3] px-5 pt-4 pb-14 text-[14px] leading-[1.5] chat-scroll"
+                style={{ minHeight: 100, maxHeight: 180 }}
+              />
+            </div>
             <button
               onClick={handleFileClick}
               disabled={disabled}

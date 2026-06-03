@@ -74,7 +74,7 @@ function ArtifactWidget({
     >
       <span
         className="flex items-center justify-center w-8 h-8 rounded-[8px] flex-shrink-0"
-        style={{ background: meta.bg }}
+        style={{ background: meta.grad }}
       >
         <Icon
           className="w-4 h-4"

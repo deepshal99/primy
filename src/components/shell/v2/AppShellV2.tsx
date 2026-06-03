@@ -54,11 +54,15 @@ import type { EntityType, Project, Folder } from "@/lib/types";
 /* ───────────────────────── shared meta ───────────────────────── */
 
 const FONT = "Inter, system-ui, sans-serif";
-const ENTITY: Record<EntityType, { Icon: typeof FileText; label: string; color: string; tint: string; chipBg: string; chipText: string }> = {
-  ku:    { Icon: FileText,       label: "Doc",   color: "#4285F4", tint: "rgba(66,133,244,0.14)",  chipBg: "#EDF4FF", chipText: "#3F79E0" },
-  table: { Icon: Table2,         label: "Sheet", color: "#42C366", tint: "rgba(66,195,102,0.16)",  chipBg: "#E7F7ED", chipText: "#2E9E47" },
-  deck:  { Icon: Presentation,   label: "Deck",  color: "#FFAD45", tint: "rgba(255,173,69,0.18)",  chipBg: "#FFF1DF", chipText: "#B87426" },
-  page:  { Icon: LayoutTemplate, label: "Page",  color: "#8757D7", tint: "rgba(135,87,215,0.14)",  chipBg: "#F3ECFF", chipText: "#8051CC" },
+// `tint` is the flat same-hue wash used for chips/bars. `boxGrad` is a soft
+// same-hue diagonal gradient (slightly stronger top-left → fainter bottom-right
+// with a hair of luminosity lift) for the larger entity icon tiles, so they
+// read with a little depth instead of a flat color block.
+const ENTITY: Record<EntityType, { Icon: typeof FileText; label: string; color: string; tint: string; boxGrad: string; chipBg: string; chipText: string }> = {
+  ku:    { Icon: FileText,       label: "Doc",   color: "#4285F4", tint: "rgba(66,133,244,0.14)",  boxGrad: "linear-gradient(150deg, rgba(66,133,244,0.22) 0%, rgba(66,133,244,0.10) 55%, rgba(66,133,244,0.05) 100%)",  chipBg: "#EDF4FF", chipText: "#3F79E0" },
+  table: { Icon: Table2,         label: "Sheet", color: "#42C366", tint: "rgba(66,195,102,0.16)",  boxGrad: "linear-gradient(150deg, rgba(66,195,102,0.24) 0%, rgba(66,195,102,0.11) 55%, rgba(66,195,102,0.05) 100%)",  chipBg: "#E7F7ED", chipText: "#2E9E47" },
+  deck:  { Icon: Presentation,   label: "Deck",  color: "#FFAD45", tint: "rgba(255,173,69,0.18)",  boxGrad: "linear-gradient(150deg, rgba(255,173,69,0.30) 0%, rgba(255,173,69,0.14) 55%, rgba(255,173,69,0.07) 100%)",  chipBg: "#FFF1DF", chipText: "#B87426" },
+  page:  { Icon: LayoutTemplate, label: "Page",  color: "#8757D7", tint: "rgba(135,87,215,0.14)",  boxGrad: "linear-gradient(150deg, rgba(135,87,215,0.22) 0%, rgba(135,87,215,0.10) 55%, rgba(135,87,215,0.05) 100%)",  chipBg: "#F3ECFF", chipText: "#8051CC" },
 };
 const WORKSPACE_ICONS = [Rocket, Orbit, Compass, Layers, Target, Box, Hexagon, Flame];
 function hashOf(id: string): number {
@@ -388,7 +392,7 @@ export function AppShellV2() {
                 onClick={() => goWorkspace(p.id)}
                 onContextMenu={(ev) => { ev.preventDefault(); setWsMenu({ id: p.id, title: p.title || "Untitled", x: ev.clientX, y: ev.clientY }); }}
                 className="flex items-center gap-2 w-full h-[36px] px-3 mb-0.5 rounded-full press hover-row text-left text-[13px]"
-                style={{ background: isActive ? "var(--sidebar-accent)" : "transparent", color: isActive ? "var(--ink)" : "var(--ink-2)", fontWeight: isActive ? 500 : 400 }}>
+                style={{ background: isActive ? "var(--sidebar-accent)" : "transparent", color: isActive ? "var(--ink)" : "var(--ink-2)", fontWeight: isActive ? 550 : 450 }}>
                 <span className="flex-1 truncate">{p.title || "Untitled"}</span>
                 {isGenerating && (
                   <Loader2
@@ -840,7 +844,7 @@ function EmptyProject({ projectId }: { projectId: string }) {
                 className="group flex flex-col items-center gap-2.5 w-[104px] py-5 rounded-[14px] press lift animate-fade-in-up"
                 style={{ background: "var(--card)", border: "1px solid var(--border)", boxShadow: "var(--shadow-card)" }}>
                 <span className="flex items-center justify-center w-10 h-10 rounded-[10px] transition-transform duration-200 group-hover:scale-105"
-                  style={{ background: e.tint }}>
+                  style={{ background: e.boxGrad }}>
                   <e.Icon size={20} strokeWidth={1.75} style={{ color: e.color }} />
                 </span>
                 <span className="text-[13px] font-medium" style={{ color: "var(--ink-2)" }}>{e.label}</span>

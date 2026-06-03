@@ -275,7 +275,7 @@ After the kuops block, output 2–3 follow-up suggestions in <suggestions> (e.g.
   {
     name: "qbr",
     label: "QBR",
-    description: "Quarterly business review deck — wins, metrics, plan",
+    description: "Quarterly business review deck: wins, metrics, plan",
     icon: Layout,
     tier: "pro",
     expectedOps: ["deckops"],

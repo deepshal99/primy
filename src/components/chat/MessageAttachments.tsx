@@ -1,59 +1,55 @@
 "use client";
 
-import { FileText, Image as ImageIcon, File, FolderArchive } from "lucide-react";
 import { FileAttachment } from "@/lib/types";
 import { formatFileSize } from "@/lib/fileUtils";
+import { getFileTypeStyle } from "@/lib/fileStyle";
 
 interface MessageAttachmentsProps {
   attachments: FileAttachment[];
 }
 
-const iconMap = {
-  text: FileText,
-  pdf: FileText,
-  docx: FileText,
-  xlsx: FileText,
-  image: ImageIcon,
-  zip: FolderArchive,
-} as const;
-
-const labelMap: Record<string, string> = {
-  text: "TXT",
-  pdf: "PDF",
-  docx: "DOCX",
-  xlsx: "XLSX",
-  image: "IMG",
-  zip: "ZIP",
-};
-
 export function MessageAttachments({ attachments }: MessageAttachmentsProps) {
   if (!attachments || attachments.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-1.5 mb-2">
+    <div className="flex flex-wrap gap-2 justify-end">
       {attachments.map((att) => {
-        const Icon = iconMap[att.type] || File;
+        const style = getFileTypeStyle(att.type);
+        const Icon = style.icon;
+
+        // Images show as the thumbnail itself — the picture is the content, so
+        // a uuid filename and byte count just add noise. Files keep the labeled
+        // pill, where the name and size actually carry meaning.
+        if (att.type === "image" && att.previewUrl) {
+          return (
+            <img
+              key={att.id}
+              src={att.previewUrl}
+              alt={att.name}
+              className="max-w-[220px] max-h-[180px] w-auto h-auto rounded-[14px] object-cover outline outline-1 -outline-offset-1 outline-[rgba(24,24,22,0.08)] shadow-[var(--shadow-card)]"
+            />
+          );
+        }
 
         return (
           <div
             key={att.id}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-border bg-card"
+            className="flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-[12px] bg-card border border-border shadow-[var(--shadow-card)]"
           >
-            {att.previewUrl ? (
-              <img
-                src={att.previewUrl}
-                alt={att.name}
-                className="w-6 h-6 rounded object-cover"
-              />
-            ) : (
-              <Icon className="w-3 h-3 text-icon" strokeWidth={1.5} />
-            )}
-            <span className="text-[11px] font-medium truncate max-w-[100px] text-foreground">
-              {att.name}
-            </span>
-            <span className="text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-medium uppercase">
-              {labelMap[att.type] || att.type}
-            </span>
+            <div
+              className="w-8 h-8 rounded-[8px] flex items-center justify-center flex-shrink-0"
+              style={{ background: style.grad }}
+            >
+              <Icon className="w-4 h-4" strokeWidth={1.6} style={{ color: style.color }} />
+            </div>
+            <div className="flex flex-col min-w-0 gap-px">
+              <span className="text-[12px] font-medium truncate max-w-[150px] text-foreground leading-tight">
+                {att.name}
+              </span>
+              <span className="text-[10.5px] text-muted-foreground leading-tight tabular-nums">
+                {att.size ? formatFileSize(att.size) : style.label}
+              </span>
+            </div>
           </div>
         );
       })}

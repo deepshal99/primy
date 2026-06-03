@@ -13,7 +13,8 @@ export interface EntityMeta {
   label: string; // singular, e.g. "Document"
   group: string; // plural section header, e.g. "Documents"
   color: string; // vivid accent for icons / dots / active glyphs
-  bg: string; // light tint for chips / card backgrounds
+  bg: string; // flat light tint for small chips / inline highlights
+  grad: string; // soft same-hue diagonal gradient for icon tiles / boxes
   Icon: LucideIcon;
 }
 
@@ -22,9 +23,21 @@ export interface EntityMeta {
 // rather than harsh saturated primaries. Distinct enough to ID type at a glance,
 // but calm and harmonious with the warm near-white shell.
 // doc cornflower · sheet soft emerald · deck warm amber · page soft violet.
+/**
+ * Builds a subtle same-hue diagonal gradient for an entity's icon tile. The
+ * fill is stronger at the top-left and fades toward the bottom-right, giving
+ * the box a little depth instead of reading as a flat color block. `peak` is
+ * the top-left alpha — amber needs a higher peak than blue/green/violet to
+ * carry the same visual weight (it's the lightest hue). Pair with a flat `bg`
+ * for small chips/highlights where a gradient would be noise.
+ */
+export function entityGradient(rgb: string, peak: number): string {
+  return `linear-gradient(150deg, rgba(${rgb},${peak}) 0%, rgba(${rgb},${(peak * 0.46).toFixed(3)}) 55%, rgba(${rgb},${(peak * 0.22).toFixed(3)}) 100%)`;
+}
+
 export const ENTITY_META: Record<EntityType, EntityMeta> = {
-  ku: { label: "Document", group: "Documents", color: "#5B8DEF", bg: "#EDF2FE", Icon: FileText },
-  table: { label: "Spreadsheet", group: "Sheets", color: "#4FB084", bg: "#E8F6EF", Icon: Table2 },
-  deck: { label: "Presentation", group: "Decks", color: "#F2A24C", bg: "#FCF1E0", Icon: Presentation },
-  page: { label: "Page", group: "Pages", color: "#9173E0", bg: "#F1ECFC", Icon: LayoutTemplate },
+  ku: { label: "Document", group: "Documents", color: "#5B8DEF", bg: "#EDF2FE", grad: entityGradient("91,141,239", 0.22), Icon: FileText },
+  table: { label: "Spreadsheet", group: "Sheets", color: "#4FB084", bg: "#E8F6EF", grad: entityGradient("79,176,132", 0.24), Icon: Table2 },
+  deck: { label: "Presentation", group: "Decks", color: "#F2A24C", bg: "#FCF1E0", grad: entityGradient("242,162,76", 0.32), Icon: Presentation },
+  page: { label: "Page", group: "Pages", color: "#9173E0", bg: "#F1ECFC", grad: entityGradient("145,115,224", 0.22), Icon: LayoutTemplate },
 };

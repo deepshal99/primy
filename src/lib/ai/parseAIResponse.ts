@@ -412,12 +412,137 @@ function extractBareJsonValues(fullText: string): string[] {
   return spans;
 }
 
+/**
+ * Decode a raw JSON-string fragment (the bytes BETWEEN the opening and closing
+ * quotes of a `"html":"…"` value) into the real string it represents — without
+ * requiring the fragment to be valid JSON. Honors the standard escapes
+ * (`\"`, `\n`, `\t`, `\r`, `\\`, `\/`, `\uXXXX`) and, crucially, leaves any
+ * UNescaped inner double-quotes intact. This is what lets us recover a page
+ * whose HTML the model emitted with bare quotes (e.g. `class="hero"` or the
+ * `font-feature-settings:"ss01","cv01"` the design prompt itself asks for).
+ */
+function decodeJsonStringFragment(raw: string): string {
+  let out = "";
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (ch === "\\" && i + 1 < raw.length) {
+      const n = raw[i + 1];
+      if (n === "n") { out += "\n"; i++; continue; }
+      if (n === "r") { out += "\r"; i++; continue; }
+      if (n === "t") { out += "\t"; i++; continue; }
+      if (n === "b") { out += "\b"; i++; continue; }
+      if (n === "f") { out += "\f"; i++; continue; }
+      if (n === '"') { out += '"'; i++; continue; }
+      if (n === "\\") { out += "\\"; i++; continue; }
+      if (n === "/") { out += "/"; i++; continue; }
+      if (n === "u") {
+        const hex = raw.slice(i + 2, i + 6);
+        if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+          out += String.fromCharCode(parseInt(hex, 16));
+          i += 5;
+          continue;
+        }
+      }
+      // Unknown/invalid escape — drop the backslash, keep the next char
+      out += n;
+      i++;
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
+/**
+ * Locate the END of an `"html":"…"` value inside a malformed pageops block by
+ * anchoring on the JSON STRUCTURE that follows it — not by guessing where a
+ * quote closes (which `fixHtmlJsonQuotes` gets wrong, truncating the HTML at the
+ * first `","`/`"}` that appears INSIDE the markup and leaving a blank page).
+ *
+ * `tail` is everything after `"html":"`. Returns the index (within `tail`) of
+ * the real closing quote: the `"` immediately before either the next known
+ * sibling key or the object/array close.
+ */
+function findPageHtmlEnd(tail: string): number {
+  // The html value is followed by `","<knownKey>":` for the next field.
+  const keyAnchor = /"\s*,\s*"(?:editableFields|id|title|sourceKuId|pageId|notes|type)"\s*:/;
+  const km = keyAnchor.exec(tail);
+  if (km) return km.index;
+  // Otherwise html is the LAST field — it ends at `"}` / `"}]` near the end.
+  const endAnchor = /"\s*\}\s*\]?\s*$/;
+  const em = endAnchor.exec(tail);
+  if (em) return em.index;
+  // Last resort: the final double-quote in the fragment.
+  const last = tail.lastIndexOf('"');
+  return last >= 0 ? last : tail.length;
+}
+
+/**
+ * Schema-anchored recovery for a single page operation whose JSON could not be
+ * parsed strictly — almost always because the HTML body carries unescaped inner
+ * double-quotes. We pull the small scalar fields with targeted regexes and
+ * extract `html` by structural anchoring (see findPageHtmlEnd), so the FULL
+ * markup survives instead of being dropped or truncated to a blank shell.
+ */
+function recoverPageOpFromBlock(block: string): PageOperation | null {
+  const typeM = /"type"\s*:\s*"(CREATE|UPDATE|RENAME|DELETE)"/i.exec(block);
+  if (!typeM) return null;
+  const type = typeM[1].toUpperCase() as PageOperation["type"];
+
+  const titleM = /"title"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(block);
+  const title = titleM ? decodeJsonStringFragment(titleM[1]) : undefined;
+  const pageIdM = /"pageId"\s*:\s*"([^"\\]+)"/.exec(block);
+  const pageId = pageIdM ? pageIdM[1] : undefined;
+
+  if (type === "RENAME") {
+    return pageId && title ? ({ type: "RENAME", pageId, title } as PageOperation) : null;
+  }
+  if (type === "DELETE") {
+    return pageId ? ({ type: "DELETE", pageId } as PageOperation) : null;
+  }
+
+  // CREATE / UPDATE — extract the html body losslessly.
+  const startM = /"html"\s*:\s*"/.exec(block);
+  if (!startM) return null;
+  const valueStart = startM.index + startM[0].length;
+  const tail = block.slice(valueStart);
+  const endRel = findPageHtmlEnd(tail);
+  const html = decodeJsonStringFragment(tail.slice(0, endRel));
+  if (!html) return null;
+
+  // editableFields is rarely the problem; parse it if we cleanly can, else [].
+  let editableFields: any[] = [];
+  const efM = /"editableFields"\s*:\s*(\[[\s\S]*?\])\s*(?:,\s*"|\}\s*\]?\s*$)/.exec(block);
+  if (efM) {
+    try {
+      const parsed = JSON.parse(efM[1]);
+      if (Array.isArray(parsed)) editableFields = parsed;
+    } catch { /* default [] */ }
+  }
+
+  if (type === "CREATE") {
+    return { type: "CREATE", title: title || "Untitled page", html, editableFields } as PageOperation;
+  }
+  // UPDATE
+  if (!pageId) return null;
+  return { type: "UPDATE", pageId, html, editableFields } as PageOperation;
+}
+
 export function parsePageOperations(fullText: string): PageOperation[] {
   const blocks = extractFencedBlocks(fullText, "pageops");
   const operations: PageOperation[] = [];
 
   for (const block of blocks) {
-    const ops = parseOpsFromBlock<PageOperation>(block);
+    let ops = parseOpsFromBlock<PageOperation>(block);
+    // Strict parse failed — almost always unescaped quotes in the HTML body.
+    // Recover via schema-anchored extraction so the page isn't dropped/blanked.
+    if (ops.length === 0) {
+      const recovered = recoverPageOpFromBlock(block);
+      if (recovered) {
+        ops = [recovered];
+        console.warn("[Primy] Recovered pageops via schema-anchored HTML extraction (model emitted unescaped quotes)");
+      }
+    }
     if (ops.length > 0) {
       for (const op of ops) {
         if ((op.type === "CREATE" || op.type === "UPDATE") && typeof op.html !== "string") {
@@ -438,11 +563,17 @@ export function parsePageOperations(fullText: string): PageOperation[] {
     for (const raw of extractBareJsonValues(fullText)) {
       if (!raw.includes('"html"') || !raw.includes('"type"')) continue;
       const parsed = parseHtmlDeckopsBlock(raw); // HTML-aware JSON recovery
-      const ops: any[] = Array.isArray(parsed)
+      let ops: any[] = Array.isArray(parsed)
         ? parsed
         : parsed && parsed.type
           ? [parsed]
           : [];
+      // Quote-fix parsing can truncate the HTML at an inner `","` — fall back to
+      // schema-anchored recovery if it yielded nothing usable.
+      if (ops.length === 0) {
+        const recovered = recoverPageOpFromBlock(raw);
+        if (recovered) ops = [recovered];
+      }
       for (const op of ops) {
         if (!op || typeof op.type !== "string") continue;
         if ((op.type === "CREATE" || op.type === "UPDATE") && typeof op.html !== "string") continue;
@@ -451,6 +582,17 @@ export function parsePageOperations(fullText: string): PageOperation[] {
     }
     if (operations.length > 0) {
       console.warn("[Primy] Recovered pageops from an unfenced JSON array (model omitted the ```pageops fence)");
+    }
+  }
+
+  // Final fallback: a fenced/bare block existed with `"html"` + `"type"` but
+  // every parser above failed (e.g. unbalanced quotes defeated the bracket
+  // walk). Try one schema-anchored pass over the whole reply before giving up.
+  if (operations.length === 0 && fullText.includes('"html"') && /"type"\s*:\s*"(CREATE|UPDATE)"/i.test(fullText)) {
+    const recovered = recoverPageOpFromBlock(fullText);
+    if (recovered) {
+      operations.push(recovered);
+      console.warn("[Primy] Recovered pageops via whole-reply schema-anchored extraction (block parsing failed entirely)");
     }
   }
 

@@ -109,7 +109,7 @@ export function MentionCombobox() {
           >
             <span
               className="inline-flex h-5 w-5 items-center justify-center rounded-md shrink-0"
-              style={{ backgroundColor: meta.bg }}
+              style={{ background: meta.grad }}
             >
               <Icon size={12} strokeWidth={2} style={{ color: "var(--icon, currentColor)" }} aria-hidden />
             </span>

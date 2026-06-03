@@ -77,3 +77,61 @@ describe("parsePageOperations — fenceless salvage", () => {
     expect(parsePageOperations(fenced)).toHaveLength(1);
   });
 });
+
+describe("parsePageOperations — unescaped-HTML-quote recovery", () => {
+  // The model frequently forgets to escape inner double-quotes in the HTML body
+  // (the design prompt itself asks for `font-feature-settings:"ss01","cv01"`).
+  // Strict JSON.parse fails and the old path either dropped the page (blank
+  // "This page is empty") or truncated the markup at the first `","` inside the
+  // HTML (page created, preview blank). Schema-anchored recovery must keep the
+  // FULL body intact.
+
+  test("recovers full body when html carries unescaped quotes + font-feature list", () => {
+    const block = [
+      "```pageops",
+      '[{"type":"CREATE","title":"HydrateX One-Pager","html":"<!doctype html><html><head><style>body{font-feature-settings:"ss01","cv01"}.hero{color:#111}</style></head><body><h1 class="hero">HydrateX</h1><p>Smart water bottle.</p></body></html>","editableFields":[]}]',
+      "```",
+    ].join("\n");
+    const ops = parsePageOperations(block);
+    expect(ops).toHaveLength(1);
+    expect(ops[0].type).toBe("CREATE");
+    if (ops[0].type === "CREATE") {
+      expect(ops[0].html).toContain("HydrateX</h1>");
+      expect(ops[0].html).toContain("</body></html>");
+    }
+  });
+
+  test("html as the LAST field (no editableFields) with inner quotes", () => {
+    const block =
+      '```pageops\n[{"type":"CREATE","title":"P","html":"<html><body><div class="x">A</div><p>B</p></body></html>"}]\n```';
+    const ops = parsePageOperations(block);
+    expect(ops).toHaveLength(1);
+    if (ops[0].type === "CREATE") {
+      expect(ops[0].html).toContain("<p>B</p>");
+      expect(ops[0].html).toContain("</body></html>");
+    }
+  });
+
+  test('inner `","` inside an embedded <script> does not truncate the body', () => {
+    const block =
+      '```pageops\n[{"type":"CREATE","title":"P","html":"<html><body><script>var d={"a":"1","b":"2"};</script><h1 class="hero">Headline</h1><footer>End</footer></body></html>","editableFields":[]}]\n```';
+    const ops = parsePageOperations(block);
+    expect(ops).toHaveLength(1);
+    if (ops[0].type === "CREATE") {
+      expect(ops[0].html).toContain("Headline");
+      expect(ops[0].html).toContain("<footer>End</footer>");
+    }
+  });
+
+  test("fenceless bare array with unescaped quotes recovers full body", () => {
+    const reply = [
+      "Here's your page.",
+      '[{"type":"CREATE","title":"P","html":"<html><body><h1 style="margin:0">Hi</h1><section>Body</section></body></html>","editableFields":[]}]',
+    ].join("\n");
+    const ops = parsePageOperations(reply);
+    expect(ops).toHaveLength(1);
+    if (ops[0].type === "CREATE") {
+      expect(ops[0].html).toContain("<section>Body</section>");
+    }
+  });
+});

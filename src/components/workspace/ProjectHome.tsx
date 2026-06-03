@@ -55,11 +55,15 @@ import { EmptyState } from "@/components/ui/EmptyState";
 // -- Entity type config --
 // ====================================
 
+// `cardGrad` softens the flat pastel `cardBg` into a gentle diagonal fade to
+// white; `boxGrad` is a same-hue gradient for the small create-menu icon tiles.
 const FILE_TYPE_CONFIG = {
   ku: {
     label: "Document",
     icon: FileText,
     cardBg: "#f0f4fd",
+    cardGrad: "linear-gradient(155deg, #f0f4fd 0%, #fbfcfe 100%)",
+    boxGrad: "linear-gradient(150deg, rgba(42,109,251,0.20) 0%, rgba(42,109,251,0.09) 55%, rgba(42,109,251,0.04) 100%)",
     previewBg: "#ffffff",
     iconColor: "#2a6dfb",
     accentColor: "#c7d6f7",
@@ -71,6 +75,8 @@ const FILE_TYPE_CONFIG = {
     label: "Spreadsheet",
     icon: Table2,
     cardBg: "#e8f7ea",
+    cardGrad: "linear-gradient(155deg, #e8f7ea 0%, #f7fcf8 100%)",
+    boxGrad: "linear-gradient(150deg, rgba(66,195,102,0.22) 0%, rgba(66,195,102,0.10) 55%, rgba(66,195,102,0.04) 100%)",
     previewBg: "#ffffff",
     iconColor: "#42c366",
     accentColor: "#b8e6c0",
@@ -82,6 +88,8 @@ const FILE_TYPE_CONFIG = {
     label: "Presentation",
     icon: Presentation,
     cardBg: "#fde8dc",
+    cardGrad: "linear-gradient(155deg, #fde8dc 0%, #fef7f1 100%)",
+    boxGrad: "linear-gradient(150deg, rgba(255,173,69,0.30) 0%, rgba(255,173,69,0.14) 55%, rgba(255,173,69,0.06) 100%)",
     previewBg: "#ffffff",
     iconColor: "#FFAD45",
     accentColor: "#f5c9b5",
@@ -93,6 +101,8 @@ const FILE_TYPE_CONFIG = {
     label: "Page",
     icon: LayoutTemplate,
     cardBg: "#f3eeff",
+    cardGrad: "linear-gradient(155deg, #f3eeff 0%, #fbf9ff 100%)",
+    boxGrad: "linear-gradient(150deg, rgba(144,97,255,0.20) 0%, rgba(144,97,255,0.09) 55%, rgba(144,97,255,0.04) 100%)",
     previewBg: "#ffffff",
     iconColor: "#9061ff",
     accentColor: "#d9caff",
@@ -579,7 +589,7 @@ export function ProjectHome() {
                     key={entity.id}
                     className="group relative rounded-2xl overflow-hidden cursor-pointer t-normal active:scale-[0.98] hover:shadow-[0_6px_20px_rgba(0,0,0,0.07)] hover:-translate-y-0.5 animate-scale-in"
                     style={{
-                      background: config.cardBg,
+                      background: config.cardGrad,
                       animationDelay: `${idx * 50}ms`,
                     }}
                     onClick={() => {
@@ -752,7 +762,7 @@ export function ProjectHome() {
                   >
                     <div
                       className="w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ background: config.borderColor }}
+                      style={{ background: config.boxGrad }}
                     >
                       <IconComp
                         className="w-4 h-4"

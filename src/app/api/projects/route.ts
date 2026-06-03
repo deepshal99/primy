@@ -104,21 +104,37 @@ export async function GET() {
     const deckCountMap = new Map(deckCounts.map((r) => [r.projectId, r.count]));
     const pageCountMap = new Map(pageCounts.map((r) => [r.projectId, r.count]));
 
-    const result = userProjects.map((p) => ({
-      id: p.id,
-      title: p.title,
-      description: p.description,
-      projectType: p.projectType,
-      shareToken: p.shareToken || null,
-      createdAt: p.createdAt.getTime(),
-      updatedAt: p.updatedAt.getTime(),
-      counts: {
-        knowledgeUnits: kuCountMap.get(p.id) || 0,
-        tables: tableCountMap.get(p.id) || 0,
-        decks: deckCountMap.get(p.id) || 0,
-        pages: pageCountMap.get(p.id) || 0,
-      },
-    }));
+    // Owner names for workspaces the caller did NOT create (shared with them),
+    // so the Library can show "Shared by <name>".
+    const userId = session.user.id;
+    const ownerIds = [...new Set(userProjects.map((p) => p.userId).filter((id): id is string => !!id && id !== userId))];
+    const ownerRows = ownerIds.length
+      ? await db.select({ id: users.id, name: users.name, email: users.email }).from(users).where(inArray(users.id, ownerIds))
+      : [];
+    const ownerMap = new Map(ownerRows.map((o) => [o.id, o.name || o.email || "Someone"]));
+
+    const result = userProjects.map((p) => {
+      const isOwner = p.userId === userId;
+      return {
+        id: p.id,
+        title: p.title,
+        description: p.description,
+        projectType: p.projectType,
+        shareToken: p.shareToken || null,
+        createdAt: p.createdAt.getTime(),
+        updatedAt: p.updatedAt.getTime(),
+        // Ownership lens for the Library surface (Created by me / Shared with me).
+        isOwner,
+        ownerName: isOwner ? undefined : (ownerMap.get(p.userId) || "Someone"),
+        orgId: p.orgId ?? null,
+        counts: {
+          knowledgeUnits: kuCountMap.get(p.id) || 0,
+          tables: tableCountMap.get(p.id) || 0,
+          decks: deckCountMap.get(p.id) || 0,
+          pages: pageCountMap.get(p.id) || 0,
+        },
+      };
+    });
 
     return Response.json(result);
   } catch (error) {
