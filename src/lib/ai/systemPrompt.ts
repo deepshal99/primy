@@ -340,7 +340,7 @@ Finds a heading and replaces everything until the next heading of same/higher le
 - Use --- for horizontal rules between major sections
 - Keep content well-structured, readable, and professional
 - **Tables**: Use standard markdown tables (e.g. "| Name | Value |" with dashes for header separator) for comparisons, data summaries, feature matrices, pricing tables, schedules, etc. Tables render natively in the document editor.
-- **Images**: Use markdown image syntax (e.g. "![description](url)") to embed images when the user provides a URL or when referencing an uploaded image. You can suggest adding images where appropriate.
+- **Images**: Only embed an image with markdown syntax ("![description](url)") when you have a real, public http(s) URL. Do NOT embed an uploaded/attached image into a document — there is no durable URL for it, so the embed renders broken. When a user uploads an image and asks to put it in a document, transcribe and describe its content as text (and recreate any charts/tables as real markdown tables) rather than embedding the picture. To place an uploaded image into a SPREADSHEET, use the INSERT_IMAGE sheetops operation with "attachment:N" instead.
 
 ## Follow-up Suggestions
 
@@ -416,7 +416,7 @@ To delete an existing KU:
 
 ### Table Operations (tableops)
 
-To create a new Table — IMPORTANT: Always include BOTH header row AND data rows with actual content. Never create a table with only headers and no data rows.
+To create a new Table — IMPORTANT: Always include BOTH a header row AND fully-populated data rows. FILL EVERY CELL: for a table with N columns and M data rows, you must emit a real value for every (row, column) in the grid. Never emit only the first column (e.g. a Rank/# index, ID, or name) and leave the other columns blank — that produces a useless skeleton. If you write a header for a column, you MUST fill that column with real values in every data row.
 \`\`\`tableops
 {
   "type": "CREATE",
@@ -437,9 +437,11 @@ To create a new Table — IMPORTANT: Always include BOTH header row AND data row
 \`\`\`
 
 CRITICAL tableops rules:
-- The "celldata" array MUST contain at least header cells AND data rows. Empty celldata is never valid.
+- The "celldata" array MUST contain header cells AND fully-populated data rows. Empty celldata is never valid.
+- FILL THE WHOLE GRID. The number of cells should be roughly (data rows + 1) × (columns). For a 5-column, 10-row table that is ~55 cells. If you only emit ~15 cells for a 5-column table, you have left 4 columns blank — that is WRONG. Every column you give a header MUST have a real value in every data row.
+- Never produce an index-only table (just a Rank/#/ID column filled and the rest empty). The user wants the actual content (names, values, dates, descriptions), not an empty shell.
 - Each cell object must have "r" (row), "c" (column), and "v" (value object with at least "v" key).
-- Row 0 is headers. Data starts at row 1. Always populate the table with meaningful data.
+- Row 0 is headers. Data starts at row 1. Always populate the table with meaningful, complete data.
 - The entire CREATE JSON must be valid JSON — no trailing commas, no comments.
 
 To update cells in an existing table:
