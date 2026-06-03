@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { projects, knowledgeUnits, projectTables, projectDecks, users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { effectivePlan } from "@/lib/billing";
 import type { Plan } from "@/lib/plans";
@@ -57,7 +57,7 @@ export async function GET(
     const [project] = await db
       .select()
       .from(projects)
-      .where(eq(projects.shareToken, token))
+      .where(and(eq(projects.shareToken, token), isNull(projects.deletedAt)))
       .limit(1);
 
     if (project) {
@@ -72,7 +72,7 @@ export async function GET(
             updatedAt: knowledgeUnits.updatedAt,
           })
           .from(knowledgeUnits)
-          .where(eq(knowledgeUnits.projectId, project.id)),
+          .where(and(eq(knowledgeUnits.projectId, project.id), isNull(knowledgeUnits.deletedAt))),
         db
           .select({
             id: projectTables.id,
@@ -82,7 +82,7 @@ export async function GET(
             updatedAt: projectTables.updatedAt,
           })
           .from(projectTables)
-          .where(eq(projectTables.projectId, project.id)),
+          .where(and(eq(projectTables.projectId, project.id), isNull(projectTables.deletedAt))),
         db
           .select({
             id: projectDecks.id,
@@ -94,7 +94,7 @@ export async function GET(
             updatedAt: projectDecks.updatedAt,
           })
           .from(projectDecks)
-          .where(eq(projectDecks.projectId, project.id)),
+          .where(and(eq(projectDecks.projectId, project.id), isNull(projectDecks.deletedAt))),
       ]);
 
       return Response.json({
@@ -119,7 +119,7 @@ export async function GET(
         updatedAt: knowledgeUnits.updatedAt,
       })
       .from(knowledgeUnits)
-      .where(eq(knowledgeUnits.shareToken, token))
+      .where(and(eq(knowledgeUnits.shareToken, token), isNull(knowledgeUnits.deletedAt)))
       .limit(1);
 
     if (ku) {
@@ -153,7 +153,7 @@ export async function GET(
         updatedAt: projectTables.updatedAt,
       })
       .from(projectTables)
-      .where(eq(projectTables.shareToken, token))
+      .where(and(eq(projectTables.shareToken, token), isNull(projectTables.deletedAt)))
       .limit(1);
 
     if (table) {
@@ -189,7 +189,7 @@ export async function GET(
         updatedAt: projectDecks.updatedAt,
       })
       .from(projectDecks)
-      .where(eq(projectDecks.shareToken, token))
+      .where(and(eq(projectDecks.shareToken, token), isNull(projectDecks.deletedAt)))
       .limit(1);
 
     if (deck) {
