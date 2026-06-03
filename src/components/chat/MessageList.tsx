@@ -42,8 +42,8 @@ function MessageListLoading() {
           <div
             className={
               row.side === "right"
-                ? "max-w-[78%] bg-accent-soft rounded-2xl rounded-br-md px-3.5 py-2.5"
-                : "max-w-[88%] px-1 py-1"
+                ? "max-w-[82%] bg-accent-soft rounded-2xl rounded-br-md px-4 py-2.5"
+                : "max-w-[90%] px-1 py-1"
             }
             style={{
               animationDelay: `${i * 80}ms`,

@@ -117,26 +117,26 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
   return (
     <div className={`fade-in-up ${isUser ? "flex justify-end" : ""}`}>
       {isUser ? (
-        <div className="max-w-[85%]">
+        <div className="flex flex-col items-end max-w-[82%]">
           {/* Attachments above user bubble */}
           {message.attachments && message.attachments.length > 0 && (
-            <div className="flex justify-end mb-1.5">
-              <div className="rounded-xl px-3 py-2 bg-muted">
+            <div className="mb-1.5">
+              <div className="rounded-xl rounded-br-md px-3 py-2 bg-[var(--accent-soft)]">
                 <MessageAttachments attachments={message.attachments} />
               </div>
             </div>
           )}
           {/* User message bubble */}
           {message.content && (
-            <div className="rounded-2xl rounded-br-md bg-[var(--accent-soft)] text-[var(--ink)] px-4 py-2.5 ml-auto w-fit">
-              <p className="text-[14px] leading-[1.55] whitespace-pre-wrap text-[var(--ink)] [text-wrap:pretty]">
+            <div className="rounded-2xl rounded-br-md bg-[var(--accent-soft)] text-[var(--ink)] px-4 py-2.5 w-fit">
+              <p className="text-[14.5px] leading-[1.55] whitespace-pre-wrap text-[var(--ink)] [text-wrap:pretty]">
                 {renderContentWithMentions(message.content, message.mentionedEntities, false)}
               </p>
             </div>
           )}
         </div>
       ) : (
-        <div className="max-w-[95%] group/msg">
+        <div className="max-w-[90%] group/msg">
           {/* AI response with markdown */}
           <div className="markdown-content">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>

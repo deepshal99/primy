@@ -7,29 +7,31 @@ import { Loader2, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 import Link from "next/link";
 
+/**
+ * Unified auth — one page for sign in AND sign up (no mode toggle).
+ *
+ * Submit attempts sign-in first; if there's no account, it creates one with the
+ * same email + password. So an existing user logs in and a new user signs up
+ * through the identical form. (Passwordless email-code is wired in the backend
+ * and will replace this once a sending domain is verified.)
+ */
 export default function LoginPage() {
   const { status } = useSession();
   const router = useRouter();
 
-  // Redirect authenticated users to dashboard
   useEffect(() => {
-    if (status === "authenticated") {
-      router.replace("/app");
-    }
+    if (status === "authenticated") router.replace("/app");
   }, [status, router]);
 
-  const [mode, setMode] = useState<"signin" | "signup">("signup");
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Don't render the form while checking session or if already authenticated
   if (status === "loading" || status === "authenticated") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#fafaf8]">
+      <div className="min-h-screen flex items-center justify-center bg-[#FCFBF8]">
         <Loader2 className="w-6 h-6 animate-spin text-[#FFB43F]" />
       </div>
     );
@@ -39,51 +41,44 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
 
-    if (!email.trim() || !password) {
-      setError("Please fill in all fields");
+    const em = email.trim().toLowerCase();
+    if (!em || !password) {
+      setError("Enter your email and password.");
       return;
     }
-
-    if (mode === "signup" && password.length < 8) {
-      setError("Password must be at least 8 characters");
-      return;
-    }
-
     setLoading(true);
 
-    const result = await signIn("credentials", {
-      email: email.trim().toLowerCase(),
+    // 1) Try to sign in to an existing account.
+    let result = await signIn("credentials", {
+      email: em,
       password,
-      name: mode === "signup" ? name.trim() : "",
-      mode,
+      mode: "signin",
       redirect: false,
     });
+    if (result?.ok) {
+      window.location.href = "/app";
+      return;
+    }
 
+    // 2) No existing account (or wrong password) → try to create one.
+    result = await signIn("credentials", {
+      email: em,
+      password,
+      name: "",
+      mode: "signup",
+      redirect: false,
+    });
     setLoading(false);
 
-    if (result?.error) {
-      // NextAuth v5 surfaces an error CODE (e.g. "CredentialsSignin") rather
-      // than the thrown message, so map by intent. Sign-in failures are kept
-      // deliberately generic — we never reveal whether the email exists.
-      const msg = result.error;
-      if (mode === "signup" && /already/i.test(msg)) {
-        setError("Email already registered. Try signing in.");
-      } else if (mode === "signup") {
-        setError("Couldn't create your account. Try again.");
-      } else {
-        setError("Invalid email or password.");
-      }
-    } else if (result?.ok) {
-      // New signups land in onboarding; existing users land in the app.
-      // We do a full page navigation so the JWT/session cookie is
-      // propagated before the next request.
-      window.location.href = mode === "signup" ? "/onboarding" : "/app";
+    if (result?.ok) {
+      window.location.href = "/onboarding";
+      return;
     }
+    // Both failed: wrong password on an existing account, or the new password
+    // was too short. One clear message covers both without leaking which.
+    setError("Couldn't sign you in. Check your password, or use 8+ characters to create a new account.");
   };
 
-  // Dev-only quick sign-in. Gated by NODE_ENV — Next inlines this at
-  // build time, so the button + handler are stripped from production
-  // bundles entirely. Credentials are seeded by `npm run dev:admin`.
   const isDev = process.env.NODE_ENV !== "production";
   const handleDevSignIn = async () => {
     setError("");
@@ -96,56 +91,41 @@ export default function LoginPage() {
     });
     setLoading(false);
     if (result?.error) {
-      setError(
-        "Dev admin not found. Run `npm run dev:admin` to seed the local admin user."
-      );
+      setError("Dev admin not found. Run `npm run dev:admin` to seed the local admin user.");
     } else if (result?.ok) {
       window.location.href = "/app";
     }
   };
 
   return (
-    <div className="min-h-screen flex bg-[#fafaf8]">
+    <div className="min-h-screen flex bg-[#FCFBF8]">
       {/* Left brand panel */}
       <div className="hidden lg:flex flex-col justify-between w-[440px] bg-[#1A1815] p-10 relative overflow-hidden">
-        {/* Decorative lines */}
         <div className="absolute inset-0 opacity-[0.07]">
           {[...Array(8)].map((_, i) => (
             <div
               key={i}
               className="absolute h-px bg-white"
-              style={{
-                top: `${12 + i * 12}%`,
-                left: "8%",
-                width: `${35 + (i % 3) * 20}%`,
-              }}
+              style={{ top: `${12 + i * 12}%`, left: "8%", width: `${35 + (i % 3) * 20}%` }}
             />
           ))}
         </div>
 
-        {/* Logo */}
         <div className="relative z-10">
           <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M5 3 L5 21 L13.5 21 C18.5 21 21 17 21 12 C21 7 18.5 3 13.5 3 Z"
-                fill="white"
-              />
-              <path
-                d="M9 7 L12.5 7 C15.8 7 17 9.5 17 12 C17 14.5 15.8 17 12.5 17 L9 17 Z"
-                fill="#FFB43F"
-              />
+              <path d="M5 3 L5 21 L13.5 21 C18.5 21 21 17 21 12 C21 7 18.5 3 13.5 3 Z" fill="white" />
+              <path d="M9 7 L12.5 7 C15.8 7 17 9.5 17 12 C17 14.5 15.8 17 12.5 17 L9 17 Z" fill="#FFB43F" />
               <line x1="10.5" y1="10" x2="15" y2="10" stroke="white" strokeWidth="1.1" strokeLinecap="round" opacity="0.55" />
               <line x1="10.5" y1="12.5" x2="14" y2="12.5" stroke="white" strokeWidth="1.1" strokeLinecap="round" opacity="0.4" />
             </svg>
           </div>
         </div>
 
-        {/* Tagline */}
         <div className="relative z-10">
           <h2
             className="text-white text-[28px] leading-[1.2] tracking-[-0.03em] mb-3"
-            style={{ fontFamily: "'Degular', 'Inter', sans-serif", fontWeight: 600 }}
+            style={{ fontFamily: "Inter, system-ui, sans-serif", fontWeight: 600 }}
           >
             Your AI workspace
             <br />
@@ -172,53 +152,20 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Mode toggle — clean tab style */}
-          <div className="flex bg-[#f0eee9] rounded-xl p-1 mb-8">
-            <button
-              onClick={() => { setMode("signup"); setError(""); }}
-              className={cn(
-                "flex-1 py-2.5 rounded-[10px] text-[13px] font-medium transition-all duration-200",
-                mode === "signup"
-                  ? "bg-white text-[#1a1a2e] shadow-sm"
-                  : "text-[#8a877f] hover:text-[#5a5852]"
-              )}
-            >
-              Sign up
-            </button>
-            <button
-              onClick={() => { setMode("signin"); setError(""); }}
-              className={cn(
-                "flex-1 py-2.5 rounded-[10px] text-[13px] font-medium transition-all duration-200",
-                mode === "signin"
-                  ? "bg-white text-[#1a1a2e] shadow-sm"
-                  : "text-[#8a877f] hover:text-[#5a5852]"
-              )}
-            >
-              Sign in
-            </button>
+          {/* Heading */}
+          <div className="mb-7">
+            <h1 className="text-[22px] tracking-[-0.02em] text-[#1A1815]" style={{ fontWeight: 600 }}>
+              Sign in to Primy
+            </h1>
+            <p className="mt-1 text-[13.5px] text-[#706E68]">
+              New here? Just enter your email and a password, we&apos;ll create your account.
+            </p>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-3">
-            {/* Name — signup only */}
-            {mode === "signup" && (
-              <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                <label className="block text-[11px] font-medium text-[#8a877f] uppercase tracking-wider mb-1.5 ml-0.5">
-                  Name
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Your name"
-                  className="w-full h-11 px-4 rounded-xl border border-[rgba(24,24,22,0.08)] bg-white text-[14px] text-[#171717] placeholder:text-[#B9B6AE] outline-none focus:border-[#FFB43F]/60 focus:ring-2 focus:ring-[#FFB43F]/25 transition-all"
-                />
-              </div>
-            )}
-
-            {/* Email */}
             <div>
-              <label className="block text-[11px] font-medium text-[#8a877f] uppercase tracking-wider mb-1.5 ml-0.5">
+              <label className="block text-[11px] font-medium text-[#706E68] uppercase tracking-wider mb-1.5 ml-0.5">
                 Email
               </label>
               <input
@@ -227,13 +174,13 @@ export default function LoginPage() {
                 onChange={(e) => { setEmail(e.target.value); setError(""); }}
                 placeholder="you@email.com"
                 required
-                className="w-full h-11 px-4 rounded-xl border border-[rgba(24,24,22,0.08)] bg-white text-[14px] text-[#171717] placeholder:text-[#B9B6AE] outline-none focus:border-[#FFB43F]/60 focus:ring-2 focus:ring-[#FFB43F]/25 transition-all"
+                autoFocus
+                className="w-full h-11 px-4 rounded-xl border border-[rgba(24,24,22,0.10)] bg-white text-[14px] text-[#1A1815] placeholder:text-[#B9B6AE] outline-none focus:border-[#FFB43F]/60 focus:ring-2 focus:ring-[#FFB43F]/25 transition-all"
               />
             </div>
 
-            {/* Password */}
             <div>
-              <label className="block text-[11px] font-medium text-[#8a877f] uppercase tracking-wider mb-1.5 ml-0.5">
+              <label className="block text-[11px] font-medium text-[#706E68] uppercase tracking-wider mb-1.5 ml-0.5">
                 Password
               </label>
               <div className="relative">
@@ -241,44 +188,32 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError(""); }}
-                  placeholder={mode === "signup" ? "Min 6 characters" : "Your password"}
+                  placeholder="Your password"
                   required
-                  className="w-full h-11 px-4 pr-11 rounded-xl border border-[rgba(24,24,22,0.08)] bg-white text-[14px] text-[#171717] placeholder:text-[#B9B6AE] outline-none focus:border-[#FFB43F]/60 focus:ring-2 focus:ring-[#FFB43F]/25 transition-all"
+                  className="w-full h-11 px-4 pr-11 rounded-xl border border-[rgba(24,24,22,0.10)] bg-white text-[14px] text-[#1A1815] placeholder:text-[#B9B6AE] outline-none focus:border-[#FFB43F]/60 focus:ring-2 focus:ring-[#FFB43F]/25 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#b0ada6] hover:text-[#5a5852] transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#B9B6AE] hover:text-[#3B3A37] transition-colors"
                 >
-                  {showPassword ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
 
-            {/* Forgot password — signin only */}
-            {mode === "signin" && (
-              <div className="flex justify-end -mt-1">
-                <Link
-                  href="/forgot-password"
-                  className="text-[12px] text-[#b0ada6] hover:text-[#1a1a2e] transition-colors"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-            )}
+            <div className="flex justify-end -mt-1">
+              <Link href="/forgot-password" className="text-[12px] text-[#B9B6AE] hover:text-[#1A1815] transition-colors">
+                Forgot password?
+              </Link>
+            </div>
 
-            {/* Error */}
             {error && (
               <div className="text-[13px] px-3.5 py-2.5 rounded-xl bg-[#d4183d]/8 text-[#d4183d] animate-in fade-in duration-200 border border-[#d4183d]/10">
                 {error}
               </div>
             )}
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
@@ -293,23 +228,20 @@ export default function LoginPage() {
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <>
-                  {mode === "signin" ? "Sign in" : "Create account"}
+                  Continue
                   <ArrowRight className="w-3.5 h-3.5" />
                 </>
               )}
             </button>
           </form>
 
-          {/* Dev-only quick sign-in. Stripped from production bundle. */}
           {isDev && (
-            <div className="mt-6 pt-5 border-t border-dashed border-[#e8e7e4]">
+            <div className="mt-6 pt-5 border-t border-dashed border-[rgba(24,24,22,0.12)]">
               <div className="flex items-center justify-between gap-3 mb-2">
-                <span className="text-[10.5px] uppercase tracking-wider text-[#a3a3a3] font-medium">
+                <span className="text-[10.5px] uppercase tracking-wider text-[#B9B6AE] font-medium">
                   Local development
                 </span>
-                <span className="text-[10.5px] text-[#a3a3a3] font-mono">
-                  NODE_ENV=development
-                </span>
+                <span className="text-[10.5px] text-[#B9B6AE] font-mono">NODE_ENV=development</span>
               </div>
               <button
                 type="button"
@@ -318,8 +250,8 @@ export default function LoginPage() {
                 className={cn(
                   "w-full h-10 rounded-lg text-[13px] font-medium flex items-center justify-center gap-2 transition-all duration-200 border",
                   loading
-                    ? "bg-[#fafaf8] text-[#a3a3a3] border-[#e8e7e4] cursor-wait"
-                    : "bg-white text-[#171717] border-[#d4d2cd] hover:bg-[#fafaf8] hover:border-[#a3a3a3] active:scale-[0.99] cursor-pointer"
+                    ? "bg-[#F7F7F4] text-[#B9B6AE] border-[rgba(24,24,22,0.10)] cursor-wait"
+                    : "bg-white text-[#1A1815] border-[rgba(24,24,22,0.14)] hover:bg-[#F7F7F4] active:scale-[0.99] cursor-pointer"
                 )}
               >
                 {loading ? (
@@ -331,15 +263,14 @@ export default function LoginPage() {
                   </>
                 )}
               </button>
-              <p className="text-[10.5px] text-center mt-2 text-[#b0ada6]">
+              <p className="text-[10.5px] text-center mt-2 text-[#B9B6AE]">
                 <span className="font-mono">admin@primy.local</span> · seeded via{" "}
                 <span className="font-mono">npm run dev:admin</span>
               </p>
             </div>
           )}
 
-          {/* Footer */}
-          <p className="text-[12px] text-center mt-8 text-[#b0ada6]">
+          <p className="text-[12px] text-center mt-8 text-[#B9B6AE]">
             By continuing, you agree to our terms of service.
           </p>
         </div>
