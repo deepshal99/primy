@@ -14,8 +14,15 @@ function requireEnv(name: string): string {
   return value;
 }
 
-// Validate on import — this runs at startup
-if (typeof window === "undefined") {
+// Validate on import — this runs at startup.
+//
+// Skip ALL of this during `next build` — page-data collection imports server
+// routes (e.g. /api/chat), evaluating this module with whatever env the build
+// host happens to have. Preview deploys don't carry DATABASE_URL/secrets, so
+// requiring them here crashed the build ("Failed to collect page data"). These
+// are RUNTIME guards: they re-run when the server actually boots to serve.
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+if (typeof window === "undefined" && !isBuildPhase) {
   // Server-side only validation
   requireEnv("DATABASE_URL");
   const secret = requireEnv("NEXTAUTH_SECRET");
@@ -24,12 +31,7 @@ if (typeof window === "undefined") {
   // The secret signs every JWT session; a weak/guessable one lets anyone forge
   // a session for any user. In production demand real entropy and reject
   // obviously hand-chosen values. (openssl rand -base64 32 → 44 chars.)
-  //
-  // Skip during `next build` — that runs with NODE_ENV=production but is a local
-  // build step, not the deployed server, and may read a dev .env.local. These
-  // are RUNTIME guards (they re-run when the server actually boots to serve).
-  const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
-  if (process.env.NODE_ENV === "production" && !isBuildPhase) {
+  if (process.env.NODE_ENV === "production") {
     if (secret.length < 32) {
       throw new Error("NEXTAUTH_SECRET is too short — use `openssl rand -base64 32`.");
     }
