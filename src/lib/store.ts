@@ -534,7 +534,12 @@ export const useAppStore = create<AppState>()(
       const imageOps = sheetOperations.filter((op): op is Extract<SheetOperation, { type: "INSERT_IMAGE" }> => op.type === "INSERT_IMAGE");
       const dataOps = sheetOperations.filter((op) => op.type !== "INSERT_IMAGE");
       if (dataOps.length > 0) {
-        newSheets = applyOperations(state.sheets, dataOps);
+        const opStats = { attempted: 0, failed: 0 };
+        newSheets = applyOperations(state.sheets, dataOps, opStats);
+        // Total failure (every op threw) used to read as success — surface it.
+        if (opStats.attempted > 0 && opStats.failed === opStats.attempted) {
+          toast.error("Couldn't apply the AI's sheet changes. Please try again.");
+        }
       }
       if (imageOps.length > 0) {
         newPendingImages = [...state.pendingSheetImages, ...imageOps.map((op) => ({
@@ -552,7 +557,11 @@ export const useAppStore = create<AppState>()(
     let newDocContent = state.docContent;
     let newDocVersion = state.docVersion;
     if (hasDocOps) {
-      newDocContent = applyDocOps(state.docContent, docOperations);
+      const docStats = { attempted: 0, failed: 0 };
+      newDocContent = applyDocOps(state.docContent, docOperations, docStats);
+      if (docStats.attempted > 0 && docStats.failed === docStats.attempted) {
+        toast.error("Couldn't apply the AI's document changes. Please try again.");
+      }
       newDocVersion = state.docVersion + 1;
     }
 

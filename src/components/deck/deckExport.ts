@@ -1,6 +1,6 @@
 import { DeckSlide, HtmlDeckSlide, ThemeConfig, isHtmlSlide } from "@/lib/types";
 import { getThemeConfig } from "./deckThemes";
-import { enforceSlideContrast } from "./sanitizeSlideHtml";
+import { enforceSlideContrast, scopeSlideRootCss } from "./sanitizeSlideHtml";
 import { resolveImageQuery } from "@/lib/imageCache";
 
 /**
@@ -297,7 +297,7 @@ export async function exportDeckToPDF(slides: (DeckSlide | HtmlDeckSlide)[], the
     slides.map(async (slide) => {
       if (isHtmlSlide(slide)) {
         const contrastFixed = enforceSlideContrast(slide.html);
-        const scopedHtml = contrastFixed.replace(/:root\s*\{/g, `#slide-${slide.id} {`);
+        const scopedHtml = scopeSlideRootCss(contrastFixed, `slide-${slide.id}`);
         const bakedHtml = await bakeImagesIntoHtml(scopedHtml);
         return `<div class="slide-page">${bakedHtml}</div>`;
       }

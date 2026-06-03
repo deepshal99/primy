@@ -106,6 +106,10 @@ export function useResolvedEntity(type: EntityType, id: string): EntityRef | und
 export function useBacklinks(targetId: string | null): EntityRef[] {
   const projects = useAppStore((s) => s.projects);
   const currentProjectId = useAppStore((s) => s.currentProjectId);
+  // Live editor buffer for the open doc — persisted ku.content lags by the save
+  // debounce, so a just-typed mention wouldn't register as a backlink yet.
+  const openKuId = useAppStore((s) => (s.currentEntityType === "ku" ? s.currentEntityId : null));
+  const liveDoc = useAppStore((s) => s.docContent);
   return useMemo(() => {
     if (!targetId) return [];
     const project = projects.find((p) => p.id === currentProjectId);
@@ -113,7 +117,7 @@ export function useBacklinks(targetId: string | null): EntityRef[] {
     const out: EntityRef[] = [];
     for (const ku of project.knowledgeUnits || []) {
       if (ku.id === targetId) continue; // no self-backlink
-      const content: string = ku.content || "";
+      const content: string = (ku.id === openKuId ? liveDoc : ku.content) || "";
       if (content.includes(`${DRAFTA_SCHEME}`) && content.includes(`/${targetId}`)) {
         DRAFTA_URI_RE.lastIndex = 0;
         let m: RegExpExecArray | null;
@@ -125,5 +129,5 @@ export function useBacklinks(targetId: string | null): EntityRef[] {
       }
     }
     return out;
-  }, [projects, currentProjectId, targetId]);
+  }, [projects, currentProjectId, targetId, openKuId, liveDoc]);
 }

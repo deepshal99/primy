@@ -2,14 +2,17 @@ import { DocOperation } from "@/lib/types";
 
 export function applyDocOps(
   currentContent: string,
-  operations: DocOperation[]
+  operations: DocOperation[],
+  stats?: { attempted: number; failed: number }
 ): string {
   let content = currentContent;
   for (const op of operations) {
+    if (stats) stats.attempted++;
     try {
       content = applyDocOp(content, op);
     } catch (err) {
       console.error("[Primy] Failed to apply doc operation:", op.type, err);
+      if (stats) stats.failed++;
     }
   }
   return content;

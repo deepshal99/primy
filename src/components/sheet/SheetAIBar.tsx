@@ -39,26 +39,20 @@ function getSelectedCellsInfo(): { rangeLabel: string; cellValues: string } | nu
 
     const rangeLabel = `${colLetter(c1)}${r1 + 1}:${colLetter(c2)}${r2 + 1}`;
 
-    const sheets = useAppStore.getState().sheets;
-    const activeSheet = sheets.find((s: any) => s.status === 1) || sheets[0];
-    if (!activeSheet?.celldata) return null;
-
-    const cellMap = new Map<string, (typeof activeSheet.celldata)[0]>();
-    for (const cd of activeSheet.celldata) {
-      cellMap.set(`${cd.r},${cd.c}`, cd);
-    }
-
-    const rows: string[][] = [];
-    for (let r = r1; r <= r2; r++) {
-      const row: string[] = [];
-      for (let c = c1; c <= c2; c++) {
-        const cell = cellMap.get(`${r},${c}`);
-        row.push(cell?.v?.v?.toString() || cell?.v?.f || "");
-      }
-      rows.push(row);
-    }
-
-    const cellValues = rows.map((row) => row.join("\t")).join("\n");
+    // Read values straight from the LIVE Univer range. The store copy is
+    // debounced (up to 800ms stale), and `status === 1` always resolves to
+    // sheet 0 (the writer hardcodes status by index), so a selection on any
+    // non-first sheet, or one edited within the debounce window, read wrong.
+    const values = activeRange.getValues?.();
+    if (!Array.isArray(values)) return null;
+    const cellValues = values
+      .map((row: any[]) =>
+        row
+          .map((v) => (v && typeof v === "object" ? (v.v ?? v.f ?? "") : (v ?? "")))
+          .map((v) => String(v))
+          .join("\t")
+      )
+      .join("\n");
     return { rangeLabel, cellValues };
   } catch {
     return null;

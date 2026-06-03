@@ -41,6 +41,18 @@ function escapeRegExp(s: string): string {
  * Extracts --bg and --text CSS variables, checks luminance, and fixes mismatches.
  * Also scans inline color styles for hardcoded dark-on-dark or light-on-light issues.
  */
+/**
+ * Scope a slide's `:root { ... }` rules to a slide-specific selector so that AI
+ * slide CSS (which loves redefining `--bg`, `--accent`, etc. on `:root`) can't
+ * clobber the app's design tokens when the slide is rendered inline in the app.
+ * The container element MUST carry `id={slideDomId}`. This is the same transform
+ * the PDF export applies; element-selector bleed (bare `body`/`h1`) still needs
+ * a shadow-DOM/iframe wrapper, tracked separately.
+ */
+export function scopeSlideRootCss(html: string, slideDomId: string): string {
+  return html.replace(/:root\s*\{/g, `#${slideDomId} {`);
+}
+
 export function enforceSlideContrast(html: string): string {
   // Extract CSS variable definitions from <style> block
   const varRegex = /--bg\s*:\s*([^;}\s]+)/;

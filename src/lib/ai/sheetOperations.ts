@@ -79,14 +79,17 @@ export function normalizeCells(cells: CellData[]): CellData[] {
 
 export function applyOperations(
   sheets: SheetData[],
-  operations: SheetOperation[]
+  operations: SheetOperation[],
+  stats?: { attempted: number; failed: number }
 ): SheetData[] {
   let result = sheets;
   for (const op of operations) {
+    if (stats) stats.attempted++;
     try {
       result = applyOperation(result, op);
     } catch (err) {
       console.error("[Primy] Failed to apply operation:", op.type, err);
+      if (stats) stats.failed++;
       // Continue with remaining operations instead of crashing
     }
   }

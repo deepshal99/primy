@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { sanitizeSlideHtml, extractGoogleFontUrls, enforceSlideContrast } from "./sanitizeSlideHtml";
+import { sanitizeSlideHtml, extractGoogleFontUrls, enforceSlideContrast, scopeSlideRootCss } from "./sanitizeSlideHtml";
 import { resolveImageQuery } from "@/lib/imageCache";
 import type { HtmlDeckSlide } from "@/lib/types";
 
@@ -27,7 +27,11 @@ export function HtmlSlideRenderer({
 }: HtmlSlideRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const fontsLoadedRef = useRef<Set<string>>(new Set());
-  const sanitizedHtml = sanitizeSlideHtml(enforceSlideContrast(slide.html));
+  const slideDomId = `slide-${slide.id}`;
+  const sanitizedHtml = scopeSlideRootCss(
+    sanitizeSlideHtml(enforceSlideContrast(slide.html)),
+    slideDomId
+  );
 
   // Preload Google Fonts from the HTML
   useEffect(() => {
@@ -106,6 +110,7 @@ export function HtmlSlideRenderer({
     >
       <div
         ref={containerRef}
+        id={slideDomId}
         onClick={handleClick}
         style={{
           width: SLIDE_W,

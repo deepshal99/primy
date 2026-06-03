@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import { DeckSlide, HtmlDeckSlide, isHtmlSlide } from "@/lib/types";
 import type { ThemeConfig } from "@/lib/types";
 import { getThemeConfig, loadThemeFonts, loadThemeFontsFromConfig } from "./deckThemes";
-import { sanitizeSlideHtml, enforceSlideContrast } from "./sanitizeSlideHtml";
+import { sanitizeSlideHtml, enforceSlideContrast, scopeSlideRootCss } from "./sanitizeSlideHtml";
 
 export interface SlideEditHandlers {
   onTitleChange: (value: string) => void;
@@ -66,13 +66,19 @@ export function SlideRenderer({ slide, theme, themeConfig, scale = 1, onClick, i
         }}
       >
         <div
+          id={`slide-${slide.id}`}
           style={{
             transform: `scale(${scale})`,
             transformOrigin: "top left",
             width: 960,
             height: 540,
           }}
-          dangerouslySetInnerHTML={{ __html: sanitizeSlideHtml(enforceSlideContrast(slide.html)) }}
+          dangerouslySetInnerHTML={{
+            __html: scopeSlideRootCss(
+              sanitizeSlideHtml(enforceSlideContrast(slide.html)),
+              `slide-${slide.id}`
+            ),
+          }}
         />
       </div>
     );
