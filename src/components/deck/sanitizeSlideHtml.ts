@@ -272,11 +272,14 @@ export function sanitizeSlideHtml(html: string): string {
  * Extract Google Font URLs from slide HTML for preloading.
  */
 export function extractGoogleFontUrls(html: string): string[] {
-  const urls: string[] = [];
+  const urls = new Set<string>();
+  // CSS @import url(...)
   const importRegex = /@import\s+url\(['"]?(https:\/\/fonts\.googleapis\.com\/[^'")\s]+)['"]?\)/g;
+  // <link href="https://fonts.googleapis.com/..."> — slides often use a link tag
+  // instead of @import; those were missed, so the font flashed a fallback.
+  const linkRegex = /<link[^>]+href=['"](https:\/\/fonts\.googleapis\.com\/[^'"]+)['"]/g;
   let match: RegExpExecArray | null;
-  while ((match = importRegex.exec(html)) !== null) {
-    urls.push(match[1]);
-  }
-  return urls;
+  while ((match = importRegex.exec(html)) !== null) urls.add(match[1]);
+  while ((match = linkRegex.exec(html)) !== null) urls.add(match[1]);
+  return [...urls];
 }

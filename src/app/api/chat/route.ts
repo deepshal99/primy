@@ -377,10 +377,19 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
     const aiMessages: UIMessage[] = [];
     for (let i = 0; i < messages.length - 1; i++) {
       const m = messages[i];
+      let text = m.content;
+      // Re-attach extracted file text from earlier turns so multi-turn file Q&A
+      // keeps the upload in context (otherwise only the latest message carries
+      // it and the model "forgets" a file uploaded a turn ago).
+      if (m.attachmentTexts?.length) {
+        for (const att of m.attachmentTexts) {
+          text += `\n\n<uploaded_file name="${att.name}">\n${att.text}\n</uploaded_file>`;
+        }
+      }
       aiMessages.push({
         id: `msg-${i}`,
         role: m.role === "assistant" ? "assistant" : "user",
-        parts: [{ type: "text", text: m.content }],
+        parts: [{ type: "text", text }],
       });
     }
 

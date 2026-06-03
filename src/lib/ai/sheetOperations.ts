@@ -262,7 +262,13 @@ function applyOperation(
         if (!sheet.dataVerification) sheet.dataVerification = {};
         if (!op.options || !Array.isArray(op.options) || op.options.length === 0) break;
         if (op.rowStart < 0 || op.rowEnd < op.rowStart || op.column < 0) break;
-        const optionStr = op.options.join(",");
+        // The dropdown storage format is comma-joined, so an option that itself
+        // contains a comma would split into phantom options — drop those.
+        const safeOptions = op.options.filter(
+          (o) => typeof o === "string" && !o.includes(",")
+        );
+        if (safeOptions.length === 0) break;
+        const optionStr = safeOptions.join(",");
         // Cap to prevent excessive loop (max 1000 rows)
         const cappedEnd = Math.min(op.rowEnd, op.rowStart + 999);
         for (let r = op.rowStart; r <= cappedEnd; r++) {
@@ -302,14 +308,24 @@ function sortSheet(
   }
 
   // Sort rows by the value in the target column
+  // A cell is "numeric" only when the WHOLE value is a number — Number("10
+  // apples") is NaN (parseFloat wrongly returned 10 and sorted it numerically).
+  const asNumber = (v: unknown): number | null => {
+    if (typeof v === "number") return v;
+    const s = String(v).trim();
+    if (s === "") return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  };
+
   const sortedRows = [...rowMap.entries()].sort(([, cellsA], [, cellsB]) => {
     const valA = cellsA.find((c) => c.c === column)?.v?.v ?? "";
     const valB = cellsB.find((c) => c.c === column)?.v?.v ?? "";
 
-    const numA = typeof valA === "number" ? valA : parseFloat(String(valA));
-    const numB = typeof valB === "number" ? valB : parseFloat(String(valB));
+    const numA = asNumber(valA);
+    const numB = asNumber(valB);
 
-    if (!isNaN(numA) && !isNaN(numB)) {
+    if (numA !== null && numB !== null) {
       return ascending ? numA - numB : numB - numA;
     }
 
