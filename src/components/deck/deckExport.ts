@@ -368,13 +368,11 @@ export async function exportDeckToPPTX(slides: (DeckSlide | HtmlDeckSlide)[], th
       continue;
     }
 
-    // Background image support
+    // Background image support. NOTE: assigning the path never throws —
+    // pptxgenjs fetches it lazily at writeFile time, so a bad URL surfaces as a
+    // rejection from the awaited writeFile below (caught by the caller), not here.
     if (slide.backgroundImage) {
-      try {
-        pptSlide.background = { path: slide.backgroundImage };
-      } catch {
-        pptSlide.background = { color: "111111" };
-      }
+      pptSlide.background = { path: slide.backgroundImage };
       // Add overlay
       pptSlide.addShape("rect" as any, {
         x: 0, y: 0, w: 10, h: 5.63,
@@ -591,7 +589,9 @@ export async function exportDeckToPPTX(slides: (DeckSlide | HtmlDeckSlide)[], th
     }
   }
 
-  pptx.writeFile({ fileName: "presentation.pptx" });
+  // Await so a failed lazy image fetch rejects here and reaches the caller's
+  // try/catch instead of becoming an unhandled rejection with no file produced.
+  await pptx.writeFile({ fileName: "presentation.pptx" });
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {

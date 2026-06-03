@@ -63,6 +63,11 @@ function ImageElement({ attributes, children, element }: any) {
   const resizingRef = useRef(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
+  // Detach an in-progress resize drag if the node unmounts mid-drag (AI
+  // setValue / delete), so the document listeners don't leak and handleMove
+  // doesn't keep firing setWidth on an unmounted node.
+  const dragCleanupRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => dragCleanupRef.current?.(), []);
 
   const updateNode = useCallback(
     (props: Record<string, any>) => {
@@ -104,16 +109,21 @@ function ImageElement({ attributes, children, element }: any) {
         const newWidth = Math.max(100, Math.min(800, startWidthRef.current + delta));
         setWidth(newWidth);
       };
-      const handleUp = () => {
-        resizingRef.current = false;
+      const detach = () => {
         document.removeEventListener("mousemove", handleMove);
         document.removeEventListener("mouseup", handleUp);
+        dragCleanupRef.current = null;
+      };
+      const handleUp = () => {
+        resizingRef.current = false;
+        detach();
         // Persist width to node
         const img = containerRef.current?.querySelector("img");
         if (img) updateNode({ width: img.offsetWidth });
       };
       document.addEventListener("mousemove", handleMove);
       document.addEventListener("mouseup", handleUp);
+      dragCleanupRef.current = detach;
     },
     [updateNode]
   );

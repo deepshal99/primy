@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Download, FileDown, FileType, Share2 } from "lucide-react";
+import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
 import { ShareModal } from "@/components/settings/ShareModal";
 import {
@@ -78,9 +79,14 @@ export function DeckExport() {
   const theme = useAppStore((s) => s.deckTheme);
 
   const handleExport = async (format: "pdf" | "pptx") => {
-    const { exportDeckToPDF, exportDeckToPPTX } = await import("@/components/deck/deckExport");
-    if (format === "pdf") exportDeckToPDF(slides, theme);
-    else exportDeckToPPTX(slides, theme);
+    try {
+      const { exportDeckToPDF, exportDeckToPPTX } = await import("@/components/deck/deckExport");
+      if (format === "pdf") await exportDeckToPDF(slides, theme);
+      else await exportDeckToPPTX(slides, theme);
+    } catch (err) {
+      console.error("Deck export failed:", err);
+      toast.error(`${format === "pdf" ? "PDF" : "PowerPoint"} export failed. Please try again`);
+    }
   };
 
   return (

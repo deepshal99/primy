@@ -26,7 +26,10 @@ function getEntityTitle(): string {
 
 function parseInlineFormatting(TextRun: any, text: string): any[] {
   const runs: any[] = [];
-  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`|([^*`]+))/g;
+  // Final `([*`])` branch consumes a lone, unmatched * or ` as literal text —
+  // otherwise the catch-all `[^*`]+` skips it and the character is dropped
+  // (e.g. the stray markers in `***bolditalic***`).
+  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`|([^*`]+)|([*`]))/g;
   let match;
   while ((match = regex.exec(text)) !== null) {
     if (match[2]) {
@@ -37,6 +40,8 @@ function parseInlineFormatting(TextRun: any, text: string): any[] {
       runs.push(new TextRun({ text: match[4], font: "Courier New", size: 20 }));
     } else if (match[5]) {
       runs.push(new TextRun({ text: match[5] }));
+    } else if (match[6]) {
+      runs.push(new TextRun({ text: match[6] }));
     }
   }
   return runs.length > 0 ? runs : [new TextRun({ text })];
@@ -46,8 +51,13 @@ function markdownToHtml(docContent: string): string {
   const lines = docContent.split("\n");
   const htmlParts: string[] = [];
   for (const line of lines) {
+    // Escape HTML special chars BEFORE inserting our own tags, so raw <, >, &
+    // in the user's doc don't break the exported markup.
+    const esc = (t: string) =>
+      t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const fmt = (t: string) =>
-      t.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      esc(t)
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
         .replace(/\*(.*?)\*/g, "<em>$1</em>")
         .replace(/`(.*?)`/g, '<code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;font-family:monospace;font-size:0.9em">$1</code>');
 

@@ -45,53 +45,61 @@ export function ExportMenu() {
 
   const downloadXLSX = useCallback(async () => {
     if (!activeSheet) return;
-    const XLSX = (await import("xlsx")).default;
+    try {
+      const XLSX = (await import("xlsx")).default;
 
-    const celldata = activeSheet.celldata || [];
-    let maxRow = 0;
-    let maxCol = 0;
-    for (const c of celldata) {
-      if (c.r > maxRow) maxRow = c.r;
-      if (c.c > maxCol) maxCol = c.c;
-    }
-
-    const cellMap = new Map<string, typeof celldata[0]>();
-    for (const cd of celldata) {
-      cellMap.set(`${cd.r},${cd.c}`, cd);
-    }
-
-    const data: (string | number | undefined)[][] = [];
-    for (let r = 0; r <= maxRow; r++) {
-      const row: (string | number | undefined)[] = [];
-      for (let c = 0; c <= maxCol; c++) {
-        const cell = cellMap.get(`${r},${c}`);
-        row.push(cell?.v?.v ?? undefined);
+      const celldata = activeSheet.celldata || [];
+      let maxRow = 0;
+      let maxCol = 0;
+      for (const c of celldata) {
+        if (c.r > maxRow) maxRow = c.r;
+        if (c.c > maxCol) maxCol = c.c;
       }
-      data.push(row);
-    }
 
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(data);
-
-    if (activeSheet.config?.columnlen) {
-      ws["!cols"] = [];
-      for (const [col, width] of Object.entries(activeSheet.config.columnlen)) {
-        const colNum = parseInt(col);
-        if (!ws["!cols"]![colNum]) ws["!cols"]![colNum] = {};
-        ws["!cols"]![colNum].wpx = width;
+      const cellMap = new Map<string, typeof celldata[0]>();
+      for (const cd of celldata) {
+        cellMap.set(`${cd.r},${cd.c}`, cd);
       }
-    }
 
-    XLSX.utils.book_append_sheet(wb, ws, activeSheet.name || "Sheet1");
-    XLSX.writeFile(wb, `${getEntityTitle()}.xlsx`);
-    toast.success("Downloaded Excel file");
+      const data: (string | number | undefined)[][] = [];
+      for (let r = 0; r <= maxRow; r++) {
+        const row: (string | number | undefined)[] = [];
+        for (let c = 0; c <= maxCol; c++) {
+          const cell = cellMap.get(`${r},${c}`);
+          row.push(cell?.v?.v ?? undefined);
+        }
+        data.push(row);
+      }
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(data);
+
+      if (activeSheet.config?.columnlen) {
+        ws["!cols"] = [];
+        for (const [col, width] of Object.entries(activeSheet.config.columnlen)) {
+          const colNum = parseInt(col);
+          if (!ws["!cols"]![colNum]) ws["!cols"]![colNum] = {};
+          ws["!cols"]![colNum].wpx = width;
+        }
+      }
+
+      XLSX.utils.book_append_sheet(wb, ws, activeSheet.name || "Sheet1");
+      XLSX.writeFile(wb, `${getEntityTitle()}.xlsx`);
+      toast.success("Downloaded Excel file");
+    } catch {
+      toast.error("Excel export failed. Please try again");
+    }
   }, [activeSheet]);
 
   const copyToClipboard = useCallback(async () => {
     if (!activeSheet) return;
-    const tsv = sheetToTSV(activeSheet);
-    await navigator.clipboard.writeText(tsv);
-    toast.success("Copied to clipboard");
+    try {
+      const tsv = sheetToTSV(activeSheet);
+      await navigator.clipboard.writeText(tsv);
+      toast.success("Copied to clipboard");
+    } catch {
+      toast.error("Couldn't copy to clipboard");
+    }
   }, [activeSheet]);
 
   return (

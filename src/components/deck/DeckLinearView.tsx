@@ -121,6 +121,7 @@ export function DeckLinearView() {
       await exportDeckToPDF(slides, theme, style);
     } catch (err) {
       console.error("PDF export failed:", err);
+      toast.error("PDF export failed. Please try again");
     } finally {
       setExporting(false);
     }
@@ -133,6 +134,7 @@ export function DeckLinearView() {
       await exportDeckToPPTX(slides, theme, style);
     } catch (err) {
       console.error("PPTX export failed:", err);
+      toast.error("PowerPoint export failed. Please try again");
     } finally {
       setExporting(false);
     }
