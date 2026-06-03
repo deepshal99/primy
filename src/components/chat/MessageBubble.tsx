@@ -1,22 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ENTITY_META } from "@/lib/entityMeta";
 import {
-  Table2,
-  FileText,
-  Loader2,
-  PenLine,
   Globe,
   RotateCcw,
-  ListChecks,
+  ArrowRight,
 } from "lucide-react";
 import { Message, EntityType } from "@/lib/types";
 import { useAppStore } from "@/lib/store";
 import { MessageAttachments } from "./MessageAttachments";
 import { ArtifactWidgetList } from "./ArtifactWidget";
+import { StreamPhases } from "./StreamPhases";
+import { inferStreamTask, taskFromOp } from "@/lib/streamPhases";
 import {
   Tooltip,
   TooltipTrigger,
@@ -105,6 +102,16 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
     }
   };
 
+  const handleContinue = () => {
+    // Pick up an interrupted/truncated turn. The model gets the prior turns as
+    // context, so a plain continuation request resumes cleanly.
+    window.dispatchEvent(
+      new CustomEvent("primy:send-message", {
+        detail: { content: "Continue from where you left off." },
+      })
+    );
+  };
+
   return (
     <div className={`fade-in-up ${isUser ? "flex justify-end" : ""}`}>
       {isUser ? (
@@ -164,10 +171,24 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
             </div>
           )}
 
-          {/* Interrupted label */}
-          {message.interrupted && (
-            <div className="flex items-center gap-1 mt-1.5 text-muted-foreground">
-              <span className="text-[11px] italic">Response interrupted</span>
+          {/* Incomplete-response acknowledgment + one-click continue. Never just
+              stop midway silently: if the turn was cut off (truncated) or stopped
+              (interrupted), say so and offer to pick up where it left off. */}
+          {(message.interrupted || message.truncated) && (
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <span className="text-[12px]" style={{ color: "var(--ink-3)" }}>
+                {message.truncated ? "This response was cut off." : "Response stopped."}
+              </span>
+              {isLastAssistant && (
+                <button
+                  onClick={handleContinue}
+                  className="inline-flex items-center gap-1 h-7 pl-2.5 pr-2 rounded-full text-[12px] font-medium press hover-row"
+                  style={{ background: "var(--accent-soft)", color: "var(--accent-amber-deep, #B87426)" }}
+                >
+                  Continue
+                  <ArrowRight className="w-3.5 h-3.5" strokeWidth={2} aria-hidden />
+                </button>
+              )}
             </div>
           )}
 
@@ -208,6 +229,14 @@ export function StreamingBubble({ content }: StreamingBubbleProps) {
   const readingFiles = useAppStore((s) => s.readingFiles);
   // Layer B: set live while a tool call streams ("doc" | "sheet" | "page").
   const streamingAction = useAppStore((s) => s.streamingAction);
+  // The active project's last user prompt — used to GUESS the task for the
+  // phased loader until a real operation block confirms it.
+  const lastUserText = useAppStore((s) => {
+    for (let i = s.messages.length - 1; i >= 0; i--) {
+      if (s.messages[i].role === "user") return s.messages[i].content;
+    }
+    return "";
+  });
 
   const hasSheetOps = content.includes("```sheetops");
   const hasDocOps = content.includes("```docops");
@@ -216,7 +245,6 @@ export function StreamingBubble({ content }: StreamingBubbleProps) {
   const hasDeckOps = content.includes("```deckops");
   const hasPageOps = content.includes("```pageops");
   const hasOutline = content.includes("```deckoutline");
-  const hasAnyOps = hasSheetOps || hasDocOps || hasKuOps || hasTableOps || hasDeckOps || hasPageOps;
 
   // Strip EVERY operation/outline block so raw JSON never leaks into the chat
   // while it streams. The `(\n```|$)` tail also catches a block whose closing
@@ -241,12 +269,8 @@ export function StreamingBubble({ content }: StreamingBubbleProps) {
     );
   }
 
-  // An action is streaming ⇒ the AI is actively BUILDING an artifact, via either
-  // a Layer B tool call (streamingAction) or a legacy fenced block. Show only
-  // the present-tense action indicator — never the prose summary, which the
-  // model writes in the past tense ("Created X") and would read as "done" while
-  // the work is still in flight. The confirmation prose returns on the final
-  // settled message once the artifact actually exists.
+  // The real "building an artifact" signal: a Layer B tool call is streaming, or
+  // an operation/outline block has appeared in the text.
   const indicatorType: "sheet" | "doc" | "deck" | "outline" | "page" | null =
     streamingAction === "sheet" || hasSheetOps || hasTableOps
       ? "sheet"
@@ -259,86 +283,29 @@ export function StreamingBubble({ content }: StreamingBubbleProps) {
             : streamingAction === "doc" || hasDocOps || hasKuOps
               ? "doc"
               : null;
-  if (indicatorType) {
+
+  // A plain prose answer with no artifact op: show the streaming text itself.
+  // (Self-corrects a wrong task guess the moment real prose arrives.)
+  if (hasVisibleContent && !indicatorType) {
     return (
       <div className="fade-in-up">
-        <OperationIndicator type={indicatorType} />
+        <div className="markdown-content">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayContent}</ReactMarkdown>
+        </div>
       </div>
     );
   }
 
+  // Otherwise: the task-aware phased loader. Task is the real op type when known,
+  // else the guess from the prompt. The final "building" step only activates
+  // once a real op is detected (outputStarted), so we never claim it early.
+  const guessed = inferStreamTask(lastUserText);
+  const task = taskFromOp(indicatorType) ?? guessed;
+  const outputStarted = !!indicatorType;
+
   return (
     <div className="fade-in-up">
-      {hasVisibleContent ? (
-        <div className="markdown-content">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {displayContent}
-          </ReactMarkdown>
-        </div>
-      ) : (
-        <ThinkingIndicator readingFiles={readingFiles} />
-      )}
-    </div>
-  );
-}
-
-/* -- Thinking indicator with shimmer -- */
-
-function ThinkingIndicator({ readingFiles }: { readingFiles: string[] }) {
-  const [phase, setPhase] = useState(0);
-
-  useEffect(() => {
-    if (readingFiles.length > 0) return;
-    const t1 = setTimeout(() => setPhase(1), 3000);
-    const t2 = setTimeout(() => setPhase(2), 6000);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, [readingFiles]);
-
-  const labels = ["Thinking", "Analyzing", "Composing"];
-  const label =
-    readingFiles.length > 0
-      ? `Reading ${readingFiles.join(", ")}`
-      : labels[phase];
-
-  return (
-    <div className="flex items-center gap-2.5 py-1">
-      <div className="w-4 h-4 flex flex-col items-start justify-center gap-[2.5px] flex-shrink-0">
-        <div className="h-[1.5px] rounded-full bg-[#FFB43F]/60 content-loader-line" style={{ width: "100%" }} />
-        <div className="h-[1.5px] rounded-full bg-[#FFB43F]/40 content-loader-line" style={{ width: "75%" }} />
-        <div className="h-[1.5px] rounded-full bg-[#FFB43F]/25 content-loader-line" style={{ width: "90%" }} />
-      </div>
-      <span className="text-[13px] font-medium shimmer-text text-muted-foreground">
-        {label}...
-      </span>
-    </div>
-  );
-}
-
-/* -- Inline operation indicator (during streaming) -- */
-
-function OperationIndicator({ type }: { type: "sheet" | "doc" | "deck" | "outline" | "page" }) {
-  const config = {
-    sheet: { icon: Table2, label: "Building spreadsheet", color: "#2e9e47", bg: "rgba(46,158,71,0.14)" },
-    doc: { icon: PenLine, label: "Writing document", color: "#4a7aed", bg: "rgba(74,122,237,0.14)" },
-    deck: { icon: FileText, label: "Building presentation", color: "#FFAD45", bg: "rgba(255,173,69,0.16)" },
-    outline: { icon: ListChecks, label: "Planning slides", color: "#FFAD45", bg: "rgba(255,173,69,0.16)" },
-    page: { icon: FileText, label: "Designing page", color: "#8757D7", bg: "rgba(135,87,215,0.14)" },
-  }[type];
-  const Icon = config.icon;
-
-  return (
-    <div
-      className="inline-flex items-center gap-2 px-3 py-2 rounded-xl"
-      style={{ backgroundColor: config.bg }}
-    >
-      <Icon className="w-3.5 h-3.5" style={{ color: config.color }} strokeWidth={2} />
-      <span className="text-[12px] font-medium" style={{ color: config.color }}>
-        {config.label}
-      </span>
-      <Loader2 className="w-3 h-3 animate-spin" style={{ color: config.color }} strokeWidth={2} />
+      <StreamPhases task={task} readingFiles={readingFiles} outputStarted={outputStarted} />
     </div>
   );
 }

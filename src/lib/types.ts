@@ -163,6 +163,7 @@ export interface Message {
   timestamp: number;
   attachments?: FileAttachment[];
   interrupted?: boolean;
+  truncated?: boolean; // server ran out of continuations; offer "Continue"
   groundingSources?: GroundingSource[];
   mentionedEntities?: { id: string; type: EntityType; title: string }[];
   producedEntities?: ProducedEntity[]; // entities this assistant turn created/updated
@@ -628,7 +629,8 @@ export interface AppState {
     tableOperations?: TableOperation[],
     deckOperations?: DeckOperation[],
     pageOperations?: PageOperation[],
-    suggestions?: string[]
+    suggestions?: string[],
+    opts?: { truncated?: boolean }
   ) => void;
   abortStreaming: (projectId: string | null) => void;
   clearSuggestions: () => void;

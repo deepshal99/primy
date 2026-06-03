@@ -544,13 +544,11 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
               ? fullText
               : summarizeOps({ sheetOps, docOps, kuOps, tableOps, deckOps, pageOps }) || fullText;
 
-          finishStreaming(streamProjectId, contentForFinish, sheetOps, docOps, kuOps, tableOps, deckOps, pageOps, suggestions);
-
-          // Non-silent truncation notice: server ran out of auto-continuations
-          // and the answer is still cut off. Don't let a half-answer look whole.
-          if (streamTruncated) {
-            toast.warning("The response was long and may be cut off. Ask the AI to continue if something's missing.");
-          }
+          // Mark the turn truncated when the server ran out of auto-continuations
+          // and the answer is still cut off. This lands on the assistant message
+          // itself (right project), surfacing a persistent "Continue" affordance
+          // in the bubble instead of a toast that vanishes.
+          finishStreaming(streamProjectId, contentForFinish, sheetOps, docOps, kuOps, tableOps, deckOps, pageOps, suggestions, { truncated: streamTruncated });
         } catch (applyError) {
           // Operation parsing or store mutation failed — still save the AI text response
           console.error("[Primy] Failed to apply AI operations:", applyError);
