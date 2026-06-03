@@ -28,7 +28,9 @@ import {
   EntityType,
   ThemeConfig,
   RecentEntry,
+  ProducedEntity,
 } from "@/lib/types";
+import { resolveStreamDisposition, isActivelyEditing } from "@/lib/streamDisposition";
 import { applyPageOps } from "@/lib/ai/pageOperations";
 import { promoteOrphanOps } from "@/lib/ai/opPromotion";
 import { createEmptySheet } from "@/lib/sheet/defaultData";
@@ -285,6 +287,11 @@ export const useAppStore = create<AppState>()(
   // AI-modified entity highlights
   aiModifiedEntityIds: [],
 
+  // Projects with finished AI work the user hasn't viewed yet (sidebar dot).
+  aiUnreadProjectIds: [],
+  // Timestamp of the user's last manual editor interaction (focus-steal gating).
+  lastEditorInteractionAt: 0,
+
   // Legacy conversations (TODO: Remove in next release)
   conversations: [],
   currentConversationId: null,
@@ -331,6 +338,7 @@ export const useAppStore = create<AppState>()(
     })),
 
   finishStreaming: (
+    streamProjectId: string | null,
     fullContent: string,
     sheetOperationsArg?: SheetOperation[],
     docOperationsArg?: DocOperation[],
@@ -342,11 +350,33 @@ export const useAppStore = create<AppState>()(
   ) => {
     const state = get();
     const displayContent = extractDisplayText(fullContent) || fullContent;
+
+    // A stream belongs to the project it STARTED in. By now the user may have
+    // navigated away (or started editing something else here). Decide where the
+    // results land + whether we may steal focus, BEFORE applying anything.
+    const targetProjectId = streamProjectId ?? state.currentProjectId;
+    const editingDifferentEntity = isActivelyEditing({
+      currentEntityId: state.currentEntityId,
+      lastInteractionAt: state.lastEditorInteractionAt,
+      now: Date.now(),
+    });
+    const disposition = resolveStreamDisposition({
+      streamProjectId,
+      currentProjectId: state.currentProjectId,
+      editingDifferentEntity,
+    });
+    const isForeground = disposition.mode !== "background";
+    const allowFocusSteal = disposition.mode === "foreground-open";
+
+    // Entities this turn created/updated — surfaced as clickable chat widgets.
+    const produced: ProducedEntity[] = [];
+
     const newMessage = {
       id: nanoid(),
       role: "assistant" as const,
       content: displayContent,
       timestamp: Date.now(),
+      producedEntities: undefined as ProducedEntity[] | undefined, // filled in just before the final set()
     };
 
     // Guarantee creation actually happens: if the model used edit-ops to
@@ -461,12 +491,12 @@ export const useAppStore = create<AppState>()(
 
     let entityOpsApplied = false;
     if (hasKuOps || hasTableOps || hasDeckOps || hasPageOps) {
-      if (!state.currentProjectId) {
-        console.error("[Primy] Entity operations received but no currentProjectId");
+      if (!targetProjectId) {
+        console.error("[Primy] Entity operations received but no target project");
         toast.error("No active project. AI changes could not be applied. Please try again.");
       }
       newProjects = [...state.projects];
-      const projIdx = newProjects.findIndex((p) => p.id === state.currentProjectId);
+      const projIdx = newProjects.findIndex((p) => p.id === targetProjectId);
       if (projIdx >= 0) {
         const project = { ...newProjects[projIdx] };
 
@@ -485,15 +515,17 @@ export const useAppStore = create<AppState>()(
                   updatedAt: Date.now(),
                 };
                 project.knowledgeUnits.push(newKu);
-                // Auto-open the newly created KU
-                newCurrentEntityId = newKu.id;
-                newCurrentEntityType = "ku";
-                newDocContent = newKu.content;
-                newDocVersion = state.docVersion + 1;
-                newActiveTab = "doc";
-                // Add to open tabs
-                if (!newOpenTabs.some((t) => t.id === newKu.id)) {
-                  newOpenTabs = [...newOpenTabs, { id: newKu.id, type: "ku" as const, title: newKu.title }];
+                produced.push({ id: newKu.id, type: "ku", title: newKu.title, action: "created" });
+                // Auto-open the newly created KU — only when we may steal focus.
+                if (allowFocusSteal) {
+                  newCurrentEntityId = newKu.id;
+                  newCurrentEntityType = "ku";
+                  newDocContent = newKu.content;
+                  newDocVersion = state.docVersion + 1;
+                  newActiveTab = "doc";
+                  if (!newOpenTabs.some((t) => t.id === newKu.id)) {
+                    newOpenTabs = [...newOpenTabs, { id: newKu.id, type: "ku" as const, title: newKu.title }];
+                  }
                 }
                 break;
               }
@@ -510,11 +542,12 @@ export const useAppStore = create<AppState>()(
                     newDocContent = op.content;
                     newDocVersion = state.docVersion + 1;
                   }
-                  // Auto-open tab for updated KU
-                  if (!newOpenTabs.some((t) => t.id === op.kuId)) {
+                  // Auto-open tab for updated KU (only when we may steal focus)
+                  if (allowFocusSteal && !newOpenTabs.some((t) => t.id === op.kuId)) {
                     const entity = project.knowledgeUnits[idx];
                     newOpenTabs = [...newOpenTabs, { id: entity.id, type: "ku" as const, title: entity.title }];
                   }
+                  produced.push({ id: op.kuId, type: "ku", title: project.knowledgeUnits[idx].title, action: "updated" });
                   aiModifiedIds.push(op.kuId);
                 }
                 break;
@@ -532,11 +565,12 @@ export const useAppStore = create<AppState>()(
                     newDocContent = project.knowledgeUnits[idx].content;
                     newDocVersion = state.docVersion + 1;
                   }
-                  // Auto-open tab for appended KU
-                  if (!newOpenTabs.some((t) => t.id === op.kuId)) {
+                  // Auto-open tab for appended KU (only when we may steal focus)
+                  if (allowFocusSteal && !newOpenTabs.some((t) => t.id === op.kuId)) {
                     const entity = project.knowledgeUnits[idx];
                     newOpenTabs = [...newOpenTabs, { id: entity.id, type: "ku" as const, title: entity.title }];
                   }
+                  produced.push({ id: op.kuId, type: "ku", title: project.knowledgeUnits[idx].title, action: "updated" });
                   aiModifiedIds.push(op.kuId);
                 }
                 break;
@@ -592,15 +626,17 @@ export const useAppStore = create<AppState>()(
                   updatedAt: Date.now(),
                 };
                 project.tables.push(newTable);
-                // Auto-open the newly created table
-                newCurrentEntityId = newTable.id;
-                newCurrentEntityType = "table";
-                newSheets = newTable.sheets;
-                newSheetVersion = state.sheetVersion + 1;
-                newActiveTab = "sheet";
-                // Add to open tabs
-                if (!newOpenTabs.some((t) => t.id === newTable.id)) {
-                  newOpenTabs = [...newOpenTabs, { id: newTable.id, type: "table" as const, title: newTable.title }];
+                produced.push({ id: newTable.id, type: "table", title: newTable.title, action: "created" });
+                // Auto-open the newly created table — only when we may steal focus.
+                if (allowFocusSteal) {
+                  newCurrentEntityId = newTable.id;
+                  newCurrentEntityType = "table";
+                  newSheets = newTable.sheets;
+                  newSheetVersion = state.sheetVersion + 1;
+                  newActiveTab = "sheet";
+                  if (!newOpenTabs.some((t) => t.id === newTable.id)) {
+                    newOpenTabs = [...newOpenTabs, { id: newTable.id, type: "table" as const, title: newTable.title }];
+                  }
                 }
                 break;
               }
@@ -626,10 +662,11 @@ export const useAppStore = create<AppState>()(
                     newSheets = table.sheets;
                     newSheetVersion = state.sheetVersion + 1;
                   }
-                  // Auto-open tab for updated table
-                  if (!newOpenTabs.some((t) => t.id === op.tableId)) {
+                  // Auto-open tab for updated table (only when we may steal focus)
+                  if (allowFocusSteal && !newOpenTabs.some((t) => t.id === op.tableId)) {
                     newOpenTabs = [...newOpenTabs, { id: table.id, type: "table" as const, title: table.title }];
                   }
+                  produced.push({ id: op.tableId, type: "table", title: table.title, action: "updated" });
                   aiModifiedIds.push(op.tableId);
                 }
                 break;
@@ -652,10 +689,11 @@ export const useAppStore = create<AppState>()(
                     newSheets = table.sheets;
                     newSheetVersion = state.sheetVersion + 1;
                   }
-                  // Auto-open tab for updated table
-                  if (!newOpenTabs.some((t) => t.id === op.tableId)) {
+                  // Auto-open tab for updated table (only when we may steal focus)
+                  if (allowFocusSteal && !newOpenTabs.some((t) => t.id === op.tableId)) {
                     newOpenTabs = [...newOpenTabs, { id: table.id, type: "table" as const, title: table.title }];
                   }
+                  produced.push({ id: op.tableId, type: "table", title: table.title, action: "updated" });
                   aiModifiedIds.push(op.tableId);
                 }
                 break;
@@ -695,20 +733,26 @@ export const useAppStore = create<AppState>()(
                   updatedAt: Date.now(),
                 };
                 project.decks.push(newDeck);
-                newCurrentEntityId = newDeck.id;
-                newCurrentEntityType = "deck";
-                newDeckSlides = newDeck.slides;
-                newDeckTheme = newDeck.theme;
-                newDeckStyle = validatedStyle;
-                newDeckVersion = state.deckVersion + 1;
-                // Transition to viewing phase after generation
-                newDeckPhase = "viewing";
-                // Queue a background polish pass for freshly-generated HTML decks.
-                if (newDeck.slides.some((s) => isHtmlSlide(s))) {
-                  newPendingDeckPolishId = newDeck.id;
-                }
-                if (!newOpenTabs.some((t) => t.id === newDeck.id)) {
-                  newOpenTabs = [...newOpenTabs, { id: newDeck.id, type: "deck" as const, title: newDeck.title }];
+                produced.push({ id: newDeck.id, type: "deck", title: newDeck.title, action: "created" });
+                // Open + view the new deck only when we may steal focus. The
+                // polish pass reads the live deck buffer, so it too is gated —
+                // we never polish a deck that isn't loaded on screen.
+                if (allowFocusSteal) {
+                  newCurrentEntityId = newDeck.id;
+                  newCurrentEntityType = "deck";
+                  newDeckSlides = newDeck.slides;
+                  newDeckTheme = newDeck.theme;
+                  newDeckStyle = validatedStyle;
+                  newDeckVersion = state.deckVersion + 1;
+                  // Transition to viewing phase after generation
+                  newDeckPhase = "viewing";
+                  // Queue a background polish pass for freshly-generated HTML decks.
+                  if (newDeck.slides.some((s) => isHtmlSlide(s))) {
+                    newPendingDeckPolishId = newDeck.id;
+                  }
+                  if (!newOpenTabs.some((t) => t.id === newDeck.id)) {
+                    newOpenTabs = [...newOpenTabs, { id: newDeck.id, type: "deck" as const, title: newDeck.title }];
+                  }
                 }
                 // Auto-fetch background images for slides with imageQuery
                 const slidesWithQuery = newDeck.slides.filter((s) => !isHtmlSlide(s) && s.imageQuery && !s.backgroundImage);
@@ -722,21 +766,28 @@ export const useAppStore = create<AppState>()(
                         const firstResult = data.results?.[0];
                         if (firstResult?.urls?.regular) {
                           const store = useAppStore.getState();
-                          const updatedSlides = store.deckSlides.map((slide) =>
-                            slide.id === s.id ? { ...slide, backgroundImage: firstResult.urls.regular } : slide
-                          );
-                          store.updateDeckSlides(updatedSlides);
-                          // Also update the deck in projects
+                          // Update the deck inside its OWN project (not whichever
+                          // project happens to be active now), merging onto the
+                          // deck's own slides rather than the live buffer.
                           const projects = [...store.projects];
-                          const pIdx = projects.findIndex((p) => p.id === store.currentProjectId);
+                          const pIdx = projects.findIndex((p) => p.id === targetProjectId);
                           if (pIdx >= 0) {
                             const proj = { ...projects[pIdx] };
                             const dIdx = (proj.decks || []).findIndex((d) => d.id === deckId);
                             if (dIdx >= 0) {
                               proj.decks = [...proj.decks];
-                              proj.decks[dIdx] = { ...proj.decks[dIdx], slides: updatedSlides };
+                              const mergedSlides = proj.decks[dIdx].slides.map((slide) =>
+                                slide.id === s.id ? { ...slide, backgroundImage: firstResult.urls.regular } : slide
+                              );
+                              proj.decks[dIdx] = { ...proj.decks[dIdx], slides: mergedSlides };
                               projects[pIdx] = proj;
-                              useAppStore.setState({ projects });
+                              const patch: Record<string, any> = { projects };
+                              // Only refresh the live deck buffer if THIS deck is on screen.
+                              if (store.currentEntityId === deckId) {
+                                patch.deckSlides = mergedSlides;
+                                patch.deckVersion = store.deckVersion + 1;
+                              }
+                              useAppStore.setState(patch);
                             }
                           }
                         }
@@ -763,11 +814,12 @@ export const useAppStore = create<AppState>()(
                     if (updatedStyle) newDeckStyle = updatedStyle;
                     newDeckVersion = state.deckVersion + 1;
                   }
-                  // Auto-open tab for updated deck
-                  if (!newOpenTabs.some((t) => t.id === op.deckId)) {
+                  // Auto-open tab for updated deck (only when we may steal focus)
+                  if (allowFocusSteal && !newOpenTabs.some((t) => t.id === op.deckId)) {
                     const entity = project.decks[idx];
                     newOpenTabs = [...newOpenTabs, { id: entity.id, type: "deck" as const, title: entity.title }];
                   }
+                  produced.push({ id: op.deckId, type: "deck", title: project.decks[idx].title, action: "updated" });
                   aiModifiedIds.push(op.deckId);
                 }
                 break;
@@ -816,13 +868,16 @@ export const useAppStore = create<AppState>()(
                   updatedAt: Date.now(),
                 };
                 project.pages.push(newPage);
-                newCurrentEntityId = newPage.id;
-                newCurrentEntityType = "page";
-                newPageHtml = newPage.html;
-                newPageEditableFields = newPage.editableFields || [];
-                newPageVersion = state.pageVersion + 1;
-                if (!newOpenTabs.some((t) => t.id === newPage.id)) {
-                  newOpenTabs = [...newOpenTabs, { id: newPage.id, type: "page" as const, title: newPage.title }];
+                produced.push({ id: newPage.id, type: "page", title: newPage.title, action: "created" });
+                if (allowFocusSteal) {
+                  newCurrentEntityId = newPage.id;
+                  newCurrentEntityType = "page";
+                  newPageHtml = newPage.html;
+                  newPageEditableFields = newPage.editableFields || [];
+                  newPageVersion = state.pageVersion + 1;
+                  if (!newOpenTabs.some((t) => t.id === newPage.id)) {
+                    newOpenTabs = [...newOpenTabs, { id: newPage.id, type: "page" as const, title: newPage.title }];
+                  }
                 }
                 break;
               }
@@ -840,10 +895,11 @@ export const useAppStore = create<AppState>()(
                     if (op.editableFields) newPageEditableFields = op.editableFields;
                     newPageVersion = state.pageVersion + 1;
                   }
-                  if (!newOpenTabs.some((t) => t.id === op.pageId)) {
+                  if (allowFocusSteal && !newOpenTabs.some((t) => t.id === op.pageId)) {
                     const entity = project.pages[idx];
                     newOpenTabs = [...newOpenTabs, { id: entity.id, type: "page" as const, title: entity.title }];
                   }
+                  produced.push({ id: op.pageId, type: "page", title: project.pages[idx].title, action: "updated" });
                   aiModifiedIds.push(op.pageId);
                 }
                 break;
@@ -875,47 +931,76 @@ export const useAppStore = create<AppState>()(
         project.updatedAt = Date.now();
         newProjects[projIdx] = project;
         entityOpsApplied = true;
-      } else if (state.currentProjectId) {
-        console.error("[Primy] Project not found in store for entity ops, projectId:", state.currentProjectId);
+      } else if (targetProjectId) {
+        console.error("[Primy] Project not found in store for entity ops, projectId:", targetProjectId);
         toast.error("Failed to apply changes: project not found. Please try again.");
       }
     }
 
-    set({
-      messages: [...state.messages, newMessage],
+    // Record produced entities on the assistant message (clickable chat widgets).
+    newMessage.producedEntities = produced.length > 0 ? produced : undefined;
+
+    // The assistant message belongs to the TARGET project's history regardless
+    // of which project is on screen. Foreground: mirror to the live `messages`.
+    // Background: append only to the target project's own (off-screen) history.
+    if (newProjects === state.projects) newProjects = [...state.projects];
+    const targetIdx = newProjects.findIndex((p) => p.id === targetProjectId);
+    if (targetIdx >= 0) {
+      const tProj = { ...newProjects[targetIdx] };
+      tProj.messages = isForeground
+        ? [...state.messages, newMessage]
+        : [...(tProj.messages || []), newMessage];
+      newProjects[targetIdx] = tProj;
+    }
+
+    const basePatch: Record<string, any> = {
       isStreaming: false,
       streamingContent: "",
-      sheets: newSheets,
-      sheetVersion: newSheetVersion,
-      pendingSheetImages: newPendingImages,
-      docContent: newDocContent,
-      docVersion: newDocVersion,
-      deckSlides: newDeckSlides,
-      deckTheme: newDeckTheme,
-      deckVersion: newDeckVersion,
-      deckPhase: newDeckPhase,
-      deckStyle: newDeckStyle,
-      pendingDeckPolishId: newPendingDeckPolishId,
-      pageHtml: newPageHtml,
-      pageEditableFields: newPageEditableFields,
-      pageVersion: newPageVersion,
-      activeTab: newActiveTab,
-      workspaceOpen: state.workspaceOpen || !!shouldOpen,
-      suggestions: suggestions || [],
       readingFiles: [],
       aiPhase: 'done' as const,
       streamingAction: null,
+      projects: newProjects,
       undoStack: newUndoStack,
       canUndo: newUndoStack.length > 0,
       // Clear redo stack when new AI operations are applied
       redoStack: hasAnyOps ? [] : state.redoStack,
       canRedo: hasAnyOps ? false : state.canRedo,
-      projects: newProjects,
-      currentEntityId: newCurrentEntityId,
-      currentEntityType: newCurrentEntityType,
-      openTabs: newOpenTabs,
-      aiModifiedEntityIds: aiModifiedIds.length > 0 ? aiModifiedIds : state.aiModifiedEntityIds,
-    });
+      suggestions: isForeground ? (suggestions || []) : state.suggestions,
+    };
+
+    if (isForeground) {
+      // Active project: apply flat buffers + (when idle) the opened entity.
+      Object.assign(basePatch, {
+        messages: [...state.messages, newMessage],
+        sheets: newSheets,
+        sheetVersion: newSheetVersion,
+        pendingSheetImages: newPendingImages,
+        docContent: newDocContent,
+        docVersion: newDocVersion,
+        deckSlides: newDeckSlides,
+        deckTheme: newDeckTheme,
+        deckVersion: newDeckVersion,
+        deckPhase: newDeckPhase,
+        deckStyle: newDeckStyle,
+        pendingDeckPolishId: newPendingDeckPolishId,
+        pageHtml: newPageHtml,
+        pageEditableFields: newPageEditableFields,
+        pageVersion: newPageVersion,
+        activeTab: newActiveTab,
+        workspaceOpen: state.workspaceOpen || !!shouldOpen,
+        currentEntityId: newCurrentEntityId,
+        currentEntityType: newCurrentEntityType,
+        openTabs: newOpenTabs,
+        aiModifiedEntityIds: aiModifiedIds.length > 0 ? aiModifiedIds : state.aiModifiedEntityIds,
+      });
+    }
+
+    set(basePatch);
+
+    // Background result: flag the originating project so the sidebar shows a dot.
+    if (!isForeground && targetProjectId) {
+      get().markProjectUnread(targetProjectId);
+    }
 
     // Auto-clear the AI-modified markers after a beat. The old TabBar cleared
     // these on a 2s timer; with the tab row gone nothing did, so the set grew
@@ -924,9 +1009,12 @@ export const useAppStore = create<AppState>()(
       aiModifiedIds.forEach((id) => setTimeout(() => get().clearAiModifiedEntity(id), 2200));
     }
 
-    // Success toasts — only fire when mutations actually landed in the store
-    if (hasSheetOps) toast.success("Spreadsheet updated");
-    else if (hasDocOps) toast.success("Document updated");
+    // Success toasts — foreground only. A toast about a project the user isn't
+    // looking at would be confusing; the sidebar dot + chat widget signal it.
+    if (isForeground) {
+      if (hasSheetOps) toast.success("Spreadsheet updated");
+      else if (hasDocOps) toast.success("Document updated");
+    }
 
     // Collect deleted entity IDs for server sync
     const deletedKuIds: string[] = [];
@@ -936,42 +1024,42 @@ export const useAppStore = create<AppState>()(
 
     if (hasKuOps && entityOpsApplied) {
       for (const op of kuOperations) {
-        if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
+        if (op.type === "CREATE" && isForeground) toast.success(`Created "${op.title}"`);
         else if (op.type === "DELETE") deletedKuIds.push(op.kuId);
-        else if (op.type === "RENAME") toast.success("Document renamed");
+        else if (op.type === "RENAME" && isForeground) toast.success("Document renamed");
       }
     }
     if (hasTableOps && entityOpsApplied) {
       for (const op of tableOperations) {
-        if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
+        if (op.type === "CREATE" && isForeground) toast.success(`Created "${op.title}"`);
         else if (op.type === "DELETE") deletedTableIds.push(op.tableId);
       }
     }
     if (hasDeckOps && entityOpsApplied) {
       for (const op of deckOperations) {
-        if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
+        if (op.type === "CREATE" && isForeground) toast.success(`Created "${op.title}"`);
         else if (op.type === "DELETE") deletedDeckIds.push(op.deckId);
-        else if (op.type === "RENAME") toast.success("Deck renamed");
+        else if (op.type === "RENAME" && isForeground) toast.success("Deck renamed");
       }
     }
     if (hasPageOps && entityOpsApplied) {
       for (const op of pageOperations) {
-        if (op.type === "CREATE") toast.success(`Created "${op.title}"`);
+        if (op.type === "CREATE" && isForeground) toast.success(`Created "${op.title}"`);
         else if (op.type === "DELETE") deletedPageIds.push(op.pageId);
-        else if (op.type === "RENAME") toast.success("Page renamed");
+        else if (op.type === "RENAME" && isForeground) toast.success("Page renamed");
       }
     }
 
     // Immediately sync deletions to server (debounced save won't include deletedXxxIds)
     // Uses retry with backoff since delete ops are not included in the regular save payload
-    if (state.currentProjectId) {
+    if (targetProjectId) {
       const deletePayload: Record<string, string[]> = {};
       if (deletedKuIds.length > 0) deletePayload.deletedKnowledgeUnitIds = deletedKuIds;
       if (deletedTableIds.length > 0) deletePayload.deletedTableIds = deletedTableIds;
       if (deletedDeckIds.length > 0) deletePayload.deletedDeckIds = deletedDeckIds;
       if (deletedPageIds.length > 0) deletePayload.deletedPageIds = deletedPageIds;
       if (Object.keys(deletePayload).length > 0) {
-        const projectId = state.currentProjectId;
+        const projectId = targetProjectId;
         updateProjectOnServer(projectId, deletePayload).catch(() => {
           // First retry failed (updateProjectOnServer already retries 2x internally)
           // Schedule one more attempt after 5 seconds
@@ -986,15 +1074,19 @@ export const useAppStore = create<AppState>()(
       }
     }
 
-    // Auto-save (debounced for batching)
-    if (state.currentProjectId) {
+    // Auto-save. Foreground → the debounced save covers the active project.
+    // Background → persist the originating project directly (debounce misses it).
+    if (isForeground && state.currentProjectId) {
       scheduleDebouncedSave();
+    } else if (!isForeground && targetProjectId) {
+      get().saveProjectById(targetProjectId);
     }
 
     // Persistent snapshot (fire-and-forget, debounced per artifact).
     // Captures post-AI-edit state of the active artifact so users can
-    // restore via the version history panel. Failures are silent.
-    if (hasAnyOps && state.currentEntityId && state.currentEntityType) {
+    // restore via the version history panel. Reads live flat buffers, so it is
+    // only valid for the foreground entity. Failures are silent.
+    if (isForeground && hasAnyOps && state.currentEntityId && state.currentEntityType) {
       const post = get();
       const labelPreview = displayContent.slice(0, 60);
       const label = labelPreview ? `After AI edit: ${labelPreview}` : "After AI edit";
@@ -1017,8 +1109,10 @@ export const useAppStore = create<AppState>()(
       }
     }
 
-    // Auto-generate title
-    setTimeout(() => get().autoGenerateTitle(), 200);
+    // Auto-generate title — operates on the active project, so foreground only.
+    if (isForeground) {
+      setTimeout(() => get().autoGenerateTitle(), 200);
+    }
   },
 
   applySheetOperations: (operations: SheetOperation[]) =>
@@ -1078,6 +1172,18 @@ export const useAppStore = create<AppState>()(
     set((state) => ({
       aiModifiedEntityIds: state.aiModifiedEntityIds.filter((eid) => eid !== id),
     })),
+
+  markProjectUnread: (projectId: string) =>
+    set((state) => (state.aiUnreadProjectIds.includes(projectId)
+      ? {}
+      : { aiUnreadProjectIds: [...state.aiUnreadProjectIds, projectId] })),
+
+  clearProjectUnread: (projectId: string) =>
+    set((state) => (state.aiUnreadProjectIds.includes(projectId)
+      ? { aiUnreadProjectIds: state.aiUnreadProjectIds.filter((id) => id !== projectId) }
+      : {})),
+
+  noteEditorInteraction: () => set({ lastEditorInteractionAt: Date.now() }),
 
   setReadingFiles: (files: string[]) => set({ readingFiles: files }),
   setAIPhase: (phase) => set({ aiPhase: phase }),
@@ -1434,6 +1540,9 @@ export const useAppStore = create<AppState>()(
       canRedo: false,
       openTabs: [],
     });
+
+    // Entering the project clears its "new AI work" indicator.
+    get().clearProjectUnread(project.id);
 
     // Load full project data if not already loaded
     if (!state.projectsFullyLoaded[id]) {
@@ -2654,6 +2763,30 @@ export const useAppStore = create<AppState>()(
         set({ saveError: "Failed to save" });
       })
       .finally(() => set({ isSaving: false, lastSavedAt: Date.now() }));
+  },
+
+  // Persist a specific project (used when an AI stream finishes for a project
+  // the user is NOT currently viewing — the debounced save only covers the
+  // active project). Entities/messages are assumed already updated in store.
+  saveProjectById: (projectId: string) => {
+    const state = get();
+    const project = state.projects.find((p) => p.id === projectId);
+    if (!project) return;
+    saveProjectsToStorage(state.projects);
+    const syncPayload: Record<string, any> = {
+      title: project.title,
+      description: project.description,
+      projectType: project.projectType,
+      memory: project.memory,
+      knowledgeUnits: project.knowledgeUnits.map((k) => ({ id: k.id, title: k.title, content: k.content })),
+      tables: project.tables.map((t) => ({ id: t.id, title: t.title, sheets: t.sheets })),
+      decks: (project.decks || []).map((d) => ({ id: d.id, title: d.title, theme: d.theme, style: d.style || null, slides: d.slides })),
+      pages: (project.pages || []).map((pg) => ({ id: pg.id, title: pg.title, html: pg.html, editableFields: pg.editableFields || [], sourceKuId: pg.sourceKuId || null })),
+      newMessages: project.messages.slice(-2).map((m) => ({ id: m.id, role: m.role, content: m.content, timestamp: m.timestamp, attachments: m.attachments })),
+    };
+    updateProjectOnServer(projectId, syncPayload).catch(() => {
+      console.warn("[Primy] Background project save failed:", projectId);
+    });
   },
 
   loadProjects: async () => {

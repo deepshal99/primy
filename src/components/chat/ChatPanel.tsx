@@ -90,6 +90,10 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
         useAppStore.setState({ workspaceOpen: false });
       }
 
+      // Stamp the stream with the project it STARTED in. finishStreaming routes
+      // results here even if the user navigates to another project mid-stream.
+      const streamProjectId = useAppStore.getState().currentProjectId;
+
       // Prepend entity type intent if user selected one from the empty-state pills
       const entityIntent = selectedEntityTypeRef.current;
       if (entityIntent) {
@@ -536,7 +540,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
               ? fullText
               : summarizeOps({ sheetOps, docOps, kuOps, tableOps, deckOps, pageOps }) || fullText;
 
-          finishStreaming(contentForFinish, sheetOps, docOps, kuOps, tableOps, deckOps, pageOps, suggestions);
+          finishStreaming(streamProjectId, contentForFinish, sheetOps, docOps, kuOps, tableOps, deckOps, pageOps, suggestions);
 
           // Non-silent truncation notice: server ran out of auto-continuations
           // and the answer is still cut off. Don't let a half-answer look whole.
@@ -546,7 +550,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
         } catch (applyError) {
           // Operation parsing or store mutation failed — still save the AI text response
           console.error("[Primy] Failed to apply AI operations:", applyError);
-          finishStreaming(extractDisplayText(fullText) || fullText);
+          finishStreaming(streamProjectId, extractDisplayText(fullText) || fullText);
           toast.error("AI responded but some changes couldn't be applied. Try again or check the response.");
         }
 
@@ -576,12 +580,12 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
               const pageOps = toolOps.page.length ? toolOps.page : parsePageOperations(partial);
               const hasPartialOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || deckOps.length > 0 || pageOps.length > 0;
               if (hasPartialOps) {
-                finishStreaming(extractDisplayText(partial) || partial, sheetOps, docOps, kuOps, tableOps, deckOps, pageOps);
+                finishStreaming(streamProjectId, extractDisplayText(partial) || partial, sheetOps, docOps, kuOps, tableOps, deckOps, pageOps);
               } else {
-                finishStreaming(extractDisplayText(partial) || partial);
+                finishStreaming(streamProjectId, extractDisplayText(partial) || partial);
               }
             } catch {
-              finishStreaming(extractDisplayText(partial) || partial);
+              finishStreaming(streamProjectId, extractDisplayText(partial) || partial);
             }
             const msgs = useAppStore.getState().messages;
             if (msgs.length > 0) {

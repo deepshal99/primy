@@ -165,6 +165,7 @@ export interface Message {
   interrupted?: boolean;
   groundingSources?: GroundingSource[];
   mentionedEntities?: { id: string; type: EntityType; title: string }[];
+  producedEntities?: ProducedEntity[]; // entities this assistant turn created/updated
 }
 
 // ═══ Conversation History (legacy — kept for migration) ═══
@@ -293,6 +294,14 @@ export interface ProjectListItem {
 }
 
 export type EntityType = "ku" | "table" | "deck" | "page";
+
+/** An entity an AI turn created or updated — surfaced as a clickable widget in chat. */
+export interface ProducedEntity {
+  id: string;
+  type: EntityType;
+  title: string;
+  action: "created" | "updated";
+}
 
 // ═══ Page Operations (AI fence: ```pageops) ═══
 
@@ -574,11 +583,22 @@ export interface AppState {
   aiModifiedEntityIds: string[];
   clearAiModifiedEntity: (id: string) => void;
 
+  // Projects with finished AI work the user hasn't seen yet (drives the sidebar dot).
+  aiUnreadProjectIds: string[];
+  markProjectUnread: (projectId: string) => void;
+  clearProjectUnread: (projectId: string) => void;
+  /** Timestamp of the user's last manual edit in an entity editor (drives focus-steal gating). */
+  lastEditorInteractionAt: number;
+  noteEditorInteraction: () => void;
+  /** Persist a specific project (not necessarily the active one) to storage + server. */
+  saveProjectById: (projectId: string) => void;
+
   // Chat/streaming actions
   addUserMessage: (content: string, attachments?: FileAttachment[], mentionedEntities?: { id: string; type: EntityType; title: string }[]) => void;
   startStreaming: () => void;
   appendStreamChunk: (chunk: string) => void;
   finishStreaming: (
+    streamProjectId: string | null,
     fullContent: string,
     sheetOperations?: SheetOperation[],
     docOperations?: DocOperation[],
