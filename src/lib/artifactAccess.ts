@@ -41,7 +41,10 @@ export async function canAccessArtifact(
     if (!row) return false;
     const access = await getProjectAccess(row.projectId, userId);
     return !!access && ROLE_RANK[access.role] >= ROLE_RANK[minRole];
-  } catch {
+  } catch (err) {
+    // Deny on error, but log it — a transient DB failure shouldn't be silently
+    // indistinguishable from a legitimate access denial.
+    console.error("[Primy] canAccessArtifact error:", err);
     return false;
   }
 }

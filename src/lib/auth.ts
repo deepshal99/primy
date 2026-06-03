@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { db } from "@/db";
 import { users, emailCodes } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
 import { validatePassword, isDevOnlyEmail, isBreachedPassword } from "@/lib/authPolicy";
@@ -96,9 +96,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           // Brute-force / credential-stuffing throttle (durable, per-email AND
           // per-IP). Checked BEFORE any work so a locked account/IP is cheap.
           const eKey = emailKey(email);
-          const iKey = ipKey(getClientIp(request));
+          // Skip the per-IP throttle when the IP can't be resolved — otherwise
+          // every header-less client shares the single "unknown" key and they
+          // lock each other out at IP_THRESHOLD. The per-email throttle stays.
+          const clientIp = getClientIp(request);
+          const iKey = clientIp === "unknown" ? null : ipKey(clientIp);
           if (!devBypass) {
-            const lock = Math.max(await lockedSeconds(eKey), await lockedSeconds(iKey));
+            const lock = Math.max(
+              await lockedSeconds(eKey),
+              iKey ? await lockedSeconds(iKey) : 0
+            );
             if (lock > 0) {
               throw new Error(`Too many attempts. Try again in ${Math.ceil(lock / 60)} min.`);
             }
@@ -116,11 +123,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const passwordMatch = await bcrypt.compare(password, hash);
           if (!user || !passwordMatch) {
             await recordFailure(eKey, THRESHOLDS.EMAIL_THRESHOLD);
-            await recordFailure(iKey, THRESHOLDS.IP_THRESHOLD);
+            if (iKey) await recordFailure(iKey, THRESHOLDS.IP_THRESHOLD);
             throw new Error(GENERIC_LOGIN_ERROR);
           }
           await clearAttempts(eKey);
-          await clearAttempts(iKey);
+          if (iKey) await clearAttempts(iKey);
           return { id: user.id, name: user.name, email: user.email };
         }
       },
@@ -165,10 +172,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const ok = await bcrypt.compare(code, row.codeHash);
         if (!ok) {
-          await db
+          // Atomic increment (+ gate on the returned value) so parallel guesses
+          // can't both read the same baseline and slip past the 5-attempt cap.
+          const [updated] = await db
             .update(emailCodes)
-            .set({ attempts: row.attempts + 1 })
-            .where(eq(emailCodes.email, email));
+            .set({ attempts: sql`${emailCodes.attempts} + 1` })
+            .where(eq(emailCodes.email, email))
+            .returning({ attempts: emailCodes.attempts });
+          if (updated && updated.attempts >= 5) {
+            await db.delete(emailCodes).where(eq(emailCodes.email, email));
+          }
           throw new Error("Invalid or expired code");
         }
 
@@ -239,7 +252,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           .where(eq(users.id, token.id as string))
           .limit(1);
         // User deleted, or token version bumped → revoke by stripping identity.
-        if (!dbUser || dbUser.tokenVersion !== token.tv) {
+        // Normalize both sides so a missing tokenVersion (legacy row) or a
+        // pre-`tv` token doesn't trigger a needless logout (0 vs undefined).
+        if (!dbUser || (dbUser.tokenVersion ?? 0) !== (token.tv ?? 0)) {
           return {};
         }
         token.name = dbUser.name;
