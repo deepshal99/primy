@@ -155,6 +155,17 @@ Everything depends on this; build first, on one track.
 
 > **Sequencing note:** W8's **migration baseline is a hard prerequisite for W0** — the org/visibility/trash schema changes must ship as reviewed, versioned migrations, not `drizzle-kit push`. So W8's migration setup is part of **Phase 0**, before any schema change lands. CI + observability + dashboard setup run in parallel with Phase 1.
 
+### W9 — Passwordless unified auth (email code) 🆕
+**Goal:** merge signup + login into ONE passwordless flow — enter email → 6-digit code → in (account auto-created if new). Password field removed from the new flow (kept in DB for existing users; they can also use code login). Google login added later removes the email-only fragility.
+**⚠️ HARD DEPENDENCY:** requires working email delivery (`RESEND_API_KEY`, verified sender domain). It is **absent today**. Email-code must ship **alongside** password login until Resend is verified in prod, then flip to passwordless-only. Never make code the sole method while email delivery is unproven (lockout risk for all users).
+**Plan:** `emailCodes` table (email, code hash, expiresAt, attempts); `/api/auth/request-code` (rate-limited, Resend) + a NextAuth credentials "code" provider validating email+code → session (create user on first verify, passwordless). Throttle + single-use codes.
+
+### W10 — Signup/login page revamp 🆕
+One unified page (no separate signup/login), Primy branding/design language, built on W9's code flow. Email field → code entry → done. Depends on W9.
+
+### W11 — Landing page revamp 🆕
+Full overhaul of `src/app/page.tsx` (keep route/IA). Built per `design-taste-frontend` (anti-slop, single warm theme, zero em-dashes, real images, motivated motion) + `copywriting` (clear benefit-led copy, one CTA intent = "Start free"). Brand tokens only (ink/amber/warm), Inter, in-house motion. Redesign-overhaul mode.
+
 ## 5. Out of scope (parked — by decision)
 - Real payments / checkout / Upgrade-funnel UI (revenue model = after the test; see `2026-06-02-revenue-model-plan.md`).
 - Turning on `ENFORCE_PLAN_LIMITS` / storage gating / metering decks+embeddings.
