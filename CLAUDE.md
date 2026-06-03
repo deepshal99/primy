@@ -19,16 +19,22 @@ See `docs/superpowers/specs/2026-05-01-primy-v1-strategy.md` for full strategic 
 npm run dev          # Start dev server (Next.js 16 + Turbopack)
 npm run build        # Production build
 npm run lint         # ESLint
+npm run lint:motion  # Motion ruleset check (scripts/check-motion.mjs) — must stay at 0 errors
 npm run test         # Vitest (watch)
 npm run test:run     # Vitest (single run, CI)
+npm run test:coverage# Vitest with coverage
+npm run db:generate  # Generate a Drizzle migration from schema changes
+npm run db:migrate   # Apply pending migrations (tsx scripts/migrate.ts)
+npm run db:check     # Validate migration consistency
 npm run dev:admin    # Seed/refresh the local dev admin (admin@primy.local / admin)
 npm run seed:demo    # Seed demo data
+npm run migrate:phase0 # Apply Phase-0 orgs (multi-tenant) schema
 npm run migrate:ssot # Apply team-SSOT schema
 npm run migrate:grace# Grant founding-member grace
-npx drizzle-kit push # Push schema changes to Neon PostgreSQL
+npm run org:pro      # Mark an org as paid (set-org-pro helper)
 ```
 
-**Testing**: Vitest is configured (`tests/`, ~14 files incl. `lib/deck/*`, `lib/billing/*`, `parseAIResponse`, `projectAccess`, `opPromotion`, `plans`). Run `npm run test:run` before shipping. There is no E2E suite — feature verification is done by driving the running app in a browser.
+**Testing**: Vitest is configured (`tests/`, ~18 files incl. `lib/deck/*`, `lib/billing/*`, `lib/org/*`, `parseAIResponse`, `projectAccess`, `opPromotion`, `plans`, `streamDisposition`, `streamPhases`, `tableHealth`). Run `npm run test:run` before shipping. There is no E2E suite — feature verification is done by driving the running app in a browser.
 
 ## Tech Stack
 
@@ -105,6 +111,10 @@ This is the largest file in the codebase. All client-side state lives in a singl
 
 `AppShellV2` (the active shell) renders three things in the main area, by precedence: a **system view** (`systemView: "library" | "notes" | "trash" | null`), then the per-project board/editor, then the full-screen chat hero when no project is open. The sidebar nav rows are **Quick Note**, **Library**, **Search** (⌘K), **What's next**, **Trash**. The Quick Notes workspace is hidden from the Workspaces tree and surfaced only via the pinned Quick Note row. **Library** (`LibraryView`) is a workspace gallery split into "Created by me" / "Shared with me" using ownership from the list endpoint (`isOwner`/`ownerName`/`orgId` on `projects`); each card summarizes its contents (entity counts). It replaced the old Recents surface. File-level "created by me" (inside shared workspaces) is a fast-follow needing a per-entity `createdBy` column.
 
+### Project Activity Feed
+
+Each project keeps an append-only **activity log** (`activityEvents` table, helpers in `src/lib/activity.ts`, UI in `src/components/workspace/ProjectActivity.tsx`, served by `GET /api/projects/[id]/activity`). It records high-signal team events only (`created` / `deleted` / `shared` / `unshared` / `invited` / `joined`) and deliberately skips noisy per-keystroke edits. Writes are **best-effort and non-fatal** — `logActivity()` swallows its own failures so logging can never break the action that triggered it.
+
 ### Key Files
 
 - `src/lib/store.ts` — All app state and actions
@@ -118,16 +128,25 @@ This is the largest file in the codebase. All client-side state lives in a singl
 - `src/components/shell/v2/AppShellV2.tsx` — **Active shell** (Strut overhaul). Default; legacy `src/components/AppShell.tsx` still reachable via `/app?shell=v1`
 - `src/components/shell/v2/LibraryView.tsx` / `QuickNotesView.tsx` — the two global surfaces
 - `src/lib/auth.ts` — NextAuth v5 config (credentials, throttle, tokenVersion revocation, dev-admin bypass)
+- `src/lib/activity.ts` — Append-only project activity log (`logActivity` / `listActivity`, best-effort + non-fatal)
+- `src/lib/projectAccess.ts` — `requireProjectAccess` team-SSOT access gate (never query `eq(projects.userId, ...)` directly)
 - `src/components/ui/transitions/` — drop-in micro-interaction primitives (`IconSwap`, `AnimatedNumber`, `TextReveal`) wrapping verbatim [transitions.dev](https://transitions.dev) snippets. CSS lives in the "transitions.dev primitives" block in `globals.css` (namespaced `t-*`, reduced-motion guarded; kept separate from the in-house `motion.css` layer). The `transitions-dev` skill (`transitions reveal|review|apply`) drives adding more.
 
 ### API Routes
 
 - `POST /api/chat` — Streaming AI response (SSE) with full context
-- `GET/POST /api/projects` — Project listing and creation
+- `GET/POST /api/projects` — Project listing (with `isOwner`/`ownerName`/`orgId` ownership) and creation
 - `GET/PUT/DELETE /api/projects/[id]` — Project fetch, update, delete (debounced save target; KU/table/deck/page upserts, deletes, folder + entity-folder moves)
 - `GET /api/projects/[id]/messages` — Paginated message history
+- `GET /api/projects/[id]/activity` — Recent project activity events (created/deleted/shared/invited/joined)
+- `GET/PATCH /api/projects/[id]/visibility` — Get/set project visibility (private vs org-shared)
 - `POST /api/projects/[id]/share` — Generate/revoke project share token
 - `GET/POST /api/projects/[id]/members` — Team membership (SSOT access control)
+- `GET/POST /api/orgs` — Caller's org summary; create org as owner
+- `GET/PATCH/DELETE /api/orgs/[id]` — Org + members fetch; rename/transfer/delete
+- `GET/POST/DELETE /api/orgs/[id]/members` — List members; add by email; remove
+- `POST/DELETE /api/files/[id]/share` — Generate/remove a per-entity (KU/table/deck) share token
+- `GET/POST/DELETE /api/trash` — List, restore, and hard-delete soft-deleted items
 - `POST /api/deck-refine` — Agentic deck critique/repair pass (WIP)
 - `POST /api/extract` — File text extraction (PDF, DOCX, XLSX, ZIP)
 - `POST /api/embeddings` — Generate embeddings for semantic search
@@ -138,7 +157,8 @@ This is the largest file in the codebase. All client-side state lives in a singl
 - `GET /api/usage` — Plan usage counters
 - `POST /api/title` — Auto-generate project title from content
 - `GET /api/user` · `POST /api/user/logout-all` — Profile; revoke all sessions
-- `*/api/auth/[...nextauth]` · `/api/auth/forgot-password` · `/api/auth/reset-password` — Auth
+- `*/api/auth/[...nextauth]` · `/api/auth/forgot-password` · `/api/auth/reset-password` · `POST /api/auth/request-code` — Auth (incl. passwordless login code)
+- `GET /api/health` — Lightweight liveness probe for uptime monitors
 - `GET /api/cron/prune-snapshots` — Scheduled snapshot pruning
 
 File uploads go directly to Vercel Blob from the client (no `/api/upload` route); `src/db/schema.ts` tracks blob usage for orphan recovery.
