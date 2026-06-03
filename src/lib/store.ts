@@ -404,7 +404,11 @@ export const useAppStore = create<AppState>()(
     // New AI operations clear the redo stack (standard editor behavior)
     const hasAnyOps = hasSheetOps || hasDocOps || hasDeckOps || hasKuOps || hasTableOps || hasPageOps;
     let newUndoStack = state.undoStack;
-    if (hasAnyOps) {
+    // Undo/redo stacks belong to the ACTIVE entity. A background stream (results
+    // for a project the user isn't viewing) must never touch them — snapshotting
+    // the live buffers here would capture the wrong project and wiping redo would
+    // corrupt the active project's history. Only build a snapshot in foreground.
+    if (isForeground && hasAnyOps) {
       const labelParts: string[] = [];
       if (hasSheetOps) labelParts.push("sheet");
       if (hasDocOps) labelParts.push("doc");
@@ -960,11 +964,12 @@ export const useAppStore = create<AppState>()(
       aiPhase: 'done' as const,
       streamingAction: null,
       projects: newProjects,
-      undoStack: newUndoStack,
-      canUndo: newUndoStack.length > 0,
-      // Clear redo stack when new AI operations are applied
-      redoStack: hasAnyOps ? [] : state.redoStack,
-      canRedo: hasAnyOps ? false : state.canRedo,
+      // Undo/redo are per-active-entity — only the foreground stream may mutate them.
+      undoStack: isForeground ? newUndoStack : state.undoStack,
+      canUndo: isForeground ? newUndoStack.length > 0 : state.canUndo,
+      // Clear redo stack when new AI operations are applied (foreground only)
+      redoStack: isForeground && hasAnyOps ? [] : state.redoStack,
+      canRedo: isForeground && hasAnyOps ? false : state.canRedo,
       suggestions: isForeground ? (suggestions || []) : state.suggestions,
     };
 
