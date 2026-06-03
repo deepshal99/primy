@@ -35,3 +35,15 @@ export function isSkeletonTable(celldata: CellData[] | undefined | null): boolea
   // Skeleton: 3+ header columns but at most one column has any body data.
   return bodyCols.size <= 1;
 }
+
+/**
+ * True when the user's message is about filling in / completing / adding data to
+ * a spreadsheet (used together with "a sheet is the active entity" to disable the
+ * document-creation tools so the data lands in the open sheet, not a new doc).
+ */
+export function isFillSheetIntent(text: string): boolean {
+  const t = (text || "").toLowerCase();
+  const fillVerb = /\b(fill|fill in|fill out|complete|populate|finish|flesh out)\b/.test(t);
+  const addData = /\b(add|insert|append|update|put)\b[\s\S]{0,30}\b(column|row|rows|data|values?|rating|score|field|cell|cells)\b/.test(t);
+  return fillVerb || addData;
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isSkeletonTable } from "@/lib/tableHealth";
+import { isSkeletonTable, isFillSheetIntent } from "@/lib/tableHealth";
 import type { CellData } from "@/lib/types";
 
 const h = (c: number, label: string): CellData => ({ r: 0, c, v: { v: label } });
@@ -52,5 +52,24 @@ describe("isSkeletonTable", () => {
       cell(1, 0, 1),
     ];
     expect(isSkeletonTable(data)).toBe(false);
+  });
+});
+
+describe("isFillSheetIntent", () => {
+  it("matches fill/complete/populate phrasing", () => {
+    expect(isFillSheetIntent("Fill in the rest of the data in this spreadsheet")).toBe(true);
+    expect(isFillSheetIntent("complete the table")).toBe(true);
+    expect(isFillSheetIntent("populate the missing cells")).toBe(true);
+    expect(isFillSheetIntent("finish the sheet")).toBe(true);
+  });
+  it("matches add/update-data phrasing", () => {
+    expect(isFillSheetIntent("Add a Rating column with a score for each show")).toBe(true);
+    expect(isFillSheetIntent("add 5 more rows")).toBe(true);
+    expect(isFillSheetIntent("update the values in column C")).toBe(true);
+  });
+  it("does not match unrelated requests", () => {
+    expect(isFillSheetIntent("write a blog post about TV shows")).toBe(false);
+    expect(isFillSheetIntent("what are the best shows of 2026?")).toBe(false);
+    expect(isFillSheetIntent("make a presentation")).toBe(false);
   });
 });

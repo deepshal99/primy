@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { SYSTEM_PROMPT } from "@/lib/ai/systemPrompt";
 import { getModelConfig, getModelCandidates, estimateContextSize, type AITask } from "@/lib/ai/modelRouter";
 import { PRIMY_TOOLS, TOOL_ROUTING_PROMPT } from "@/lib/ai/primyTools";
+import { isFillSheetIntent } from "@/lib/tableHealth";
 import { withPlanLimit, type PlanCtx } from "@/lib/billing";
 import { getSlashCommand } from "@/lib/ai/slashCommands";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -189,7 +190,18 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
     // Tools are decided here (before the complexRequest escalation below); a
     // complex chat request is still "chat"/"chat-heavy" at this point, so tools
     // stay enabled when it later escalates to "chat-deep".
-    const useTools = taskType === "chat" || taskType === "chat-heavy";
+    // Routing guard: when a spreadsheet is the active entity and the user wants
+    // to fill in / complete / add data to it, DISABLE the Layer-B creation tools
+    // for this turn. There is no tool for editing an existing sheet (that's the
+    // fenced sheetops/tableops path), and leaving create_document available made
+    // the model mis-route "fill in the sheet" into a brand-new document. With no
+    // creation tools, the only valid action is editing the open sheet via fenced
+    // ops — so the data lands where the user is looking. Deterministic, not a
+    // prompt nudge.
+    const intentText = String((lastMessage as any)?.content ?? "");
+    const editOpenSheetIntent = activeEntityType === "table" && isFillSheetIntent(intentText);
+
+    const useTools = (taskType === "chat" || taskType === "chat-heavy") && !editOpenSheetIntent;
     const primyTools = useTools ? PRIMY_TOOLS : undefined;
     if (useTools) {
       composedSystemPrompt = `${composedSystemPrompt}\n\n${TOOL_ROUTING_PROMPT}`;
