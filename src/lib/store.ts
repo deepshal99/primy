@@ -75,21 +75,20 @@ function streamMirror(
 }
 
 function scheduleDebouncedSave() {
-  // Capture the project + entity IDs at schedule time, not when the timer fires.
-  // This prevents saving the wrong entity when the user switches tabs during the debounce window.
+  // Capture the project ID at schedule time, not when the timer fires.
+  // This prevents saving into the wrong project if the user switches during the debounce window.
   const snapshot = useAppStore.getState();
   const projectId = snapshot.currentProjectId;
-  const entityId = snapshot.currentEntityId;
 
   if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
   saveDebounceTimer = setTimeout(() => {
     const state = useAppStore.getState();
-    // Only save if we're still on the same project (entity may have changed, but the project-level save captures all entities)
+    // saveCurrentEntity() persists the CURRENT project's live editor buffers.
+    // Only fire when the user is still on the project that scheduled this timer —
+    // switchProject()/goToProjectsHome() flush synchronously before any switch,
+    // and the new project gets its own debounce. (entityId may have changed; the
+    // project-level save captures all of that project's entities.)
     if (state.currentProjectId && state.currentProjectId === projectId) {
-      state.saveCurrentEntity();
-    } else if (projectId) {
-      // The user switched projects — still try to save the original project's data
-      // by finding it in the store and syncing it
       state.saveCurrentEntity();
     }
   }, SAVE_DEBOUNCE_MS);
@@ -105,6 +104,8 @@ if (typeof window !== "undefined") {
         state.saveCurrentEntity();
       }
     }
+    // Persist any coalesced localStorage write before the tab closes.
+    flushProjectsToStorage();
   });
 }
 
@@ -126,6 +127,8 @@ function loadConversationsFromStorage(): Conversation[] {
 
 function loadProjectsFromStorage(): Project[] {
   if (typeof window === "undefined") return [];
+  // Make any coalesced write visible to this read (read-after-write).
+  flushProjectsToStorage();
   try {
     const raw = localStorage.getItem(PROJECTS_KEY);
     return raw ? JSON.parse(raw) : [];
@@ -134,8 +137,16 @@ function loadProjectsFromStorage(): Project[] {
   }
 }
 
-function saveProjectsToStorage(projects: Project[]) {
-  if (typeof window === "undefined") return;
+// The full projects serialize (every workspace's docs/sheets/decks/pages, with
+// embeddings stripped) is the single biggest cost on the CRUD hot path. It used
+// to run synchronously inside every create/rename/delete/folder action. We now
+// coalesce bursts onto a macrotask and keep only the latest snapshot, so the
+// click handler returns immediately. Reads flush first, and a beforeunload flush
+// guards the last write on tab close.
+let pendingStorageProjects: Project[] | null = null;
+let storageFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function writeProjectsNow(projects: Project[]) {
   try {
     // Strip embedding vectors before serializing to save localStorage space
     // (~6KB per entity). Embeddings are regenerated lazily on demand.
@@ -151,6 +162,25 @@ function saveProjectsToStorage(projects: Project[]) {
       toast.error("Storage full. Some changes may not be saved");
     }
   }
+}
+
+function flushProjectsToStorage() {
+  if (storageFlushTimer) {
+    clearTimeout(storageFlushTimer);
+    storageFlushTimer = null;
+  }
+  if (pendingStorageProjects) {
+    const projects = pendingStorageProjects;
+    pendingStorageProjects = null;
+    writeProjectsNow(projects);
+  }
+}
+
+function saveProjectsToStorage(projects: Project[]) {
+  if (typeof window === "undefined") return;
+  pendingStorageProjects = projects;
+  if (storageFlushTimer) return; // a flush is already scheduled
+  storageFlushTimer = setTimeout(flushProjectsToStorage, 0);
 }
 
 // ── Recents persistence (cross-workspace, client-side) ──
@@ -780,7 +810,9 @@ export const useAppStore = create<AppState>()(
 
         // Handle deck operations
         if (hasDeckOps) {
-          if (!project.decks) project.decks = [];
+          // Clone before mutating (matches the KU/table paths above) so element
+          // reassignments below don't mutate the live store array in place.
+          project.decks = [...(project.decks || [])];
           for (const op of deckOperations) {
             switch (op.type) {
               case "CREATE": {
@@ -916,7 +948,9 @@ export const useAppStore = create<AppState>()(
 
         // Handle HTML page operations
         if (hasPageOps) {
-          if (!project.pages) project.pages = [];
+          // Clone before mutating (matches the KU/table paths above) so element
+          // reassignments below don't mutate the live store array in place.
+          project.pages = [...(project.pages || [])];
           for (const op of pageOperations) {
             switch (op.type) {
               case "CREATE": {
