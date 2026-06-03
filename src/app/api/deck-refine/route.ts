@@ -11,11 +11,8 @@
  * critiquing N slides with repair rounds is the cost center.
  */
 import { auth } from "@/lib/auth";
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { users } from "@/db/schema";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { effectivePlan, getUsage, incrementUsage } from "@/lib/billing";
+import { resolveEffectivePlan, getUsage, incrementUsage } from "@/lib/billing";
 import { PLAN_LIMITS, planLimitsEnforced } from "@/lib/plans";
 import { refineDeck, type RefineSlide, type RefineProgress } from "@/lib/ai/deck/refineDeck";
 
@@ -80,12 +77,7 @@ export async function POST(req: Request) {
   // free — only the explicit "Polish" button is metered.
   const isAuto = (body as { auto?: unknown })?.auto === true;
   if (!isAuto) {
-    const rows = await db
-      .select({ plan: users.plan, proUntil: users.proUntil })
-      .from(users)
-      .where(eq(users.id, session.user.id))
-      .limit(1);
-    const plan = effectivePlan({ plan: rows[0]?.plan ?? "free", proUntil: rows[0]?.proUntil ?? null });
+    const plan = await resolveEffectivePlan(session.user.id);
     if (planLimitsEnforced()) {
       const usage = await getUsage(session.user.id);
       const limit = PLAN_LIMITS[plan].aiMessagesPerMonth;

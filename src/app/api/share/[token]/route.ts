@@ -1,8 +1,8 @@
 import { db } from "@/db";
-import { projects, knowledgeUnits, projectTables, projectDecks, users } from "@/db/schema";
+import { projects, knowledgeUnits, projectTables, projectDecks } from "@/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { effectivePlan } from "@/lib/billing";
+import { resolveEffectivePlan } from "@/lib/billing";
 import type { Plan } from "@/lib/plans";
 
 /**
@@ -13,23 +13,10 @@ import type { Plan } from "@/lib/plans";
  * can render the "Built with Primy" watermark for free-tier owners
  * and serve a clean canvas for pro owners.
  *
- * Single indexed lookup — no caching layer per eng-review decision #7
- * (KISS, premature caching avoided). The owner's userId is already on
- * the project row; one extra `users` SELECT keyed by primary key is
- * cheap and consistent with current load.
+ * Plan resolution goes through resolveEffectivePlan() so org-paid ("company
+ * paid") owners serve a clean canvas — no caching layer per eng-review
+ * decision #7 (KISS, premature caching avoided).
  */
-
-async function resolveOwnerPlan(userId: string): Promise<Plan> {
-  // Single indexed lookup — no caching layer per eng-review decision #7
-  // (KISS, premature caching avoided).
-  const [user] = await db
-    .select({ plan: users.plan, proUntil: users.proUntil })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
-  if (!user) return "free";
-  return effectivePlan({ plan: user.plan, proUntil: user.proUntil });
-}
 
 export async function GET(
   _req: Request,
@@ -61,7 +48,7 @@ export async function GET(
       .limit(1);
 
     if (project) {
-      const ownerEffectivePlan = await resolveOwnerPlan(project.userId);
+      const ownerEffectivePlan = await resolveEffectivePlan(project.userId);
       const [kus, tables, decks] = await Promise.all([
         db
           .select({
@@ -130,7 +117,7 @@ export async function GET(
         .limit(1);
 
       const ownerEffectivePlan: Plan = proj
-        ? await resolveOwnerPlan(proj.userId)
+        ? await resolveEffectivePlan(proj.userId)
         : "free";
 
       return Response.json({
@@ -164,7 +151,7 @@ export async function GET(
         .limit(1);
 
       const ownerEffectivePlan: Plan = proj
-        ? await resolveOwnerPlan(proj.userId)
+        ? await resolveEffectivePlan(proj.userId)
         : "free";
 
       return Response.json({
@@ -200,7 +187,7 @@ export async function GET(
         .limit(1);
 
       const ownerEffectivePlan: Plan = proj
-        ? await resolveOwnerPlan(proj.userId)
+        ? await resolveEffectivePlan(proj.userId)
         : "free";
 
       return Response.json({

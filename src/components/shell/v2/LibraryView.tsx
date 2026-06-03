@@ -19,28 +19,12 @@ import { useAppStore } from "@/lib/store";
 import { ENTITY_META } from "@/lib/entityMeta";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { EntityType, Project } from "@/lib/types";
+import { hashOf, relTime } from "@/lib/format";
 
 // Workspace identity — a stable accent per workspace (this is the design-system's
 // legitimate use of colour: workspace identity, not entity type).
 const ACCENTS = ["#4285F4", "#8757D7", "#67CEC8", "#F073A7", "#42C366", "#F2A24C"];
-function hashOf(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return h;
-}
 const accentFor = (id: string) => ACCENTS[hashOf(id) % ACCENTS.length];
-
-function relTime(ts: number): string {
-  const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));
-  if (s < 60) return "just now";
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d}d ago`;
-  return `${Math.floor(d / 7)}w ago`;
-}
 
 /* A tiny stylized artifact tile — the same visual language as the in-project
    entity previews, shrunk down so a workspace can "peek" at its contents. */

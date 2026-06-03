@@ -17,6 +17,7 @@ import {
   parseSuggestions,
 } from "@/lib/ai/parseAIResponse";
 import { scoreRelevance } from "@/lib/ai/contextRelevance";
+import { celldataToCsv } from "@/lib/sheet/celldataToCsv";
 import { isSkeletonTable } from "@/lib/tableHealth";
 import { emptyToolOps, applyToolCall, hasToolOps, toolIndicatorKind, summarizeOps } from "@/lib/ai/toolMapping";
 import { Maximize2, Minimize2, PanelRightClose } from "lucide-react";
@@ -201,23 +202,8 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
                 } else if (mention.type === "table") {
                   const table = project.tables.find((t) => t.id === mention.id);
                   if (table && !relevanceResult.relevantTables.some((r) => r.id === table.id)) {
-                    // Build CSV content for the table
-                    const sheet = table.sheets[0];
-                    let csv = "";
-                    if (sheet?.celldata?.length) {
-                      let maxR = 0, maxC = 0;
-                      for (const c of sheet.celldata) { if (c.r > maxR) maxR = c.r; if (c.c > maxC) maxC = c.c; }
-                      const rows: string[] = [];
-                      for (let r = 0; r <= Math.min(maxR, 100); r++) {
-                        const cells: string[] = [];
-                        for (let c = 0; c <= maxC; c++) {
-                          const cell = sheet.celldata.find((cd) => cd.r === r && cd.c === c);
-                          cells.push(String(cell?.v?.v ?? ""));
-                        }
-                        rows.push(cells.join(","));
-                      }
-                      csv = rows.join("\n");
-                    }
+                    // Build CSV content for the table (single-pass helper)
+                    const csv = celldataToCsv(table.sheets[0]?.celldata, { maxRows: 100 });
                     relevanceResult.relevantTables.push({ id: table.id, title: table.title, csvContent: csv, score: 100 });
                   }
                 } else if (mention.type === "deck") {

@@ -12,6 +12,22 @@ function safeMax(arr: number[], fallback: number): number {
 }
 
 /**
+ * Count how many entries of `sorted` (ascending) are strictly less than `x`,
+ * via binary search. Used to compute the post-delete row/column shift in O(log n)
+ * per cell instead of scanning the full deleted list for every cell.
+ */
+function countLessThan(sorted: number[], x: number): number {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sorted[mid] < x) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/**
  * Normalize a cell value for Fortune Sheet compatibility.
  * - Formula cells get `ct` metadata so the engine evaluates them
  * - Number cells get `ct` with type "n" and `m` display string
@@ -142,9 +158,15 @@ function applyOperation(
         const { r1, c1, r2, c2 } = op.range;
         if (r1 < 0 || c1 < 0 || r2 < r1 || c2 < c1) break;
 
-        // Cap range to prevent excessive cell creation (max 500 cells)
+        // Cap range to prevent excessive cell creation (max 500 cells).
+        // Clamp rows first, then derive the column cap — and never let it fall
+        // below c1, or a tall single-column range (rows ≥ 500) would compute a
+        // cap < c1 and create zero cells.
         const cappedR2 = Math.min(r2, r1 + 499);
-        const cappedC2 = Math.min(c2, c1 + Math.floor(500 / (cappedR2 - r1 + 1)) - 1);
+        const cappedC2 = Math.max(
+          c1,
+          Math.min(c2, c1 + Math.floor(500 / (cappedR2 - r1 + 1)) - 1)
+        );
 
         // Apply format to existing cells in range (guard against missing cell.v)
         for (const cell of sheet.celldata) {
@@ -196,14 +218,10 @@ function applyOperation(
         sheet.celldata = sheet.celldata.filter(
           (cell) => !rowsToDelete.has(cell.r)
         );
-        // Shift rows down
+        // Shift rows down by the number of deleted rows above each cell.
         const sortedRows = [...op.rows].sort((a, b) => a - b);
         for (const cell of sheet.celldata) {
-          let shift = 0;
-          for (const row of sortedRows) {
-            if (cell.r > row) shift++;
-          }
-          cell.r -= shift;
+          cell.r -= countLessThan(sortedRows, cell.r);
         }
         break;
       }
@@ -218,11 +236,7 @@ function applyOperation(
         );
         const sortedCols = [...op.columns].sort((a, b) => a - b);
         for (const cell of sheet.celldata) {
-          let shift = 0;
-          for (const col of sortedCols) {
-            if (cell.c > col) shift++;
-          }
-          cell.c -= shift;
+          cell.c -= countLessThan(sortedCols, cell.c);
         }
         break;
       }

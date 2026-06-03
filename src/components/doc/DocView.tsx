@@ -15,6 +15,7 @@ import { MarkdownPlugin, serializeMd } from "@platejs/markdown";
 import remarkGfm from "remark-gfm";
 import { TablePlugin } from "@platejs/table/react";
 import { ImagePlugin } from "@platejs/media/react";
+import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
 import { parseEntityUri, useBacklinks, openEntity } from "@/lib/entityLinks";
 import { ENTITY_META } from "@/lib/entityMeta";
@@ -481,6 +482,7 @@ export function DocView() {
         const decoder = new TextDecoder();
         let result = "";
         let buffer = "";
+        let streamError: string | null = null;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -496,6 +498,7 @@ export function DocView() {
             try {
               const parsed = JSON.parse(data);
               if (parsed.text) result += parsed.text;
+              else if (parsed.error) streamError = String(parsed.error);
             } catch {
               // skip
             }
@@ -507,9 +510,18 @@ export function DocView() {
           cleaned = cleaned.replace(/^```\w*\n?/, "").replace(/\n?```$/, "").trim();
         }
 
+        // Never overwrite the selection with nothing: a stream error or empty
+        // result would otherwise delete the user's selected text silently.
+        if (streamError || !cleaned) {
+          toast.error("AI edit failed. Your text was left unchanged.");
+          return;
+        }
+
         const currentMd = serializeMd(editor);
         if (currentMd.includes(text)) {
-          const newMd = currentMd.replace(text, cleaned);
+          // Function replacer so `$&`, `$1`, `$$` etc. in the AI output are
+          // inserted literally instead of being treated as replacement patterns.
+          const newMd = currentMd.replace(text, () => cleaned);
           updateDocContent(newMd);
           useAppStore.setState((s) => ({
             docVersion: s.docVersion + 1,

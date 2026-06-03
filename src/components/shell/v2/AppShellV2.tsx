@@ -50,6 +50,7 @@ import { KeyboardShortcuts } from "@/components/shared/KeyboardShortcuts";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { ShareModal } from "@/components/settings/ShareModal";
 import type { EntityType, Project, Folder } from "@/lib/types";
+import { hashOf, relTime } from "@/lib/format";
 
 /* ───────────────────────── shared meta ───────────────────────── */
 
@@ -65,11 +66,6 @@ const ENTITY: Record<EntityType, { Icon: typeof FileText; label: string; color: 
   page:  { Icon: LayoutTemplate, label: "Page",  color: "#8757D7", tint: "rgba(135,87,215,0.14)",  boxGrad: "linear-gradient(150deg, rgba(135,87,215,0.22) 0%, rgba(135,87,215,0.10) 55%, rgba(135,87,215,0.05) 100%)",  chipBg: "#F3ECFF", chipText: "#8051CC" },
 };
 const WORKSPACE_ICONS = [Rocket, Orbit, Compass, Layers, Target, Box, Hexagon, Flame];
-function hashOf(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return h;
-}
 function iconFor(id: string): typeof Rocket {
   return WORKSPACE_ICONS[hashOf(id) % WORKSPACE_ICONS.length];
 }
@@ -80,16 +76,6 @@ const TYPE_COLOR: Record<string, string> = {
 };
 function wsColor(p: { id: string; projectType?: string }): string {
   return (p.projectType && TYPE_COLOR[p.projectType]) || CANDY[hashOf(p.id) % CANDY.length];
-}
-function relTime(ts: number): string {
-  const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));
-  if (s < 60) return "just now";
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
 }
 
 type ViewMode = "board" | "timeline";

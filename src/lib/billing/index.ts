@@ -8,6 +8,8 @@
 export { effectivePlan, isOnGracePeriod } from "./effectivePlan";
 export type { PlanResolutionInput } from "./effectivePlan";
 
+export { resolveEffectivePlan } from "./resolveEffectivePlan";
+
 export {
   incrementUsage,
   getUsage,

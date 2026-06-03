@@ -26,6 +26,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { effectivePlan } from "./effectivePlan";
+import { getOrgPlanInput } from "@/lib/org/orgAccess";
 import { getUsage, incrementUsage } from "./usage";
 import {
   PLAN_LIMITS,
@@ -47,6 +48,15 @@ export interface WithPlanLimitOptions {
    * bytes. For aiMessages and fileUploads, leave at default.
    */
   amount?: number;
+  /**
+   * Optional gate that runs AFTER auth + plan resolution but BEFORE any counter
+   * increment. Return a Response to short-circuit (e.g. a rate-limit 429) so a
+   * rejected request never burns a metered credit. Return null to proceed.
+   */
+  preCheck?: (
+    req: NextRequest,
+    ctx: PlanCtx
+  ) => Response | null | Promise<Response | null>;
 }
 
 type RouteHandler<T extends Response | Promise<Response>> = (
@@ -85,11 +95,23 @@ export function withPlanLimit<T extends Response | Promise<Response>>(
     const userRow = rows?.[0];
     if (!userRow) return unauthorized();
 
-    // 3. Resolve effective plan.
+    // 3. Resolve effective plan — MUST fold in the org plan so company-paid
+    //    members aren't metered as free. (Kept inline rather than via
+    //    resolveEffectivePlan() to reuse the userRow already read for the 401.)
+    const org = await getOrgPlanInput(userId);
     const plan = effectivePlan({
       plan: userRow.plan,
       proUntil: userRow.proUntil ?? null,
+      orgPlan: org.orgPlan,
+      orgProUntil: org.orgProUntil,
     });
+
+    // 3b. Pre-metering gate (rate limits, cheap validation). Runs before any
+    //     counter increment, so a rejection here never burns a metered credit.
+    if (opts.preCheck) {
+      const blocked = await opts.preCheck(req, { userId, plan });
+      if (blocked) return blocked;
+    }
 
     // 4. Enforcement: when flag is OFF, increment for telemetry but
     //    skip cap check. When ON, check cap before incrementing.

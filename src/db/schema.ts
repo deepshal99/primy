@@ -11,6 +11,7 @@ import {
   uniqueIndex,
   primaryKey,
 } from "drizzle-orm/pg-core";
+import type { FileAttachment } from "@/lib/types";
 
 // ── Users ──
 // Uses text IDs to accept NextAuth-generated user IDs (not always UUIDs)
@@ -237,7 +238,9 @@ export const messages = pgTable(
       .references(() => projects.id, { onDelete: "cascade" }),
     role: varchar("role", { length: 20 }).notNull(), // "user" | "assistant"
     content: text("content").notNull(),
-    attachments: jsonb("attachments").$type<any[]>().default([]),
+    attachments: jsonb("attachments")
+      .$type<Array<Pick<FileAttachment, "id" | "name" | "type" | "mimeType" | "size" | "previewUrl">>>()
+      .default([]),
     timestamp: timestamp("timestamp").defaultNow().notNull(),
   },
   (table) => [index("msg_project_id_idx").on(table.projectId)]
@@ -269,10 +272,11 @@ export const usage = pgTable(
 
 // ── Files (workspace + chat uploads) ──
 //
-// Source of truth for storage usage and orphan recovery. /api/upload
-// writes a row in the same transaction as the Vercel Blob upload —
-// failures roll back both. messageId / projectId are nullable to
-// support workspace-scope and loose attachments respectively.
+// Source of truth for storage usage and orphan recovery. Uploads go
+// directly to Vercel Blob from the client (there is no /api/upload route);
+// the client records a row here after a successful upload, and an orphan-
+// recovery pass reconciles blobs that never got a row. messageId / projectId
+// are nullable to support workspace-scope and loose attachments respectively.
 //
 // Storage usage = SUM(bytes) WHERE userId = ? AND deletedAt IS NULL.
 export const files = pgTable(
@@ -313,7 +317,7 @@ export const artifactSnapshots = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    artifactType: varchar("artifact_type", { length: 20 }).notNull(), // "ku" | "table" | "deck"
+    artifactType: varchar("artifact_type", { length: 20 }).notNull(), // "ku" | "table" | "deck" | "page"
     artifactId: text("artifact_id").notNull(),
     label: varchar("label", { length: 100 }), // "after AI edit", "manual save", etc.
     content: jsonb("content").notNull(),

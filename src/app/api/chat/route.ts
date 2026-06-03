@@ -5,6 +5,7 @@ import { SYSTEM_PROMPT } from "@/lib/ai/systemPrompt";
 import { getModelConfig, getModelCandidates, estimateContextSize, type AITask } from "@/lib/ai/modelRouter";
 import { PRIMY_TOOLS, TOOL_ROUTING_PROMPT } from "@/lib/ai/primyTools";
 import { isFillSheetIntent } from "@/lib/tableHealth";
+import { celldataToCsv } from "@/lib/sheet/celldataToCsv";
 import { withPlanLimit, type PlanCtx } from "@/lib/billing";
 import { getSlashCommand } from "@/lib/ai/slashCommands";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -38,14 +39,6 @@ function sanitizeUserContent(text: string): string {
 // no defense-in-depth duplication.
 const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
   try {
-    const rateLimit = checkRateLimit(`${ctx.userId}:chat`, 30, 60_000);
-    if (!rateLimit.allowed) {
-      return Response.json(
-        { error: "Too many requests. Please try again later." },
-        { status: 429, headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) } },
-      );
-    }
-
     let body: any;
     try {
       body = await req.json();
@@ -102,20 +95,22 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
       const lastMsg = messages[messages.length - 1];
       const lastContent = typeof lastMsg?.content === "string" ? lastMsg.content.toLowerCase() : "";
 
-      // Only consider advancing when the thread is actually about a deck — this
-      // keeps "yes"/"generate" from hijacking a sheet/doc conversation.
-      const deckConversation = messages.some(
+      // Only consider advancing when the RECENT thread is actually about a deck.
+      // Scoped to the last few turns so a deck outline from far upthread can't
+      // make a bare "yes" hijack a later sheet/doc conversation.
+      const recentMsgs = messages.slice(-4);
+      const deckConversation = recentMsgs.some(
         (m: any) =>
           typeof m?.content === "string" &&
           /\b(deck|presentation|pitch deck|slideshow|powerpoint|pptx|keynote|slide(s| deck)?)\b/i.test(m.content)
       );
 
-      // Has a prior assistant turn already presented a slide outline? Accept the
+      // Has a recent assistant turn already presented a slide outline? Accept the
       // deckoutline fenced block OR a prose outline (≥3 "[Category]" labels, the
       // shape the model actually emits in chat).
       const outlineShown =
         deckConversation &&
-        messages.slice(0, -1).some((m: any) => {
+        recentMsgs.slice(0, -1).some((m: any) => {
           if (m?.role !== "assistant" || typeof m.content !== "string") return false;
           if (m.content.includes("```deckoutline")) return true;
           return (m.content.match(/\[[A-Z][a-zA-Z]{2,}\]/g)?.length ?? 0) >= 3;
@@ -161,10 +156,16 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
     // SYSTEM_PROMPT. Pro-only commands silently fall back to base
     // prompt for free users (UI also visually mutes them).
     let composedSystemPrompt = SYSTEM_PROMPT;
-    if (lastMessage && Array.isArray((lastMessage as any).parts)) {
-      // UIMessage shape — parts[0] may be { type: "text", text: ... }
-      const firstPart = (lastMessage as any).parts.find((p: any) => p?.type === "text");
-      const userText: string = typeof firstPart?.text === "string" ? firstPart.text : "";
+    if (lastMessage) {
+      // Clients send the user turn as { role, content: string } (ChatPanel,
+      // DocView, SelectionBubble). Read the slash token from `content`; fall
+      // back to the UIMessage `parts` shape only if `content` is absent.
+      const userText: string =
+        typeof (lastMessage as any).content === "string"
+          ? (lastMessage as any).content
+          : Array.isArray((lastMessage as any).parts)
+            ? ((lastMessage as any).parts.find((p: any) => p?.type === "text")?.text ?? "")
+            : "";
       const slashMatch = userText.match(/^\/([a-z][a-z0-9_-]*)\b/i);
       if (slashMatch) {
         const cmd = getSlashCommand(slashMatch[1].toLowerCase());
@@ -211,26 +212,14 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
     let sheetContext = "";
     const sheetsWithData = (sheetData || []).filter((s: any) => s.celldata?.length > 0);
     if (sheetsWithData.length > 0) {
+      const sheetRowLimit = isProModel ? 500 : 100;
       sheetContext = sheetsWithData
         .map((s: any) => {
-          let maxRow = 0;
-          let maxCol = 0;
-          for (const c of s.celldata) {
-            if (c.r > maxRow) maxRow = c.r;
-            if (c.c > maxCol) maxCol = c.c;
-          }
-          const rows: string[] = [];
-          const sheetRowLimit = isProModel ? 500 : 100;
-          for (let r = 0; r <= Math.min(maxRow, sheetRowLimit); r++) {
-            const cells: string[] = [];
-            for (let c = 0; c <= maxCol; c++) {
-              const cell = s.celldata.find((cd: any) => cd.r === r && cd.c === c);
-              const val = cell?.v?.f ? cell.v.f : (cell?.v?.v ?? "");
-              cells.push(String(val).includes(",") ? `"${val}"` : String(val));
-            }
-            rows.push(cells.join(","));
-          }
-          return `Sheet: ${s.name}\n${rows.join("\n")}`;
+          const csv = celldataToCsv(s.celldata, {
+            maxRows: sheetRowLimit,
+            preferFormula: true,
+          });
+          return `Sheet: ${s.name}\n${csv}`;
         })
         .join("\n\n");
     }
@@ -739,4 +728,17 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
   }
 };
 
-export const POST = withPlanLimit(handler, { resource: "aiMessages" });
+export const POST = withPlanLimit(handler, {
+  resource: "aiMessages",
+  // Rate-limit BEFORE metering so a 429 doesn't burn the user's monthly credit.
+  preCheck: (_req, ctx) => {
+    const rateLimit = checkRateLimit(`${ctx.userId}:chat`, 30, 60_000);
+    if (!rateLimit.allowed) {
+      return Response.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) } },
+      );
+    }
+    return null;
+  },
+});

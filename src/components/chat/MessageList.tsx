@@ -162,8 +162,11 @@ export function MessageList() {
     return () => io.disconnect();
   }, []);
 
-  // New completed turn → ease down to it.
+  // New completed turn → ease down to it, but only if the user is already at the
+  // bottom. If they've scrolled up to read history, don't yank them down (their
+  // own send leaves them at the bottom, so that case still scrolls).
   useEffect(() => {
+    if (!atBottomRef.current) return;
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 

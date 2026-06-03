@@ -1,12 +1,12 @@
 import { db } from "@/db";
-import { knowledgeUnits, projectTables, projectDecks } from "@/db/schema";
+import { knowledgeUnits, projectTables, projectDecks, projectPages } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getProjectAccess, type ProjectRole } from "@/lib/projectAccess";
 
-export type ArtifactType = "ku" | "table" | "deck";
+export type ArtifactType = "ku" | "table" | "deck" | "page";
 
 export function isValidArtifactType(t: string): t is ArtifactType {
-  return t === "ku" || t === "table" || t === "deck";
+  return t === "ku" || t === "table" || t === "deck" || t === "page";
 }
 
 const ROLE_RANK: Record<ProjectRole, number> = {
@@ -31,7 +31,7 @@ export async function canAccessArtifact(
   minRole: ProjectRole
 ): Promise<boolean> {
   try {
-    const tableMap = { ku: knowledgeUnits, table: projectTables, deck: projectDecks } as const;
+    const tableMap = { ku: knowledgeUnits, table: projectTables, deck: projectDecks, page: projectPages } as const;
     const t = tableMap[type];
     const [row] = await db
       .select({ projectId: t.projectId })

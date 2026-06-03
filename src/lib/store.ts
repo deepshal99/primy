@@ -1211,6 +1211,14 @@ export const useAppStore = create<AppState>()(
             label,
           });
           break;
+        case "page":
+          scheduleSnapshot({
+            type: "page",
+            id,
+            content: { html: post.pageHtml, editableFields: post.pageEditableFields },
+            label,
+          });
+          break;
       }
     }
 

@@ -387,7 +387,6 @@ export interface DeckSlide {
   // Legacy HTML (deprecated — kept for backward compat)
   html?: string;
   htmlPrompt?: string;
-  generatedBy?: "gemini" | "kimi";
 }
 
 /** Editable region declared by the AI inside an HTML slide */

@@ -20,11 +20,11 @@
 
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { artifactSnapshots, users } from "@/db/schema";
+import { artifactSnapshots } from "@/db/schema";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { PLAN_LIMITS } from "@/lib/plans";
-import { effectivePlan } from "@/lib/billing/effectivePlan";
+import { resolveEffectivePlan } from "@/lib/billing";
 import { canAccessArtifact, isValidArtifactType } from "@/lib/artifactAccess";
 
 export async function GET(
@@ -106,16 +106,8 @@ export async function POST(
       return Response.json({ error: "Not found" }, { status: 404 });
     }
 
-    // Resolve effective plan once for retention.
-    const [u] = await db
-      .select({ plan: users.plan, proUntil: users.proUntil })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-
-    const plan = u
-      ? effectivePlan({ plan: u.plan, proUntil: u.proUntil })
-      : "free";
+    // Resolve effective plan once for retention (folds in org plan).
+    const plan = await resolveEffectivePlan(userId);
     const retention = PLAN_LIMITS[plan].snapshotsPerArtifact;
 
     // Auto-prune oldest beyond retention BEFORE insert (silent).

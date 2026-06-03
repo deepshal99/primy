@@ -20,6 +20,7 @@ import {
   SearchX,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
+import { timeAgo } from "@/lib/format";
 import { confirmDialog } from "@/lib/confirm";
 import { cn } from "@/lib/cn";
 import { toast } from "sonner";
@@ -113,23 +114,6 @@ const FILE_TYPE_CONFIG = {
 } as const;
 
 type EntityType = keyof typeof FILE_TYPE_CONFIG;
-
-// ====================================
-// -- Helpers --
-// ====================================
-
-function timeAgo(timestamp: number): string {
-  const seconds = Math.floor((Date.now() - timestamp) / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} minute${minutes !== 1 ? "s" : ""} ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days} day${days !== 1 ? "s" : ""} ago`;
-  const weeks = Math.floor(days / 7);
-  return `${weeks} week${weeks !== 1 ? "s" : ""} ago`;
-}
 
 // ====================================
 // -- Main component --

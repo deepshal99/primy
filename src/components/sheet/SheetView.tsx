@@ -106,7 +106,10 @@ function fromUniverSheet(sheetSnapshot: any): { celldata: CellData[]; config: an
     for (const cStr of Object.keys(row)) {
       const c = parseInt(cStr);
       const uCell = row[cStr];
-      if (!uCell || (uCell.v === undefined && uCell.v === null && !uCell.f)) continue;
+      // Skip empty cells (no value and no formula). NOTE: `v` can't be both
+      // undefined AND null, so this must be `||` — `&&` never matched, which
+      // let cleared cells persist as `{ v: {} }` and bloat celldata.
+      if (!uCell || ((uCell.v === undefined || uCell.v === null) && !uCell.f)) continue;
 
       const v: CellValue = {};
       if (uCell.v !== undefined && uCell.v !== null) v.v = uCell.v;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAppStore } from "@/lib/store";
 import { openEntity } from "@/lib/entityLinks";
 import type { EntityType } from "@/lib/types";
@@ -81,8 +81,6 @@ export function PagePanel() {
   const [draft, setDraft] = useState(pageHtml);
 
   // Re-sync the editor draft when the page changes underneath us (open, AI op, undo)
-  const draftRef = useRef(draft);
-  draftRef.current = draft;
   useEffect(() => {
     setDraft(pageHtml);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -116,12 +114,16 @@ export function PagePanel() {
 
   const hasContent = pageHtml.trim().length > 0;
 
+  // Memoize the link-interceptor rewrite so it only reruns when the page HTML
+  // actually changes, not on every mode/present/draft state change.
+  const interceptedHtml = useMemo(() => withLinkInterceptor(pageHtml), [pageHtml]);
+
   const frame = (
     <iframe
       // key forces a fresh document when content changes (avoids stale scripts)
       key={pageVersion}
       title="HTML page preview"
-      srcDoc={withLinkInterceptor(pageHtml)}
+      srcDoc={interceptedHtml}
       sandbox="allow-scripts allow-popups allow-forms"
       className="w-full h-full border-0 bg-white"
     />

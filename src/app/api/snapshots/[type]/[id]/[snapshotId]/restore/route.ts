@@ -24,12 +24,12 @@ import {
   knowledgeUnits,
   projectTables,
   projectDecks,
+  projectPages,
 } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { PLAN_LIMITS } from "@/lib/plans";
-import { effectivePlan } from "@/lib/billing/effectivePlan";
-import { users as usersTable } from "@/db/schema";
+import { resolveEffectivePlan } from "@/lib/billing";
 import { desc, inArray } from "drizzle-orm";
 import { canAccessArtifact, isValidArtifactType, type ArtifactType } from "@/lib/artifactAccess";
 
@@ -52,6 +52,14 @@ async function loadCurrentContent(
       .where(eq(projectTables.id, artifactId))
       .limit(1);
     return row ? { sheets: row.sheets } : null;
+  }
+  if (type === "page") {
+    const [row] = await db
+      .select({ html: projectPages.html, editableFields: projectPages.editableFields })
+      .from(projectPages)
+      .where(eq(projectPages.id, artifactId))
+      .limit(1);
+    return row ? { html: row.html, editableFields: row.editableFields } : null;
   }
   // deck
   const [row] = await db
@@ -85,6 +93,17 @@ async function writeRestoredContent(
         updatedAt: new Date(),
       })
       .where(eq(projectTables.id, artifactId));
+    return;
+  }
+  if (type === "page") {
+    await db
+      .update(projectPages)
+      .set({
+        html: typeof content?.html === "string" ? content.html : "",
+        editableFields: Array.isArray(content?.editableFields) ? content.editableFields : [],
+        updatedAt: new Date(),
+      })
+      .where(eq(projectPages.id, artifactId));
     return;
   }
   // deck
@@ -165,14 +184,7 @@ export async function POST(
     // 2. Save pre-restore snapshot (skipped if current state can't be read)
     const currentContent = await loadCurrentContent(type, id);
     if (currentContent !== null) {
-      const [u] = await db
-        .select({ plan: usersTable.plan, proUntil: usersTable.proUntil })
-        .from(usersTable)
-        .where(eq(usersTable.id, userId))
-        .limit(1);
-      const plan = u
-        ? effectivePlan({ plan: u.plan, proUntil: u.proUntil })
-        : "free";
+      const plan = await resolveEffectivePlan(userId);
       const retention = PLAN_LIMITS[plan].snapshotsPerArtifact;
 
       await pruneToFit(type, id, retention);

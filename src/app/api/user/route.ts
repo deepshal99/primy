@@ -4,6 +4,7 @@ import { users } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { effectivePlan, isOnGracePeriod } from "@/lib/billing";
+import { getOrgPlanInput } from "@/lib/org/orgAccess";
 import { validatePassword, isBreachedPassword } from "@/lib/authPolicy";
 import { seedStarterWorkspace } from "@/lib/onboarding/seedStarter";
 
@@ -32,7 +33,15 @@ export async function GET() {
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
-    const planInput = { plan: user.plan, proUntil: user.proUntil ?? null };
+    // Fold in the org plan so company-paid members report as pro.
+    // (isOnGracePeriod only inspects the personal plan/proUntil — org fields are ignored there.)
+    const org = await getOrgPlanInput(user.id);
+    const planInput = {
+      plan: user.plan,
+      proUntil: user.proUntil ?? null,
+      orgPlan: org.orgPlan,
+      orgProUntil: org.orgProUntil,
+    };
 
     return Response.json({
       ...user,

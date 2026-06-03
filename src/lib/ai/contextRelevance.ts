@@ -8,6 +8,7 @@
 
 import type { KnowledgeUnit, ProjectTable } from "@/lib/types";
 import { cosineSimilarity } from "@/lib/ai/embeddings";
+import { celldataToCsv } from "@/lib/sheet/celldataToCsv";
 
 // ── Types ──
 
@@ -178,30 +179,7 @@ function buildTableSearchText(table: ProjectTable): string {
 }
 
 export function tableToCsv(table: ProjectTable, maxRows = 200): string {
-  const sheet = table.sheets?.[0];
-  if (!sheet?.celldata?.length) return "";
-
-  const celldata = sheet.celldata;
-  let rawMaxRow = 0;
-  let maxCol = 0;
-  for (const c of celldata) {
-    if (c.r > rawMaxRow) rawMaxRow = c.r;
-    if (c.c > maxCol) maxCol = c.c;
-  }
-  const maxRow = Math.min(rawMaxRow, maxRows);
-
-  const rows: string[] = [];
-  for (let r = 0; r <= maxRow; r++) {
-    const cells: string[] = [];
-    for (let c = 0; c <= maxCol; c++) {
-      const cell = celldata.find((cd) => cd.r === r && cd.c === c);
-      const val = cell?.v?.v ?? "";
-      const str = String(val);
-      cells.push(str.includes(",") ? `"${str}"` : str);
-    }
-    rows.push(cells.join(","));
-  }
-  return rows.join("\n");
+  return celldataToCsv(table.sheets?.[0]?.celldata, { maxRows });
 }
 
 // ── Main Scoring Function ──

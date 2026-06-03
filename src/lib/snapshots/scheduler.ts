@@ -25,7 +25,7 @@ const DEBOUNCE_MS = 2 * 60 * 1000; // 2 minutes
 const RETRY_DELAY_MS = 3000; // > the ~2s debounced project save in the store
 const MAX_RETRIES = 2; // enough to outlast a slow save without retry storms
 
-type ArtifactType = "ku" | "table" | "deck";
+type ArtifactType = "ku" | "table" | "deck" | "page";
 
 const lastFiredAt = new Map<string, number>();
 function key(type: ArtifactType, id: string) {

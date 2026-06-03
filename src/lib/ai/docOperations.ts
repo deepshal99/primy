@@ -55,7 +55,10 @@ function applyDocOp(content: string, op: DocOperation): string {
       }
 
       if (startIdx === -1) {
-        return content + "\n\n" + op.markdown;
+        // Heading not found: REPLACE has nothing to replace. Returning the
+        // content unchanged (guard-and-skip, like the other ops) avoids silently
+        // appending a duplicate section while the chat reports success.
+        return content;
       }
 
       const before = lines.slice(0, startIdx);
