@@ -55,7 +55,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
   const autofillGuardRef = useRef(false);
 
   // Safety net: if isStreaming ever gets stuck (unhandled error, lost stream),
-  // auto-recover. 45s is comfortably longer than the server stall timeout (45s
+  // auto-recover. 150s is comfortably longer than the server stall timeout (45s
   // chat / 120s deck) plus continuation headroom, yet fast enough that the UI
   // never feels permanently frozen. The `finally` in sendMessage is the primary
   // guarantee; this timer is the backstop for paths it can't reach.
@@ -177,8 +177,11 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
                   const embData = await embRes.json();
                   queryEmbedding = embData.embeddings?.[0];
                 }
-              } catch {
-                // Silently fail -- keyword matching will be used as fallback
+              } catch (err) {
+                // Degrade to keyword matching, but log in dev so the failure
+                // isn't completely invisible.
+                if (process.env.NODE_ENV !== "production")
+                  console.warn("[Primy] Embedding fetch failed, using keyword match:", err);
               }
             }
 

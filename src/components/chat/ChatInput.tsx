@@ -60,7 +60,10 @@ function renderMentionSegments(
     for (const e of entities) {
       const p = `@${e.title}`;
       const i = remaining.indexOf(p);
-      if (i !== -1 && i < earliest) {
+      if (i === -1) continue;
+      // At the same position, prefer the LONGER title so "@Report Q3" isn't
+      // mis-chipped as "@Report" + " Q3".
+      if (i < earliest || (i === earliest && p.length > pattern.length)) {
         earliest = i;
         matched = e;
         pattern = p;

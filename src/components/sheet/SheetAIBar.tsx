@@ -72,7 +72,6 @@ function colLetter(c: number): string {
 export function SheetAIBar() {
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [selectionInfo, setSelectionInfo] = useState<{ rangeLabel: string; cellValues: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -92,7 +91,6 @@ export function SheetAIBar() {
   const executeAIAction = useCallback(
     async (actionPrompt: string) => {
       if (!actionPrompt.trim() || isStreaming) return;
-      setIsLoading(true);
 
       let fullPrompt: string;
       if (selectionInfo) {
@@ -107,7 +105,6 @@ export function SheetAIBar() {
         })
       );
 
-      setIsLoading(false);
       setIsOpen(false);
       setPrompt("");
       setSelectionInfo(null);
@@ -160,7 +157,7 @@ export function SheetAIBar() {
             />
             <button
               onClick={() => prompt.trim() && executeAIAction(prompt)}
-              disabled={!prompt.trim() || isLoading}
+              disabled={!prompt.trim() || isStreaming}
               className={cn(
                 "w-6 h-6 rounded-md flex items-center justify-center transition-colors disabled:opacity-30",
                 prompt.trim()
@@ -168,7 +165,7 @@ export function SheetAIBar() {
                   : "bg-muted text-muted-foreground"
               )}
             >
-              {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowUp className="w-3 h-3" strokeWidth={2.5} />}
+              {isStreaming ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowUp className="w-3 h-3" strokeWidth={2.5} />}
             </button>
           </div>
 
@@ -178,7 +175,7 @@ export function SheetAIBar() {
               <button
                 key={action.label}
                 onClick={() => executeAIAction(action.prompt)}
-                disabled={isLoading || isStreaming}
+                disabled={isStreaming}
                 className="px-2 py-1 rounded-md text-[10px] font-medium t-fast disabled:opacity-50 bg-muted text-muted-foreground hover:bg-amber-50 hover:text-amber-600"
               >
                 {action.label}
