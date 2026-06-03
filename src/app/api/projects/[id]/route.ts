@@ -9,7 +9,7 @@ import {
   projectPages,
   messages,
 } from "@/db/schema";
-import { eq, and, inArray, desc, sql } from "drizzle-orm";
+import { eq, and, inArray, desc, sql, isNull } from "drizzle-orm";
 import { ensureUserExists } from "@/lib/db/ensureUser";
 import {
   requireProjectAccess,
@@ -84,27 +84,27 @@ export async function GET(
         db
           .select()
           .from(folders)
-          .where(eq(folders.projectId, id))
+          .where(and(eq(folders.projectId, id), isNull(folders.deletedAt)))
           .orderBy(folders.position),
         db
           .select()
           .from(knowledgeUnits)
-          .where(eq(knowledgeUnits.projectId, id))
+          .where(and(eq(knowledgeUnits.projectId, id), isNull(knowledgeUnits.deletedAt)))
           .orderBy(desc(knowledgeUnits.updatedAt)),
         db
           .select()
           .from(projectTables)
-          .where(eq(projectTables.projectId, id))
+          .where(and(eq(projectTables.projectId, id), isNull(projectTables.deletedAt)))
           .orderBy(desc(projectTables.updatedAt)),
         db
           .select()
           .from(projectDecks)
-          .where(eq(projectDecks.projectId, id))
+          .where(and(eq(projectDecks.projectId, id), isNull(projectDecks.deletedAt)))
           .orderBy(desc(projectDecks.updatedAt)),
         db
           .select()
           .from(projectPages)
-          .where(eq(projectPages.projectId, id))
+          .where(and(eq(projectPages.projectId, id), isNull(projectPages.deletedAt)))
           .orderBy(desc(projectPages.updatedAt)),
         db
           .select()
@@ -273,10 +273,13 @@ export async function PUT(
       }
     }
 
-    // Deleted folders (entities' folder_id → null via ON DELETE SET NULL)
+    // Deleted folders — soft delete. Child entities keep their folderId; the
+    // hidden folder just drops out of the board (they read as Unfiled) until
+    // the folder is restored from Trash.
     if (body.deletedFolderIds?.length > 0) {
       await db
-        .delete(folders)
+        .update(folders)
+        .set({ deletedAt: new Date() })
         .where(and(eq(folders.projectId, id), inArray(folders.id, body.deletedFolderIds)));
     }
 
@@ -357,10 +360,11 @@ export async function PUT(
       }
     }
 
-    // Handle deleted KUs
+    // Handle deleted KUs — soft delete (recoverable via Trash)
     if (body.deletedKnowledgeUnitIds?.length > 0) {
       await db
-        .delete(knowledgeUnits)
+        .update(knowledgeUnits)
+        .set({ deletedAt: new Date() })
         .where(
           and(
             eq(knowledgeUnits.projectId, id),
@@ -369,10 +373,11 @@ export async function PUT(
         );
     }
 
-    // Handle deleted tables
+    // Handle deleted tables — soft delete
     if (body.deletedTableIds?.length > 0) {
       await db
-        .delete(projectTables)
+        .update(projectTables)
+        .set({ deletedAt: new Date() })
         .where(
           and(
             eq(projectTables.projectId, id),
@@ -414,10 +419,11 @@ export async function PUT(
       }
     }
 
-    // Handle deleted decks
+    // Handle deleted decks — soft delete
     if (body.deletedDeckIds?.length > 0) {
       await db
-        .delete(projectDecks)
+        .update(projectDecks)
+        .set({ deletedAt: new Date() })
         .where(
           and(
             eq(projectDecks.projectId, id),
@@ -458,10 +464,11 @@ export async function PUT(
       }
     }
 
-    // Handle deleted pages
+    // Handle deleted pages — soft delete
     if (body.deletedPageIds?.length > 0) {
       await db
-        .delete(projectPages)
+        .update(projectPages)
+        .set({ deletedAt: new Date() })
         .where(
           and(
             eq(projectPages.projectId, id),
@@ -526,7 +533,8 @@ export async function DELETE(
       throw e;
     }
 
-    await db.delete(projects).where(eq(projects.id, id));
+    // Soft delete — recoverable from Trash (purged after 30 days by cron).
+    await db.update(projects).set({ deletedAt: new Date() }).where(eq(projects.id, id));
 
     return Response.json({ success: true });
   } catch (error) {

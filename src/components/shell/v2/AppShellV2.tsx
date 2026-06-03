@@ -40,6 +40,7 @@ import { DocExportMenu } from "@/components/doc/DocExportMenu";
 import { SearchDialog } from "@/components/shared/SearchDialog";
 import { RecentsView } from "@/components/shell/v2/RecentsView";
 import { ComingSoonModal } from "@/components/shell/v2/ComingSoonModal";
+import { TrashView } from "@/components/shell/v2/TrashView";
 import { QuickNotesView } from "@/components/shell/v2/QuickNotesView";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LogoMark } from "@/components/shared/Logo";
@@ -255,7 +256,7 @@ export function AppShellV2() {
 
   // Global "system" surfaces that sit outside any single workspace. When set,
   // they take over the main area (the Workspaces tree + chat dock stay put).
-  const [systemView, setSystemView] = useState<null | "recents" | "notes">(null);
+  const [systemView, setSystemView] = useState<null | "recents" | "notes" | "trash">(null);
   const [dark, toggleDark] = useDarkMode();
   const [view, setView] = usePersistentPref<ViewMode>("primy:board:view", "board", ["board", "timeline"]);
   const [groupBy, setGroupBy] = usePersistentPref<GroupMode>("primy:board:group", "folders", ["folders", "type"]);
@@ -348,6 +349,7 @@ export function AppShellV2() {
           <NavRow icon={<Clock size={17} />} label="Recents" active={systemView === "recents"} onClick={() => setSystemView("recents")} />
           <NavRow icon={<Search size={17} />} label="Search" hint="⌘K" onClick={() => setSearchOpen(true)} />
           <NavRow icon={<Rocket size={17} />} label="What's next" onClick={() => setComingSoonOpen(true)} />
+          <NavRow icon={<Trash2 size={17} />} label="Trash" active={systemView === "trash"} onClick={() => setSystemView("trash")} />
         </div>
 
         <div ref={sidebarScroll} className="flex-1 overflow-y-auto px-4 pt-4 min-h-0 v2-scroll">
@@ -424,7 +426,11 @@ export function AppShellV2() {
       </aside>
 
       {/* ───── Main area ───── */}
-      {systemView === "recents" ? (
+      {systemView === "trash" ? (
+        <main className="flex-1 min-w-0 flex flex-col" style={{ background: "var(--canvas)" }}>
+          <TrashView onExit={() => setSystemView(null)} />
+        </main>
+      ) : systemView === "recents" ? (
         /* Recents — a global navigator; no docked chat, just the list. */
         <main className="flex-1 min-w-0 flex flex-col" style={{ background: "var(--canvas)" }}>
           <RecentsView onExit={() => setSystemView(null)} />

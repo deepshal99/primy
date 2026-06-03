@@ -9,7 +9,7 @@ import {
   projectDecks,
   projectPages,
 } from "@/db/schema";
-import { eq, desc, sql, inArray } from "drizzle-orm";
+import { eq, desc, sql, inArray, and, isNull } from "drizzle-orm";
 import { ensureUserExists } from "@/lib/db/ensureUser";
 import { addProjectOwner, listAccessibleProjectIds } from "@/lib/projectAccess";
 import { nanoid } from "nanoid";
@@ -79,22 +79,22 @@ export async function GET() {
       db
         .select({ projectId: knowledgeUnits.projectId, count: sql<number>`count(*)::int` })
         .from(knowledgeUnits)
-        .where(inArray(knowledgeUnits.projectId, projectIds))
+        .where(and(inArray(knowledgeUnits.projectId, projectIds), isNull(knowledgeUnits.deletedAt)))
         .groupBy(knowledgeUnits.projectId),
       db
         .select({ projectId: projectTables.projectId, count: sql<number>`count(*)::int` })
         .from(projectTables)
-        .where(inArray(projectTables.projectId, projectIds))
+        .where(and(inArray(projectTables.projectId, projectIds), isNull(projectTables.deletedAt)))
         .groupBy(projectTables.projectId),
       db
         .select({ projectId: projectDecks.projectId, count: sql<number>`count(*)::int` })
         .from(projectDecks)
-        .where(inArray(projectDecks.projectId, projectIds))
+        .where(and(inArray(projectDecks.projectId, projectIds), isNull(projectDecks.deletedAt)))
         .groupBy(projectDecks.projectId),
       db
         .select({ projectId: projectPages.projectId, count: sql<number>`count(*)::int` })
         .from(projectPages)
-        .where(inArray(projectPages.projectId, projectIds))
+        .where(and(inArray(projectPages.projectId, projectIds), isNull(projectPages.deletedAt)))
         .groupBy(projectPages.projectId),
     ]);
 

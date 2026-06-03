@@ -42,6 +42,7 @@ export async function POST(req: Request) {
   const start = Date.now();
   let pruned = 0;
   let scanned = 0;
+  let purged = 0;
 
   try {
     // Single SQL: rank snapshots per (artifactType, artifactId) by createdAt
@@ -81,12 +82,28 @@ export async function POST(req: Request) {
     );
   }
 
+  // Trash purge: hard-delete soft-deleted rows older than 30 days. Projects
+  // cascade to their entities, so a purged project removes its children too.
+  try {
+    const purgeResults = await Promise.all([
+      db.execute(sql`DELETE FROM knowledge_units WHERE deleted_at IS NOT NULL AND deleted_at < NOW() - INTERVAL '30 days' RETURNING id`),
+      db.execute(sql`DELETE FROM project_tables WHERE deleted_at IS NOT NULL AND deleted_at < NOW() - INTERVAL '30 days' RETURNING id`),
+      db.execute(sql`DELETE FROM project_decks WHERE deleted_at IS NOT NULL AND deleted_at < NOW() - INTERVAL '30 days' RETURNING id`),
+      db.execute(sql`DELETE FROM project_pages WHERE deleted_at IS NOT NULL AND deleted_at < NOW() - INTERVAL '30 days' RETURNING id`),
+      db.execute(sql`DELETE FROM folders WHERE deleted_at IS NOT NULL AND deleted_at < NOW() - INTERVAL '30 days' RETURNING id`),
+      db.execute(sql`DELETE FROM projects WHERE deleted_at IS NOT NULL AND deleted_at < NOW() - INTERVAL '30 days' RETURNING id`),
+    ]);
+    purged = purgeResults.reduce((n, r) => n + (r.rows?.length ?? 0), 0);
+  } catch (err) {
+    console.error("[cron] trash-purge error:", err);
+  }
+
   const durationMs = Date.now() - start;
   console.log(
-    `[cron] prune-snapshots: pruned=${pruned} duration=${durationMs}ms`
+    `[cron] prune-snapshots: pruned=${pruned} purged=${purged} duration=${durationMs}ms`
   );
 
-  return Response.json({ pruned, scanned, durationMs });
+  return Response.json({ pruned, scanned, purged, durationMs });
 }
 
 // Allow GET for manual testing in dev (still gated by Bearer token).
