@@ -183,7 +183,7 @@ export function SheetView() {
 
     const initUniver = async () => {
       // Dynamic imports to avoid SSR issues
-      const { createUniver, LocaleType, mergeLocales } = await import("@univerjs/presets");
+      const { createUniver, LocaleType, mergeLocales, defaultTheme } = await import("@univerjs/presets");
       const { UniverSheetsCorePreset } = await import("@univerjs/preset-sheets-core");
       const UniverPresetSheetsCoreEnUS = (await import("@univerjs/preset-sheets-core/locales/en-US")).default;
       const { UniverSheetsDrawingPreset } = await import("@univerjs/preset-sheets-drawing");
@@ -200,8 +200,30 @@ export function SheetView() {
       const currentSheets = useAppStore.getState().sheets;
       const workbookData = toUniverWorkbook(currentSheets);
 
+      // Warm the Univer neutral ramp to match the app (Strut ink/near-white),
+      // so the grid feels native in both light and dark instead of a cool grey.
+      const warmTheme = {
+        ...defaultTheme,
+        white: "#FFFDFB",
+        black: "#161513",
+        gray: {
+          50: "#FCFBF8",
+          100: "#F7F7F4",
+          200: "#F1F0ED",
+          300: "#E2E0DA",
+          400: "#B9B6AE",
+          500: "#857F76",
+          600: "#706E68",
+          700: "#3B3A37",
+          800: "#221F1A",
+          900: "#161513",
+        },
+      };
+
       const { univer, univerAPI } = createUniver({
         locale: LocaleType.EN_US,
+        theme: warmTheme,
+        darkMode: resolveDark(getStoredTheme()),
         locales: {
           [LocaleType.EN_US]: mergeLocales(UniverPresetSheetsCoreEnUS, UniverPresetSheetsDrawingEnUS),
         },

@@ -14,17 +14,6 @@ import { ENTITY_META } from "@/lib/entityMeta";
 import { EmptyState } from "@/components/ui/EmptyState";
 import type { EntityType, RecentEntry } from "@/lib/types";
 
-const SHORT_LABEL: Record<EntityType, string> = { ku: "Doc", table: "Sheet", deck: "Deck", page: "Page" };
-const CANDY = ["#FFB43F", "#4285F4", "#8757D7", "#67CEC8", "#F073A7", "#42C366"];
-function hashOf(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return h;
-}
-function wsDot(projectId: string): string {
-  return CANDY[hashOf(projectId) % CANDY.length];
-}
-
 function relTime(ts: number): string {
   const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));
   if (s < 60) return "just now";
@@ -36,26 +25,6 @@ function relTime(ts: number): string {
   if (d < 7) return `${d}d ago`;
   const w = Math.floor(d / 7);
   return `${w}w ago`;
-}
-
-type Bucket = { key: string; label: string; list: RecentEntry[] };
-function bucketize(items: RecentEntry[]): Bucket[] {
-  const day = 86400000;
-  const now = Date.now();
-  const startOfToday = new Date(now).setHours(0, 0, 0, 0);
-  const buckets: Bucket[] = [
-    { key: "today", label: "Today", list: [] },
-    { key: "yesterday", label: "Yesterday", list: [] },
-    { key: "week", label: "This week", list: [] },
-    { key: "earlier", label: "Earlier", list: [] },
-  ];
-  for (const it of items) {
-    if (it.openedAt >= startOfToday) buckets[0].list.push(it);
-    else if (it.openedAt >= startOfToday - day) buckets[1].list.push(it);
-    else if (it.openedAt >= now - 7 * day) buckets[2].list.push(it);
-    else buckets[3].list.push(it);
-  }
-  return buckets.filter((b) => b.list.length > 0);
 }
 
 const TYPE_FILTERS: { key: "all" | EntityType; label: string }[] = [
@@ -81,8 +50,6 @@ export function RecentsView({ onExit }: { onExit: () => void }) {
     );
   }, [recents, filter, q]);
 
-  const buckets = useMemo(() => bucketize(filtered), [filtered]);
-
   async function open(r: RecentEntry) {
     const s = useAppStore.getState();
     if (s.currentProjectId !== r.projectId) s.switchProject(r.projectId);
@@ -104,35 +71,30 @@ export function RecentsView({ onExit }: { onExit: () => void }) {
   let index = 0;
   return (
     <div className="flex-1 min-h-0 overflow-y-auto v2-scroll" style={{ background: "var(--canvas)" }}>
-      <div className="max-w-[760px] mx-auto px-8 py-9">
+      <div className="max-w-[1160px] mx-auto px-10 py-12">
         {/* Header */}
-        <div className="flex items-center gap-2.5 mb-1">
-          <Clock size={20} style={{ color: "var(--icon)" }} />
-          <h1 className="text-[22px] font-semibold tracking-[-0.03em]" style={{ color: "var(--ink)" }}>Recents</h1>
-        </div>
-        <p className="text-[13px] mb-6" style={{ color: "var(--ink-3)" }}>Everything you’ve touched, across all workspaces.</p>
+        <h1 className="text-[26px] font-semibold tracking-[-0.03em]" style={{ color: "var(--ink)" }}>Recents</h1>
+        <p className="text-[13.5px] mt-1" style={{ color: "var(--ink-3)" }}>Jump back into anything you’ve touched.</p>
 
-        {/* Controls */}
+        {/* Filter chips + inline search */}
         {recents.length > 0 && (
-          <div className="flex items-center gap-3 mb-7">
-            <div className="inline-flex items-center rounded-full p-1" style={{ background: "var(--accent-soft)" }}>
+          <div className="flex items-center justify-between gap-4 mt-8 mb-5">
+            <div className="flex items-center gap-1">
               {TYPE_FILTERS.map((f) => {
                 const on = filter === f.key;
                 return (
                   <button key={f.key} onClick={() => setFilter(f.key)}
-                    className="h-[26px] px-3 rounded-full text-[12px] font-medium press t-fast"
-                    style={{ background: on ? "var(--card)" : "transparent", color: on ? "var(--ink)" : "var(--ink-3)", boxShadow: on ? "0 1px 4px rgba(24,24,22,0.10)" : undefined }}>
+                    className="h-8 px-3 rounded-[9px] text-[13px] font-medium press transition-colors"
+                    style={on ? { background: "var(--secondary)", color: "var(--ink)" } : { color: "var(--ink-3)" }}>
                     {f.label}
                   </button>
                 );
               })}
             </div>
-            <div className="flex-1" />
-            <div className="flex items-center gap-2 h-[34px] px-3 rounded-[9px] w-[200px]"
-              style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+            <div className="flex items-center gap-2 h-8 px-3 rounded-[9px]" style={{ background: "var(--secondary)" }}>
               <Search size={14} style={{ color: "var(--ink-4)" }} />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter recents"
-                className="flex-1 min-w-0 bg-transparent outline-none text-[13px]" style={{ color: "var(--ink)" }} />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter"
+                className="w-[120px] bg-transparent outline-none text-[12.5px] placeholder:text-[var(--ink-4)]" style={{ color: "var(--ink)" }} />
             </div>
           </div>
         )}
@@ -153,47 +115,37 @@ export function RecentsView({ onExit }: { onExit: () => void }) {
             description={`Nothing in your recents matches “${q.trim()}”. Try a shorter query.`}
           />
         ) : (
-          buckets.map((b) => (
-            <section key={b.key} className="mb-7">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.06em] mb-1.5 px-1" style={{ color: "var(--ink-4)" }}>{b.label}</div>
-              <div className="rounded-[14px] overflow-hidden" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-                {b.list.map((r, i) => {
-                  const meta = ENTITY_META[r.type];
-                  const Icon = meta.Icon;
-                  const row = index++;
-                  return (
-                    <div key={r.entityId} role="button" tabIndex={0}
-                      onClick={() => open(r)}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(r); } }}
-                      className="group flex items-center gap-3.5 px-3.5 h-[58px] cursor-pointer animate-fade-in-up hover-row"
-                      style={{ borderTop: i === 0 ? undefined : "1px solid var(--border)", animationDelay: `${Math.min(row, 12) * 22}ms` }}>
-                      <span className="flex items-center justify-center w-[34px] h-[34px] rounded-[9px] flex-shrink-0"
-                        style={{ background: "var(--accent-soft)", color: "var(--icon)" }}>
-                        <Icon size={17} />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[13.5px] font-medium truncate" style={{ color: "var(--ink)" }}>{r.title || "Untitled"}</div>
-                        <div className="flex items-center gap-2 mt-0.5 text-[12px]" style={{ color: "var(--ink-3)" }}>
-                          <span className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ background: wsDot(r.projectId) }} />
-                          <span className="truncate">{r.projectTitle}</span>
-                        </div>
-                      </div>
-                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full flex-shrink-0"
-                        style={{ background: meta.bg, color: meta.color }}>{SHORT_LABEL[r.type]}</span>
-                      <span className="text-[12px] tabular-nums w-[64px] text-right flex-shrink-0" style={{ color: "var(--ink-4)" }}>{relTime(r.openedAt)}</span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); removeRecent(r.entityId); }}
-                        title="Remove from recents"
-                        className="flex items-center justify-center w-7 h-7 rounded-[7px] opacity-0 group-hover:opacity-100 transition-opacity press flex-shrink-0"
-                        style={{ color: "var(--ink-4)" }}>
-                        <X size={15} />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          ))
+          <div className="mt-7 grid gap-3.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(248px, 1fr))" }}>
+            {filtered.map((r) => {
+              const meta = ENTITY_META[r.type];
+              const Icon = meta.Icon;
+              const row = index++;
+              return (
+                <div key={r.entityId} role="button" tabIndex={0}
+                  onClick={() => open(r)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(r); } }}
+                  className="group relative flex flex-col text-left rounded-[14px] p-4 h-[150px] cursor-pointer animate-fade-in-up lift"
+                  style={{ background: "var(--card)", border: "1px solid var(--border)", boxShadow: "var(--shadow-card)", animationDelay: `${Math.min(row, 16) * 22}ms` }}>
+                  <div className="flex items-start justify-between mb-3.5">
+                    <span className="flex items-center justify-center w-[38px] h-[38px] rounded-[10px] flex-shrink-0"
+                      style={{ background: `color-mix(in srgb, ${meta.color} 16%, transparent)`, color: meta.color }}>
+                      <Icon size={19} strokeWidth={1.85} />
+                    </span>
+                    <span className="text-[11px] tabular-nums pt-1 group-hover:opacity-0 transition-opacity" style={{ color: "var(--ink-4)" }}>{relTime(r.openedAt)}</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeRecent(r.entityId); }}
+                      title="Remove from recents"
+                      className="absolute top-3 right-3 flex items-center justify-center w-7 h-7 rounded-[7px] opacity-0 group-hover:opacity-100 transition-opacity press icon-hover"
+                      style={{ color: "var(--ink-4)" }}>
+                      <X size={15} />
+                    </button>
+                  </div>
+                  <div className="text-[14px] font-medium leading-snug line-clamp-2 flex-1" style={{ color: "var(--ink)" }}>{r.title || "Untitled"}</div>
+                  <div className="text-[12px] truncate mt-1.5" style={{ color: "var(--ink-4)" }}>{r.projectTitle}</div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>

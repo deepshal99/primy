@@ -14,22 +14,23 @@ function DeckIdleView() {
           <div
             className="absolute inset-0 rounded-[10px] -rotate-[6deg] -translate-x-1.5"
             style={{
-              background: "#fde8dc",
+              background: "color-mix(in srgb, var(--accent-amber) 16%, transparent)",
               border: "1px solid rgba(255, 180, 63, 0.20)",
             }}
           />
           <div
             className="absolute inset-0 rounded-[10px] rotate-[3deg] translate-x-1"
             style={{
-              background: "#fef0e8",
+              background: "color-mix(in srgb, var(--accent-amber) 12%, transparent)",
               border: "1px solid rgba(255, 180, 63, 0.26)",
             }}
           />
           <div
-            className="absolute inset-0 rounded-[10px] bg-white"
+            className="absolute inset-0 rounded-[10px]"
             style={{
+              background: "var(--card)",
               border: "1px solid rgba(255, 180, 63, 0.38)",
-              boxShadow: "0 4px 12px rgba(255, 180, 63, 0.12)",
+              boxShadow: "var(--shadow-card)",
             }}
           >
             <div className="absolute inset-x-3 top-3 h-[3px] rounded-full bg-[rgba(255,180,63,0.55)]" />

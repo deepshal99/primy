@@ -17,9 +17,14 @@ export interface EntityMeta {
   Icon: LucideIcon;
 }
 
+// Entity palette — softened to match the warm Strut personality and the hero
+// illustration's tones (cornflower #5C8CEF, warm amber #F4A24C, teal #69CEC8),
+// rather than harsh saturated primaries. Distinct enough to ID type at a glance,
+// but calm and harmonious with the warm near-white shell.
+// doc cornflower · sheet soft emerald · deck warm amber · page soft violet.
 export const ENTITY_META: Record<EntityType, EntityMeta> = {
-  ku: { label: "Document", group: "Documents", color: "#2a6dfb", bg: "#eef3fd", Icon: FileText },
-  table: { label: "Spreadsheet", group: "Sheets", color: "#42c366", bg: "#eafaef", Icon: Table2 },
-  deck: { label: "Presentation", group: "Decks", color: "#FFAD45", bg: "#FFF1DF", Icon: Presentation },
-  page: { label: "Page", group: "Pages", color: "#9061ff", bg: "#f3eeff", Icon: LayoutTemplate },
+  ku: { label: "Document", group: "Documents", color: "#5B8DEF", bg: "#EDF2FE", Icon: FileText },
+  table: { label: "Spreadsheet", group: "Sheets", color: "#4FB084", bg: "#E8F6EF", Icon: Table2 },
+  deck: { label: "Presentation", group: "Decks", color: "#F2A24C", bg: "#FCF1E0", Icon: Presentation },
+  page: { label: "Page", group: "Pages", color: "#9173E0", bg: "#F1ECFC", Icon: LayoutTemplate },
 };
