@@ -271,6 +271,10 @@ export interface Project {
   updatedAt: number;
   hasMoreMessages?: boolean;  // True when older messages exist but weren't loaded
   counts?: ProjectEntityCounts; // Lightweight counts from list endpoint
+  // Ownership lens (from the list endpoint) — powers the Library surface.
+  isOwner?: boolean;          // true = caller created this workspace
+  ownerName?: string;         // owner's display name when shared with the caller
+  orgId?: string | null;      // set when the workspace is shared to an org
 }
 
 /** Lightweight entity counts returned by the project list endpoint */
@@ -291,6 +295,9 @@ export interface ProjectListItem {
   createdAt: number;
   updatedAt: number;
   counts: ProjectEntityCounts;
+  isOwner?: boolean;
+  ownerName?: string;
+  orgId?: string | null;
 }
 
 export type EntityType = "ku" | "table" | "deck" | "page";
@@ -518,11 +525,26 @@ export interface RecentEntry {
   openedAt: number;
 }
 
+/** Live state of a single in-flight AI stream, kept per-project so a stream
+ *  survives navigation and concurrent streams in different projects don't clash. */
+export interface StreamSession {
+  content: string;
+  phase: AIPhase;
+  action: string | null;
+  readingFiles: string[];
+}
+
 export interface AppState {
   // Active view (flat fields synced to current project entity)
   messages: Message[];
+  // Mirror of the ACTIVE project's stream (kept in sync from streamSessions so
+  // existing consumers can keep reading these flat fields unchanged).
   isStreaming: boolean;
   streamingContent: string;
+  // Source of truth for streaming, per project. A stream belongs to the project
+  // it started in; these survive switchProject and support concurrent streams.
+  streamingProjectIds: string[];
+  streamSessions: Record<string, StreamSession>;
   sheets: SheetData[];
   sheetVersion: number;
   docContent: string;
@@ -595,8 +617,8 @@ export interface AppState {
 
   // Chat/streaming actions
   addUserMessage: (content: string, attachments?: FileAttachment[], mentionedEntities?: { id: string; type: EntityType; title: string }[]) => void;
-  startStreaming: () => void;
-  appendStreamChunk: (chunk: string) => void;
+  startStreaming: (projectId: string | null) => void;
+  appendStreamChunk: (projectId: string | null, chunk: string) => void;
   finishStreaming: (
     streamProjectId: string | null,
     fullContent: string,
@@ -608,11 +630,11 @@ export interface AppState {
     pageOperations?: PageOperation[],
     suggestions?: string[]
   ) => void;
-  abortStreaming: () => void;
+  abortStreaming: (projectId: string | null) => void;
   clearSuggestions: () => void;
-  setReadingFiles: (files: string[]) => void;
-  setAIPhase: (phase: AIPhase) => void;
-  setStreamingAction: (action: string | null) => void;
+  setReadingFiles: (projectId: string | null, files: string[]) => void;
+  setAIPhase: (projectId: string | null, phase: AIPhase) => void;
+  setStreamingAction: (projectId: string | null, action: string | null) => void;
   applySheetOperations: (operations: SheetOperation[]) => void;
   applyDocOperations: (operations: DocOperation[]) => void;
   updateSheetData: (data: SheetData[]) => void;

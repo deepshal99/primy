@@ -61,7 +61,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
       if (useAppStore.getState().isStreaming) {
         console.error("[Primy] Streaming state stuck — auto-recovering after 150s timeout");
         abortControllerRef.current?.abort();
-        abortStreaming();
+        abortStreaming(useAppStore.getState().currentProjectId);
         toast.error("Response timed out. Please try again.");
       }
     }, 150_000);
@@ -74,8 +74,12 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
 
   const sendMessage = useCallback(
     async (content: string, attachments?: FileAttachment[], mentionedEntities?: { id: string; type: EntityType; title: string }[]) => {
-      // Prevent concurrent streams
-      if (useAppStore.getState().isStreaming) return;
+      // Prevent concurrent streams in the SAME project (different projects may
+      // stream at once — streams are per-project now).
+      {
+        const cur = useAppStore.getState().currentProjectId;
+        if (cur && useAppStore.getState().streamingProjectIds.includes(cur)) return;
+      }
 
       // Read-only enforcement: viewers/commenters can't drive AI mutations.
       const role = useAppStore.getState().currentProjectRole;
@@ -112,7 +116,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
 
       addUserMessage(content, attachments, mentionedEntities);
       clearPendingAttachments();
-      startStreaming();
+      startStreaming(streamProjectId);
 
       // Layer B: collected tool-call ops, declared OUTSIDE the try so both the
       // success and abort paths can apply whatever the model called before the
@@ -234,7 +238,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
               ...relevanceResult.relevantTables.map((t) => t.title),
             ];
             if (readingFiles.length > 0) {
-              useAppStore.getState().setReadingFiles(readingFiles);
+              useAppStore.getState().setReadingFiles(streamProjectId, readingFiles);
             }
 
             projectContext = {
@@ -316,7 +320,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
         if (response.status >= 500 && response.status < 600) {
           await new Promise((r) => setTimeout(r, 1000));
           if (abortControllerRef.current?.signal.aborted) {
-            abortStreaming();
+            abortStreaming(streamProjectId);
             return;
           }
           abortControllerRef.current = new AbortController();
@@ -366,7 +370,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
         const flushPending = () => {
           rafId = null;
           if (pendingChunk) {
-            appendStreamChunk(pendingChunk);
+            appendStreamChunk(streamProjectId, pendingChunk);
             pendingChunk = "";
           }
         };
@@ -399,7 +403,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
             if (parsed.toolStart?.name) {
               // Model began a tool call — show the live action pill right away.
               const kind = toolIndicatorKind(parsed.toolStart.name);
-              if (kind) useAppStore.getState().setStreamingAction(kind);
+              if (kind) useAppStore.getState().setStreamingAction(streamProjectId, kind);
             }
             if (parsed.toolCall?.name) {
               // Schema-validated action — collect it for apply at stream end.
@@ -454,14 +458,14 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
 
         if (streamError && !fullText.trim()) {
           console.error("[Primy] Stream completed with error, no text. Error:", streamError, "Chunks received:", chunkCount);
-          abortStreaming();
+          abortStreaming(streamProjectId);
           toast.error(streamError.includes("Rate limit") ? streamError : "AI couldn't generate a response. Please try again.");
           return;
         }
 
         if (!fullText.trim() && !hasToolOps(toolOps)) {
           console.warn("[Primy] Stream completed with empty text. Chunks received:", chunkCount, "Buffer remainder:", buffer.slice(0, 200));
-          abortStreaming();
+          abortStreaming(streamProjectId);
           toast.error("No response received from AI. Please try again.");
           return;
         }
@@ -469,7 +473,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
         // Parse operations and apply to store — wrapped in try/catch so a parse/apply
         // failure never loses the AI's text response
         try {
-          useAppStore.getState().setAIPhase('updating');
+          useAppStore.getState().setAIPhase(streamProjectId, 'updating');
 
           const sheetOps = parseSheetOperations(fullText);
           // Resolve attachment:N references in INSERT_IMAGE ops to base64 data URLs
@@ -597,21 +601,25 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
               }
             }
           } else {
-            abortStreaming();
+            abortStreaming(streamProjectId);
           }
           return;
         }
         const errMsg =
           error instanceof Error ? error.message : "Something went wrong";
-        abortStreaming();
+        abortStreaming(streamProjectId);
         toast.error(errMsg);
       } finally {
-        // Absolute guarantee: no code path leaves the UI stuck "streaming".
-        // finishStreaming/abortStreaming clear isStreaming on every normal path;
-        // this catches any unexpected escape (early return, throw in cleanup).
-        if (useAppStore.getState().isStreaming) {
+        // Absolute guarantee: no code path leaves THIS stream stuck "streaming".
+        // finishStreaming/abortStreaming clear it on every normal path; this
+        // catches any unexpected escape (early return, throw in cleanup). Check
+        // by the stream's own project so a since-switched-away view still clears.
+        const stuck = streamProjectId
+          ? useAppStore.getState().streamingProjectIds.includes(streamProjectId)
+          : useAppStore.getState().isStreaming;
+        if (stuck) {
           console.warn("[Primy] Stream ended without a clean finish — forcing recovery.");
-          abortStreaming();
+          abortStreaming(streamProjectId);
         }
       }
     },

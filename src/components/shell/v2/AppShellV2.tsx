@@ -24,7 +24,8 @@ import {
   PanelRightOpen, Sun, Moon, ArrowLeft, Settings, Check,
   Folder as FolderIcon, FolderPlus, Trash2, Pencil, FolderInput,
   Rocket, Compass, Layers, Target, Box, Hexagon, Flame, Orbit,
-  LogOut, ChevronsUpDown, ChevronRight, ChevronDown, Share2, Clock,
+  LogOut, ChevronsUpDown, ChevronRight, ChevronDown, Share2, Library,
+  Loader2,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { createPortal } from "react-dom";
@@ -38,7 +39,7 @@ import { ArtifactHistoryButton } from "@/components/snapshots/ArtifactHistoryBut
 import { ExportMenu } from "@/components/sheet/ExportMenu";
 import { DocExportMenu } from "@/components/doc/DocExportMenu";
 import { SearchDialog } from "@/components/shared/SearchDialog";
-import { RecentsView } from "@/components/shell/v2/RecentsView";
+import { LibraryView } from "@/components/shell/v2/LibraryView";
 import { ComingSoonModal } from "@/components/shell/v2/ComingSoonModal";
 import { TrashView } from "@/components/shell/v2/TrashView";
 import { QuickNotesView } from "@/components/shell/v2/QuickNotesView";
@@ -251,13 +252,14 @@ export function AppShellV2() {
   const loadProjects = useAppStore((s) => s.loadProjects);
   const switchProject = useAppStore((s) => s.switchProject);
   const aiUnreadProjectIds = useAppStore((s) => s.aiUnreadProjectIds);
+  const streamingProjectIds = useAppStore((s) => s.streamingProjectIds);
   const createProject = useAppStore((s) => s.createProject);
   const ensureQuickNotesProject = useAppStore((s) => s.ensureQuickNotesProject);
   const quickNotesProjectId = useAppStore((s) => s.quickNotesProjectId);
 
   // Global "system" surfaces that sit outside any single workspace. When set,
   // they take over the main area (the Workspaces tree + chat dock stay put).
-  const [systemView, setSystemView] = useState<null | "recents" | "notes" | "trash">(null);
+  const [systemView, setSystemView] = useState<null | "library" | "notes" | "trash">(null);
   const [dark, toggleDark] = useDarkMode();
   const [view, setView] = usePersistentPref<ViewMode>("primy:board:view", "board", ["board", "timeline"]);
   const [groupBy, setGroupBy] = usePersistentPref<GroupMode>("primy:board:group", "folders", ["folders", "type"]);
@@ -347,7 +349,7 @@ export function AppShellV2() {
 
         <div className="px-4 pb-2">
           <NavRow icon={<PenLine size={17} />} label="Quick Note" active={systemView === "notes"} onClick={openQuickNotes} />
-          <NavRow icon={<Clock size={17} />} label="Recents" active={systemView === "recents"} onClick={() => setSystemView("recents")} />
+          <NavRow icon={<Library size={17} />} label="Library" active={systemView === "library"} onClick={() => setSystemView("library")} />
           <NavRow icon={<Search size={17} />} label="Search" hint="⌘K" onClick={() => setSearchOpen(true)} />
           <NavRow icon={<Rocket size={17} />} label="What's next" onClick={() => setComingSoonOpen(true)} />
           <NavRow icon={<Trash2 size={17} />} label="Trash" active={systemView === "trash"} onClick={() => setSystemView("trash")} />
@@ -368,7 +370,9 @@ export function AppShellV2() {
 
           {workspaceList.map((p) => {
             const isActive = p.id === currentProjectId;
-            const isUnread = !isActive && aiUnreadProjectIds.includes(p.id);
+            const isGenerating = streamingProjectIds.includes(p.id);
+            // Spinner (in-progress) wins over the amber done-dot.
+            const isUnread = !isActive && !isGenerating && aiUnreadProjectIds.includes(p.id);
             if (renamingWs === p.id) {
               return (
                 <div key={p.id} className="flex items-center w-full h-[36px] px-3 mb-0.5 rounded-full" style={{ background: "var(--sidebar-accent)" }}>
@@ -386,6 +390,13 @@ export function AppShellV2() {
                 className="flex items-center gap-2 w-full h-[36px] px-3 mb-0.5 rounded-full press hover-row text-left text-[13px]"
                 style={{ background: isActive ? "var(--sidebar-accent)" : "transparent", color: isActive ? "var(--ink)" : "var(--ink-2)", fontWeight: isActive ? 500 : 400 }}>
                 <span className="flex-1 truncate">{p.title || "Untitled"}</span>
+                {isGenerating && (
+                  <Loader2
+                    aria-label="Generating"
+                    className="w-3.5 h-3.5 flex-shrink-0 animate-spin"
+                    style={{ color: "var(--accent-amber, #FFB43F)" }}
+                  />
+                )}
                 {isUnread && (
                   <span
                     aria-label="New AI result"
@@ -439,10 +450,10 @@ export function AppShellV2() {
         <main className="flex-1 min-w-0 flex flex-col" style={{ background: "var(--canvas)" }}>
           <TrashView onExit={() => setSystemView(null)} />
         </main>
-      ) : systemView === "recents" ? (
-        /* Recents — a global navigator; no docked chat, just the list. */
+      ) : systemView === "library" ? (
+        /* Library — global workspace gallery; no docked chat. */
         <main className="flex-1 min-w-0 flex flex-col" style={{ background: "var(--canvas)" }}>
-          <RecentsView onExit={() => setSystemView(null)} />
+          <LibraryView onExit={() => setSystemView(null)} />
         </main>
       ) : systemView === "notes" && quickNotesProjectId ? (
         /* Quick Notes — rail + editor. Chat docks on the right and the editor

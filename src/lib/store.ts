@@ -29,6 +29,8 @@ import {
   ThemeConfig,
   RecentEntry,
   ProducedEntity,
+  StreamSession,
+  AIPhase,
 } from "@/lib/types";
 import { resolveStreamDisposition, isActivelyEditing } from "@/lib/streamDisposition";
 import { applyPageOps } from "@/lib/ai/pageOperations";
@@ -51,6 +53,26 @@ import {
 
 let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 const SAVE_DEBOUNCE_MS = 2000;
+
+// ── Per-project streaming mirror ──
+// Streams live in `streamSessions` keyed by project. The flat `isStreaming`/
+// `streamingContent`/`aiPhase`/`streamingAction`/`readingFiles` fields are a
+// MIRROR of the ACTIVE project's session so existing consumers keep working.
+// This recomputes that mirror for whichever project is currently on screen.
+function streamMirror(
+  streamSessions: Record<string, StreamSession>,
+  streamingProjectIds: string[],
+  activeId: string | null
+) {
+  const s = (activeId && streamSessions[activeId]) || null;
+  return {
+    isStreaming: !!activeId && streamingProjectIds.includes(activeId),
+    streamingContent: s?.content ?? "",
+    aiPhase: (s?.phase ?? "idle") as AIPhase,
+    streamingAction: s?.action ?? null,
+    readingFiles: s?.readingFiles ?? [],
+  };
+}
 
 function scheduleDebouncedSave() {
   // Capture the project + entity IDs at schedule time, not when the timer fires.
@@ -252,6 +274,8 @@ export const useAppStore = create<AppState>()(
   messages: [],
   isStreaming: false,
   streamingContent: "",
+  streamingProjectIds: [],
+  streamSessions: {},
   sheets: createEmptySheet(),
   sheetVersion: 0,
   docContent: "",
@@ -325,17 +349,50 @@ export const useAppStore = create<AppState>()(
       ],
     })),
 
-  startStreaming: () =>
-    set({ isStreaming: true, streamingContent: "", aiPhase: 'thinking', streamingAction: null }),
+  startStreaming: (projectId: string | null) =>
+    set((state) => {
+      if (!projectId) {
+        // No project scope (shouldn't happen post auto-create) — fall back to
+        // the flat mirror only, single-stream behavior.
+        return { isStreaming: true, streamingContent: "", aiPhase: 'thinking', streamingAction: null, readingFiles: [] };
+      }
+      const sessions = { ...state.streamSessions, [projectId]: { content: "", phase: 'thinking' as AIPhase, action: null, readingFiles: [] } };
+      const ids = state.streamingProjectIds.includes(projectId) ? state.streamingProjectIds : [...state.streamingProjectIds, projectId];
+      return {
+        streamSessions: sessions,
+        streamingProjectIds: ids,
+        ...streamMirror(sessions, ids, state.currentProjectId),
+      };
+    }),
 
-  abortStreaming: () =>
-    set({ isStreaming: false, streamingContent: "", readingFiles: [], aiPhase: 'idle', streamingAction: null }),
+  abortStreaming: (projectId: string | null) =>
+    set((state) => {
+      const id = projectId ?? state.currentProjectId;
+      if (!id) return { isStreaming: false, streamingContent: "", readingFiles: [], aiPhase: 'idle', streamingAction: null };
+      const sessions = { ...state.streamSessions };
+      delete sessions[id];
+      const ids = state.streamingProjectIds.filter((p) => p !== id);
+      return {
+        streamSessions: sessions,
+        streamingProjectIds: ids,
+        ...streamMirror(sessions, ids, state.currentProjectId),
+      };
+    }),
 
-  appendStreamChunk: (chunk: string) =>
-    set((state) => ({
-      streamingContent: state.streamingContent + chunk,
-      aiPhase: state.aiPhase === 'thinking' ? 'streaming' as const : state.aiPhase,
-    })),
+  appendStreamChunk: (projectId: string | null, chunk: string) =>
+    set((state) => {
+      const id = projectId ?? state.currentProjectId;
+      if (!id) return { streamingContent: state.streamingContent + chunk };
+      const prev = state.streamSessions[id] ?? { content: "", phase: 'thinking' as AIPhase, action: null, readingFiles: [] };
+      const sessions = {
+        ...state.streamSessions,
+        [id]: { ...prev, content: prev.content + chunk, phase: prev.phase === 'thinking' ? 'streaming' as AIPhase : prev.phase },
+      };
+      return {
+        streamSessions: sessions,
+        ...streamMirror(sessions, state.streamingProjectIds, state.currentProjectId),
+      };
+    }),
 
   finishStreaming: (
     streamProjectId: string | null,
@@ -957,12 +1014,19 @@ export const useAppStore = create<AppState>()(
       newProjects[targetIdx] = tProj;
     }
 
+    // Retire the finishing stream: drop its session + id, then re-mirror the
+    // ACTIVE project (so a concurrent stream in another project keeps showing).
+    const finishedStreamId = targetProjectId ?? state.currentProjectId;
+    const nextSessions = { ...state.streamSessions };
+    if (finishedStreamId) delete nextSessions[finishedStreamId];
+    const nextStreamingIds = finishedStreamId
+      ? state.streamingProjectIds.filter((p) => p !== finishedStreamId)
+      : state.streamingProjectIds;
+
     const basePatch: Record<string, any> = {
-      isStreaming: false,
-      streamingContent: "",
-      readingFiles: [],
-      aiPhase: 'done' as const,
-      streamingAction: null,
+      streamSessions: nextSessions,
+      streamingProjectIds: nextStreamingIds,
+      ...streamMirror(nextSessions, nextStreamingIds, state.currentProjectId),
       projects: newProjects,
       // Undo/redo are per-active-entity — only the foreground stream may mutate them.
       undoStack: isForeground ? newUndoStack : state.undoStack,
@@ -1190,9 +1254,27 @@ export const useAppStore = create<AppState>()(
 
   noteEditorInteraction: () => set({ lastEditorInteractionAt: Date.now() }),
 
-  setReadingFiles: (files: string[]) => set({ readingFiles: files }),
-  setAIPhase: (phase) => set({ aiPhase: phase }),
-  setStreamingAction: (action) => set({ streamingAction: action }),
+  setReadingFiles: (projectId, files) =>
+    set((state) => {
+      const id = projectId ?? state.currentProjectId;
+      if (!id || !state.streamSessions[id]) return { readingFiles: files };
+      const sessions = { ...state.streamSessions, [id]: { ...state.streamSessions[id], readingFiles: files } };
+      return { streamSessions: sessions, ...streamMirror(sessions, state.streamingProjectIds, state.currentProjectId) };
+    }),
+  setAIPhase: (projectId, phase) =>
+    set((state) => {
+      const id = projectId ?? state.currentProjectId;
+      if (!id || !state.streamSessions[id]) return { aiPhase: phase };
+      const sessions = { ...state.streamSessions, [id]: { ...state.streamSessions[id], phase } };
+      return { streamSessions: sessions, ...streamMirror(sessions, state.streamingProjectIds, state.currentProjectId) };
+    }),
+  setStreamingAction: (projectId, action) =>
+    set((state) => {
+      const id = projectId ?? state.currentProjectId;
+      if (!id || !state.streamSessions[id]) return { streamingAction: action };
+      const sessions = { ...state.streamSessions, [id]: { ...state.streamSessions[id], action } };
+      return { streamSessions: sessions, ...streamMirror(sessions, state.streamingProjectIds, state.currentProjectId) };
+    }),
 
   // ── Legacy Conversations (TODO: Remove in next release — only kept for migration) ──
 
@@ -1534,8 +1616,9 @@ export const useAppStore = create<AppState>()(
       deckVersion: state.deckVersion + 1,
       workspaceOpen: true,
       activeTab: "sheet",
-      isStreaming: false,
-      streamingContent: "",
+      // Restore the live stream mirror for the project we're entering — if it
+      // still has an in-flight stream, its "Generating..." state reappears.
+      ...streamMirror(state.streamSessions, state.streamingProjectIds, project.id),
       pendingAttachments: [],
       suggestions: [],
       projectMemory: project.memory || {},
@@ -1546,7 +1629,8 @@ export const useAppStore = create<AppState>()(
       openTabs: [],
     });
 
-    // Entering the project clears its "new AI work" indicator.
+    // Entering the project clears its "new AI work" indicator (the completed
+    // dot). An in-flight stream keeps its spinner via streamingProjectIds.
     get().clearProjectUnread(project.id);
 
     // Load full project data if not already loaded
@@ -2821,6 +2905,9 @@ export const useAppStore = create<AppState>()(
               createdAt: item.createdAt,
               updatedAt: item.updatedAt,
               counts: item.counts,
+              isOwner: item.isOwner,
+              ownerName: item.ownerName,
+              orgId: item.orgId,
             };
           }
           // Create a lightweight shell — entities will be loaded on open
@@ -2833,6 +2920,9 @@ export const useAppStore = create<AppState>()(
             createdAt: item.createdAt,
             updatedAt: item.updatedAt,
             counts: item.counts,
+            isOwner: item.isOwner,
+            ownerName: item.ownerName,
+            orgId: item.orgId,
             folders: existing?.folders || [],
             knowledgeUnits: existing?.knowledgeUnits || [],
             tables: existing?.tables || [],
