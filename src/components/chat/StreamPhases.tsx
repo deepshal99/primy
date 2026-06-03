@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Loader2 } from "lucide-react";
+import { BrandBars } from "@/components/shared/Logo";
 import {
   StreamTask,
   PHASE_SCRIPTS,
@@ -66,13 +66,7 @@ export function StreamPhases({
         return (
           <div key={p.id} className="flex items-center gap-2.5">
             <span className="flex items-center justify-center w-4 h-4 flex-shrink-0">
-              {state === "done" ? (
-                <Check className="w-3.5 h-3.5" strokeWidth={2.4} style={{ color: "var(--accent-amber-deep, #B87426)" }} aria-hidden />
-              ) : state === "active" ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" strokeWidth={2.2} style={{ color: "var(--accent-amber, #FFB43F)" }} aria-hidden />
-              ) : (
-                <span className="w-[5px] h-[5px] rounded-full" style={{ background: "var(--ink-4)" }} aria-hidden />
-              )}
+              <BrandBars state={state} size={15} />
             </span>
             <span
               className={state === "active" ? "text-[13px] font-medium shimmer-text" : "text-[13px]"}

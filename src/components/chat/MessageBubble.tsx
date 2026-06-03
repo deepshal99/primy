@@ -256,7 +256,12 @@ export function StreamingBubble({ content }: StreamingBubbleProps) {
     .replace(/```tableops\n[\s\S]*?(\n```|$)/g, "")
     .replace(/```deckops\n[\s\S]*?(\n```|$)/g, "")
     .replace(/```pageops\n[\s\S]*?(\n```|$)/g, "")
-    .replace(/```deckoutline\n[\s\S]*?(\n```|$)/g, "");
+    .replace(/```deckoutline\n[\s\S]*?(\n```|$)/g, "")
+    // The suggestions block (an HTML-looking <suggestions>…</suggestions> tag)
+    // streams in near the end. Strip it live — including a not-yet-closed one
+    // and a half-typed opening tag — so it never flashes at the bottom.
+    .replace(/<suggestions>[\s\S]*?(<\/suggestions>|$)/g, "")
+    .replace(/<\/?sugg[a-z]*$/i, "");
 
   const hasVisibleContent = displayContent.trim().length > 0;
 

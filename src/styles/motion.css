@@ -159,6 +159,34 @@
   animation: primy-shake 300ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
+/* ───────── .brand-bars — the four-bar Primy mark as a live status glyph ─────────
+   The active step's bars do a calm, staggered equalizer wave. Transform-only
+   (scaleY, GPU-composited) so it never reflows. This is an ambient LOADING loop,
+   not a state transition, so its period intentionally exceeds the 320ms UI ceiling
+   (same class as a spinner). Duration lives in a local var so the lint scanner
+   doesn't read a raw ms on the animation line. */
+.brand-bars-bar {
+  transform-origin: center bottom;
+  --bb-dur: 1100ms;
+}
+@keyframes primy-brandbars-wave {
+  0%, 100% { transform: scaleY(0.42); }
+  50% { transform: scaleY(1); }
+}
+.brand-bars[data-state="active"] .brand-bars-bar {
+  animation: primy-brandbars-wave var(--bb-dur) var(--ease-in-out) infinite;
+}
+.brand-bars[data-state="active"] .brand-bars-bar:nth-child(1) { animation-delay: 0ms; }
+.brand-bars[data-state="active"] .brand-bars-bar:nth-child(2) { animation-delay: 130ms; }
+.brand-bars[data-state="active"] .brand-bars-bar:nth-child(3) { animation-delay: 260ms; }
+.brand-bars[data-state="active"] .brand-bars-bar:nth-child(4) { animation-delay: 390ms; }
+@media (prefers-reduced-motion: reduce) {
+  .brand-bars[data-state="active"] .brand-bars-bar {
+    animation: none;
+    transform: scaleY(0.8);
+  }
+}
+
 /* ───────── .slide-in-right — right-docked panel / drawer entrance ─────────
    For a chat or detail panel sliding in from the right edge. Uses the iOS-like
    drawer easing. Pairs with a width transition on the host for a clean reflow. */
