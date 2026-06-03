@@ -17,6 +17,7 @@ import {
   parseSuggestions,
 } from "@/lib/ai/parseAIResponse";
 import { scoreRelevance } from "@/lib/ai/contextRelevance";
+import { isSkeletonTable } from "@/lib/tableHealth";
 import { emptyToolOps, applyToolCall, hasToolOps, toolIndicatorKind, summarizeOps } from "@/lib/ai/toolMapping";
 import { Maximize2, Minimize2, PanelRightClose } from "lucide-react";
 import { ENTITY_META } from "@/lib/entityMeta";
@@ -49,6 +50,8 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
   const clearPendingAttachments = useAppStore((s) => s.clearPendingAttachments);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  // One-shot guard so an auto-fill follow-up never triggers another (no loops).
+  const autofillGuardRef = useRef(false);
 
   // Safety net: if isStreaming ever gets stuck (unhandled error, lost stream),
   // auto-recover. 45s is comfortably longer than the server stall timeout (45s
@@ -549,6 +552,28 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
           // itself (right project), surfacing a persistent "Continue" affordance
           // in the bubble instead of a toast that vanishes.
           finishStreaming(streamProjectId, contentForFinish, sheetOps, docOps, kuOps, tableOps, deckOps, pageOps, suggestions, { truncated: streamTruncated });
+
+          // Belt-and-suspenders: if the model created a table but left it a
+          // skeleton (multiple header columns, only the index column filled),
+          // auto-trigger a single fill pass so the user never sees an empty
+          // shell. One-shot (the fill turn does an UPDATE, not a CREATE, so it
+          // can't re-trigger), and only for the active project.
+          const wasAutofill = autofillGuardRef.current;
+          autofillGuardRef.current = false;
+          if (
+            !wasAutofill &&
+            streamProjectId === useAppStore.getState().currentProjectId &&
+            tableOps.some((o) => o.type === "CREATE" && isSkeletonTable(o.celldata))
+          ) {
+            autofillGuardRef.current = true;
+            setTimeout(() => {
+              window.dispatchEvent(
+                new CustomEvent("primy:send-message", {
+                  detail: { content: "That spreadsheet is missing most of its data. Fill in every column for every row with real values, updating the existing sheet." },
+                })
+              );
+            }, 500);
+          }
         } catch (applyError) {
           // Operation parsing or store mutation failed — still save the AI text response
           console.error("[Primy] Failed to apply AI operations:", applyError);
