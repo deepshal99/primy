@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { db } from "@/db";
-import { users } from "@/db/schema";
+import { users, emailCodes } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
@@ -123,6 +123,75 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           await clearAttempts(iKey);
           return { id: user.id, name: user.name, email: user.email };
         }
+      },
+    }),
+    // ── Passwordless email-code provider (unified signup + login) ──
+    // The /api/auth/request-code route emails a 6-digit code; this validates it.
+    // First successful verify for an unknown email CREATES the account (signup
+    // and login are one flow). New accounts get an unusable random password hash
+    // (passwordless); existing users with a real password can still use the
+    // password provider above. Google login (later) supersedes this.
+    Credentials({
+      id: "email-code",
+      name: "Email code",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        code: { label: "Code", type: "text" },
+      },
+      async authorize(credentials) {
+        const email = (credentials?.email as string)?.trim().toLowerCase();
+        const code = (credentials?.code as string)?.trim();
+        if (!email || !code) return null;
+
+        if (process.env.NODE_ENV === "production" && isDevOnlyEmail(email)) {
+          throw new Error("Invalid or expired code");
+        }
+
+        const [row] = await db
+          .select()
+          .from(emailCodes)
+          .where(eq(emailCodes.email, email))
+          .limit(1);
+        if (!row) throw new Error("Invalid or expired code");
+
+        if (row.expiresAt.getTime() < Date.now()) {
+          await db.delete(emailCodes).where(eq(emailCodes.email, email));
+          throw new Error("That code expired. Request a new one.");
+        }
+        if (row.attempts >= 5) {
+          await db.delete(emailCodes).where(eq(emailCodes.email, email));
+          throw new Error("Too many attempts. Request a new code.");
+        }
+
+        const ok = await bcrypt.compare(code, row.codeHash);
+        if (!ok) {
+          await db
+            .update(emailCodes)
+            .set({ attempts: row.attempts + 1 })
+            .where(eq(emailCodes.email, email));
+          throw new Error("Invalid or expired code");
+        }
+
+        // Success: consume the code, then find-or-create the user.
+        await db.delete(emailCodes).where(eq(emailCodes.email, email));
+        const [existing] = await db
+          .select({ id: users.id, name: users.name, email: users.email })
+          .from(users)
+          .where(eq(users.email, email))
+          .limit(1);
+        if (existing) return existing;
+
+        const [created] = await db
+          .insert(users)
+          .values({
+            id: nanoid(),
+            name: email.split("@")[0],
+            email,
+            // Unusable hash — passwordless accounts never sign in by password.
+            passwordHash: bcrypt.hashSync(nanoid(32), 12),
+          })
+          .returning({ id: users.id, name: users.name, email: users.email });
+        return created;
       },
     }),
   ],

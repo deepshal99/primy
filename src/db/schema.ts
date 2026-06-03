@@ -418,6 +418,19 @@ export const migrationLogs = pgTable(
   }
 );
 
+// ── Email login codes (passwordless auth) ──
+//
+// One active 6-digit code per email (PK = email; a new request upserts/replaces
+// the prior code). Code is stored bcrypt-hashed; verified by the "email-code"
+// auth provider. Short-lived (10 min) with an attempts cap to bound brute force.
+export const emailCodes = pgTable("email_codes", {
+  email: text("email").primaryKey(),
+  codeHash: text("code_hash").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  attempts: integer("attempts").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // ── Organizations (the company tier) ──
 //
 // A user belongs to at most one org (enforced in app logic + a unique index
