@@ -25,62 +25,6 @@ export function LogoMark({ size = 22, className, style }: { size?: number; class
   );
 }
 
-/**
- * BrandBars — the four-bar Primy motif reborn as a live status glyph. Same DNA
- * as the LogoMark (four rounded bars in the brand's tall-tall-mid-short rhythm),
- * upright so it can animate as a calm equalizer. Three states:
- *   - "active": amber bars do a gentle staggered wave (the work is happening)
- *   - "done":   deep-amber bars come to rest (step complete)
- *   - "pending": faint ink bars, low and still (not started)
- * Animation lives in motion.css (.brand-bars), transform-only + reduced-motion safe.
- */
-export function BrandBars({
-  state,
-  size = 16,
-  className,
-}: {
-  state: "pending" | "active" | "done";
-  size?: number;
-  className?: string;
-}) {
-  // Rest heights echo the LogoMark rhythm (med, tall, tall-ish, short).
-  const heights = [0.55, 1, 0.82, 0.48];
-  const color =
-    state === "done"
-      ? "var(--accent-amber-deep, #B87426)"
-      : state === "active"
-        ? "var(--accent-amber, #FFB43F)"
-        : "var(--ink-4)";
-  return (
-    <span
-      className={`brand-bars${className ? ` ${className}` : ""}`}
-      data-state={state}
-      aria-hidden
-      style={{
-        display: "inline-flex",
-        alignItems: "flex-end",
-        gap: Math.max(1, Math.round(size * 0.11)),
-        width: size,
-        height: size,
-        opacity: state === "pending" ? 0.55 : 1,
-      }}
-    >
-      {heights.map((h, i) => (
-        <span
-          key={i}
-          className="brand-bars-bar"
-          style={{
-            width: Math.max(2, Math.round(size * 0.16)),
-            height: `${h * 100}%`,
-            borderRadius: 999,
-            background: color,
-          }}
-        />
-      ))}
-    </span>
-  );
-}
-
 export function Logo() {
   return (
     <div className="flex items-center gap-2 cursor-default select-none">

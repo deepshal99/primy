@@ -1,12 +1,43 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BrandBars } from "@/components/shared/Logo";
+import { Check, Loader2 } from "lucide-react";
 import {
   StreamTask,
   PHASE_SCRIPTS,
   activePhaseIndex,
 } from "@/lib/streamPhases";
+
+/** A clean circular step badge: filled check (done), spinner (active), hollow ring (pending). */
+function StepStatus({ state }: { state: "pending" | "active" | "done" }) {
+  if (state === "done") {
+    return (
+      <span
+        className="flex items-center justify-center w-4 h-4 rounded-full flex-shrink-0"
+        style={{ background: "var(--accent-amber-deep, #B87426)" }}
+      >
+        <Check className="w-2.5 h-2.5" strokeWidth={3} style={{ color: "#fff" }} aria-hidden />
+      </span>
+    );
+  }
+  if (state === "active") {
+    return (
+      <Loader2
+        className="w-4 h-4 flex-shrink-0 animate-spin"
+        strokeWidth={2.25}
+        style={{ color: "var(--accent-amber, #FFB43F)" }}
+        aria-hidden
+      />
+    );
+  }
+  return (
+    <span
+      className="w-4 h-4 rounded-full flex-shrink-0"
+      style={{ border: "1.5px solid var(--border-strong)" }}
+      aria-hidden
+    />
+  );
+}
 
 /**
  * Task-aware phased loading shown while the model streams. Renders a short
@@ -65,9 +96,7 @@ export function StreamPhases({
         const state = i < activeIndex ? "done" : i === activeIndex ? "active" : "pending";
         return (
           <div key={p.id} className="flex items-center gap-2.5">
-            <span className="flex items-center justify-center w-4 h-4 flex-shrink-0">
-              <BrandBars state={state} size={15} />
-            </span>
+            <StepStatus state={state} />
             <span
               className={state === "active" ? "text-[13px] font-medium shimmer-text" : "text-[13px]"}
               style={{
