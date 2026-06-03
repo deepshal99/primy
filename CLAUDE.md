@@ -153,7 +153,7 @@ Strut-inspired warm shell (overhaul locked 1 Jun 2026; reference `/preview/strut
 - **Candy accents** (used as **workspace identity dots**, not entity coding): blue `#4285F4`, pink `#F073A7`, purple `#8757D7`, teal `#67CEC8`. Blue `#4285F4` is the interactive/active/link color.
 - **Fonts**: Inter (UI/body, weights 400/450/500/600/700 — headings use 500), Geist Mono (code)
 - **Entity colors** (board/kanban grouping only; **entity icons are monochrome** `var(--icon)`): doc blue `#4285F4`, sheet forest `#42c366`, deck amber `#FFAD45`, page purple `#8757D7`
-- **Surfaces**: warm near-white `#FCFBF8` base, card `#FFFDFB`, sidebar `#F7F7F4`, canvas `#F3F2EF`. Full `.dark` block exists (Strut DARK palette) — shell chrome is dark-aware; reused editors/chat are still light-only (follow-on).
+- **Surfaces**: warm near-white `#FCFBF8` base, card `#FFFDFB`, sidebar `#F7F7F4`, canvas `#F3F2EF`. Full `.dark` block exists (Strut DARK palette) and is now **end-to-end across the authenticated app** (shell, chat, board, settings/billing modals, doc/sheet/deck/page chrome). Toggle = `useDarkMode` (`.dark` on `<html>`, persisted `primy:theme`); an anti-FOUC inline script in `layout.tsx` applies it before first paint. **Dark adapts only via tokens** — use CSS vars / semantic Tailwind classes (`bg-card`, `text-muted-foreground`, `border-border`, `var(--ink)`…), NEVER hardcoded literals (`bg-white`, `text-[#171717]`). Two deliberate exceptions stay light: **content "paper"** (rendered deck slides, page iframe, doc-page illustration thumbnails) and **public marketing/auth/share pages** (dark toggle isn't reachable pre-auth). The **Univer sheet grid follows dark mode** via `univerAPI.toggleDarkMode()` synced to the theme (`SheetView.tsx`); the public read-only sheet (`SheetViewReadOnly`, share pages only) stays light.
 - **Borders**: `rgba(24,24,22,0.08)` default (`--border`), `rgba(24,24,22,0.12)` strong (`--border-strong`), `rgba(24,24,22,0.04)` faint — alpha, NOT hex.
 - **Text hierarchy** (`--ink` ramp): `#171716` primary / `#3B3A37` secondary / `#706E68` tertiary / `#B9B6AE` muted.
 - **Shadows**: `--shadow-card` / `--shadow-lift` / `--shadow-pane` (warm, ink-tinted). Use `.press` / `.lift` / `.hover-row` utilities for interaction feel.
@@ -225,7 +225,7 @@ Solo founders, marketers, SMB operators, and students who need to create documen
 ### Aesthetic Direction
 - **References**: Linear (clean, fast, sharp UI), Pitch.com (polished, warm, presentation-quality)
 - **Anti-references**: Google Docs (bland, institutional, dated)
-- **Theme**: Warm near-white surfaces, black brand + amber accent, generous whitespace, alpha-based borders. A `.dark` palette exists for the shell chrome (editors/chat are light-only for now).
+- **Theme**: Warm near-white surfaces, black brand + amber accent, generous whitespace, alpha-based borders. A full `.dark` palette ships end-to-end across the authenticated app (content "paper" and public pages stay light by design).
 - **Typography**: Inter for both headings (weight 500) and body (clarity + readability), Geist Mono for code. (The earlier Degular/JetBrains-Mono direction was dropped in the locked overhaul.)
 - **Motion**: Spring-based entrances, fast micro-interactions (120ms), staggered reveals. Always respect `prefers-reduced-motion`.
 

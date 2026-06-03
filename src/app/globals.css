@@ -60,6 +60,7 @@
   --ink-4: #B9B6AE;
   --icon: #585753;
   --accent-soft: #F1F0ED;            /* pill / soft-chip background */
+  --hover-fill: rgba(24,24,22,0.055); /* subtle interactive hover wash (rows, icon buttons) */
   --border-strong: rgba(24,24,22,0.12);
   --accent-amber: #FFB43F;           /* warm brand accent (AI dot, highlights) */
   --accent-amber-deep: #B87426;
@@ -273,6 +274,7 @@
   --ink-4: #615C54;
   --icon: #8E8980;
   --accent-soft: rgba(242,168,78,0.15);
+  --hover-fill: rgba(255,252,245,0.09);
   --border-strong: rgba(255,252,245,0.16);
   --accent-amber: #F2A84E;
   --accent-amber-deep: #F2A84E;
@@ -714,7 +716,13 @@ html, body { height: 100%; margin: 0; padding: 0; }
 .lift:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); }
 .lift:active { transform: translateY(0) scale(0.995); }
 .hover-row { transition: background-color var(--duration-fast) var(--ease-default), color var(--duration-fast) var(--ease-default); }
-.hover-row:hover { background-color: var(--accent); }
+.hover-row:hover { background-color: var(--hover-fill); }
+/* icon-hover = square/round icon buttons (toolbar + header icons). Subtle wash
+   on the button + the glyph deepens to full ink. Pairs with .press. */
+.icon-hover { transition: background-color var(--duration-fast) var(--ease-default), color var(--duration-fast) var(--ease-default); }
+@media (hover: hover) {
+  .icon-hover:hover { background-color: var(--hover-fill); color: var(--ink); }
+}
 
 /* ── Transition utilities ─────────────
    Use these instead of raw `transition: all duration-N`.

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { DialRoot } from "dialkit";
 import { AppToaster } from "@/components/ui/AppToaster";
+import { ConfirmHost } from "@/lib/confirm";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import "dialkit/styles.css";
@@ -30,7 +31,7 @@ export default function RootLayout({
             marketing/auth pages are hardcoded light and ignore the .dark class. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{if(localStorage.getItem('primy:theme')==='dark')document.documentElement.classList.add('dark')}catch(e){}`,
+            __html: `try{var t=localStorage.getItem('primy:theme');if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark')}catch(e){}`,
           }}
         />
       </head>
@@ -41,6 +42,7 @@ export default function RootLayout({
           </SessionProvider>
         </QueryProvider>
         <AppToaster />
+        <ConfirmHost />
         <DialRoot position="bottom-right" defaultOpen={false} />
       </body>
     </html>

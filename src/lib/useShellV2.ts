@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getStoredTheme, resolveDark, setThemePersisted } from "@/lib/theme";
 
 /**
  * Shell V2 flag — the Strut-inspired overhaul shell.
@@ -52,36 +53,28 @@ export function useShellV2(): boolean {
 }
 
 /**
- * Dark-mode toggle for the overhaul shell. Adds/removes `.dark` on
- * <html> (activating the `.dark` token block in globals.css) and persists.
+ * Sidebar quick-toggle for the overhaul shell — a binary light/dark flip that
+ * delegates to the shared theme module (`@/lib/theme`) so it stays in sync with
+ * the Settings → Appearance control (Light / Dark / System). Toggling here sets
+ * an explicit light/dark (overriding "system"), which is the expected behaviour
+ * for a one-tap switch.
  */
-const THEME_KEY = "primy:theme";
-
 export function useDarkMode(): [boolean, () => void] {
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(THEME_KEY);
-      const isDark = stored === "dark";
-      setDark(isDark);
-      document.documentElement.classList.toggle("dark", isDark);
-    } catch {
-      /* ignore */
-    }
+    const sync = () => setDark(resolveDark(getStoredTheme()));
+    sync();
+    window.addEventListener("primy:themechange", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("primy:themechange", sync);
+      window.removeEventListener("storage", sync);
+    };
   }, []);
 
   const toggle = () => {
-    setDark((prev) => {
-      const next = !prev;
-      try {
-        window.localStorage.setItem(THEME_KEY, next ? "dark" : "light");
-        document.documentElement.classList.toggle("dark", next);
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
+    setThemePersisted(resolveDark(getStoredTheme()) ? "light" : "dark");
   };
 
   return [dark, toggle];

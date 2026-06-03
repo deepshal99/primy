@@ -15,9 +15,9 @@ interface SearchResult {
 }
 
 const ENTITY_CONFIG: Record<SearchResult["type"], { label: string; section: string; color: string; Icon: typeof FileText }> = {
-  ku:      { label: "Document",     section: "Documents",      color: "#4a7aed", Icon: FileText },
-  table:   { label: "Spreadsheet",  section: "Spreadsheets",   color: "#2e9e47", Icon: Table2 },
-  deck:    { label: "Presentation", section: "Presentations",  color: "#d4582a", Icon: Presentation },
+  ku:      { label: "Document",     section: "Documents",      color: "#4285F4", Icon: FileText },
+  table:   { label: "Spreadsheet",  section: "Spreadsheets",   color: "#42C366", Icon: Table2 },
+  deck:    { label: "Presentation", section: "Presentations",  color: "#FFAD45", Icon: Presentation },
 };
 
 export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -240,13 +240,13 @@ export function SearchDialog({ open, onClose }: { open: boolean; onClose: () => 
                       strokeWidth={1.75}
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-foreground truncate">
-                        {item.title}
+                      <div className="text-[13.5px] font-medium text-foreground truncate">
+                        {item.title?.trim() || "Untitled"}
+                      </div>
+                      <div className="text-[11.5px] text-muted-foreground truncate">
+                        {config.label} · {item.projectTitle}
                       </div>
                     </div>
-                    <span className="text-xs text-muted-foreground flex-shrink-0">
-                      {config.label}
-                    </span>
                     {isHighlighted && (
                       <kbd className="flex items-center px-1.5 py-0.5 rounded bg-muted text-[10px] text-muted-foreground flex-shrink-0" style={{ fontWeight: 500 }}>
                         <CornerDownLeft className="w-2.5 h-2.5" strokeWidth={2} />

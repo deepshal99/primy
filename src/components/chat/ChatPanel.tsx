@@ -683,13 +683,13 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
           <div className="flex-1" />
           {onToggleExpand && (
             <button onClick={onToggleExpand} title={expanded ? "Restore" : "Expand chat"}
-              className="flex items-center justify-center w-7 h-7 rounded-[7px] press" style={{ color: "var(--icon, #585753)" }}>
+              className="flex items-center justify-center w-7 h-7 rounded-[7px] press icon-hover" style={{ color: "var(--icon, #585753)" }}>
               {expanded ? <Minimize2 size={15} /> : <Maximize2 size={14} />}
             </button>
           )}
           {onCollapse && (
             <button onClick={onCollapse} title="Hide chat"
-              className="flex items-center justify-center w-7 h-7 rounded-[7px] press" style={{ color: "var(--icon, #585753)" }}>
+              className="flex items-center justify-center w-7 h-7 rounded-[7px] press icon-hover" style={{ color: "var(--icon, #585753)" }}>
               <PanelRightClose size={15} />
             </button>
           )}

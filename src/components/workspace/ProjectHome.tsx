@@ -20,6 +20,7 @@ import {
   SearchX,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store";
+import { confirmDialog } from "@/lib/confirm";
 import { cn } from "@/lib/cn";
 import { toast } from "sonner";
 import { useCanEdit } from "@/lib/useCanEdit";
@@ -303,9 +304,10 @@ export function ProjectHome() {
     else if (entity.type === "page") duplicatePage(project.id, entity.id);
   };
 
-  const handleDelete = (entity: FileEntity) => {
+  const handleDelete = async (entity: FileEntity) => {
     if (!canEdit) { toast.error("You have view-only access to this project."); return; }
-    if (!window.confirm(`Delete "${entity.title}"? This cannot be undone.`)) return;
+    const ok = await confirmDialog({ title: `Delete "${entity.title || "Untitled"}"?`, message: "This cannot be undone.", confirmLabel: "Delete", tone: "danger" });
+    if (!ok) return;
     if (entity.type === "deck") deleteDeck(project.id, entity.id);
     else if (entity.type === "ku") deleteKnowledgeUnit(project.id, entity.id);
     else if (entity.type === "page") deletePage(project.id, entity.id);

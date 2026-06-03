@@ -2,6 +2,7 @@
 
 import { useRef, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
+import { getStoredTheme, resolveDark } from "@/lib/theme";
 import { Upload, ClipboardPaste, Wand2 } from "lucide-react";
 import { SheetAIBar } from "./SheetAIBar";
 import type { CellData, CellValue, SheetData } from "@/lib/types";
@@ -160,6 +161,20 @@ export function SheetView() {
   const entityKey = `${currentEntityId}-${currentEntityType}`;
   const prevEntityRef = useRef(entityKey);
 
+  // Keep the Univer grid theme in sync with the app's light/dark toggle.
+  useEffect(() => {
+    const sync = () => {
+      try { univerRef.current?.univerAPI.toggleDarkMode(resolveDark(getStoredTheme())); } catch { /* noop */ }
+    };
+    window.addEventListener("primy:themechange", sync);
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    mq.addEventListener("change", sync);
+    return () => {
+      window.removeEventListener("primy:themechange", sync);
+      mq.removeEventListener("change", sync);
+    };
+  }, []);
+
   // Create/destroy Univer instance
   useEffect(() => {
     if (!containerRef.current) return;
@@ -206,6 +221,9 @@ export function SheetView() {
       univerAPI.createWorkbook(workbookData);
       univerRef.current = { univer, univerAPI };
       univerApiRef = univerAPI;
+
+      // Match the grid to the app theme (Univer renders its own canvas theme).
+      try { univerAPI.toggleDarkMode(resolveDark(getStoredTheme())); } catch { /* older Univer */ }
 
       // Apply any pending sheet images from AI operations
       const pendingImages = useAppStore.getState().pendingSheetImages;

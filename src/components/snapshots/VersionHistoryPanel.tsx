@@ -10,6 +10,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { confirmDialog } from "@/lib/confirm";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
@@ -146,9 +147,11 @@ export function VersionHistoryPanel({
     async (snapshotId: string, snapshotLabel: string | null, snapshotTs: number) => {
       const labelText =
         snapshotLabel?.trim() || formatAbsolute(snapshotTs) || "this version";
-      const ok = confirm(
-        `Restore to "${labelText}"?\n\nYour current state will be saved as a new version first, so you can undo if needed.`
-      );
+      const ok = await confirmDialog({
+        title: `Restore to "${labelText}"?`,
+        message: "Your current state is saved as a new version first, so you can undo if needed.",
+        confirmLabel: "Restore",
+      });
       if (!ok) return;
 
       setRestoringId(snapshotId);

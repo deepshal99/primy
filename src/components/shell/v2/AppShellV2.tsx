@@ -17,6 +17,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
+import { cn } from "@/lib/cn";
 import {
   Inbox, PenLine, Search, Plus, FileText, Table2, Presentation,
   LayoutTemplate, MoreHorizontal, LayoutGrid, CalendarDays,
@@ -40,6 +41,7 @@ import { RecentsView } from "@/components/shell/v2/RecentsView";
 import { QuickNotesView } from "@/components/shell/v2/QuickNotesView";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LogoMark } from "@/components/shared/Logo";
+import { confirmDialog } from "@/lib/confirm";
 import { KeyboardShortcuts } from "@/components/shared/KeyboardShortcuts";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { ShareModal } from "@/components/settings/ShareModal";
@@ -311,7 +313,7 @@ export function AppShellV2() {
           <LogoMark size={22} style={{ color: "var(--ink)" }} className="flex-shrink-0" />
           <span className="text-[18px] font-semibold tracking-[-0.035em]" style={{ color: "var(--ink)" }}>Primy</span>
           <button onClick={toggleDark} title="Toggle theme"
-            className="ml-auto flex items-center justify-center w-7 h-7 rounded-[7px] press" style={{ color: "var(--icon)" }}>
+            className="ml-auto flex items-center justify-center w-7 h-7 rounded-[7px] press icon-hover" style={{ color: "var(--icon)" }}>
             {dark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
         </div>
@@ -326,7 +328,7 @@ export function AppShellV2() {
           <div className="flex items-center justify-between px-2 mb-2.5">
             <span className="text-[13px] font-medium" style={{ color: "var(--ink-3)" }}>Workspaces</span>
             <button onClick={newWorkspace}
-              className="flex items-center justify-center w-5 h-5 rounded-[5px] press" style={{ color: "var(--icon)" }} title="New project">
+              className="flex items-center justify-center w-5 h-5 rounded-[5px] press icon-hover" style={{ color: "var(--icon)" }} title="New project">
               <Plus size={15} />
             </button>
           </div>
@@ -469,7 +471,7 @@ export function AppShellV2() {
                     const on = view === m;
                     return (
                       <button key={m} onClick={() => setView(m)}
-                        className="flex items-center justify-center w-8 h-8 rounded-full press"
+                        className={`flex items-center justify-center w-8 h-8 rounded-full press ${!on ? "icon-hover" : ""}`}
                         style={{ background: on ? "var(--card)" : "transparent", color: on ? "var(--ink)" : "var(--icon)", boxShadow: on ? "0 1px 6px rgba(24,24,22,0.10)" : undefined }}>
                         <Ic size={16} />
                       </button>
@@ -481,7 +483,7 @@ export function AppShellV2() {
 
             {!chatOpen && (
               <button onClick={() => setChatOpen(true)} title="Show chat"
-                className="flex items-center justify-center w-8 h-8 rounded-[8px] press" style={{ color: "var(--icon)" }}>
+                className="flex items-center justify-center w-8 h-8 rounded-[8px] press icon-hover" style={{ color: "var(--icon)" }}>
                 <PanelRightOpen size={16} />
               </button>
             )}
@@ -537,7 +539,7 @@ export function AppShellV2() {
               <Share2 size={13} /> Share &amp; invite
             </button>
             <div className="my-1 h-px" style={{ background: "var(--border)" }} />
-            <button onClick={() => { if (confirm(`Delete workspace "${wsMenu.title}"? This removes all its files.`)) { useAppStore.getState().deleteProject(wsMenu.id); } setWsMenu(null); }}
+            <button onClick={() => { const { id, title } = wsMenu; setWsMenu(null); confirmDialog({ title: `Delete "${title}"?`, message: "This permanently removes the workspace and all its files.", confirmLabel: "Delete", tone: "danger" }).then((ok) => { if (ok) useAppStore.getState().deleteProject(id); }); }}
               className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--destructive)" }}>
               <Trash2 size={13} /> Delete workspace
             </button>
@@ -662,7 +664,7 @@ function FolderSection({ projectId, folder, list, folders }: { projectId: string
                     <Pencil size={13} /> Rename
                   </button>
                   <div className="my-1 h-px" style={{ background: "var(--border)" }} />
-                  <button onClick={() => { setMenuOpen(false); if (confirm(`Delete folder "${folder.name}"? Its files move to Unfiled.`)) useAppStore.getState().deleteFolder(projectId, folder.id); }}
+                  <button onClick={() => { setMenuOpen(false); confirmDialog({ title: `Delete folder "${folder.name}"?`, message: "Its files move to Unfiled (they are not deleted).", confirmLabel: "Delete folder", tone: "danger" }).then((ok) => { if (ok) useAppStore.getState().deleteFolder(projectId, folder.id); }); }}
                     className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--destructive)" }}>
                     <Trash2 size={13} /> Delete folder
                   </button>
@@ -671,15 +673,13 @@ function FolderSection({ projectId, folder, list, folders }: { projectId: string
             )}
           </div>
         )}
-        <button onClick={() => createInFolder(projectId, "ku", folder?.id ?? null)}
-          className="flex items-center justify-center w-6 h-6 rounded-[6px] press opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--icon)" }} title="New doc here">
-          <Plus size={17} />
-        </button>
+        <CreateButton pick={{ projectId, folderId: folder?.id ?? null }} />
       </div>
-      <div className="grid gap-4 px-9 pb-10" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(216px, 1fr))" }}>
-        <NewCard pick={{ projectId, folderId: folder?.id ?? null }} />
-        {list.map((it, i) => <EntityCard key={it.id} item={it} projectId={projectId} folders={folders} index={i} />)}
-      </div>
+      {list.length > 0 && (
+        <div className="grid gap-4 px-9 pb-10" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(216px, 1fr))" }}>
+          {list.map((it, i) => <EntityCard key={it.id} item={it} projectId={projectId} folders={folders} index={i} />)}
+        </div>
+      )}
     </section>
   );
 }
@@ -729,20 +729,18 @@ function BoardView({ projectId, items, folders }: { projectId: string; items: It
         const TIcon = ENTITY[t.type].Icon;
         return (
           <section key={t.type} style={{ borderTop: "1px solid var(--border)" }}>
-            <div className="flex items-center gap-2.5 h-[72px] group px-8">
+            <div className="flex items-center gap-2.5 h-[72px] px-8">
               <TIcon size={16} style={{ color: t.color }} />
               <span className="text-[15px] font-semibold tracking-[-0.005em]" style={{ color: "var(--ink)" }}>{t.label}</span>
               {list.length > 0 && <span className="text-[12px] tabular-nums" style={{ color: "var(--ink-4)" }}>{list.length}</span>}
               <div className="flex-1" />
-              <button onClick={() => createInProject(projectId, t.type)}
-                className="flex items-center justify-center w-6 h-6 rounded-[6px] press opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--icon)" }}>
-                <Plus size={17} />
-              </button>
+              <CreateButton label={t.label} onClick={() => createInProject(projectId, t.type)} />
             </div>
-            <div className="grid gap-4 px-9 pb-10" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(216px, 1fr))" }}>
-              <NewCard label={ENTITY[t.type].label} onClick={() => createInProject(projectId, t.type)} />
-              {list.map((it, i) => <EntityCard key={it.id} item={it} projectId={projectId} folders={folders} index={i} />)}
-            </div>
+            {list.length > 0 && (
+              <div className="grid gap-4 px-9 pb-10" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(216px, 1fr))" }}>
+                {list.map((it, i) => <EntityCard key={it.id} item={it} projectId={projectId} folders={folders} index={i} />)}
+              </div>
+            )}
           </section>
         );
       })}
@@ -768,6 +766,12 @@ function TimelineView({ projectId, items, folders }: { projectId: string; items:
   }
   return (
     <div className="max-w-[1100px] mx-auto px-9 py-8">
+      <div className="flex items-center gap-2.5 mb-6">
+        <span className="text-[15px] font-semibold tracking-[-0.005em]" style={{ color: "var(--ink)" }}>All files</span>
+        {items.length > 0 && <span className="text-[12px] tabular-nums" style={{ color: "var(--ink-4)" }}>{items.length}</span>}
+        <div className="flex-1" />
+        <CreateButton pick={{ projectId, folderId: null }} />
+      </div>
       {buckets.map((b) => b.list.length > 0 && (
         <section key={b.key} className="mb-9">
           <div className="flex items-center gap-3 mb-3.5">
@@ -826,7 +830,7 @@ function EntityCard({ item, projectId, folders, index = 0 }: { item: Item; proje
         <div className="flex-1 min-h-0 overflow-hidden flex flex-col"><EntityPreview item={item} /></div>
         <div className="flex items-center gap-2 mt-3.5 flex-shrink-0 relative z-10">
           <span className="text-[11px]" style={{ color: "var(--ink-3)" }}>{relTime(item.updatedAt)}</span>
-          <span className="ml-auto inline-flex items-center gap-1.5 h-[24px] px-2.5 rounded-full text-[12px] font-medium" style={{ background: e.chipBg, color: e.chipText }}>
+          <span className="ml-auto inline-flex items-center gap-1.5 h-[24px] px-2.5 rounded-full text-[12px] font-medium" style={{ background: e.tint, color: e.color }}>
             <e.Icon size={12.5} /> {e.label}
           </span>
         </div>
@@ -851,19 +855,21 @@ function CardMenu({ item, projectId, folders, onRename, onClose }: { item: Item;
         <button onClick={onRename} className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--ink-2)" }}>
           <Pencil size={13} /> Rename
         </button>
-        {/* Move to — opens a nested popover (left of this menu) with the folders */}
-        <div className="relative">
+        {/* Move to — expands inline (downward) rather than flying out sideways,
+            so it can never be clipped by the body scroll container's overflow.
+            Side-flyout submenus are the clip-prone pattern; avoid them here. */}
+        <div>
           <button onClick={() => setShowMove((v) => !v)}
             className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row"
             style={{ color: "var(--ink-2)", background: showMove ? "var(--sidebar-accent)" : undefined }}>
             <FolderInput size={13} /> Move to
-            <ChevronRight size={14} className="ml-auto" style={{ color: "var(--ink-4)" }} />
+            <ChevronRight size={14} className="ml-auto transition-transform duration-200" style={{ color: "var(--ink-4)", transform: showMove ? "rotate(90deg)" : "none" }} />
           </button>
           {showMove && (
-            <div className="absolute right-full top-0 mr-1.5 z-50 w-48 rounded-[11px] p-1.5" style={pane}>
+            <div className="mt-0.5 ml-2.5 pl-2 border-l" style={{ borderColor: "var(--border)" }}>
               <button onClick={() => move(null)} className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: item.folderId ? "var(--ink-2)" : "var(--ink)" }}>
-                <span className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--ink-4)" }} /> Unfiled
-                {!item.folderId && <Check size={13} className="ml-auto" style={{ color: "var(--accent-amber)" }} />}
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: "var(--ink-4)" }} /> Unfiled
+                {!item.folderId && <Check size={13} className="ml-auto flex-shrink-0" style={{ color: "var(--accent-amber)" }} />}
               </button>
               {folders.map((f) => (
                 <button key={f.id} onClick={() => move(f.id)} className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--ink-2)" }}>
@@ -871,7 +877,6 @@ function CardMenu({ item, projectId, folders, onRename, onClose }: { item: Item;
                   {item.folderId === f.id && <Check size={13} className="ml-auto flex-shrink-0" style={{ color: "var(--accent-amber)" }} />}
                 </button>
               ))}
-              <div className="my-1 h-px" style={{ background: "var(--border)" }} />
               <button onClick={() => { const f = useAppStore.getState().createFolder(projectId); useAppStore.getState().moveEntityToFolder(projectId, item.id, item.type, f.id); onClose(); }}
                 className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--ink-3)" }}>
                 <Plus size={13} /> New folder
@@ -880,7 +885,7 @@ function CardMenu({ item, projectId, folders, onRename, onClose }: { item: Item;
           )}
         </div>
         <div className="my-1 h-px" style={{ background: "var(--border)" }} />
-        <button onClick={() => { if (confirm(`Delete "${item.title}"?`)) deleteEntity(projectId, item); onClose(); }}
+        <button onClick={() => { onClose(); confirmDialog({ title: `Delete "${item.title || "Untitled"}"?`, message: "This cannot be undone.", confirmLabel: "Delete", tone: "danger" }).then((ok) => { if (ok) deleteEntity(projectId, item); }); }}
           className="flex items-center gap-2.5 w-full h-8 px-2.5 rounded-[8px] text-[13px] press hover-row" style={{ color: "var(--destructive)" }}>
           <Trash2 size={13} /> Delete
         </button>
@@ -985,24 +990,23 @@ function EntityPreview({ item }: { item: Item }) {
  *    sections, where a folder holds mixed types). Creation lives entirely on
  *    the board — there's intentionally no create action in the top bar.
  */
-function NewCard({ label, onClick, pick }: { label?: string; onClick?: () => void; pick?: { projectId: string; folderId: string | null } }) {
-  const s = useBoardStyle();
+/* Compact create affordance that lives in a section header. With `onClick`
+   it creates one type directly (type sections); with `pick` it opens a small
+   menu to choose the type (folders, which hold mixed entities). Replaces the
+   old full-size "New" tile so real files are the only large cards on screen. */
+function CreateButton({ label, onClick, pick }: { label?: string; onClick?: () => void; pick?: { projectId: string; folderId: string | null } }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="relative" style={{ height: s.height }}>
+    <div className="relative">
       <button onClick={() => { if (pick) setOpen((v) => !v); else onClick?.(); }}
-        className="w-full h-full overflow-hidden flex flex-col items-center justify-center gap-2.5 press lift"
-        style={{ border: "1px solid var(--border-strong)", color: "var(--ink)", background: "linear-gradient(155deg, #FFFDFB 0%, #EEF4FF 100%)", borderRadius: s.radius }}>
-        <span className="flex items-center justify-center w-14 h-14 rounded-full bg-card" style={{ boxShadow: "var(--shadow-card)" }}>
-          <Plus size={26} strokeWidth={1.8} style={{ color: "var(--ink-2)" }} />
-        </span>
-        <span className="text-[14px] font-medium">Create</span>
-        <span className="text-[12px]" style={{ color: "var(--ink-3)" }}>{pick ? "New file" : `New ${label}`}</span>
+        title={pick ? "New file" : `New ${label}`}
+        className="flex items-center justify-center w-7 h-7 rounded-[8px] press hover-row" style={{ color: "var(--icon)" }}>
+        <Plus size={17} />
       </button>
       {open && pick && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-1/2 -translate-x-1/2 top-1/2 z-50 w-44 rounded-[11px] p-1.5"
+          <div className="absolute right-0 top-9 z-50 w-44 rounded-[11px] p-1.5 menu-pop"
             style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
             {TYPE_ORDER.map((t) => {
               const e = ENTITY[t.type];

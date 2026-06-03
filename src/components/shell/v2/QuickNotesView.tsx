@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PenLine, Plus, Search, Trash2, FolderInput, SearchX, PanelRightOpen } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "@/lib/store";
+import { confirmDialog } from "@/lib/confirm";
 import { WorkspacePanel } from "@/components/workspace/WorkspacePanel";
 import { EmptyState } from "@/components/ui/EmptyState";
 
@@ -188,7 +189,7 @@ export function QuickNotesView({ projectId, onExit, chatHidden, onShowChat }: { 
                   <div className="text-[12px] truncate mt-0.5" style={{ color: "var(--ink-4)" }}>{notePreview(n.title, n.content)}</div>
                   <div className="text-[11px] mt-1 tabular-nums" style={{ color: "var(--ink-4)" }}>{relTime(n.updatedAt)}</div>
                   <button
-                    onClick={(e) => { e.stopPropagation(); if (confirm("Delete this note?")) useAppStore.getState().deleteKnowledgeUnit(projectId, n.id); }}
+                    onClick={(e) => { e.stopPropagation(); confirmDialog({ title: "Delete this note?", message: "This cannot be undone.", confirmLabel: "Delete", tone: "danger" }).then((ok) => { if (ok) useAppStore.getState().deleteKnowledgeUnit(projectId, n.id); }); }}
                     title="Delete note"
                     className="absolute right-2 top-2 flex items-center justify-center w-6 h-6 rounded-[6px] opacity-0 group-hover:opacity-100 transition-opacity press"
                     style={{ color: "var(--ink-4)" }}>

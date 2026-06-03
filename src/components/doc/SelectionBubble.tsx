@@ -20,28 +20,30 @@ type BubbleState = "idle" | "selecting" | "asking" | "acting" | "streaming" | "r
 // data tidy-ups. (The bubble mounts in the Plate editor today — the registry
 // keeps the other surfaces' sets ready as inline AI expands to them.)
 type Surface = "doc" | "page" | "sheet";
-type InlineAction = { key: string; label: string; icon: typeof Pencil; color: string; bg: string };
+// `color` is a CSS var so the accent brightens correctly in dark mode; the hover
+// fill is derived from it (translucent) at render time.
+type InlineAction = { key: string; label: string; icon: typeof Pencil; color: string };
 
 const ACTION_SETS: Record<Surface, InlineAction[]> = {
   doc: [
-    { key: "improve", label: "Improve", icon: Pencil, color: "#7c5cb8", bg: "#f3eefb" },
-    { key: "expand", label: "Expand", icon: ChevronsUpDown, color: "#3b6ad8", bg: "#edf2fd" },
-    { key: "shorten", label: "Shorten", icon: ChevronsDownUp, color: "#d97706", bg: "#fef6e7" },
+    { key: "improve", label: "Improve", icon: Pencil, color: "var(--accent-purple)" },
+    { key: "expand", label: "Expand", icon: ChevronsUpDown, color: "var(--accent-blue)" },
+    { key: "shorten", label: "Shorten", icon: ChevronsDownUp, color: "var(--accent-amber-deep)" },
   ],
   page: [
-    { key: "improve", label: "Improve copy", icon: Pencil, color: "#7c5cb8", bg: "#f3eefb" },
-    { key: "punchier", label: "Punchier", icon: ChevronsUpDown, color: "#3b6ad8", bg: "#edf2fd" },
-    { key: "shorten", label: "Shorten", icon: ChevronsDownUp, color: "#d97706", bg: "#fef6e7" },
+    { key: "improve", label: "Improve copy", icon: Pencil, color: "var(--accent-purple)" },
+    { key: "punchier", label: "Punchier", icon: ChevronsUpDown, color: "var(--accent-blue)" },
+    { key: "shorten", label: "Shorten", icon: ChevronsDownUp, color: "var(--accent-amber-deep)" },
   ],
   sheet: [
-    { key: "improve", label: "Clean up", icon: Pencil, color: "#7c5cb8", bg: "#f3eefb" },
-    { key: "shorten", label: "Shorten", icon: ChevronsDownUp, color: "#d97706", bg: "#fef6e7" },
+    { key: "improve", label: "Clean up", icon: Pencil, color: "var(--accent-purple)" },
+    { key: "shorten", label: "Shorten", icon: ChevronsDownUp, color: "var(--accent-amber-deep)" },
   ],
 };
 
 // "Ask AI" — the free-text path, shared across every surface. Kept separate so
 // it renders as a distinct affordance (opens an input rather than a fixed prompt).
-const ASK = { key: "ask", label: "Ask AI", icon: MessageSquare, color: "#7c5cb8", bg: "#f3eefb" } as const;
+const ASK = { key: "ask", label: "Ask AI", icon: MessageSquare, color: "var(--accent-purple)" } as const;
 
 const PROMPTS: Record<string, string> = {
   improve: "Improve this text for clarity, grammar, and flow. Keep the meaning and approximate length.",
@@ -370,8 +372,8 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
                 left: `${r.left}px`,
                 width: `${r.width}px`,
                 height: `${r.height}px`,
-                background: "rgba(66,133,244,0.18)",
-                boxShadow: "inset 0 0 0 1px rgba(66,133,244,0.12)",
+                background: "color-mix(in srgb, var(--accent-amber) 22%, transparent)",
+                boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--accent-amber) 26%, transparent)",
               }}
             />
           ))}
@@ -395,7 +397,7 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
       >
         {isActing ? (
           /* Compact loading pill while waiting for stream */
-          <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-card border border-border shadow-[0_8px_30px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.06)]">
+          <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-card border border-border shadow-[var(--shadow-pane)]">
             <Loader2
               className="w-3.5 h-3.5 animate-spin"
               style={{ color: activeData?.color || "#FFB43F" }}
@@ -407,7 +409,7 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
         ) : state === "result" || state === "streaming" ? (
           /* Result card — shown once stream data starts arriving */
           <div
-            className="rounded-xl overflow-hidden bg-card border border-border shadow-[0_8px_30px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.06)]"
+            className="rounded-xl overflow-hidden bg-card border border-border shadow-[var(--shadow-pane)]"
             style={{ width: "clamp(260px, 40vw, 340px)" }}
           >
             <div className="px-3.5 py-3 max-h-[160px] overflow-y-auto">
@@ -451,7 +453,7 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
           /* Ask AI — free-text instruction box */
           <div className="flex flex-col items-center">
             <div
-              className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-xl bg-card border border-border shadow-[0_8px_30px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.06)]"
+              className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-xl bg-card border border-border shadow-[var(--shadow-pane)]"
               style={{ width: "clamp(280px, 42vw, 360px)" }}
             >
               <ASK.icon className="w-4 h-4 flex-shrink-0" style={{ color: ASK.color }} strokeWidth={2} />
@@ -478,12 +480,12 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
             </div>
             {!flipped ? (
               <svg width="14" height="7" viewBox="0 0 14 7" fill="none" className="mt-[-0.5px]">
-                <path d="M5.586 5.586a2 2 0 002.828 0L14 0H0l5.586 5.586z" fill="white" />
+                <path d="M5.586 5.586a2 2 0 002.828 0L14 0H0l5.586 5.586z" fill="var(--card)" />
                 <path d="M0 0l5.586 5.586a2 2 0 002.828 0L14 0" stroke="var(--border)" strokeWidth="1" fill="none" />
               </svg>
             ) : (
               <svg width="14" height="7" viewBox="0 0 14 7" fill="none" className="mb-[-0.5px] rotate-180 order-first">
-                <path d="M5.586 5.586a2 2 0 002.828 0L14 0H0l5.586 5.586z" fill="white" />
+                <path d="M5.586 5.586a2 2 0 002.828 0L14 0H0l5.586 5.586z" fill="var(--card)" />
                 <path d="M0 0l5.586 5.586a2 2 0 002.828 0L14 0" stroke="var(--border)" strokeWidth="1" fill="none" />
               </svg>
             )}
@@ -491,7 +493,7 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
         ) : (
           /* Floating toolbar */
           <div className="flex flex-col items-center">
-            <div className="flex items-center rounded-xl overflow-hidden bg-card border border-border shadow-[0_8px_30px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.06)] p-1 gap-[3px]">
+            <div className="flex items-center rounded-xl overflow-hidden bg-card border border-border shadow-[var(--shadow-pane)] p-1 gap-[3px]">
               {actions.map((action) => {
                 const isHovered = hoveredAction === action.key;
                 return (
@@ -499,8 +501,8 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
                     key={action.key}
                     className="h-[30px] px-2.5 flex items-center gap-1.5 rounded-lg t-colors active:scale-[0.98] cursor-pointer whitespace-nowrap"
                     style={{
-                      background: isHovered ? action.bg : "transparent",
-                      color: isHovered ? action.color : "#6b6b80",
+                      background: isHovered ? `color-mix(in srgb, ${action.color} 16%, transparent)` : "transparent",
+                      color: isHovered ? action.color : "var(--ink-2)",
                     }}
                     onClick={() => run(PROMPTS[action.key], action.key)}
                     onMouseEnter={() => setHoveredAction(action.key)}
@@ -516,8 +518,8 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
               <button
                 className="h-[30px] px-2.5 flex items-center gap-1.5 rounded-lg t-colors active:scale-[0.98] cursor-pointer whitespace-nowrap"
                 style={{
-                  background: hoveredAction === ASK.key ? ASK.bg : "transparent",
-                  color: hoveredAction === ASK.key ? ASK.color : "#6b6b80",
+                  background: hoveredAction === ASK.key ? `color-mix(in srgb, ${ASK.color} 16%, transparent)` : "transparent",
+                  color: hoveredAction === ASK.key ? ASK.color : "var(--ink-2)",
                 }}
                 onClick={() => { setAskInput(""); setState("asking"); }}
                 onMouseEnter={() => setHoveredAction(ASK.key)}
@@ -530,13 +532,13 @@ export function SelectionBubble({ editor, containerRef }: SelectionBubbleProps) 
 
             {!flipped && (
               <svg width="14" height="7" viewBox="0 0 14 7" fill="none" className="mt-[-0.5px]">
-                <path d="M5.586 5.586a2 2 0 002.828 0L14 0H0l5.586 5.586z" fill="white" />
+                <path d="M5.586 5.586a2 2 0 002.828 0L14 0H0l5.586 5.586z" fill="var(--card)" />
                 <path d="M0 0l5.586 5.586a2 2 0 002.828 0L14 0" stroke="var(--border)" strokeWidth="1" fill="none" />
               </svg>
             )}
             {flipped && (
               <svg width="14" height="7" viewBox="0 0 14 7" fill="none" className="mb-[-0.5px] rotate-180 order-first">
-                <path d="M5.586 5.586a2 2 0 002.828 0L14 0H0l5.586 5.586z" fill="white" />
+                <path d="M5.586 5.586a2 2 0 002.828 0L14 0H0l5.586 5.586z" fill="var(--card)" />
                 <path d="M0 0l5.586 5.586a2 2 0 002.828 0L14 0" stroke="var(--border)" strokeWidth="1" fill="none" />
               </svg>
             )}
