@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { Loader2, Check, Eye, EyeOff, LogOut, ChevronDown, Crown, Sun, Moon, Monitor } from "lucide-react";
+import { Loader2, Check, Eye, EyeOff, LogOut, ChevronDown, Crown, Sun, Moon, Monitor, User, Users, CreditCard } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useTheme, type Theme } from "@/lib/theme";
 import {
@@ -25,6 +25,20 @@ const FIELD =
 const FIELD_STYLE: React.CSSProperties = {
   background: "var(--input-background)",
   borderColor: "var(--border)",
+};
+
+type SettingsTab = "account" | "team" | "billing";
+
+const TABS: { key: SettingsTab; label: string; Icon: typeof User }[] = [
+  { key: "account", label: "Account", Icon: User },
+  { key: "team", label: "Team", Icon: Users },
+  { key: "billing", label: "Plan & usage", Icon: CreditCard },
+];
+
+const TAB_META: Record<SettingsTab, { title: string; subtitle: string }> = {
+  account: { title: "Account", subtitle: "Your profile, appearance, and security." },
+  team: { title: "Team", subtitle: "Your organization and its members." },
+  billing: { title: "Plan & usage", subtitle: "Your plan and this month's usage." },
 };
 
 interface SettingsModalProps {
@@ -184,37 +198,55 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent
-        className="sm:max-w-[460px] p-0 gap-0 overflow-hidden border-0 shadow-none"
-        style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)", borderRadius: 14 }}
+        className="sm:max-w-[760px] p-0 gap-0 overflow-hidden border-0 shadow-none"
+        style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)", borderRadius: 16 }}
       >
-        <DialogHeader className="px-6 pt-5 pb-0 space-y-0">
-          <DialogTitle className="text-[16px] font-semibold tracking-[-0.01em]" style={{ color: "var(--ink)" }}>
-            Settings
-          </DialogTitle>
-          <DialogDescription className="sr-only">Manage your account settings</DialogDescription>
+        <DialogHeader className="sr-only">
+          <DialogTitle>Settings</DialogTitle>
+          <DialogDescription>Manage your account, team, and plan</DialogDescription>
         </DialogHeader>
 
-        {/* Tab rail — underline tabs in the warm shell language */}
-        <div className="px-6 mt-3.5 flex items-center gap-5" style={{ borderBottom: "1px solid var(--border)" }}>
-          {(["account", "team", "billing"] as const).map((t) => {
-            const active = activeTab === t;
-            return (
-              <button
-                key={t}
-                onClick={() => setActiveTab(t)}
-                className="relative -mb-px pb-2.5 text-[13px] font-medium press transition-colors"
-                style={{ color: active ? "var(--ink)" : "var(--ink-3)" }}
-              >
-                {t === "account" ? "Account" : t === "team" ? "Team" : "Billing"}
-                {active && (
-                  <span className="absolute left-0 right-0 bottom-0 h-[2px] rounded-full" style={{ background: "var(--ink)" }} />
-                )}
-              </button>
-            );
-          })}
-        </div>
+        <div className="flex" style={{ height: "min(80vh, 560px)" }}>
+          {/* Left nav rail */}
+          <aside
+            className="w-[200px] flex-shrink-0 flex flex-col gap-0.5 p-3"
+            style={{ background: "var(--sidebar)", borderRight: "1px solid var(--border)" }}
+          >
+            <p className="px-2.5 pt-1 pb-2.5 text-[12.5px] font-semibold tracking-[-0.01em]" style={{ color: "var(--ink-2)" }}>
+              Settings
+            </p>
+            {TABS.map(({ key, label, Icon }) => {
+              const active = activeTab === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className="flex items-center gap-2.5 h-9 px-2.5 rounded-[8px] text-[13px] font-medium press transition-colors"
+                  style={{
+                    background: active ? "var(--card)" : "transparent",
+                    color: active ? "var(--ink)" : "var(--ink-3)",
+                    boxShadow: active ? "var(--shadow-card)" : "none",
+                  }}
+                >
+                  <Icon className="w-4 h-4" strokeWidth={1.75} />
+                  {label}
+                </button>
+              );
+            })}
+          </aside>
 
-        <div className="px-6 py-5 max-h-[70vh] overflow-y-auto v2-scroll">
+          {/* Right column */}
+          <div className="flex-1 min-w-0 flex flex-col">
+            <div className="px-7 pt-6 pb-4">
+              <h2 className="text-[17px] font-semibold tracking-[-0.01em]" style={{ color: "var(--ink)" }}>
+                {TAB_META[activeTab].title}
+              </h2>
+              <p className="mt-0.5 text-[12.5px]" style={{ color: "var(--ink-3)" }}>
+                {TAB_META[activeTab].subtitle}
+              </p>
+            </div>
+
+            <div className="px-7 pb-7 flex-1 overflow-y-auto v2-scroll">
             {activeTab === "account" && (
               loading ? (
                 <div className="space-y-5" aria-label="Loading account">
@@ -375,7 +407,9 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             {activeTab === "team" && <TeamTabContent />}
 
             {activeTab === "billing" && <BillingTabContent />}
+            </div>
           </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
