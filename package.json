@@ -16,6 +16,7 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "migrate:phase0": "tsx scripts/apply-phase-0-orgs.ts",
+    "org:pro": "tsx scripts/set-org-pro.ts",
     "migrate:grace": "tsx scripts/grant-founding-member-grace.ts",
     "migrate:ssot": "tsx scripts/apply-team-ssot-schema.ts",
     "seed:demo": "tsx scripts/seed-demo-data.ts",
