@@ -215,6 +215,9 @@ export function PagePanel() {
           <textarea
             value={draft}
             onChange={(e) => {
+              // User typing in the HTML editor (AI/programmatic edits re-sync
+              // the draft via pageVersion, which does not fire onChange).
+              useAppStore.getState().noteEditorInteraction();
               setDraft(e.target.value);
               updatePageHtml(e.target.value);
             }}

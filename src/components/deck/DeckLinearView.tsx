@@ -96,6 +96,8 @@ export function DeckLinearView() {
   }, [slides.length]);
 
   const handleFieldEdit = useCallback((slideId: string, fieldId: string, newValue: string) => {
+    // User editing a slide text field — mark active editing.
+    useAppStore.getState().noteEditorInteraction();
     const newSlides = slides.map(s => {
       if (s.id !== slideId || !isHtmlSlide(s)) return s;
       const updatedFields = s.editableFields.map(f =>

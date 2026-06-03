@@ -16,6 +16,7 @@ import {
 import { Message, EntityType } from "@/lib/types";
 import { useAppStore } from "@/lib/store";
 import { MessageAttachments } from "./MessageAttachments";
+import { ArtifactWidgetList } from "./ArtifactWidget";
 import {
   Tooltip,
   TooltipTrigger,
@@ -24,8 +25,7 @@ import {
 
 function renderContentWithMentions(
   content: string,
-  mentionedEntities?: { id: string; type: EntityType; title: string }[],
-  isUserBubble?: boolean
+  mentionedEntities?: { id: string; type: EntityType; title: string }[]
 ): React.ReactNode {
   if (!mentionedEntities || mentionedEntities.length === 0) return content;
 
@@ -57,30 +57,21 @@ function renderContentWithMentions(
       parts.push(remaining.slice(0, earliestIdx));
     }
 
-    if (isUserBubble) {
-      // On orange background: white pill with slight opacity
-      parts.push(
-        <span
-          key={key++}
-          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/20 font-semibold text-white"
-        >
-          {matchedPattern}
-        </span>
-      );
-    } else {
-      // On white background: use entity bg color with entity text color
-      const meta = ENTITY_META[matchedEntity.type] || ENTITY_META.ku;
-      const colors = { text: meta.color, bg: meta.bg };
-      parts.push(
-        <span
-          key={key++}
-          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-semibold"
-          style={{ color: colors.text, backgroundColor: colors.bg }}
-        >
-          {matchedPattern}
-        </span>
-      );
-    }
+    // Card fill + a thin entity-colored hairline so the chip stays crisp on the
+    // grey user bubble (the pale entity tint washed out against it). Ink text +
+    // colored icon keeps it legible and type-identifiable.
+    const meta = ENTITY_META[matchedEntity.type] || ENTITY_META.ku;
+    const MentionIcon = meta.Icon;
+    parts.push(
+      <span
+        key={key++}
+        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md font-medium text-foreground align-baseline border"
+        style={{ backgroundColor: "var(--card)", borderColor: `${meta.color}45` }}
+      >
+        <MentionIcon className="w-3 h-3 shrink-0" strokeWidth={1.8} style={{ color: meta.color }} aria-hidden />
+        {matchedEntity.title}
+      </span>
+    );
 
     remaining = remaining.slice(earliestIdx + matchedPattern.length);
   }
@@ -118,19 +109,18 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
     <div className={`fade-in-up ${isUser ? "flex justify-end" : ""}`}>
       {isUser ? (
         <div className="flex flex-col items-end max-w-[82%]">
-          {/* Attachments above user bubble */}
+          {/* Attachments above user bubble — self-contained card pills,
+              right-aligned to hug the bubble's trailing edge. */}
           {message.attachments && message.attachments.length > 0 && (
-            <div className="mb-1.5">
-              <div className="rounded-xl rounded-br-md px-3 py-2 bg-[var(--accent-soft)]">
-                <MessageAttachments attachments={message.attachments} />
-              </div>
+            <div className="mb-1.5 flex flex-wrap justify-end">
+              <MessageAttachments attachments={message.attachments} />
             </div>
           )}
           {/* User message bubble */}
           {message.content && (
             <div className="rounded-2xl rounded-br-md bg-[var(--accent-soft)] text-[var(--ink)] px-4 py-2.5 w-fit">
               <p className="text-[14.5px] leading-[1.55] whitespace-pre-wrap text-[var(--ink)] [text-wrap:pretty]">
-                {renderContentWithMentions(message.content, message.mentionedEntities, false)}
+                {renderContentWithMentions(message.content, message.mentionedEntities)}
               </p>
             </div>
           )}
@@ -143,6 +133,14 @@ export function MessageBubble({ message, isLastAssistant }: MessageBubbleProps) 
               {message.content}
             </ReactMarkdown>
           </div>
+
+          {/* Artifact widgets — entities this turn created/updated */}
+          {message.producedEntities && message.producedEntities.length > 0 && (
+            <ArtifactWidgetList
+              entities={message.producedEntities}
+              pulse={isLastAssistant}
+            />
+          )}
 
           {/* Web search sources */}
           {message.groundingSources && message.groundingSources.length > 0 && (

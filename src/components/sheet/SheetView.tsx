@@ -280,6 +280,8 @@ export function SheetView() {
         if (isUpdatingRef.current) return;
         if (useAppStore.getState().currentEntityType !== "table" && useAppStore.getState().currentEntityType !== null) return;
 
+        // Genuine user cell edit (AI sheetVersion bumps are gated above).
+        useAppStore.getState().noteEditorInteraction();
         syncUniverToStore(univerAPI);
       });
     };

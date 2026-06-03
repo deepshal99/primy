@@ -290,9 +290,23 @@ function TableHeaderCellElement({ attributes, children }: any) {
 }
 
 // Convert any link node whose url is drafta:// into a mention node, recursively.
+// Also drops malformed image nodes whose url isn't a usable string — those
+// otherwise render as a broken "[object Object]" image (e.g. when the model
+// tries to embed an uploaded image that has no durable URL).
+function isUsableImageUrl(url: unknown): url is string {
+  return typeof url === "string" && /^(https?:|data:)/.test(url.trim());
+}
+
 function hydrateMentions(nodes: any[]): any[] {
   if (!Array.isArray(nodes)) return nodes;
-  return nodes.map((n) => {
+  return nodes
+    .filter((n) => {
+      if (n && (n.type === "img" || n.type === "image")) {
+        return isUsableImageUrl(n.url ?? n.src);
+      }
+      return true;
+    })
+    .map((n) => {
     if (n && (n.type === "a" || n.type === "link")) {
       const url: string = n.url || n.href || "";
       const parsed = parseEntityUri(url);
@@ -428,6 +442,8 @@ export function DocView() {
         useAppStore.getState().currentEntityType !== null
       )
         return;
+      // Genuine user typing (AI applies are gated above) — mark active editing.
+      useAppStore.getState().noteEditorInteraction();
       try {
         const md = serializeMd(editor);
         updateDocContent(md);

@@ -250,6 +250,7 @@ export function AppShellV2() {
   const currentEntityType = useAppStore((s) => s.currentEntityType);
   const loadProjects = useAppStore((s) => s.loadProjects);
   const switchProject = useAppStore((s) => s.switchProject);
+  const aiUnreadProjectIds = useAppStore((s) => s.aiUnreadProjectIds);
   const createProject = useAppStore((s) => s.createProject);
   const ensureQuickNotesProject = useAppStore((s) => s.ensureQuickNotesProject);
   const quickNotesProjectId = useAppStore((s) => s.quickNotesProjectId);
@@ -367,6 +368,7 @@ export function AppShellV2() {
 
           {workspaceList.map((p) => {
             const isActive = p.id === currentProjectId;
+            const isUnread = !isActive && aiUnreadProjectIds.includes(p.id);
             if (renamingWs === p.id) {
               return (
                 <div key={p.id} className="flex items-center w-full h-[36px] px-3 mb-0.5 rounded-full" style={{ background: "var(--sidebar-accent)" }}>
@@ -381,9 +383,16 @@ export function AppShellV2() {
               <button key={p.id}
                 onClick={() => goWorkspace(p.id)}
                 onContextMenu={(ev) => { ev.preventDefault(); setWsMenu({ id: p.id, title: p.title || "Untitled", x: ev.clientX, y: ev.clientY }); }}
-                className="flex items-center w-full h-[36px] px-3 mb-0.5 rounded-full press hover-row text-left text-[13px]"
+                className="flex items-center gap-2 w-full h-[36px] px-3 mb-0.5 rounded-full press hover-row text-left text-[13px]"
                 style={{ background: isActive ? "var(--sidebar-accent)" : "transparent", color: isActive ? "var(--ink)" : "var(--ink-2)", fontWeight: isActive ? 500 : 400 }}>
                 <span className="flex-1 truncate">{p.title || "Untitled"}</span>
+                {isUnread && (
+                  <span
+                    aria-label="New AI result"
+                    className="w-[7px] h-[7px] rounded-full flex-shrink-0 success-pop"
+                    style={{ background: "var(--accent-amber, #FFB43F)" }}
+                  />
+                )}
               </button>
             );
           })}
