@@ -38,6 +38,10 @@ export const DSL_CORE_LAYOUTS = [
   "stats",
   "twoColumn",
   "quote",
+  "statement",
+  "featureGrid",
+  "agenda",
+  "timeline",
 ] as const;
 export type DslLayout = (typeof DSL_CORE_LAYOUTS)[number];
 
@@ -95,9 +99,24 @@ function normLayout(raw: string | undefined): DslLayout {
     metrics: "stats",
     twocolumn: "twoColumn",
     columns: "twoColumn",
+    threecolumn: "twoColumn",
     compare: "twoColumn",
+    proscons: "twoColumn",
     quote: "quote",
     testimonial: "quote",
+    statement: "statement",
+    bigstatement: "statement",
+    cta: "statement",
+    featuregrid: "featureGrid",
+    features: "featureGrid",
+    grid: "featureGrid",
+    cards: "featureGrid",
+    agenda: "agenda",
+    numbered: "agenda",
+    steps: "agenda",
+    timeline: "timeline",
+    roadmap: "timeline",
+    process: "timeline",
   };
   return map[v] ?? "bullets"; // safe default — bullets renders almost any content
 }
@@ -190,7 +209,7 @@ function renderStats(raw: string): string {
 
 function renderTwoColumn(raw: string): string {
   const h2 = block(raw, "h2") || block(raw, "title");
-  const cols = blocks(raw, "column").slice(0, 2);
+  const cols = blocks(raw, "column").slice(0, 3); // 2 or 3 columns
   // find the opening tag of each column to read its title attr
   const titles: string[] = [];
   const reOpen = /<column(\s[^>]*)?>/gi;
@@ -218,6 +237,69 @@ function renderQuote(raw: string): string {
   </div>`;
 }
 
+function renderStatement(raw: string): string {
+  const eyebrow = block(raw, "eyebrow");
+  const h1 = block(raw, "h1") || block(raw, "statement") || block(raw, "title");
+  const sub = block(raw, "subtitle");
+  return `<div class="statement">
+    ${eyebrow ? `<div class="eyebrow">${eyebrow}</div>` : ""}
+    <h1>${h1}</h1>
+    ${sub ? `<p class="subtitle">${sub}</p>` : ""}
+  </div>`;
+}
+
+function renderFeatureGrid(raw: string): string {
+  const h2 = block(raw, "h2") || block(raw, "title");
+  const titles: string[] = [];
+  const reOpen = /<feature(\s[^>]*)?>/gi;
+  let mm: RegExpExecArray | null;
+  while ((mm = reOpen.exec(raw)) !== null) titles.push(attrOf(mm[1] ?? "", "title") ?? "");
+  const cards = blocks(raw, "feature")
+    .slice(0, 6)
+    .map(
+      (c, i) =>
+        `<div class="feat"><div class="feat-h">${titles[i] ?? ""}</div><div class="feat-b">${c}</div></div>`,
+    )
+    .join("");
+  return `<div class="featgrid">
+    ${h2 ? `<h2>${h2}</h2>` : ""}
+    <div class="feat-row">${cards}</div>
+  </div>`;
+}
+
+function renderAgenda(raw: string): string {
+  const h2 = block(raw, "h2") || block(raw, "title");
+  const lis = blocks(raw, "item")
+    .map(
+      (b, i) =>
+        `<li><span class="num">${String(i + 1).padStart(2, "0")}</span><span class="itxt">${b}</span></li>`,
+    )
+    .join("");
+  return `<div class="agenda">
+    ${h2 ? `<h2>${h2}</h2>` : ""}
+    <ol>${lis}</ol>
+  </div>`;
+}
+
+function renderTimeline(raw: string): string {
+  const h2 = block(raw, "h2") || block(raw, "title");
+  const labels: string[] = [];
+  const reOpen = /<step(\s[^>]*)?>/gi;
+  let mm: RegExpExecArray | null;
+  while ((mm = reOpen.exec(raw)) !== null) labels.push(attrOf(mm[1] ?? "", "label") ?? "");
+  const steps = blocks(raw, "step")
+    .slice(0, 5)
+    .map(
+      (c, i) =>
+        `<div class="tl-step"><div class="tl-dot"></div><div class="tl-label">${labels[i] ?? ""}</div><div class="tl-body">${c}</div></div>`,
+    )
+    .join("");
+  return `<div class="timeline">
+    ${h2 ? `<h2>${h2}</h2>` : ""}
+    <div class="tl-row">${steps}</div>
+  </div>`;
+}
+
 const RENDERERS: Record<DslLayout, (raw: string) => string> = {
   title: renderTitle,
   section: renderSection,
@@ -225,6 +307,10 @@ const RENDERERS: Record<DslLayout, (raw: string) => string> = {
   stats: renderStats,
   twoColumn: renderTwoColumn,
   quote: renderQuote,
+  statement: renderStatement,
+  featureGrid: renderFeatureGrid,
+  agenda: renderAgenda,
+  timeline: renderTimeline,
 };
 
 // ── shared CSS (themed, overflow-safe, 960×540) ──
@@ -283,6 +369,32 @@ function slideCss(): string {
   .quote blockquote{font-family:var(--h-font);font-weight:var(--h-weight);font-size:38px;
     line-height:1.25;letter-spacing:-0.015em;margin-top:8px;max-width:800px}
   .cite{color:var(--text-2);font-size:19px;margin-top:26px}
+  /* statement */
+  .statement{justify-content:center}
+  .statement h1{font-size:46px;line-height:1.18;letter-spacing:-0.015em;max-width:860px}
+  /* feature grid */
+  .feat-row{display:flex;flex-wrap:wrap;gap:20px}
+  .feat{flex:1 1 calc(33% - 20px);min-width:230px;background:var(--card);
+    border:1px solid var(--card-border);border-radius:14px;padding:24px}
+  .feat-h{font-family:var(--h-font);font-weight:var(--h-weight);font-size:20px;margin-bottom:10px}
+  .feat-h::before{content:"";display:block;width:26px;height:4px;border-radius:99px;
+    background:var(--accent);margin-bottom:14px}
+  .feat-b{color:var(--text-2);font-size:16px;line-height:1.45}
+  /* agenda (numbered) */
+  .agenda ol{list-style:none;display:flex;flex-direction:column;gap:16px}
+  .agenda li{display:flex;align-items:baseline;gap:20px;font-size:22px;line-height:1.35}
+  .agenda .num{font-family:var(--h-font);font-weight:var(--h-weight);font-size:20px;color:var(--accent);
+    font-feature-settings:'tnum';min-width:34px}
+  .agenda .itxt{color:var(--text)}
+  /* timeline */
+  .tl-row{display:flex;gap:0;margin-top:8px}
+  .tl-step{flex:1;position:relative;padding:26px 18px 0 0}
+  .tl-step::before{content:"";position:absolute;top:6px;left:0;right:0;height:2px;background:var(--divider)}
+  .tl-dot{position:absolute;top:0;left:0;width:13px;height:13px;border-radius:50%;
+    background:var(--accent);border:2px solid var(--bg)}
+  .tl-label{font-family:var(--h-font);font-weight:var(--h-weight);font-size:17px;color:var(--accent);margin-bottom:8px}
+  .tl-body{color:var(--text-2);font-size:15px;line-height:1.4}
+  .tl-body b{color:var(--text);font-weight:650}
   `;
 }
 

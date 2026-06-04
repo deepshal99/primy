@@ -86,3 +86,47 @@ describe("dslToHtmlSlides", () => {
     expect(dslToHtmlSlides("<deck></deck>", theme)).toEqual([]);
   });
 });
+
+describe("extended layouts", () => {
+  const r = (layout: string, raw: string) => renderSlideHtml({ layout, raw } as any, theme);
+
+  test("statement renders a centered single claim", () => {
+    const html = r("statement", "<h1>We will define the category.</h1>");
+    expect(html).toContain('class="statement"');
+    expect(html).toContain("We will define the category.");
+  });
+
+  test("featureGrid renders feature cards with titles", () => {
+    const html = r("featureGrid", '<h2>What you get</h2><feature title="Automation"><p>Runs itself</p></feature><feature title="Analytics"><p>Know more</p></feature>');
+    expect(html).toContain("feat-row");
+    expect(html).toContain("Automation");
+    expect(html).toContain("Runs itself");
+  });
+
+  test("agenda renders a numbered list", () => {
+    const html = r("agenda", "<h2>Agenda</h2><item>Problem</item><item>Solution</item><item>Ask</item>");
+    expect(html).toContain('class="agenda"');
+    expect((html.match(/class="num"/g) || []).length).toBe(3);
+    expect(html).toContain("01");
+    expect(html).toContain("03");
+  });
+
+  test("timeline renders steps with labels", () => {
+    const html = r("timeline", '<h2>Roadmap</h2><step label="Q1"><b>Launch</b> beta</step><step label="Q2">scale</step>');
+    expect(html).toContain("tl-row");
+    expect(html).toContain("Q1");
+    expect(html).toContain("Launch");
+  });
+
+  test("twoColumn now supports a third column", () => {
+    const html = r("twoColumn", '<h2>Tiers</h2><column title="Free">a</column><column title="Pro">b</column><column title="Team">c</column>');
+    expect((html.match(/class="col"/g) || []).length).toBe(3);
+  });
+
+  test("layout aliases route to the right renderer", () => {
+    expect(parseDeckDsl('<deck><slide layout="roadmap"><h2>x</h2></slide></deck>').slides[0].layout).toBe("timeline");
+    expect(parseDeckDsl('<deck><slide layout="features"><h2>x</h2></slide></deck>').slides[0].layout).toBe("featureGrid");
+    expect(parseDeckDsl('<deck><slide layout="cta"><h1>x</h1></slide></deck>').slides[0].layout).toBe("statement");
+    expect(parseDeckDsl('<deck><slide layout="numbered"><h2>x</h2></slide></deck>').slides[0].layout).toBe("agenda");
+  });
+});

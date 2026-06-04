@@ -35,9 +35,13 @@ LAYOUTS and their child tags (use a VARIETY — never the same layout on two
 adjacent slides; pick the layout that serves the slide's content):
 - title — opener. <eyebrow>kicker</eyebrow> <h1>headline</h1> <subtitle>one line</subtitle>
 - section — divider between acts. <h1>section name</h1> <subtitle>optional</subtitle>
+- statement — one bold claim or CTA, centered. <eyebrow>opt</eyebrow> <h1>the single sentence</h1>
 - bullets — 2–5 points. <h2>heading</h2> then <bullet>…</bullet> per point (wrap the lead phrase in <b>…</b>)
 - stats — 2–4 metrics. <h2>heading</h2> then <stat value="3x" label="what it means"/> per metric
-- twoColumn — a contrast/compare. <h2>heading</h2> then <column title="Left">…</column> <column title="Right">…</column>
+- twoColumn — a contrast/compare (2 OR 3 columns). <h2>heading</h2> then <column title="Left">…</column> <column title="Right">…</column>
+- featureGrid — 3–6 product features as cards. <h2>heading</h2> then <feature title="Name">short benefit</feature> per feature
+- agenda — a numbered list (agenda, steps, takeaways). <h2>heading</h2> then <item>…</item> per point
+- timeline — a roadmap/process of 3–5 steps. <h2>heading</h2> then <step label="Q1">​<b>what</b> detail</step> per step
 - quote — a testimonial or thesis. <quote>the line</quote> <cite>who said it</cite>
 
 RULES
