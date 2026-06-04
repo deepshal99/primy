@@ -64,10 +64,17 @@ now calls it and reads the result back. Verified by tsc + full suite + a live do
 characterization pass caught a real latent divergence (APPEND wasn't recording produced/aiModifiedIds).
 This establishes the safe pattern: `apply<Entity>Ops(entities, ops, view, ctx) -> {entities, view, produced, aiModifiedIds}`.
 
-**Still remaining (slices 2–4):** the **table**, **deck**, and **page** op switches in `finishStreaming`
-follow the identical pattern — each is a mechanical lift into `applyTableOps`/`applyDeckOps`/`applyPageOps`
-with its own characterization tests, then a verbatim wire-in + live smoke. Do them one at a time (never
-all at once) so each stays verifiable. The undo-snapshot + debounced-save plumbing stays in the store.
+**Done — slice 2 (table mutation):** `src/lib/ai/applyTableOps.ts` (8 characterization tests; CREATE
+focus-steal, UPDATE_CELLS r,c merge + grid-sync-only-for-open, SET_TABLE_DATA shallow-merge, DELETE
+blank-sheet reset). Wired into `finishStreaming`; verified by tsc + full suite (227) + a live
+sheet-create smoke (Q3 Budget opened in the Univer grid with correct data).
+
+**Still remaining (slices 3–4):** the **deck** and **page** op switches in `finishStreaming` follow the
+identical pattern — each a mechanical lift into `applyDeckOps`/`applyPageOps` with characterization tests,
+then a verbatim wire-in + live smoke. Do them one at a time (never all at once) so each stays verifiable.
+The undo-snapshot + debounced-save plumbing stays in the store. NOTE: deck/page blocks also touch
+`newDeckSlides/newDeckTheme/newDeckVersion/newDeckPhase/newDeckStyle/newPendingDeckPolishId` and
+`newPageHtml/newPageEditableFields/newPageVersion` respectively — wider view bundles than KU/table.
 
 Original framing below.
 

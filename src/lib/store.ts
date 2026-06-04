@@ -36,11 +36,12 @@ import { resolveStreamDisposition, isActivelyEditing } from "@/lib/streamDisposi
 import { applyPageOps } from "@/lib/ai/pageOperations";
 import { promoteOrphanOps } from "@/lib/ai/opPromotion";
 import { createEmptySheet } from "@/lib/sheet/defaultData";
-import { applyOperations, normalizeCells } from "@/lib/ai/sheetOperations";
+import { applyOperations } from "@/lib/ai/sheetOperations";
 import { applyDocOps } from "@/lib/ai/docOperations";
 import { scheduleSnapshot } from "@/lib/snapshots/scheduler";
 import { extractDisplayText, validateThemeConfig } from "@/lib/ai/parseAIResponse";
 import { applyKuOps } from "@/lib/ai/applyKuOps";
+import { applyTableOps } from "@/lib/ai/applyTableOps";
 import {
   fetchProjects,
   fetchFullProject,
@@ -639,116 +640,34 @@ export const useAppStore = create<AppState>()(
           aiModifiedIds.push(...kuRes.aiModifiedIds);
         }
 
-        // Apply Table operations
+        // Apply Table operations — pure reducer extracted to applyTableOps (T3 slice 2).
         if (hasTableOps) {
-          project.tables = [...project.tables];
-          for (const op of tableOperations) {
-            switch (op.type) {
-              case "CREATE": {
-                const newTable: ProjectTable = {
-                  id: nanoid(),
-                  projectId: project.id,
-                  title: op.title,
-                  sheets: [{
-                    name: "Sheet1",
-                    order: 0,
-                    status: 1,
-                    celldata: normalizeCells(op.celldata || []),
-                    config: op.config || {},
-                    row: 50,
-                    column: 26,
-                  }],
-                  createdAt: Date.now(),
-                  updatedAt: Date.now(),
-                };
-                project.tables.push(newTable);
-                produced.push({ id: newTable.id, type: "table", title: newTable.title, action: "created" });
-                // Auto-open the newly created table — only when we may steal focus.
-                if (allowFocusSteal) {
-                  newCurrentEntityId = newTable.id;
-                  newCurrentEntityType = "table";
-                  newSheets = newTable.sheets;
-                  newSheetVersion = state.sheetVersion + 1;
-                  newActiveTab = "sheet";
-                  if (!newOpenTabs.some((t) => t.id === newTable.id)) {
-                    newOpenTabs = [...newOpenTabs, { id: newTable.id, type: "table" as const, title: newTable.title }];
-                  }
-                }
-                break;
-              }
-              case "UPDATE_CELLS": {
-                const idx = project.tables.findIndex((t) => t.id === op.tableId);
-                if (idx >= 0) {
-                  const table = { ...project.tables[idx] };
-                  table.sheets = [...table.sheets];
-                  const si = op.sheetIndex || 0;
-                  if (table.sheets[si]) {
-                    const sheet = { ...table.sheets[si] };
-                    // Merge cells
-                    const cellMap = new Map((sheet.celldata || []).map((c) => [`${c.r},${c.c}`, c]));
-                    for (const cell of normalizeCells(op.cells || [])) {
-                      cellMap.set(`${cell.r},${cell.c}`, cell);
-                    }
-                    sheet.celldata = Array.from(cellMap.values());
-                    table.sheets[si] = sheet;
-                  }
-                  table.updatedAt = Date.now();
-                  project.tables[idx] = table;
-                  if (state.currentEntityId === op.tableId) {
-                    newSheets = table.sheets;
-                    newSheetVersion = state.sheetVersion + 1;
-                  }
-                  // Auto-open tab for updated table (only when we may steal focus)
-                  if (allowFocusSteal && !newOpenTabs.some((t) => t.id === op.tableId)) {
-                    newOpenTabs = [...newOpenTabs, { id: table.id, type: "table" as const, title: table.title }];
-                  }
-                  produced.push({ id: op.tableId, type: "table", title: table.title, action: "updated" });
-                  aiModifiedIds.push(op.tableId);
-                }
-                break;
-              }
-              case "SET_TABLE_DATA": {
-                const idx = project.tables.findIndex((t) => t.id === op.tableId);
-                if (idx >= 0) {
-                  const table = { ...project.tables[idx] };
-                  table.sheets = [...table.sheets];
-                  const si = op.sheetIndex || 0;
-                  if (table.sheets[si]) {
-                    table.sheets[si] = {
-                      ...table.sheets[si],
-                      ...op.data,
-                    };
-                  }
-                  table.updatedAt = Date.now();
-                  project.tables[idx] = table;
-                  if (state.currentEntityId === op.tableId) {
-                    newSheets = table.sheets;
-                    newSheetVersion = state.sheetVersion + 1;
-                  }
-                  // Auto-open tab for updated table (only when we may steal focus)
-                  if (allowFocusSteal && !newOpenTabs.some((t) => t.id === op.tableId)) {
-                    newOpenTabs = [...newOpenTabs, { id: table.id, type: "table" as const, title: table.title }];
-                  }
-                  produced.push({ id: op.tableId, type: "table", title: table.title, action: "updated" });
-                  aiModifiedIds.push(op.tableId);
-                }
-                break;
-              }
-              case "DELETE": {
-                project.tables = project.tables.filter((t) => t.id !== op.tableId);
-                newOpenTabs = newOpenTabs.filter((t) => t.id !== op.tableId);
-                if (newCurrentEntityId === op.tableId) {
-                  newCurrentEntityId = null;
-                  newCurrentEntityType = null;
-                  newSheets = [{
-                    name: "Sheet1", order: 0, status: 1, celldata: [], row: 50, column: 26,
-                  }];
-                  newSheetVersion = state.sheetVersion + 1;
-                }
-                break;
-              }
-            }
-          }
+          const tblRes = applyTableOps(
+            project.tables,
+            tableOperations,
+            {
+              currentEntityId: newCurrentEntityId,
+              currentEntityType: newCurrentEntityType,
+              sheets: newSheets,
+              sheetVersion: newSheetVersion,
+              activeTab: newActiveTab,
+              openTabs: newOpenTabs,
+            },
+            {
+              allowFocusSteal,
+              stateCurrentEntityId: state.currentEntityId,
+              baseSheetVersion: state.sheetVersion,
+            },
+          );
+          project.tables = tblRes.tables;
+          newCurrentEntityId = tblRes.view.currentEntityId;
+          newCurrentEntityType = tblRes.view.currentEntityType;
+          newSheets = tblRes.view.sheets;
+          newSheetVersion = tblRes.view.sheetVersion;
+          newActiveTab = tblRes.view.activeTab;
+          newOpenTabs = tblRes.view.openTabs;
+          produced.push(...tblRes.produced);
+          aiModifiedIds.push(...tblRes.aiModifiedIds);
         }
 
         // Handle deck operations
