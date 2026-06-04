@@ -40,6 +40,7 @@ import { applyOperations, normalizeCells } from "@/lib/ai/sheetOperations";
 import { applyDocOps } from "@/lib/ai/docOperations";
 import { scheduleSnapshot } from "@/lib/snapshots/scheduler";
 import { extractDisplayText, validateThemeConfig } from "@/lib/ai/parseAIResponse";
+import { applyKuOps } from "@/lib/ai/applyKuOps";
 import {
   fetchProjects,
   fetchFullProject,
@@ -608,107 +609,34 @@ export const useAppStore = create<AppState>()(
       if (projIdx >= 0) {
         const project = { ...newProjects[projIdx] };
 
-        // Apply KU operations
+        // Apply KU operations — pure reducer extracted to applyKuOps (T3 slice 1).
         if (hasKuOps) {
-          project.knowledgeUnits = [...project.knowledgeUnits];
-          for (const op of kuOperations) {
-            switch (op.type) {
-              case "CREATE": {
-                const newKu: KnowledgeUnit = {
-                  id: nanoid(),
-                  projectId: project.id,
-                  title: op.title,
-                  content: op.content,
-                  createdAt: Date.now(),
-                  updatedAt: Date.now(),
-                };
-                project.knowledgeUnits.push(newKu);
-                produced.push({ id: newKu.id, type: "ku", title: newKu.title, action: "created" });
-                // Auto-open the newly created KU — only when we may steal focus.
-                if (allowFocusSteal) {
-                  newCurrentEntityId = newKu.id;
-                  newCurrentEntityType = "ku";
-                  newDocContent = newKu.content;
-                  newDocVersion = state.docVersion + 1;
-                  newActiveTab = "doc";
-                  if (!newOpenTabs.some((t) => t.id === newKu.id)) {
-                    newOpenTabs = [...newOpenTabs, { id: newKu.id, type: "ku" as const, title: newKu.title }];
-                  }
-                }
-                break;
-              }
-              case "UPDATE": {
-                const idx = project.knowledgeUnits.findIndex((k) => k.id === op.kuId);
-                if (idx >= 0) {
-                  project.knowledgeUnits[idx] = {
-                    ...project.knowledgeUnits[idx],
-                    content: op.content,
-                    updatedAt: Date.now(),
-                  };
-                  // If this is the active entity, update flat fields
-                  if (state.currentEntityId === op.kuId) {
-                    newDocContent = op.content;
-                    newDocVersion = state.docVersion + 1;
-                  }
-                  // Auto-open tab for updated KU (only when we may steal focus)
-                  if (allowFocusSteal && !newOpenTabs.some((t) => t.id === op.kuId)) {
-                    const entity = project.knowledgeUnits[idx];
-                    newOpenTabs = [...newOpenTabs, { id: entity.id, type: "ku" as const, title: entity.title }];
-                  }
-                  produced.push({ id: op.kuId, type: "ku", title: project.knowledgeUnits[idx].title, action: "updated" });
-                  aiModifiedIds.push(op.kuId);
-                }
-                break;
-              }
-              case "APPEND": {
-                const idx = project.knowledgeUnits.findIndex((k) => k.id === op.kuId);
-                if (idx >= 0) {
-                  const existing = project.knowledgeUnits[idx];
-                  project.knowledgeUnits[idx] = {
-                    ...existing,
-                    content: existing.content + "\n\n" + op.content,
-                    updatedAt: Date.now(),
-                  };
-                  if (state.currentEntityId === op.kuId) {
-                    newDocContent = project.knowledgeUnits[idx].content;
-                    newDocVersion = state.docVersion + 1;
-                  }
-                  // Auto-open tab for appended KU (only when we may steal focus)
-                  if (allowFocusSteal && !newOpenTabs.some((t) => t.id === op.kuId)) {
-                    const entity = project.knowledgeUnits[idx];
-                    newOpenTabs = [...newOpenTabs, { id: entity.id, type: "ku" as const, title: entity.title }];
-                  }
-                  produced.push({ id: op.kuId, type: "ku", title: project.knowledgeUnits[idx].title, action: "updated" });
-                  aiModifiedIds.push(op.kuId);
-                }
-                break;
-              }
-              case "RENAME": {
-                const idx = project.knowledgeUnits.findIndex((k) => k.id === op.kuId);
-                if (idx >= 0) {
-                  project.knowledgeUnits[idx] = {
-                    ...project.knowledgeUnits[idx],
-                    title: op.title,
-                    updatedAt: Date.now(),
-                  };
-                  // Sync tab title
-                  newOpenTabs = newOpenTabs.map((t) => t.id === op.kuId ? { ...t, title: op.title } : t);
-                }
-                break;
-              }
-              case "DELETE": {
-                project.knowledgeUnits = project.knowledgeUnits.filter((k) => k.id !== op.kuId);
-                newOpenTabs = newOpenTabs.filter((t) => t.id !== op.kuId);
-                if (newCurrentEntityId === op.kuId) {
-                  newCurrentEntityId = null;
-                  newCurrentEntityType = null;
-                  newDocContent = "";
-                  newDocVersion = state.docVersion + 1;
-                }
-                break;
-              }
-            }
-          }
+          const kuRes = applyKuOps(
+            project.knowledgeUnits,
+            kuOperations,
+            {
+              currentEntityId: newCurrentEntityId,
+              currentEntityType: newCurrentEntityType,
+              docContent: newDocContent,
+              docVersion: newDocVersion,
+              activeTab: newActiveTab,
+              openTabs: newOpenTabs,
+            },
+            {
+              allowFocusSteal,
+              stateCurrentEntityId: state.currentEntityId,
+              baseDocVersion: state.docVersion,
+            },
+          );
+          project.knowledgeUnits = kuRes.knowledgeUnits;
+          newCurrentEntityId = kuRes.view.currentEntityId;
+          newCurrentEntityType = kuRes.view.currentEntityType;
+          newDocContent = kuRes.view.docContent;
+          newDocVersion = kuRes.view.docVersion;
+          newActiveTab = kuRes.view.activeTab;
+          newOpenTabs = kuRes.view.openTabs;
+          produced.push(...kuRes.produced);
+          aiModifiedIds.push(...kuRes.aiModifiedIds);
         }
 
         // Apply Table operations

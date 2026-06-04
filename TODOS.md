@@ -55,15 +55,19 @@ parse blocks through `schema.safeParse`; on failure → T1's `reportOpParseFailu
 
 ## T3 — Extract op-application reducer from `store.ts`  ·  P2  ·  L  ·  ◻️ PARTIAL
 
-**Done in this pass (safe first slice):** the pure CLASSIFICATION logic is extracted to
-`src/lib/ai/opPlan.ts` (`opFamilyCounts` / `hasAnyOps` / `presentFamilies`), unit-tested, and
-ChatPanel now reads it instead of hand-rolling `hasAnyOps`. This is the decode/decision layer.
+**Done — slice 0 (classification):** pure decode logic in `src/lib/ai/opPlan.ts`
+(`opFamilyCounts`/`hasAnyOps`/`presentFamilies`), used by ChatPanel.
 
-**Still remaining (the L part):** `finishStreaming` in `store.ts` (~lines 495–1160) still inlines the
-Immer MUTATION that applies ops across ~15 state fields + undo snapshots + version counters + tab
-opening. Splitting that into a pure reducer is the high-risk work and was deliberately NOT rushed —
-a half-done mutation split would be fragile (violates the "not fragile" bar). It needs a dedicated
-session with live-app verification. The T2 typed ops now make it tractable (reduce over typed ops).
+**Done — slice 1 (KU mutation):** the ~100-line knowledge-unit op switch is lifted out of
+`finishStreaming` into pure `src/lib/ai/applyKuOps.ts` (9 characterization tests). `finishStreaming`
+now calls it and reads the result back. Verified by tsc + full suite + a live doc-create smoke. The
+characterization pass caught a real latent divergence (APPEND wasn't recording produced/aiModifiedIds).
+This establishes the safe pattern: `apply<Entity>Ops(entities, ops, view, ctx) -> {entities, view, produced, aiModifiedIds}`.
+
+**Still remaining (slices 2–4):** the **table**, **deck**, and **page** op switches in `finishStreaming`
+follow the identical pattern — each is a mechanical lift into `applyTableOps`/`applyDeckOps`/`applyPageOps`
+with its own characterization tests, then a verbatim wire-in + live smoke. Do them one at a time (never
+all at once) so each stays verifiable. The undo-snapshot + debounced-save plumbing stays in the store.
 
 Original framing below.
 
