@@ -8,10 +8,11 @@ Primy AI is an AI-powered workspace where users create and manage documents, spr
 
 ## Strategy & Positioning
 
-**Hero:** "The AI workspace for docs, sheets, and decks."
-**Sub:** "Chat to create and edit them all. Drag in any file. Project memory keeps everything connected — so you never copy-paste from ChatGPT again."
+**Direction (locked 2026-06-03, CEO review):** Primy is the **AI deliverable studio for independents who ship client/stakeholder work** — solo consultants, fractional execs, agencies-of-one; operator-founders are the launch channel. Product stays horizontal (docs/sheets/decks/pages); the *aim* narrows. The **HTML page is the hero artifact**; decks ride alongside for completeness (engine = ALLWEONE port, not a from-scratch arms race). Core job: kill the ChatGPT copy-paste loop (H1) + turn scattered files into a shippable, on-brand deliverable fast (H2).
 
-See `docs/superpowers/specs/2026-05-01-primy-v1-strategy.md` for full strategic context, ICPs, and execution roadmap. See `docs/superpowers/specs/2026-05-01-primy-v1-eng-review.md` for engineering decisions.
+**Sub:** "Chat to create and edit docs, sheets, decks, and pages. Drag in any file. Per-client memory keeps everything connected — so you never copy-paste from ChatGPT again."
+
+See `docs/superpowers/specs/2026-06-03-primy-d1-direction.md` for the locked direction (supersedes the positioning in the May-1 spec). See `docs/superpowers/specs/2026-05-01-primy-v1-strategy.md` for GTM/pricing/roadmap mechanics and `docs/superpowers/specs/2026-05-01-primy-v1-eng-review.md` for engineering decisions.
 
 ## Commands
 
