@@ -178,7 +178,11 @@ export async function POST(req: Request) {
       return Response.json({ error: "title must be a string" }, { status: 400 });
     }
 
-    const [newProject] = await db
+    // Idempotent insert: the client also runs a debounced PUT save that creates
+    // the row via onConflictDoNothing, so a plain insert here races and throws a
+    // duplicate-key 500 when the PUT lands first. Mirror that idempotency, then
+    // read back the row (whether we just inserted it or the PUT did).
+    let [newProject] = await db
       .insert(projects)
       .values({
         id,
@@ -187,7 +191,15 @@ export async function POST(req: Request) {
         description,
         projectType,
       })
+      .onConflictDoNothing()
       .returning();
+
+    if (!newProject) {
+      [newProject] = await db.select().from(projects).where(eq(projects.id, id)).limit(1);
+      if (!newProject) {
+        return Response.json({ error: "Internal server error" }, { status: 500 });
+      }
+    }
 
     await addProjectOwner(id, session.user.id);
 

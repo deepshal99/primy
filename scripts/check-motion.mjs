@@ -25,6 +25,8 @@ const ALLOWLIST = [
   "src/lib/design.ts",
   // Decorative looping loader — constant motion, not interactive UI.
   "src/components/dotmatrix-loader.css",
+  // Decorative looping "thinking" dots — constant motion, not interactive UI.
+  "src/components/chat/thinking-loader.css",
 ];
 
 /**

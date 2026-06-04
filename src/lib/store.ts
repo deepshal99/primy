@@ -39,9 +39,11 @@ import { createEmptySheet } from "@/lib/sheet/defaultData";
 import { applyOperations } from "@/lib/ai/sheetOperations";
 import { applyDocOps } from "@/lib/ai/docOperations";
 import { scheduleSnapshot } from "@/lib/snapshots/scheduler";
-import { extractDisplayText, validateThemeConfig } from "@/lib/ai/parseAIResponse";
+import { extractDisplayText } from "@/lib/ai/parseAIResponse";
 import { applyKuOps } from "@/lib/ai/applyKuOps";
 import { applyTableOps } from "@/lib/ai/applyTableOps";
+import { applyDeckOps } from "@/lib/ai/applyDeckOps";
+import { applyPageOps as applyPageReducerOps } from "@/lib/ai/applyPageOps";
 import {
   fetchProjects,
   fetchFullProject,
@@ -670,221 +672,115 @@ export const useAppStore = create<AppState>()(
           aiModifiedIds.push(...tblRes.aiModifiedIds);
         }
 
-        // Handle deck operations
+        // Apply Deck operations — pure reducer extracted to applyDeckOps (T3 slice 3).
         if (hasDeckOps) {
-          // Clone before mutating (matches the KU/table paths above) so element
-          // reassignments below don't mutate the live store array in place.
-          project.decks = [...(project.decks || [])];
-          for (const op of deckOperations) {
-            switch (op.type) {
-              case "CREATE": {
-                const validatedStyle = op.style ? validateThemeConfig(op.style) : null;
-                const newDeck: ProjectDeck = {
-                  id: nanoid(),
-                  projectId: project.id,
-                  title: op.title,
-                  theme: op.theme || "pitch",
-                  style: validatedStyle,
-                  slides: op.slides || [],
-                  createdAt: Date.now(),
-                  updatedAt: Date.now(),
-                };
-                project.decks.push(newDeck);
-                produced.push({ id: newDeck.id, type: "deck", title: newDeck.title, action: "created" });
-                // Open + view the new deck only when we may steal focus. The
-                // polish pass reads the live deck buffer, so it too is gated —
-                // we never polish a deck that isn't loaded on screen.
-                if (allowFocusSteal) {
-                  newCurrentEntityId = newDeck.id;
-                  newCurrentEntityType = "deck";
-                  newDeckSlides = newDeck.slides;
-                  newDeckTheme = newDeck.theme;
-                  newDeckStyle = validatedStyle;
-                  newDeckVersion = state.deckVersion + 1;
-                  // Transition to viewing phase after generation
-                  newDeckPhase = "viewing";
-                  // Queue a background polish pass for freshly-generated HTML decks.
-                  if (newDeck.slides.some((s) => isHtmlSlide(s))) {
-                    newPendingDeckPolishId = newDeck.id;
-                  }
-                  if (!newOpenTabs.some((t) => t.id === newDeck.id)) {
-                    newOpenTabs = [...newOpenTabs, { id: newDeck.id, type: "deck" as const, title: newDeck.title }];
-                  }
-                }
-                // Auto-fetch background images for slides with imageQuery
-                const slidesWithQuery = newDeck.slides.filter((s) => !isHtmlSlide(s) && s.imageQuery && !s.backgroundImage);
-                if (slidesWithQuery.length > 0) {
-                  const deckId = newDeck.id;
-                  Promise.allSettled(
-                    slidesWithQuery.map(async (s) => {
-                      try {
-                        const res = await fetch(`/api/unsplash?q=${encodeURIComponent(s.imageQuery!)}`);
-                        const data = await res.json();
-                        const firstResult = data.results?.[0];
-                        if (firstResult?.urls?.regular) {
-                          const store = useAppStore.getState();
-                          // Update the deck inside its OWN project (not whichever
-                          // project happens to be active now), merging onto the
-                          // deck's own slides rather than the live buffer.
-                          const projects = [...store.projects];
-                          const pIdx = projects.findIndex((p) => p.id === targetProjectId);
-                          if (pIdx >= 0) {
-                            const proj = { ...projects[pIdx] };
-                            const dIdx = (proj.decks || []).findIndex((d) => d.id === deckId);
-                            if (dIdx >= 0) {
-                              proj.decks = [...proj.decks];
-                              const mergedSlides = proj.decks[dIdx].slides.map((slide) =>
-                                slide.id === s.id ? { ...slide, backgroundImage: firstResult.urls.regular } : slide
-                              );
-                              proj.decks[dIdx] = { ...proj.decks[dIdx], slides: mergedSlides };
-                              projects[pIdx] = proj;
-                              const patch: Record<string, any> = { projects };
-                              // Only refresh the live deck buffer if THIS deck is on screen.
-                              if (store.currentEntityId === deckId) {
-                                patch.deckSlides = mergedSlides;
-                                patch.deckVersion = store.deckVersion + 1;
-                              }
-                              useAppStore.setState(patch);
-                            }
-                          }
+          const deckRes = applyDeckOps(
+            project.decks || [],
+            deckOperations,
+            {
+              currentEntityId: newCurrentEntityId,
+              currentEntityType: newCurrentEntityType,
+              deckSlides: newDeckSlides,
+              deckTheme: newDeckTheme,
+              deckVersion: newDeckVersion,
+              deckPhase: newDeckPhase,
+              deckStyle: newDeckStyle,
+              pendingDeckPolishId: newPendingDeckPolishId,
+              activeTab: newActiveTab,
+              openTabs: newOpenTabs,
+            },
+            {
+              allowFocusSteal,
+              stateCurrentEntityId: state.currentEntityId,
+              baseDeckVersion: state.deckVersion,
+            },
+          );
+          project.decks = deckRes.decks;
+          newCurrentEntityId = deckRes.view.currentEntityId;
+          newCurrentEntityType = deckRes.view.currentEntityType;
+          newDeckSlides = deckRes.view.deckSlides;
+          newDeckTheme = deckRes.view.deckTheme;
+          newDeckVersion = deckRes.view.deckVersion;
+          newDeckPhase = deckRes.view.deckPhase;
+          newDeckStyle = deckRes.view.deckStyle ?? null;
+          newPendingDeckPolishId = deckRes.view.pendingDeckPolishId;
+          newActiveTab = deckRes.view.activeTab;
+          newOpenTabs = deckRes.view.openTabs;
+          produced.push(...deckRes.produced);
+          aiModifiedIds.push(...deckRes.aiModifiedIds);
+          // Run the impure Unsplash background-image fetches the reducer surfaced
+          // (the reducer stays pure; the actual fetch + live-store merge is here).
+          for (const fetchReq of deckRes.bgImageFetches) {
+            const deckId = fetchReq.deckId;
+            Promise.allSettled(
+              fetchReq.slides.map(async (s) => {
+                try {
+                  const res = await fetch(`/api/unsplash?q=${encodeURIComponent(s.imageQuery!)}`);
+                  const data = await res.json();
+                  const firstResult = data.results?.[0];
+                  if (firstResult?.urls?.regular) {
+                    const store = useAppStore.getState();
+                    // Update the deck inside its OWN project (not whichever
+                    // project happens to be active now), merging onto the
+                    // deck's own slides rather than the live buffer.
+                    const projects = [...store.projects];
+                    const pIdx = projects.findIndex((p) => p.id === targetProjectId);
+                    if (pIdx >= 0) {
+                      const proj = { ...projects[pIdx] };
+                      const dIdx = (proj.decks || []).findIndex((d) => d.id === deckId);
+                      if (dIdx >= 0) {
+                        proj.decks = [...proj.decks];
+                        const mergedSlides = proj.decks[dIdx].slides.map((slide) =>
+                          slide.id === s.id ? { ...slide, backgroundImage: firstResult.urls.regular } : slide
+                        );
+                        proj.decks[dIdx] = { ...proj.decks[dIdx], slides: mergedSlides };
+                        projects[pIdx] = proj;
+                        const patch: Record<string, any> = { projects };
+                        // Only refresh the live deck buffer if THIS deck is on screen.
+                        if (store.currentEntityId === deckId) {
+                          patch.deckSlides = mergedSlides;
+                          patch.deckVersion = store.deckVersion + 1;
                         }
-                      } catch { /* ignore failed image fetches */ }
-                    })
-                  );
-                }
-                break;
-              }
-              case "UPDATE": {
-                const idx = (project.decks || []).findIndex((d) => d.id === op.deckId);
-                if (idx >= 0) {
-                  const updatedStyle = op.style ? validateThemeConfig(op.style) : undefined;
-                  project.decks[idx] = {
-                    ...project.decks[idx],
-                    slides: op.slides,
-                    ...(op.theme ? { theme: op.theme } : {}),
-                    ...(updatedStyle ? { style: updatedStyle } : {}),
-                    updatedAt: Date.now(),
-                  };
-                  if (state.currentEntityId === op.deckId) {
-                    newDeckSlides = op.slides;
-                    if (op.theme) newDeckTheme = op.theme;
-                    if (updatedStyle) newDeckStyle = updatedStyle;
-                    newDeckVersion = state.deckVersion + 1;
+                        useAppStore.setState(patch);
+                      }
+                    }
                   }
-                  // Auto-open tab for updated deck (only when we may steal focus)
-                  if (allowFocusSteal && !newOpenTabs.some((t) => t.id === op.deckId)) {
-                    const entity = project.decks[idx];
-                    newOpenTabs = [...newOpenTabs, { id: entity.id, type: "deck" as const, title: entity.title }];
-                  }
-                  produced.push({ id: op.deckId, type: "deck", title: project.decks[idx].title, action: "updated" });
-                  aiModifiedIds.push(op.deckId);
-                }
-                break;
-              }
-              case "DELETE": {
-                project.decks = (project.decks || []).filter((d) => d.id !== op.deckId);
-                newOpenTabs = newOpenTabs.filter((t) => t.id !== op.deckId);
-                if (newCurrentEntityId === op.deckId) {
-                  newCurrentEntityId = null;
-                  newCurrentEntityType = null;
-                  newDeckSlides = [];
-                  newDeckVersion = state.deckVersion + 1;
-                }
-                break;
-              }
-              case "RENAME": {
-                const idx = (project.decks || []).findIndex((d) => d.id === op.deckId);
-                if (idx >= 0) {
-                  project.decks[idx] = {
-                    ...project.decks[idx],
-                    title: op.title,
-                    updatedAt: Date.now(),
-                  };
-                  newOpenTabs = newOpenTabs.map((t) => t.id === op.deckId ? { ...t, title: op.title } : t);
-                }
-                break;
-              }
-            }
+                } catch { /* ignore failed image fetches */ }
+              })
+            );
           }
         }
 
-        // Handle HTML page operations
+        // Apply HTML page operations — pure reducer extracted to applyPageOps (T3 slice 3).
         if (hasPageOps) {
-          // Clone before mutating (matches the KU/table paths above) so element
-          // reassignments below don't mutate the live store array in place.
-          project.pages = [...(project.pages || [])];
-          for (const op of pageOperations) {
-            switch (op.type) {
-              case "CREATE": {
-                const newPage: ProjectPage = {
-                  id: nanoid(),
-                  projectId: project.id,
-                  title: op.title,
-                  html: op.html,
-                  editableFields: op.editableFields || [],
-                  sourceKuId: op.sourceKuId || null,
-                  createdAt: Date.now(),
-                  updatedAt: Date.now(),
-                };
-                project.pages.push(newPage);
-                produced.push({ id: newPage.id, type: "page", title: newPage.title, action: "created" });
-                if (allowFocusSteal) {
-                  newCurrentEntityId = newPage.id;
-                  newCurrentEntityType = "page";
-                  newPageHtml = newPage.html;
-                  newPageEditableFields = newPage.editableFields || [];
-                  newPageVersion = state.pageVersion + 1;
-                  if (!newOpenTabs.some((t) => t.id === newPage.id)) {
-                    newOpenTabs = [...newOpenTabs, { id: newPage.id, type: "page" as const, title: newPage.title }];
-                  }
-                }
-                break;
-              }
-              case "UPDATE": {
-                const idx = (project.pages || []).findIndex((pg) => pg.id === op.pageId);
-                if (idx >= 0) {
-                  project.pages[idx] = {
-                    ...project.pages[idx],
-                    html: op.html,
-                    ...(op.editableFields ? { editableFields: op.editableFields } : {}),
-                    updatedAt: Date.now(),
-                  };
-                  if (state.currentEntityId === op.pageId) {
-                    newPageHtml = op.html;
-                    if (op.editableFields) newPageEditableFields = op.editableFields;
-                    newPageVersion = state.pageVersion + 1;
-                  }
-                  if (allowFocusSteal && !newOpenTabs.some((t) => t.id === op.pageId)) {
-                    const entity = project.pages[idx];
-                    newOpenTabs = [...newOpenTabs, { id: entity.id, type: "page" as const, title: entity.title }];
-                  }
-                  produced.push({ id: op.pageId, type: "page", title: project.pages[idx].title, action: "updated" });
-                  aiModifiedIds.push(op.pageId);
-                }
-                break;
-              }
-              case "RENAME": {
-                const idx = (project.pages || []).findIndex((pg) => pg.id === op.pageId);
-                if (idx >= 0) {
-                  project.pages[idx] = { ...project.pages[idx], title: op.title, updatedAt: Date.now() };
-                  newOpenTabs = newOpenTabs.map((t) => t.id === op.pageId ? { ...t, title: op.title } : t);
-                }
-                break;
-              }
-              case "DELETE": {
-                project.pages = (project.pages || []).filter((pg) => pg.id !== op.pageId);
-                newOpenTabs = newOpenTabs.filter((t) => t.id !== op.pageId);
-                if (newCurrentEntityId === op.pageId) {
-                  newCurrentEntityId = null;
-                  newCurrentEntityType = null;
-                  newPageHtml = "";
-                  newPageEditableFields = [];
-                  newPageVersion = state.pageVersion + 1;
-                }
-                break;
-              }
-            }
-          }
+          const pageRes = applyPageReducerOps(
+            project.pages || [],
+            pageOperations,
+            {
+              currentEntityId: newCurrentEntityId,
+              currentEntityType: newCurrentEntityType,
+              pageHtml: newPageHtml,
+              pageEditableFields: newPageEditableFields,
+              pageVersion: newPageVersion,
+              activeTab: newActiveTab,
+              openTabs: newOpenTabs,
+            },
+            {
+              allowFocusSteal,
+              stateCurrentEntityId: state.currentEntityId,
+              basePageVersion: state.pageVersion,
+            },
+          );
+          project.pages = pageRes.pages;
+          newCurrentEntityId = pageRes.view.currentEntityId;
+          newCurrentEntityType = pageRes.view.currentEntityType;
+          newPageHtml = pageRes.view.pageHtml;
+          newPageEditableFields = pageRes.view.pageEditableFields;
+          newPageVersion = pageRes.view.pageVersion;
+          newActiveTab = pageRes.view.activeTab;
+          newOpenTabs = pageRes.view.openTabs;
+          produced.push(...pageRes.produced);
+          aiModifiedIds.push(...pageRes.aiModifiedIds);
         }
 
         project.updatedAt = Date.now();

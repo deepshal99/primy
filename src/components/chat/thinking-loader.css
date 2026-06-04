@@ -1,0 +1,56 @@
+/* Single-line "thinking" loader.
+   The Primy brand mark (four ink bars) sweeps a soft left-to-right opacity
+   wave, with ONE cycling phase label beside it (not a stacked checklist). The
+   label swaps with a quick fade-up as the active phase advances. Looping =
+   decorative, so this file is allowlisted in scripts/check-motion.mjs. */
+
+.thinking-loader {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* The brand glyph, thinking: each bar brightens in turn, a wave reading
+   left → right through the mark. Opacity only — the bars' rotations stay put
+   and nothing jitters. */
+.brand-thinking {
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+.brand-thinking rect {
+  opacity: 0.26;
+  will-change: opacity;
+  animation: brand-bar-wave 1150ms var(--ease-in-out) infinite;
+}
+.brand-thinking rect:nth-child(1) { animation-delay: 0ms; }
+.brand-thinking rect:nth-child(2) { animation-delay: 120ms; }
+.brand-thinking rect:nth-child(3) { animation-delay: 240ms; }
+.brand-thinking rect:nth-child(4) { animation-delay: 360ms; }
+
+@keyframes brand-bar-wave {
+  0%, 60%, 100% { opacity: 0.26; }
+  28%           { opacity: 1; }
+}
+
+/* The cycling label re-mounts on each phase change (keyed on its text), so this
+   enter animation plays as a clean swap. Outer span owns the move; the inner
+   shimmer-text owns the highlight sweep (one animation per element). */
+.phase-label-swap {
+  display: inline-block;
+  animation: phase-label-in 260ms var(--ease-out) both;
+}
+@keyframes phase-label-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-thinking rect {
+    animation: none !important;
+    opacity: 0.7;
+  }
+  .phase-label-swap {
+    animation: none !important;
+    transform: none;
+  }
+}

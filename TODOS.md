@@ -53,7 +53,19 @@ parse blocks through `schema.safeParse`; on failure → T1's `reportOpParseFailu
 
 ---
 
-## T3 — Extract op-application reducer from `store.ts`  ·  P2  ·  L  ·  ◻️ PARTIAL
+## T3 — Extract op-application reducer from `store.ts`  ·  P2  ·  L  ·  ✅ DONE
+
+**All four entity reducers extracted** from `finishStreaming`: `applyKuOps`, `applyTableOps`,
+`applyDeckOps`, `applyPageOps` (each pure + characterization-tested; ~73 reducer tests total). store.ts
+net −100+ lines. Slices 3–4 (deck/page) were authored by a parallel agent team + serialized wiring pass,
+then verified by tsc + full suite (256 green) + live page-create and deck-generate smokes. The deck
+reducer stays pure by surfacing the impure Unsplash fetch as `bgImageFetches[]` (run as a side effect in
+the store). The undo-snapshot + debounced-save plumbing intentionally remains in the store (out of scope).
+Historical detail of the staged approach below.
+
+---
+
+(historical) ◻️ PARTIAL
 
 **Done — slice 0 (classification):** pure decode logic in `src/lib/ai/opPlan.ts`
 (`opFamilyCounts`/`hasAnyOps`/`presentFamilies`), used by ChatPanel.

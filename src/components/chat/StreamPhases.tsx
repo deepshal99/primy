@@ -1,53 +1,47 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Loader2 } from "lucide-react";
 import {
   StreamTask,
   PHASE_SCRIPTS,
   activePhaseIndex,
 } from "@/lib/streamPhases";
+import "./thinking-loader.css";
 
-/** A clean circular step badge: filled check (done), spinner (active), hollow ring (pending). */
-function StepStatus({ state }: { state: "pending" | "active" | "done" }) {
-  if (state === "done") {
-    return (
-      <span
-        className="flex items-center justify-center w-4 h-4 rounded-full flex-shrink-0"
-        style={{ background: "var(--accent-amber-deep, #B87426)" }}
-      >
-        <Check className="w-2.5 h-2.5" strokeWidth={3} style={{ color: "#fff" }} aria-hidden />
-      </span>
-    );
-  }
-  if (state === "active") {
-    return (
-      <Loader2
-        className="w-4 h-4 flex-shrink-0 animate-spin"
-        strokeWidth={2.25}
-        style={{ color: "var(--accent-amber, #FFB43F)" }}
-        aria-hidden
-      />
-    );
-  }
+/**
+ * The Primy brand mark (the four ink bars) animated as a soft left-to-right
+ * opacity wave — our logo, thinking. Brand-unique and calm: opacity only, so
+ * the bars' angles stay intact and nothing bounces or jitters.
+ */
+function BrandThinkingMark() {
   return (
-    <span
-      className="w-4 h-4 rounded-full flex-shrink-0"
-      style={{ border: "1.5px solid var(--border-strong)" }}
+    <svg
+      className="brand-thinking"
+      width={18}
+      height={18}
+      viewBox="0 0 22 22"
+      fill="currentColor"
       aria-hidden
-    />
+    >
+      <rect x="0" y="5" width="6" height="12" rx="3" />
+      <rect x="7" y="2" width="5" height="18" rx="2.5" transform="rotate(-28 9.5 11)" />
+      <rect x="12" y="3" width="5" height="16" rx="2.5" transform="rotate(28 14.5 11)" />
+      <rect x="18" y="6" width="4" height="10" rx="2" />
+    </svg>
   );
 }
 
 /**
- * Task-aware phased loading shown while the model streams. Renders a short
- * checklist (Reading -> Outlining -> Designing -> Building) where completed
- * steps get a check, the active step spins, and pending steps sit faint.
+ * Task-aware "thinking" state shown while the model streams. Instead of a
+ * stacked checklist, this cycles through the phases (Reading -> Outlining ->
+ * Designing -> Building) ONE at a time on a single line: a pulsing three-dot
+ * loader plus the current step's label, which swaps with a quick fade-up as the
+ * active phase advances. Cleaner and calmer than showing every step at once.
  *
  * Honesty: the final "building" step only activates once `outputStarted` (a real
  * operation block has begun streaming, or text has started for a plain answer).
- * Until then the active step holds at the second-to-last, so we never claim to
- * be building before we are.
+ * Until then the cycle holds at the second-to-last step, so we never claim to be
+ * building before we are.
  */
 export function StreamPhases({
   task,
@@ -81,33 +75,22 @@ export function StreamPhases({
   });
 
   // Enrich the "read" step with the files we actually pulled in.
-  const labelFor = (id: string, fallback: string) => {
-    if (id === "read" && readingFiles.length > 0) {
-      const shown = readingFiles.slice(0, 2).join(", ");
-      const extra = readingFiles.length > 2 ? ` +${readingFiles.length - 2}` : "";
-      return `Reading ${shown}${extra}`;
-    }
-    return fallback;
-  };
+  const current = phases[activeIndex] ?? phases[0];
+  let label = current.label;
+  if (current.id === "read" && readingFiles.length > 0) {
+    const shown = readingFiles.slice(0, 2).join(", ");
+    const extra = readingFiles.length > 2 ? ` +${readingFiles.length - 2}` : "";
+    label = `Reading ${shown}${extra}`;
+  }
 
   return (
-    <div className="flex flex-col gap-1.5 py-1 stagger-in" aria-live="polite">
-      {phases.map((p, i) => {
-        const state = i < activeIndex ? "done" : i === activeIndex ? "active" : "pending";
-        return (
-          <div key={p.id} className="flex items-center gap-2.5">
-            <StepStatus state={state} />
-            <span
-              className={state === "active" ? "text-[13px] font-medium shimmer-text" : "text-[13px]"}
-              style={{
-                color: state === "done" ? "var(--ink-3)" : state === "active" ? "var(--ink-2)" : "var(--ink-4)",
-              }}
-            >
-              {labelFor(p.id, p.label)}
-            </span>
-          </div>
-        );
-      })}
+    <div className="thinking-loader py-1" aria-live="polite">
+      <BrandThinkingMark />
+      {/* Keyed on the label text so each phase change re-mounts and replays the
+          fade-up swap. Inner span carries the shimmer sweep. */}
+      <span key={label} className="phase-label-swap">
+        <span className="shimmer-text text-[13px] font-medium">{label}</span>
+      </span>
     </div>
   );
 }
