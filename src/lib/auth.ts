@@ -5,7 +5,7 @@ import { users, emailCodes } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
-import { validatePassword, isDevOnlyEmail, isBreachedPassword } from "@/lib/authPolicy";
+import { validatePassword, isDevOnlyEmail, isBreachedPassword, isSignupAllowed } from "@/lib/authPolicy";
 import { emailKey, ipKey, lockedSeconds, recordFailure, clearAttempts, THRESHOLDS } from "@/lib/authThrottle";
 
 function getClientIp(request: Request | undefined): string {
@@ -54,6 +54,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
 
         if (mode === "signup") {
+          if (!isSignupAllowed(email)) {
+            throw new Error("This email isn't allowed to sign in.");
+          }
           const pwError = validatePassword(password);
           if (pwError) throw new Error(pwError);
           if (await isBreachedPassword(password)) {
@@ -193,6 +196,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           .where(eq(users.email, email))
           .limit(1);
         if (existing) return existing;
+
+        // Closed access: a valid code for an unknown email would normally
+        // create the account. Block creation unless the email is allowlisted.
+        if (!isSignupAllowed(email)) {
+          throw new Error("This email isn't allowed to sign in.");
+        }
 
         const [created] = await db
           .insert(users)

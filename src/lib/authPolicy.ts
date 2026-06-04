@@ -29,6 +29,25 @@ export function isDevOnlyEmail(email: string): boolean {
 }
 
 /**
+ * Closed-access gate for NEW account creation. SIGNUP_ALLOWLIST is a
+ * comma-separated list of emails permitted to create an account on first
+ * passwordless login. If it's empty/unset, signup is open to anyone.
+ * Existing users always authenticate regardless of this list — it only
+ * controls account *creation*. Dev-only (*.local) emails are always allowed
+ * so the local admin flow is never blocked.
+ */
+export function isSignupAllowed(email: string): boolean {
+  const raw = process.env.SIGNUP_ALLOWLIST?.trim();
+  if (!raw) return true; // open signup when no allowlist configured
+  if (isDevOnlyEmail(email)) return true;
+  const allowed = raw
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return allowed.includes(email.trim().toLowerCase());
+}
+
+/**
  * Reject passwords known to be compromised, via HaveIBeenPwned's k-anonymity
  * range API — only the first 5 chars of the SHA-1 ever leave the server, never
  * the password. FAILS OPEN: if HIBP is unreachable, we allow the password

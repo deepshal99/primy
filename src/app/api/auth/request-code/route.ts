@@ -1,7 +1,9 @@
 import { db } from "@/db";
-import { emailCodes } from "@/db/schema";
+import { emailCodes, users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { isSignupAllowed } from "@/lib/authPolicy";
 import { sendLoginCode } from "@/lib/email/mailer";
 
 /**
@@ -55,6 +57,18 @@ export async function POST(req: Request) {
         { error: "Code already sent. Check your inbox, or wait a moment." },
         { status: 429 }
       );
+    }
+
+    // Closed access: only send a code to an allowlisted email or an existing
+    // account. For anyone else, return success anyway (no enumeration) but do
+    // nothing — they can never create an account, so a code would be useless.
+    if (!isSignupAllowed(email)) {
+      const [existing] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+      if (!existing) return Response.json({ success: true });
     }
 
     // 6-digit numeric code (000000–999999), zero-padded.

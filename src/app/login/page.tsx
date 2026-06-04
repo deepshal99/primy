@@ -1,19 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Loader2, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, ArrowLeft, MailCheck } from "lucide-react";
 import { cn } from "@/lib/cn";
-import Link from "next/link";
 
 /**
- * Unified auth — one page for sign in AND sign up (no mode toggle).
- *
- * Submit attempts sign-in first; if there's no account, it creates one with the
- * same email + password. So an existing user logs in and a new user signs up
- * through the identical form. (Passwordless email-code is wired in the backend
- * and will replace this once a sending domain is verified.)
+ * Passwordless sign-in. One email field requests a 6-digit code
+ * (POST /api/auth/request-code), then the code is verified by the
+ * "email-code" auth provider in src/lib/auth.ts. First valid code for an
+ * allowlisted email creates the account; there is no password and no
+ * separate sign-up. Account creation is gated server-side by SIGNUP_ALLOWLIST.
  */
 export default function LoginPage() {
   const { status } = useSession();
@@ -23,11 +21,13 @@ export default function LoginPage() {
     if (status === "authenticated") router.replace("/app");
   }, [status, router]);
 
+  const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [resent, setResent] = useState(false);
+  const codeInputRef = useRef<HTMLInputElement>(null);
 
   if (status === "loading" || status === "authenticated") {
     return (
@@ -37,46 +37,78 @@ export default function LoginPage() {
     );
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const requestCode = async (em: string): Promise<boolean> => {
+    const res = await fetch("/api/auth/request-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: em }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "Couldn't send a code. Try again.");
+      return false;
+    }
+    return true;
+  };
+
+  const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
     const em = email.trim().toLowerCase();
-    if (!em || !password) {
-      setError("Enter your email and password.");
+    if (!em) {
+      setError("Enter your email.");
       return;
     }
     setLoading(true);
+    const ok = await requestCode(em);
+    setLoading(false);
+    if (ok) {
+      setEmail(em);
+      setStep("code");
+      setCode("");
+      setTimeout(() => codeInputRef.current?.focus(), 50);
+    }
+  };
 
-    // 1) Try to sign in to an existing account.
-    let result = await signIn("credentials", {
-      email: em,
-      password,
-      mode: "signin",
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    const c = code.trim();
+    if (c.length < 6) {
+      setError("Enter the 6-digit code.");
+      return;
+    }
+    setLoading(true);
+    const result = await signIn("email-code", {
+      email,
+      code: c,
       redirect: false,
     });
+    setLoading(false);
     if (result?.ok) {
       window.location.href = "/app";
       return;
     }
+    setError("That code is invalid or expired. Request a new one.");
+  };
 
-    // 2) No existing account (or wrong password) → try to create one.
-    result = await signIn("credentials", {
-      email: em,
-      password,
-      name: "",
-      mode: "signup",
-      redirect: false,
-    });
+  const handleResend = async () => {
+    setError("");
+    setResent(false);
+    setLoading(true);
+    const ok = await requestCode(email);
     setLoading(false);
-
-    if (result?.ok) {
-      window.location.href = "/onboarding";
-      return;
+    if (ok) {
+      setResent(true);
+      setTimeout(() => setResent(false), 3000);
     }
-    // Both failed: wrong password on an existing account, or the new password
-    // was too short. One clear message covers both without leaking which.
-    setError("Couldn't sign you in. Check your password, or use 8+ characters to create a new account.");
+  };
+
+  const backToEmail = () => {
+    setStep("email");
+    setCode("");
+    setError("");
+    setResent(false);
   };
 
   const isDev = process.env.NODE_ENV !== "production";
@@ -152,90 +184,147 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Heading */}
-          <div className="mb-7">
-            <h1 className="text-[22px] tracking-[-0.02em] text-[#1A1815]" style={{ fontWeight: 600 }}>
-              Sign in to Primy
-            </h1>
-            <p className="mt-1 text-[13.5px] text-[#706E68]">
-              New here? Just enter your email and a password, we&apos;ll create your account.
-            </p>
-          </div>
+          {step === "email" ? (
+            <>
+              <div className="mb-7">
+                <h1 className="text-[22px] tracking-[-0.02em] text-[#1A1815]" style={{ fontWeight: 600 }}>
+                  Sign in to Primy
+                </h1>
+                <p className="mt-1 text-[13.5px] text-[#706E68]">
+                  Enter your email and we&apos;ll send you a sign-in code.
+                </p>
+              </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div>
-              <label className="block text-[11px] font-medium text-[#706E68] uppercase tracking-wider mb-1.5 ml-0.5">
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); setError(""); }}
-                placeholder="you@email.com"
-                required
-                autoFocus
-                className="w-full h-11 px-4 rounded-xl border border-[rgba(24,24,22,0.10)] bg-white text-[14px] text-[#1A1815] placeholder:text-[#B9B6AE] outline-none focus:border-[#FFB43F]/60 focus:ring-2 focus:ring-[#FFB43F]/25 transition-all"
-              />
-            </div>
+              <form onSubmit={handleSendCode} className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-[#706E68] uppercase tracking-wider mb-1.5 ml-0.5">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                    placeholder="you@email.com"
+                    required
+                    autoFocus
+                    className="w-full h-11 px-4 rounded-xl border border-[rgba(24,24,22,0.10)] bg-white text-[14px] text-[#1A1815] placeholder:text-[#B9B6AE] outline-none focus:border-[#FFB43F]/60 focus:ring-2 focus:ring-[#FFB43F]/25 transition-all"
+                  />
+                </div>
 
-            <div>
-              <label className="block text-[11px] font-medium text-[#706E68] uppercase tracking-wider mb-1.5 ml-0.5">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); setError(""); }}
-                  placeholder="Your password"
-                  required
-                  className="w-full h-11 px-4 pr-11 rounded-xl border border-[rgba(24,24,22,0.10)] bg-white text-[14px] text-[#1A1815] placeholder:text-[#B9B6AE] outline-none focus:border-[#FFB43F]/60 focus:ring-2 focus:ring-[#FFB43F]/25 transition-all"
-                />
+                {error && (
+                  <div className="text-[13px] px-3.5 py-2.5 rounded-xl bg-[#d4183d]/8 text-[#d4183d] animate-in fade-in duration-200 border border-[#d4183d]/10">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={cn(
+                    "w-full h-11 rounded-xl text-[14px] font-medium flex items-center justify-center gap-2 transition-all duration-200 mt-2",
+                    loading
+                      ? "bg-[#1A1815]/80 text-white cursor-wait"
+                      : "bg-[#1A1815] text-white hover:bg-black active:scale-[0.99] cursor-pointer"
+                  )}
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      Send code
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </>
+                  )}
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <div className="mb-7">
+                <div className="w-10 h-10 rounded-xl bg-[#FFB43F]/15 flex items-center justify-center mb-4">
+                  <MailCheck className="w-5 h-5 text-[#B87426]" />
+                </div>
+                <h1 className="text-[22px] tracking-[-0.02em] text-[#1A1815]" style={{ fontWeight: 600 }}>
+                  Check your email
+                </h1>
+                <p className="mt-1 text-[13.5px] text-[#706E68]">
+                  We sent a 6-digit code to <span className="text-[#1A1815] font-medium">{email}</span>. It expires in 10 minutes.
+                </p>
+              </div>
+
+              <form onSubmit={handleVerify} className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-[#706E68] uppercase tracking-wider mb-1.5 ml-0.5">
+                    Sign-in code
+                  </label>
+                  <input
+                    ref={codeInputRef}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    value={code}
+                    onChange={(e) => { setCode(e.target.value.replace(/\D/g, "")); setError(""); }}
+                    placeholder="000000"
+                    required
+                    className="w-full h-12 px-4 rounded-xl border border-[rgba(24,24,22,0.10)] bg-white text-[20px] tracking-[0.4em] tabular-nums text-center text-[#1A1815] placeholder:text-[#D8D5CE] placeholder:tracking-[0.4em] outline-none focus:border-[#FFB43F]/60 focus:ring-2 focus:ring-[#FFB43F]/25 transition-all"
+                  />
+                </div>
+
+                {error && (
+                  <div className="text-[13px] px-3.5 py-2.5 rounded-xl bg-[#d4183d]/8 text-[#d4183d] animate-in fade-in duration-200 border border-[#d4183d]/10">
+                    {error}
+                  </div>
+                )}
+                {resent && !error && (
+                  <div className="text-[13px] px-3.5 py-2.5 rounded-xl bg-[#42c366]/10 text-[#2f8f4a] animate-in fade-in duration-200">
+                    New code sent.
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={cn(
+                    "w-full h-11 rounded-xl text-[14px] font-medium flex items-center justify-center gap-2 transition-all duration-200 mt-2",
+                    loading
+                      ? "bg-[#1A1815]/80 text-white cursor-wait"
+                      : "bg-[#1A1815] text-white hover:bg-black active:scale-[0.99] cursor-pointer"
+                  )}
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      Sign in
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <div className="flex items-center justify-between mt-4 text-[12.5px]">
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#B9B6AE] hover:text-[#3B3A37] transition-colors"
+                  onClick={backToEmail}
+                  className="flex items-center gap-1 text-[#706E68] hover:text-[#1A1815] transition-colors"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  Use a different email
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={loading}
+                  className="text-[#B87426] hover:text-[#8a571c] transition-colors disabled:opacity-50"
+                >
+                  Resend code
                 </button>
               </div>
-            </div>
+            </>
+          )}
 
-            <div className="flex justify-end -mt-1">
-              <Link href="/forgot-password" className="text-[12px] text-[#B9B6AE] hover:text-[#1A1815] transition-colors">
-                Forgot password?
-              </Link>
-            </div>
-
-            {error && (
-              <div className="text-[13px] px-3.5 py-2.5 rounded-xl bg-[#d4183d]/8 text-[#d4183d] animate-in fade-in duration-200 border border-[#d4183d]/10">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className={cn(
-                "w-full h-11 rounded-xl text-[14px] font-medium flex items-center justify-center gap-2 transition-all duration-200 mt-2",
-                loading
-                  ? "bg-[#1A1815]/80 text-white cursor-wait"
-                  : "bg-[#1A1815] text-white hover:bg-black active:scale-[0.99] cursor-pointer"
-              )}
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>
-                  Continue
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </>
-              )}
-            </button>
-          </form>
-
-          {isDev && (
+          {isDev && step === "email" && (
             <div className="mt-6 pt-5 border-t border-dashed border-[rgba(24,24,22,0.12)]">
               <div className="flex items-center justify-between gap-3 mb-2">
                 <span className="text-[10.5px] uppercase tracking-wider text-[#B9B6AE] font-medium">
