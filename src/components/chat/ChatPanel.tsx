@@ -11,11 +11,15 @@ import {
   parseKuOperations,
   parseTableOperations,
   parseDeckOperations,
+  parseDeckDslOperations,
   parsePageOperations,
   parseDeckOutlineItems,
   extractDisplayText,
   parseSuggestions,
 } from "@/lib/ai/parseAIResponse";
+import { deckDslEnabled } from "@/lib/deck/dslToHtml";
+import { detectDroppedOpFamilies, droppedFamiliesLabel } from "@/lib/ai/opParseFailures";
+import { opFamilyCounts, hasAnyOps } from "@/lib/ai/opPlan";
 import { scoreRelevance } from "@/lib/ai/contextRelevance";
 import { celldataToCsv } from "@/lib/sheet/celldataToCsv";
 import { isSkeletonTable } from "@/lib/tableHealth";
@@ -485,7 +489,11 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
           const docOps = toolOps.doc.length ? toolOps.doc : parseDocOperations(fullText);
           const kuOps = toolOps.ku.length ? toolOps.ku : parseKuOperations(fullText);
           const tableOps = toolOps.table.length ? toolOps.table : parseTableOperations(fullText);
-          const deckOps = parseDeckOperations(fullText);
+          // Option-C: when the DSL flag is on, prefer a `deckdsl` block (rendered
+          // to themed HTML) over hand-written `deckops` HTML. Falls back cleanly
+          // when no deckdsl block is present (flag off, or a deckops-style reply).
+          const dslDeckOps = deckDslEnabled() ? parseDeckDslOperations(fullText) : [];
+          const deckOps = dslDeckOps.length ? dslDeckOps : parseDeckOperations(fullText);
           let pageOps = toolOps.page.length ? toolOps.page : parsePageOperations(fullText);
           // De-dup: a deck and a page are mutually exclusive deliverables. When
           // the model emits BOTH a deck CREATE and a page CREATE in one response
@@ -499,9 +507,20 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
           }
           const suggestions = parseSuggestions(fullText);
           const outlineItems = parseDeckOutlineItems(fullText);
-          const hasAnyOps = sheetOps.length > 0 || docOps.length > 0 || kuOps.length > 0 || tableOps.length > 0 || deckOps.length > 0 || pageOps.length > 0;
-          if (!hasAnyOps && outlineItems.length === 0) {
-            const hasFences = fullText.includes("```tableops") || fullText.includes("```sheetops") || fullText.includes("```kuops") || fullText.includes("```docops") || fullText.includes("```deckops") || fullText.includes("```pageops") || fullText.includes("```deckoutline");
+          const opBundle = { sheetOps, docOps, kuOps, tableOps, deckOps, pageOps };
+          // Per-family drop detection: a deliverable whose fence is present but
+          // which yielded ZERO ops was silently dropped. Surfaced PER FAMILY, so
+          // a dropped deck is reported even when a sheet in the same reply applied
+          // fine — the old all-or-nothing check (hasAnyOps) missed exactly that.
+          const droppedFamilies = detectDroppedOpFamilies(fullText, opFamilyCounts(opBundle));
+          if (droppedFamilies.length > 0) {
+            console.warn("[Primy] Op families present but dropped:", droppedFamilies, "tail:", fullText.slice(-400));
+            toast.error(`The AI's ${droppedFamiliesLabel(droppedFamilies)} output couldn't be applied. Some changes may not have been applied. Try again.`);
+          }
+          const anyOps = hasAnyOps(opBundle);
+          if (!anyOps && outlineItems.length === 0 && droppedFamilies.length === 0) {
+            // A deckoutline fence (not an op family) can also fail to parse.
+            const hasFences = fullText.includes("```deckoutline");
             if (hasFences) {
               console.warn("[Primy] Operation blocks found but none parsed. Raw tail:", fullText.slice(-600));
               toast.error("AI response had formatting issues. Some changes may not have been applied. Try again.");

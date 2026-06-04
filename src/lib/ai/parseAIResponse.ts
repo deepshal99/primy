@@ -1,4 +1,8 @@
 import { SheetOperation, DocOperation, KuOperation, TableOperation, DeckOperation, PageOperation, DeckOutlineItem, ThemeConfig } from "@/lib/types";
+import { reportOpParseFailure } from "./opParseFailures";
+import { validateOps } from "./opSchemas";
+import { parseDeckDsl, dslToHtmlSlides } from "@/lib/deck/dslToHtml";
+import { deckThemes } from "@/components/deck/deckThemes";
 
 /**
  * Extract content between ```tag and ``` fences.
@@ -251,11 +255,11 @@ export function parseSheetOperations(fullText: string): SheetOperation[] {
     if (ops.length > 0) {
       operations.push(...ops);
     } else {
-      if (process.env.NODE_ENV !== "production") console.warn("[Primy] Failed to parse sheetops block:", block.slice(0, 200));
+      reportOpParseFailure({ family: "sheetops", reason: "json-parse-failed", sample: block.slice(0, 200) });
     }
   }
 
-  return operations;
+  return validateOps<SheetOperation>("sheetops", operations);
 }
 
 export function parseDocOperations(fullText: string): DocOperation[] {
@@ -267,11 +271,11 @@ export function parseDocOperations(fullText: string): DocOperation[] {
     if (ops.length > 0) {
       operations.push(...ops);
     } else {
-      if (process.env.NODE_ENV !== "production") console.warn("[Primy] Failed to parse docops block:", block.slice(0, 200));
+      reportOpParseFailure({ family: "docops", reason: "json-parse-failed", sample: block.slice(0, 200) });
     }
   }
 
-  return operations;
+  return validateOps<DocOperation>("docops", operations);
 }
 
 // ── KU Operations Parser ──
@@ -336,11 +340,11 @@ export function parseKuOperations(fullText: string): KuOperation[] {
     }
 
     if (!found) {
-      if (process.env.NODE_ENV !== "production") console.warn("[Primy] Failed to parse kuops block:", block.slice(0, 200));
+      reportOpParseFailure({ family: "kuops", reason: "json-parse-failed", sample: block.slice(0, 200) });
     }
   }
 
-  return operations;
+  return validateOps<KuOperation>("kuops", operations);
 }
 
 // ── Table Operations Parser ──
@@ -361,11 +365,11 @@ export function parseTableOperations(fullText: string): TableOperation[] {
         operations.push(op);
       }
     } else {
-      if (process.env.NODE_ENV !== "production") console.warn("[Primy] Failed to parse tableops block:", block.slice(0, 200));
+      reportOpParseFailure({ family: "tableops", reason: "json-parse-failed", sample: block.slice(0, 200) });
     }
   }
 
-  return operations;
+  return validateOps<TableOperation>("tableops", operations);
 }
 
 // ── HTML Page Operations Parser ──
@@ -596,7 +600,7 @@ export function parsePageOperations(fullText: string): PageOperation[] {
     }
   }
 
-  return operations;
+  return validateOps<PageOperation>("pageops", operations);
 }
 
 // ── HTML Deck Slide Normalization ──
@@ -820,7 +824,7 @@ export function parseDeckOperations(fullText: string): DeckOperation[] {
     }
   }
 
-  return operations;
+  return validateOps<DeckOperation>("deckops", operations);
 }
 
 /**
@@ -907,6 +911,38 @@ function lastResortSlideExtraction(block: string): DeckOperation | null {
     console.warn("[Primy] Last-resort slide extraction failed:", e);
     return null;
   }
+}
+
+// ── Deck DSL Parser (option-C path, flag-gated) ──
+
+/**
+ * Parse a `deckdsl` block (the ALLWEONE-style layout DSL) into a deck CREATE op.
+ * The model emits compact `<deck><slide layout="…">` XML; we render it to themed
+ * 960×540 HtmlDeckSlides deterministically (see `@/lib/deck/dslToHtml`). The deck
+ * theme is read from the DSL `theme=` attr and resolved against deckThemes
+ * (default: pitch). Only active when NEXT_PUBLIC_DECK_DSL=true (caller gates).
+ */
+export function parseDeckDslOperations(fullText: string): DeckOperation[] {
+  const blocks = extractFencedBlocks(fullText, "deckdsl");
+  const operations: DeckOperation[] = [];
+
+  for (const block of blocks) {
+    const parsed = parseDeckDsl(block);
+    if (parsed.slides.length === 0) {
+      reportOpParseFailure({ family: "deckops", reason: "no-typed-ops", sample: block.slice(0, 200) });
+      continue;
+    }
+    const theme = (parsed.theme && deckThemes[parsed.theme]) || deckThemes.pitch;
+    const slides = dslToHtmlSlides(block, theme);
+    operations.push({
+      type: "CREATE",
+      title: parsed.title || "Untitled deck",
+      slides,
+      style: theme,
+    });
+  }
+
+  return operations;
 }
 
 // ── Deck Outline Parser ──
@@ -1034,7 +1070,7 @@ export function validateThemeConfig(raw: unknown): ThemeConfig | null {
 export function extractDisplayText(fullText: string): string {
   // Strip operation fenced blocks; convert deckoutline to readable markdown
   let result = fullText;
-  for (const tag of ["sheetops", "docops", "kuops", "tableops", "deckops", "pageops", "deckoutline"]) {
+  for (const tag of ["sheetops", "docops", "kuops", "tableops", "deckops", "pageops", "deckoutline", "deckdsl"]) {
     const openPattern = new RegExp("```" + tag + "\\s*\\n?", "g");
     let openMatch: RegExpExecArray | null;
     const ranges: [number, number, string][] = []; // [start, end, replacement]

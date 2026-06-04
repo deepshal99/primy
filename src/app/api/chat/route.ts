@@ -6,6 +6,8 @@ import { getModelConfig, getModelCandidates, estimateContextSize, type AITask } 
 import { PRIMY_TOOLS, TOOL_ROUTING_PROMPT } from "@/lib/ai/primyTools";
 import { isFillSheetIntent } from "@/lib/tableHealth";
 import { celldataToCsv } from "@/lib/sheet/celldataToCsv";
+import { deckDslEnabled } from "@/lib/deck/dslToHtml";
+import { DECK_DSL_PROMPT } from "@/lib/ai/deck/dslPrompt";
 import { withPlanLimit, type PlanCtx } from "@/lib/billing";
 import { getSlashCommand } from "@/lib/ai/slashCommands";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -206,6 +208,13 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
     const primyTools = useTools ? PRIMY_TOOLS : undefined;
     if (useTools) {
       composedSystemPrompt = `${composedSystemPrompt}\n\n${TOOL_ROUTING_PROMPT}`;
+    }
+
+    // Option-C deck path (flag-gated, off by default): when generating a deck,
+    // instruct the model to emit a compact `deckdsl` block instead of raw HTML
+    // slides — the app renders it deterministically (src/lib/deck/dslToHtml).
+    if (deckDslEnabled() && taskType === "deck-generate") {
+      composedSystemPrompt = `${composedSystemPrompt}\n\n${DECK_DSL_PROMPT}`;
     }
 
     // Build sheet context as CSV for token efficiency
