@@ -240,6 +240,10 @@ export function AppShellV2() {
   const currentProjectId = useAppStore((s) => s.currentProjectId);
   const currentEntityId = useAppStore((s) => s.currentEntityId);
   const currentEntityType = useAppStore((s) => s.currentEntityType);
+  // Whether the user has actually entered the workspace (board/editor). A bare
+  // chat from the cold-start hero auto-creates a project but leaves this false,
+  // so we keep the full-screen conversation instead of flipping to board+dock.
+  const workspaceOpen = useAppStore((s) => s.workspaceOpen);
   const loadProjects = useAppStore((s) => s.loadProjects);
   const switchProject = useAppStore((s) => s.switchProject);
   const aiUnreadProjectIds = useAppStore((s) => s.aiUnreadProjectIds);
@@ -497,8 +501,12 @@ export function AppShellV2() {
               onCollapse={() => { setChatExpanded(false); setChatOpen(false); }} />
           )}
         </div>
-      ) : !currentProjectId ? (
-        /* No project → full-screen, ChatGPT-style chat (no board, no docked card) */
+      ) : !currentProjectId || (!workspaceOpen && !currentEntityId) ? (
+        /* No project, OR a project exists only because a cold-start chat
+           auto-created one (workspace never entered) → keep the full-screen,
+           ChatGPT-style conversation. No board, no docked card, no jarring jump.
+           Opening an artifact or selecting a workspace flips workspaceOpen on and
+           drops into the board+dock layout below. */
         <main className="flex-1 min-w-0 flex flex-col" style={{ background: "var(--canvas)" }}>
           <ChatPanel centered branded />
         </main>
