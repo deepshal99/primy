@@ -3,15 +3,12 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { AppShell } from "@/components/AppShell";
 import { AppShellV2 } from "@/components/shell/v2/AppShellV2";
-import { useShellV2 } from "@/lib/useShellV2";
 import { DEV_AUTH_BYPASS } from "@/components/providers/DevAutoLogin";
 
 export default function AppHome() {
   const { status } = useSession();
   const router = useRouter();
-  const shellV2 = useShellV2();
 
   useEffect(() => {
     // In dev bypass mode, DevAutoLogin signs us in instead of redirecting.
@@ -44,5 +41,5 @@ export default function AppHome() {
     return null;
   }
 
-  return shellV2 ? <AppShellV2 /> : <AppShell />;
+  return <AppShellV2 />;
 }

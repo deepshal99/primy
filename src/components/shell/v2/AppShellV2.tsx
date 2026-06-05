@@ -10,7 +10,8 @@
  *   - project "home" rendered as board / kanban / timeline (not the 4-grid)
  *   - docked, collapsible chat card; full light + dark
  *
- * Gated by useShellV2(); the legacy AppShell stays available via /app?shell=v1.
+ * The only shell. Fully responsive: docked sidebar + chat card on md+; below md
+ * the sidebar is an off-canvas drawer and the chat is a full-screen overlay.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -25,12 +26,12 @@ import {
   Folder as FolderIcon, FolderPlus, Trash2, Pencil, FolderInput,
   Rocket, Compass, Layers, Target, Box, Hexagon, Flame, Orbit,
   LogOut, ChevronsUpDown, ChevronRight, ChevronDown, Share2, Library,
-  Loader2,
+  Loader2, Menu,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { createPortal } from "react-dom";
 import { useAppStore } from "@/lib/store";
-import { useDarkMode } from "@/lib/useShellV2";
+import { useDarkMode } from "@/lib/useDarkMode";
 import { BoardStyleProvider, useBoardStyle } from "@/lib/dials/boardStyle";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { WorkspacePanel } from "@/components/workspace/WorkspacePanel";
@@ -255,6 +256,8 @@ export function AppShellV2() {
   const [groupBy, setGroupBy] = usePersistentPref<GroupMode>("primy:board:group", "folders", ["folders", "type"]);
   const [chatOpen, setChatOpen] = useState(true);
   const [chatExpanded, setChatExpanded] = useState(false);
+  // Off-canvas sidebar drawer (mobile only; static on md+).
+  const [mobileNav, setMobileNav] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [comingSoonOpen, setComingSoonOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -274,13 +277,16 @@ export function AppShellV2() {
   // Open the Quick Notes surface: provision the workspace if needed, make it
   // active (so the editor + autosave target it), then show the notes view.
   const openQuickNotes = () => {
+    setMobileNav(false);
     const pid = ensureQuickNotesProject();
     if (useAppStore.getState().currentProjectId !== pid) switchProject(pid);
     setSystemView("notes");
   };
   // Switching to a real workspace (or making a new one) always leaves a system view.
-  const goWorkspace = (id: string) => { setSystemView(null); switchProject(id); };
-  const newWorkspace = () => { setSystemView(null); createProject("Untitled project"); };
+  const goWorkspace = (id: string) => { setMobileNav(false); setSystemView(null); switchProject(id); };
+  const newWorkspace = () => { setMobileNav(false); setSystemView(null); createProject("Untitled project"); };
+  // Selecting a global surface from the sidebar should also close the drawer.
+  const goSystem = (v: null | "library" | "notes" | "trash") => { setMobileNav(false); setSystemView(v); };
 
   // ── Onboarding gate (mirrors legacy AppShell) ──
   const userQuery = useQuery({ queryKey: ["user"], queryFn: fetchUserForGate, staleTime: 5 * 60 * 1000 });
@@ -305,6 +311,12 @@ export function AppShellV2() {
     return () => { window.removeEventListener("primy:open-search", open); window.removeEventListener("keydown", key); };
   }, [createProject]);
 
+  // On a phone the chat docks as a full-screen overlay; landing with it open
+  // would bury the board. Start closed below md (runs once; desktop unaffected).
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) setChatOpen(false);
+  }, []);
+
   // Defensive: if the notes surface is open without a provisioned workspace
   // (e.g. cleared storage mid-session), provision it once.
   useEffect(() => {
@@ -325,9 +337,14 @@ export function AppShellV2() {
     <div className="fixed inset-0 flex text-[13px] overflow-hidden"
       style={{ background: "var(--app, var(--canvas))", color: "var(--ink)", fontFamily: FONT, WebkitFontSmoothing: "antialiased" }}>
 
-      {/* ───── Sidebar ───── */}
-      <aside data-sidebar className="hidden md:flex flex-col flex-shrink-0"
-        style={{ width: 232, background: "var(--sidebar)", borderRight: "1px solid var(--border)" }}>
+      {/* ───── Sidebar ───── (static on md+, off-canvas drawer below it) */}
+      <aside data-sidebar
+        className={cn(
+          "fixed md:static inset-y-0 left-0 z-[75] md:z-auto flex flex-col flex-shrink-0",
+          "transition-transform duration-300 ease-out md:translate-x-0",
+          mobileNav ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+        )}
+        style={{ width: 232, background: "var(--sidebar)", borderRight: "1px solid var(--border)", boxShadow: mobileNav ? "var(--shadow-pane)" : undefined }}>
         <div className="flex items-center gap-2.5 px-7 h-[72px] flex-shrink-0">
           <LogoMark size={22} style={{ color: "var(--ink)" }} className="flex-shrink-0" />
           <span className="text-[18px] font-semibold tracking-[-0.035em]" style={{ color: "var(--ink)" }}>Primy</span>
@@ -339,10 +356,10 @@ export function AppShellV2() {
 
         <div className="px-4 pb-2">
           <NavRow icon={<PenLine size={17} />} label="Quick Note" active={systemView === "notes"} onClick={openQuickNotes} />
-          <NavRow icon={<Library size={17} />} label="Library" active={systemView === "library"} onClick={() => setSystemView("library")} />
-          <NavRow icon={<Search size={17} />} label="Search" hint="⌘K" onClick={() => setSearchOpen(true)} />
-          <NavRow icon={<Rocket size={17} />} label="What's next" onClick={() => setComingSoonOpen(true)} />
-          <NavRow icon={<Trash2 size={17} />} label="Trash" active={systemView === "trash"} onClick={() => setSystemView("trash")} />
+          <NavRow icon={<Library size={17} />} label="Library" active={systemView === "library"} onClick={() => goSystem("library")} />
+          <NavRow icon={<Search size={17} />} label="Search" hint="⌘K" onClick={() => { setMobileNav(false); setSearchOpen(true); }} />
+          <NavRow icon={<Rocket size={17} />} label="What's next" onClick={() => { setMobileNav(false); setComingSoonOpen(true); }} />
+          <NavRow icon={<Trash2 size={17} />} label="Trash" active={systemView === "trash"} onClick={() => goSystem("trash")} />
         </div>
 
         <div ref={sidebarScroll} className="flex-1 overflow-y-auto px-4 pt-4 min-h-0 v2-scroll">
@@ -435,6 +452,26 @@ export function AppShellV2() {
         </div>
       </aside>
 
+      {/* Scrim behind the mobile drawer (taps to dismiss). */}
+      {mobileNav && (
+        <div className="fixed inset-0 z-[74] md:hidden" style={{ background: "rgba(0,0,0,0.35)" }}
+          onClick={() => setMobileNav(false)} aria-hidden />
+      )}
+
+      {/* ───── Main column (mobile top bar + content) ───── */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Mobile-only top bar: opens the Workspaces drawer. Hidden on md+. */}
+        <div className="md:hidden flex items-center gap-2.5 px-4 flex-shrink-0"
+          style={{ height: 52, background: "var(--sidebar)", borderBottom: "1px solid var(--border)" }}>
+          <button onClick={() => setMobileNav(true)} title="Menu"
+            className="flex items-center justify-center w-9 h-9 -ml-1.5 rounded-[8px] press icon-hover" style={{ color: "var(--icon)" }}>
+            <Menu size={20} />
+          </button>
+          <LogoMark size={19} style={{ color: "var(--ink)" }} className="flex-shrink-0" />
+          <span className="text-[16px] font-semibold tracking-[-0.035em]" style={{ color: "var(--ink)" }}>Primy</span>
+        </div>
+
+        <div className="flex-1 min-w-0 flex">
       {/* ───── Main area ───── */}
       {systemView === "trash" ? (
         <main className="flex-1 min-w-0 flex flex-col" style={{ background: "var(--canvas)" }}>
@@ -455,12 +492,9 @@ export function AppShellV2() {
               chatHidden={!chatOpen} onShowChat={() => setChatOpen(true)} />
           </div>
           {chatOpen && (
-            <section data-chat-panel className="hidden md:flex flex-col flex-shrink-0 m-4 ml-2 rounded-[14px] overflow-hidden t-slow slide-in-right"
-              style={{ width: chatExpanded ? 760 : 430, background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
-              <ChatPanel branded expanded={chatExpanded}
-                onToggleExpand={() => setChatExpanded((v) => !v)}
-                onCollapse={() => { setChatExpanded(false); setChatOpen(false); }} />
-            </section>
+            <ChatDock expanded={chatExpanded}
+              onToggleExpand={() => setChatExpanded((v) => !v)}
+              onCollapse={() => { setChatExpanded(false); setChatOpen(false); }} />
           )}
         </div>
       ) : !currentProjectId ? (
@@ -549,19 +583,17 @@ export function AppShellV2() {
 
         {/* chat */}
         {chatOpen && (
-          <section data-chat-panel className="hidden md:flex flex-col flex-shrink-0 m-4 ml-2 rounded-[14px] overflow-hidden t-slow"
-            style={{ width: chatExpanded ? 760 : 430, background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
-            <ChatPanel
-              centered={!currentProjectId}
-              branded
-              expanded={chatExpanded}
-              onToggleExpand={() => setChatExpanded((v) => !v)}
-              onCollapse={() => { setChatExpanded(false); setChatOpen(false); }}
-            />
-          </section>
+          <ChatDock
+            centered={!currentProjectId}
+            expanded={chatExpanded}
+            onToggleExpand={() => setChatExpanded((v) => !v)}
+            onCollapse={() => { setChatExpanded(false); setChatOpen(false); }}
+          />
         )}
       </div>
       )}
+        </div>
+      </div>
 
       {wsMenu && (
         <>
@@ -613,6 +645,29 @@ export function AppShellV2() {
       )}
       <KeyboardShortcuts />
     </div>
+  );
+}
+
+/* ───────────────────────── chat dock ───────────────────────── */
+
+/* The chat surface. Docks as a floating card on md+ (right of the work area);
+   below md it becomes a full-screen overlay so the narrow viewport isn't split.
+   Its collapse control (in ChatPanel) closes it, returning to the board. */
+function ChatDock({ centered, expanded, onToggleExpand, onCollapse }: {
+  centered?: boolean; expanded: boolean; onToggleExpand: () => void; onCollapse: () => void;
+}) {
+  return (
+    <section data-chat-panel
+      className={cn(
+        "flex flex-col flex-shrink-0 overflow-hidden",
+        "fixed inset-0 z-[80] w-full",                                          // mobile: full-screen overlay
+        "md:static md:z-auto md:inset-auto md:m-4 md:ml-2 md:rounded-[14px] md:t-slow", // md+: docked card
+        expanded ? "md:w-[760px]" : "md:w-[430px]",
+      )}
+      style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
+      <ChatPanel branded centered={centered} expanded={expanded}
+        onToggleExpand={onToggleExpand} onCollapse={onCollapse} />
+    </section>
   );
 }
 

@@ -58,7 +58,7 @@ Three entity types live inside a **Project**:
 
 ## 4. App Shell & Navigation
 
-> **Active shell: `AppShellV2`** (`src/components/shell/v2/AppShellV2.tsx`) — the Strut-inspired overhaul, default since Jun 2026. The legacy `AppShell` below is still reachable via `/app?shell=v1` but is not the product. Toggle persists in `localStorage` (`primy:shellV2`).
+> **The shell: `AppShellV2`** (`src/components/shell/v2/AppShellV2.tsx`) — the Strut-inspired overhaul, the only shell since Jun 2026. It is fully responsive (off-canvas sidebar drawer + full-screen chat overlay below `md`). The legacy `AppShell` (v1), the `?shell=v1` flag, and the `primy:shellV2` localStorage toggle were all removed.
 
 ### AppShellV2 (current)
 
@@ -80,16 +80,10 @@ Three entity types live inside a **Project**:
 - **Move to workspace**: promotes a note into any real project (optimistic, id-preserving; server sync in background).
 - No whiteboard — inline Mermaid covers quick diagrams (deliberate non-goal).
 
-### Legacy AppShell (v1, `?shell=v1`)
+### Responsive behavior
 
-- **Path**: `src/components/AppShell.tsx`
-- **Structure**: 3-panel layout with view mode detection
-- **Main panels**: NavRail (left), ChatPanel (right), WorkspacePanel (center)
-
-**Legacy view modes:**
-1. **Chat mode**: Only ChatPanel visible (no entity selected)
-2. **Project mode**: NavRail + ChatPanel + ProjectHome (entity list overview)
-3. **Editor mode**: NavRail + ChatPanel + WorkspacePanel (entity open for editing)
+- **md+**: 232px sidebar and the chat card dock statically beside the work area.
+- **below md**: a mobile top bar (hamburger + brand) opens the sidebar as an off-canvas drawer (tap-scrim to dismiss); the chat docks as a full-screen overlay, closed by default on first load and toggled via the per-view show-chat control. There is no separate mobile shell, the same `AppShellV2` reflows.
 
 ### Navigation Components
 

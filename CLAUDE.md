@@ -110,7 +110,7 @@ This is the largest file in the codebase. All client-side state lives in a singl
 
 ### Navigation surfaces (V2 shell)
 
-`AppShellV2` (the active shell) renders three things in the main area, by precedence: a **system view** (`systemView: "library" | "notes" | "trash" | null`), then the per-project board/editor, then the full-screen chat hero when no project is open. The sidebar nav rows are **Quick Note**, **Library**, **Search** (⌘K), **What's next**, **Trash**. The Quick Notes workspace is hidden from the Workspaces tree and surfaced only via the pinned Quick Note row. **Library** (`LibraryView`) is a workspace gallery split into "Created by me" / "Shared with me" using ownership from the list endpoint (`isOwner`/`ownerName`/`orgId` on `projects`); each card summarizes its contents (entity counts). It replaced the old Recents surface. File-level "created by me" (inside shared workspaces) is a fast-follow needing a per-entity `createdBy` column.
+`AppShellV2` (the only shell) renders three things in the main area, by precedence: a **system view** (`systemView: "library" | "notes" | "trash" | null`), then the per-project board/editor, then the full-screen chat hero when no project is open. The sidebar nav rows are **Quick Note**, **Library**, **Search** (⌘K), **What's next**, **Trash**. The shell is responsive: at `md+` the 232px sidebar and chat card dock statically; below `md` the sidebar becomes an off-canvas drawer (hamburger in a mobile top bar, tap-scrim to dismiss) and the chat docks as a full-screen overlay (closed by default on first load). The Quick Notes workspace is hidden from the Workspaces tree and surfaced only via the pinned Quick Note row. **Library** (`LibraryView`) is a workspace gallery split into "Created by me" / "Shared with me" using ownership from the list endpoint (`isOwner`/`ownerName`/`orgId` on `projects`); each card summarizes its contents (entity counts). It replaced the old Recents surface. File-level "created by me" (inside shared workspaces) is a fast-follow needing a per-entity `createdBy` column.
 
 ### Project Activity Feed
 
@@ -126,7 +126,7 @@ Each project keeps an append-only **activity log** (`activityEvents` table, help
 - `src/lib/ai/modelRouter.ts` — Task-keyed model registry (OpenAI today; Google client dormant)
 - `src/app/api/chat/route.ts` — Main streaming chat endpoint
 - `src/db/schema.ts` — Drizzle PostgreSQL table definitions
-- `src/components/shell/v2/AppShellV2.tsx` — **Active shell** (Strut overhaul). Default; legacy `src/components/AppShell.tsx` still reachable via `/app?shell=v1`
+- `src/components/shell/v2/AppShellV2.tsx` — **The shell** (Strut overhaul), fully responsive (off-canvas sidebar drawer + full-screen chat overlay below `md`). The legacy `AppShell` (v1) and the `?shell=v1` flag were removed; this is the only shell.
 - `src/components/shell/v2/LibraryView.tsx` / `QuickNotesView.tsx` — the two global surfaces
 - `src/lib/auth.ts` — NextAuth v5 config (credentials, throttle, tokenVersion revocation, dev-admin bypass)
 - `src/lib/activity.ts` — Append-only project activity log (`logActivity` / `listActivity`, best-effort + non-fatal)
