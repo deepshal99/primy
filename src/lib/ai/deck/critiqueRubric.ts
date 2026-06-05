@@ -16,6 +16,7 @@
  *                              pickBestVersion()  ◄── all scored versions
  */
 import type { JSONSchema7 } from "json-schema";
+import { buildCritiqueRubric } from "./lenses";
 
 export type IssueSeverity = "critical" | "major" | "minor";
 
@@ -27,7 +28,27 @@ export type IssueCategory =
   | "readability"
   | "spacing"
   | "brand"
+  | "accessibility"
+  | "neatness"
+  | "creativity"
+  | "prompt"
   | "other";
+
+/** Every valid issue category — single source of truth for the schema + validator. */
+export const ISSUE_CATEGORIES: IssueCategory[] = [
+  "contrast",
+  "overflow",
+  "hierarchy",
+  "balance",
+  "readability",
+  "spacing",
+  "brand",
+  "accessibility",
+  "neatness",
+  "creativity",
+  "prompt",
+  "other",
+];
 
 export interface CritiqueIssue {
   severity: IssueSeverity;
@@ -48,24 +69,12 @@ export interface SlideVerdict {
 export const PASS_THRESHOLD = 78;
 
 /**
- * The critique rubric. Deliberately concrete and image-grounded — the model
- * must judge what it SEES in the screenshot, not the HTML source.
+ * The default (image-only) critique rubric, composed from the lens registry
+ * (see `lenses.ts`). Callers with a brief/brand should prefer
+ * {@link buildCritiqueRubric} so the prompt-adherence and brand-adherence lenses
+ * activate. Kept as a constant for back-compat and the no-context path.
  */
-export const CRITIQUE_RUBRIC = `You are a world-class presentation design critic. You are shown a SCREENSHOT of a single rendered 960×540 slide. Judge ONLY what is visible in the image — not intent, not source code.
-
-Score the slide 0–100 on these weighted dimensions:
-- Readability & contrast (30): Is every text element clearly legible against its background? Flag any text that is low-contrast, washed out, or invisible (same-on-same color).
-- Layout & overflow (25): Does all content fit inside the frame with comfortable margins? Flag anything clipped, cut off at an edge, cramped, or colliding.
-- Visual hierarchy (20): Is there a clear focal point and a sensible reading order? Flag competing emphasis, flat hierarchy, or a title that doesn't lead.
-- Balance & composition (15): Is whitespace distributed well? Flag lopsided weight, awkward gaps, or elements floating without alignment.
-- Brand & polish (10): Does it look intentional and premium, or template-y/amateur? Flag default-looking styling and visual noise.
-
-Severity guidance:
-- critical = makes the slide unusable as shown (unreadable text, clipped headline, broken layout).
-- major = clearly hurts quality but slide is still usable (weak hierarchy, cramped spacing).
-- minor = polish nitpick.
-
-Return a numeric score and a list of issues. For each issue give a specific, actionable fix (e.g. "change the subtitle color from var(--accent) to var(--text); accent is too dark on this background"). If the slide is excellent, return an empty issues array and a high score. Be honest and demanding — most AI-generated slides have at least one real problem.`;
+export const CRITIQUE_RUBRIC = buildCritiqueRubric();
 
 /** JSON schema (AI-SDK `jsonSchema()` compatible) for a {@link SlideVerdict}. */
 export const VERDICT_JSON_SCHEMA: JSONSchema7 = {
@@ -84,16 +93,7 @@ export const VERDICT_JSON_SCHEMA: JSONSchema7 = {
           severity: { type: "string", enum: ["critical", "major", "minor"] },
           category: {
             type: "string",
-            enum: [
-              "contrast",
-              "overflow",
-              "hierarchy",
-              "balance",
-              "readability",
-              "spacing",
-              "brand",
-              "other",
-            ],
+            enum: ISSUE_CATEGORIES,
           },
           detail: { type: "string" },
           fix: { type: "string" },
@@ -117,16 +117,7 @@ export function normalizeVerdict(raw: unknown): SlideVerdict {
   score = Math.max(0, Math.min(100, score));
 
   const validSeverity: IssueSeverity[] = ["critical", "major", "minor"];
-  const validCategory: IssueCategory[] = [
-    "contrast",
-    "overflow",
-    "hierarchy",
-    "balance",
-    "readability",
-    "spacing",
-    "brand",
-    "other",
-  ];
+  const validCategory: IssueCategory[] = ISSUE_CATEGORIES;
 
   const issues: CritiqueIssue[] = Array.isArray(obj.issues)
     ? obj.issues

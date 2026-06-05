@@ -25,7 +25,6 @@ import { generateObject, generateText, jsonSchema } from "ai";
 import { getModel, getModelConfig } from "@/lib/ai/modelRouter";
 import { withRenderBrowser, type SlideInput } from "@/lib/deck/renderSlide";
 import {
-  CRITIQUE_RUBRIC,
   VERDICT_JSON_SCHEMA,
   normalizeVerdict,
   needsRepair,
@@ -36,6 +35,7 @@ import {
   type SlideVerdict,
   type ScoredVersion,
 } from "./critiqueRubric";
+import { buildCritiqueRubric, type RubricContext } from "./lenses";
 
 export interface RefineSlide {
   id: string;
@@ -72,6 +72,8 @@ export type RefineProgress =
 export interface RefineOptions {
   /** Short description of intended brand/theme, used for brand-fit judging. */
   brandContext?: string;
+  /** What the deck is about, used for prompt-adherence judging. */
+  brief?: string;
   /** Max repair rounds per slide. Default 2. */
   maxRounds?: number;
   /** Score below which a slide is repaired. Default {@link PASS_THRESHOLD}. */
@@ -97,12 +99,12 @@ HARD RULES:
 async function critiqueSlide(
   model: ReturnType<typeof getModel>,
   pngBase64: string,
-  brandContext?: string
+  ctx: RubricContext = {}
 ): Promise<SlideVerdict | null> {
   try {
-    const text = brandContext
-      ? `${CRITIQUE_RUBRIC}\n\nIntended brand / visual style for brand-fit judging: ${brandContext}`
-      : CRITIQUE_RUBRIC;
+    // Compose the rubric from the lenses whose inputs we have — the brand and
+    // prompt-adherence lenses activate only when brand/brief are present.
+    const text = buildCritiqueRubric(ctx);
     const { object } = await generateObject({
       model,
       schema: jsonSchema(VERDICT_JSON_SCHEMA),
@@ -130,13 +132,14 @@ async function critiqueSlide(
 async function repairSlide(
   slideHtml: string,
   verdict: SlideVerdict,
-  brandContext?: string
+  ctx: RubricContext = {}
 ): Promise<string | null> {
   const model = getModel("deck-edit");
   const maxOutputTokens = getModelConfig("deck-edit").maxOutputTokens;
   const prompt =
     `${REPAIR_INSTRUCTIONS}\n\n` +
-    (brandContext ? `INTENDED BRAND/STYLE: ${brandContext}\n\n` : "") +
+    (ctx.brand ? `INTENDED BRAND/STYLE: ${ctx.brand}\n\n` : "") +
+    (ctx.brief ? `DECK BRIEF (keep the slide on-topic): ${ctx.brief}\n\n` : "") +
     `PROBLEMS TO FIX:\n${formatIssuesForRepair(verdict)}\n\n` +
     `CURRENT SLIDE HTML:\n${slideHtml}`;
   try {
@@ -165,7 +168,9 @@ export async function refineDeck(
 ): Promise<RefineResult> {
   const maxRounds = opts.maxRounds ?? 2;
   const threshold = opts.threshold ?? PASS_THRESHOLD;
-  const brandContext = opts.brandContext;
+  // Critique/repair context — the lens builder activates brand/prompt adherence
+  // only for the fields present here.
+  const ctx: RubricContext = { brand: opts.brandContext, brief: opts.brief };
 
   const renderable = slides.filter((s) => typeof s.html === "string" && s.html.trim().length > 0);
   opts.onProgress?.({ stage: "render", total: renderable.length });
@@ -215,7 +220,7 @@ export async function refineDeck(
         continue;
       }
 
-      const verdict0 = await critiqueSlide(critiqueModel, png, brandContext);
+      const verdict0 = await critiqueSlide(critiqueModel, png, ctx);
 
       // Critique unavailable (vision error/misconfig) → keep original, count as
       // skipped. Never report a broken critique as a flawless slide.
@@ -243,13 +248,13 @@ export async function refineDeck(
         round++;
         opts.onProgress?.({ stage: "repair", id: slide.id, index: i, round });
 
-        const fixedHtml = await repairSlide(currentHtml, current, brandContext);
+        const fixedHtml = await repairSlide(currentHtml, current, ctx);
         if (!fixedHtml) break; // repair produced nothing usable → stop, keep best so far
 
         const [reRendered] = await render([{ id: slide.id, html: fixedHtml }]);
         if (!reRendered?.png) break; // can't verify the fix → don't trust it
 
-        const verdict = await critiqueSlide(critiqueModel, reRendered.png, brandContext);
+        const verdict = await critiqueSlide(critiqueModel, reRendered.png, ctx);
         if (!verdict) break; // can't score the fix → don't adopt an unverified change
         versions.push({ html: fixedHtml, verdict });
         current = verdict;

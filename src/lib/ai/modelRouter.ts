@@ -4,8 +4,10 @@ import { createOpenAI } from "@ai-sdk/openai";
 /**
  * Task-keyed model registry.
  *
- * Phase 1 cleanup: Primy uses OpenAI for all chat-related tasks and Google
- * (Gemini 3.1 Pro) for deck generation/editing where it performs better.
+ * OpenAI is the sole routed provider today. Tasks split by job: fast gpt-4.1 for
+ * interactive chat, gpt-5-mini (reasoning) for the design-heavy surfaces (pages
+ * AND the full deck pipeline — generate/edit/critique), gpt-5.5 only for the
+ * deepest reasoning. A Google client is still wired but no task routes to it.
  * Provider is selected per-task, not via a global env var.
  */
 
@@ -64,9 +66,16 @@ const MODEL_REGISTRY: Record<AITask, ModelConfig> = {
   // premium gpt-5.5 pass can be offered behind an explicit "Enhance" action.
   // verbosity:high → fuller markup; reasoningEffort:medium → coherent layout.
   "page-generate": { provider: "openai", model: "gpt-5-mini",            maxOutputTokens: 32768, reasoningEffort: "medium", verbosity: "high" },
-  "deck-generate": { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 32768  },
-  "deck-edit":     { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 32768  },
-  "deck-critique": { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 2048   },
+  // Deck pipeline — same finding as pages: gpt-5.x reasoning models far
+  // out-design gpt-4.1 on visual HTML, and gpt-5-mini is the cost-smart pick
+  // (~6× cheaper than gpt-5.5, near-equal design). Generation/edit get
+  // verbosity:high for fuller markup; the vision critique runs reasoning:medium
+  // so the critic actually judges (gpt-4.1 was too lax — bad slides passed).
+  // The chat route applies effort/verbosity to the gpt-5-mini candidate only;
+  // the gpt-4.1 resilience fallback carries neither (Responses API rejects them).
+  "deck-generate": { provider: "openai", model: "gpt-5-mini",            maxOutputTokens: 32768, reasoningEffort: "medium", verbosity: "high" },
+  "deck-edit":     { provider: "openai", model: "gpt-5-mini",            maxOutputTokens: 32768, reasoningEffort: "medium", verbosity: "high" },
+  "deck-critique": { provider: "openai", model: "gpt-5-mini",            maxOutputTokens: 4096,  reasoningEffort: "medium" },
   "title":         { provider: "openai", model: "gpt-4.1-mini",          maxOutputTokens: 256    },
   "web-search":    { provider: "openai", model: "gpt-4.1-mini",          maxOutputTokens: 8192   },
   "summarize":     { provider: "openai", model: "gpt-4.1",               maxOutputTokens: 4096   },

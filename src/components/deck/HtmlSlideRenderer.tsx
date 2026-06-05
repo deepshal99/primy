@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import { sanitizeSlideHtml, extractGoogleFontUrls, enforceSlideContrast } from "./sanitizeSlideHtml";
+import { fixContrastInRoot } from "./contrastFix";
 import { resolveImageQuery } from "@/lib/imageCache";
 import type { HtmlDeckSlide } from "@/lib/types";
 
@@ -40,6 +41,14 @@ export function HtmlSlideRenderer({
       shadowRef.current = host.attachShadow({ mode: "open" });
     }
     shadowRef.current.innerHTML = sanitizedHtml;
+    // Accurate computed-contrast pass: fix any text that renders unreadable
+    // against its REAL (gradient/inherited/alpha) background. Deferred a frame so
+    // layout + fonts are applied before getComputedStyle reads painted colors.
+    const root = shadowRef.current;
+    const raf = requestAnimationFrame(() => {
+      try { fixContrastInRoot(root); } catch { /* never break a render over contrast */ }
+    });
+    return () => cancelAnimationFrame(raf);
   }, [sanitizedHtml]);
 
   // Preload Google Fonts from the HTML

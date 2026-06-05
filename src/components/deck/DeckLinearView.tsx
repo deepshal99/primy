@@ -149,12 +149,16 @@ export function DeckLinearView() {
     // deck we started on so a mid-run deck switch can't merge these polished
     // slides into a different deck that happens to share the same ids.
     const startDeckId = useAppStore.getState().currentEntityId;
+    // The deck title is the best on-hand "brief" — it gives the prompt-adherence
+    // lens something concrete to judge each slide's on-topic-ness against.
+    const deckBrief = useAppStore.getState().openTabs.find((t) => t.id === startDeckId)?.title;
     setPolishing(true);
     setPolishStatus("Rendering slides…");
     try {
       const result = await refineDeckSlides(slides, {
         auto,
         brandContext: brandContextFrom(theme, style),
+        brief: deckBrief,
         onProgress: (e) => {
           if (e.stage === "render") setPolishStatus("Rendering slides…");
           else if (e.stage === "critique")

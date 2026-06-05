@@ -49,7 +49,7 @@ npm run org:pro      # Mark an org as paid (set-org-pro helper)
 - **Sheets**: Univer (Fortune Sheet migration complete)
 - **Docs**: Plate.js v52 (Slate-based rich text) — also backs Quick Notes
 - **Inline Mermaid**: Plate.js fenced-code rendering
-- **Decks**: Custom slide system with pptxgenjs export + Puppeteer/Chromium PDF; an agentic **deck-refine** pipeline (critique → repair) is in progress (`src/lib/ai/deck/`, `src/lib/deck/`, `/api/deck-refine`)
+- **Decks**: Custom slide system with pptxgenjs export + Puppeteer/Chromium PDF; runs on **gpt-5-mini** end-to-end (generate/edit/critique). An agentic **deck-refine** pipeline renders each slide to an image and runs a **lens-based vision critique → repair** loop (`src/lib/ai/deck/lenses.ts` composes modular per-dimension lenses — readability, overflow, hierarchy, accessibility, neatness, creativity, plus intent-grounded **brand-adherence** and **prompt-adherence** that activate when a brand/brief is supplied). Readability is also enforced deterministically at render: `enforceSlideContrast` (string pass, gradient-aware + strips leaked continuation backslashes) plus `contrastFix.ts`' runtime computed-contrast pass in the shadow-DOM renderers. (`src/lib/ai/deck/`, `src/lib/deck/`, `src/components/deck/`, `/api/deck-refine`)
 - **Auth hardening**: revocable sessions via `tokenVersion`, durable login throttle, breached-password check, password reset, "log out everywhere"
 
 ## Architecture
@@ -77,9 +77,9 @@ Model selection is task-keyed (registry in `src/lib/ai/modelRouter.ts`). Each ta
 | `chat-heavy` (>30KB context) | openai | gpt-4.1 | 32,768 |
 | `chat-deep` (complex reasoning) | openai | gpt-5.5 (effort: medium, verbosity: low) | 32,768 |
 | `page-generate` (visual HTML page intent) | openai | gpt-5-mini (effort: medium, verbosity: high) | 32,768 |
-| `deck-generate` | openai | gpt-4.1 | 32,768 |
-| `deck-edit` | openai | gpt-4.1 | 32,768 |
-| `deck-critique` | openai | gpt-4.1 | 2,048 |
+| `deck-generate` | openai | gpt-5-mini (effort: medium, verbosity: high) | 32,768 |
+| `deck-edit` | openai | gpt-5-mini (effort: medium, verbosity: high) | 32,768 |
+| `deck-critique` (vision, image in) | openai | gpt-5-mini (effort: medium) | 4,096 |
 | `title` / `web-search` | openai | gpt-4.1-mini | 256 / 8,192 |
 | `summarize` | openai | gpt-4.1 | 4,096 |
 | `embedding` | openai | text-embedding-3-small | — |
@@ -148,7 +148,7 @@ Each project keeps an append-only **activity log** (`activityEvents` table, help
 - `GET/POST/DELETE /api/orgs/[id]/members` — List members; add by email; remove
 - `POST/DELETE /api/files/[id]/share` — Generate/remove a per-entity (KU/table/deck) share token
 - `GET/POST/DELETE /api/trash` — List, restore, and hard-delete soft-deleted items
-- `POST /api/deck-refine` — Agentic deck critique/repair pass (WIP)
+- `POST /api/deck-refine` — Agentic deck render → lens-based vision critique → repair pass (body: `slides`, `brandContext?`, `brief?`)
 - `POST /api/extract` — File text extraction (PDF, DOCX, XLSX, ZIP)
 - `POST /api/embeddings` — Generate embeddings for semantic search
 - `POST /api/export/pdf` — Server-side PDF generation (Puppeteer/Chromium)

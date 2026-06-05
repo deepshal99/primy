@@ -5,6 +5,7 @@ import { DeckSlide, HtmlDeckSlide, isHtmlSlide } from "@/lib/types";
 import type { ThemeConfig } from "@/lib/types";
 import { getThemeConfig, loadThemeFonts, loadThemeFontsFromConfig } from "./deckThemes";
 import { sanitizeSlideHtml, enforceSlideContrast } from "./sanitizeSlideHtml";
+import { fixContrastInRoot } from "./contrastFix";
 
 /**
  * Render raw slide HTML inside a shadow root so its CSS can't leak into the app
@@ -19,6 +20,11 @@ function ShadowSlide({ html, style }: { html: string; style: React.CSSProperties
     if (!host) return;
     if (!shadowRef.current) shadowRef.current = host.attachShadow({ mode: "open" });
     shadowRef.current.innerHTML = html;
+    const root = shadowRef.current;
+    const raf = requestAnimationFrame(() => {
+      try { fixContrastInRoot(root); } catch { /* never break a render over contrast */ }
+    });
+    return () => cancelAnimationFrame(raf);
   }, [html]);
   return <div ref={hostRef} style={style} />;
 }

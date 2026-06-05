@@ -37,6 +37,23 @@ function escapeRegExp(s: string): string {
 }
 
 /**
+ * Strip line-continuation backslashes the model sometimes leaks into slide HTML
+ * — a `\` at the end of a line (`</h1>\` then newline). These render as literal
+ * "\" text nodes between elements (observed on real decks). We only remove a
+ * backslash that is immediately followed by optional spaces then a newline, so
+ * legitimate CSS escapes like `content:"\2014"` (backslash + hex) are untouched.
+ */
+export function stripContinuationBackslashes(html: string): string {
+  return html.replace(/\\(?=[ \t]*\r?\n)/g, "");
+}
+
+/** Pull the first literal hex/rgb color out of a CSS background value (incl. gradients). */
+function firstColorFromBackground(value: string): [number, number, number] | null {
+  const m = value.match(/#[0-9a-fA-F]{3,6}|rgba?\([^)]*\)/);
+  return m ? parseColor(m[0]) : null;
+}
+
+/**
  * Post-process slide HTML to enforce text/background contrast.
  * Extracts --bg and --text CSS variables, checks luminance, and fixes mismatches.
  * Also scans inline color styles for hardcoded dark-on-dark or light-on-light issues.
@@ -54,6 +71,10 @@ export function scopeSlideRootCss(html: string, slideDomId: string): string {
 }
 
 export function enforceSlideContrast(html: string): string {
+  // Strip continuation-backslash artifacts first — this runs on every render
+  // path (both shadow renderers, PDF export, DSL), so it's the single chokepoint.
+  html = stripContinuationBackslashes(html);
+
   // Extract CSS variable definitions from <style> block
   const varRegex = /--bg\s*:\s*([^;}\s]+)/;
   const textVarRegex = /--text\s*:\s*([^;}\s]+)/;
@@ -69,11 +90,22 @@ export function enforceSlideContrast(html: string): string {
   if (bgMatch) {
     bgColor = parseColor(bgMatch[1]);
   }
-  // Fallback: extract first hex color from inline background style
+  // Fallback chain: the root background is often painted by a gradient or a
+  // `--surface`/`--card` token rather than a bare `--bg` hex, which used to make
+  // this bail (`return html`) and ship dark-on-dark text. Resolve a
+  // representative color from any background declaration (gradients included),
+  // then from common surface tokens, before giving up.
   if (!bgColor) {
-    const inlineBg = html.match(/background\s*:\s*(?:linear-gradient\([^,]+,\s*)?([#][0-9a-fA-F]{3,6})/);
-    if (inlineBg) bgColor = parseColor(inlineBg[1]);
+    const inlineBg = html.match(/background(?:-color)?\s*:\s*([^;"']+)/);
+    if (inlineBg) bgColor = firstColorFromBackground(inlineBg[1]);
   }
+  if (!bgColor) {
+    const surfaceMatch = html.match(/--(?:surface|card|panel)\s*:\s*([^;}\s]+)/);
+    if (surfaceMatch) bgColor = parseColor(surfaceMatch[1]);
+  }
+  // Note: the DOM-level `fixContrastInRoot` pass (contrastFix.ts) is the accurate
+  // backstop where slides actually render; this string pass is a best-effort
+  // first line for contexts without a layout engine.
   if (!bgColor) return html; // Can't determine bg color
 
   const bgIsDark = isDark(bgColor);

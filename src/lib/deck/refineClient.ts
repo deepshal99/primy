@@ -41,6 +41,8 @@ export async function refineDeckSlides(
   slides: (DeckSlide | HtmlDeckSlide)[],
   opts: {
     brandContext?: string;
+    /** What the deck is about — enables the prompt-adherence lens in critique. */
+    brief?: string;
     /** Background auto-polish after generation — not metered against the user's plan. */
     auto?: boolean;
     signal?: AbortSignal;
@@ -55,7 +57,7 @@ export async function refineDeckSlides(
   const res = await fetch("/api/deck-refine", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ slides: htmlSlides, brandContext: opts.brandContext, auto: opts.auto === true }),
+    body: JSON.stringify({ slides: htmlSlides, brandContext: opts.brandContext, brief: opts.brief, auto: opts.auto === true }),
     signal: opts.signal,
   });
 

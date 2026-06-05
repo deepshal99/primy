@@ -1,7 +1,9 @@
 /**
  * POST /api/deck-refine — render→vision-critique→repair pass over a deck.
  *
- * Body: { slides: {id, html}[], brandContext?: string }
+ * Body: { slides: {id, html}[], brandContext?: string, brief?: string }
+ *   - brandContext enables the brand-adherence critique lens
+ *   - brief (what the deck is about) enables the prompt-adherence lens
  * Response: Server-Sent Events stream of {@link RefineProgress} objects, then a
  * final `{ type: "result", slides, summary }` (or `{ type: "error", error }`).
  *
@@ -72,6 +74,9 @@ export async function POST(req: Request) {
   const brandContext =
     typeof brandContextRaw === "string" ? brandContextRaw.slice(0, MAX_BRAND_CONTEXT) : undefined;
 
+  const briefRaw = (body as { brief?: unknown })?.brief;
+  const brief = typeof briefRaw === "string" ? briefRaw.slice(0, MAX_BRAND_CONTEXT) : undefined;
+
   // Metering: manual polish counts as one AI message. Background auto-polish
   // (auto:true) rides on the generation the user already paid for, so it's
   // free — only the explicit "Polish" button is metered.
@@ -104,6 +109,7 @@ export async function POST(req: Request) {
       try {
         const result = await refineDeck(slides, {
           brandContext,
+          brief,
           onProgress: (e: RefineProgress) => send(e),
         });
         send({ type: "result", slides: result.slides, summary: result.summary });
