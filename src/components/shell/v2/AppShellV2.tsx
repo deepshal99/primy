@@ -475,7 +475,7 @@ export function AppShellV2() {
           <span className="text-[16px] font-semibold tracking-[-0.035em]" style={{ color: "var(--ink)" }}>Primy</span>
         </div>
 
-        <div className="flex-1 min-w-0 flex">
+        <div className="flex-1 min-w-0 min-h-0 flex">
       {/* ───── Main area ───── */}
       {systemView === "trash" ? (
         <main className="flex-1 min-w-0 flex flex-col" style={{ background: "var(--canvas)" }}>
