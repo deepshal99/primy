@@ -6,15 +6,12 @@ import { UniversalSlideRenderer } from "./UniversalSlideRenderer";
 import { isHtmlSlide } from "@/lib/types";
 import type { HtmlDeckSlide } from "@/lib/types";
 import { PresentationMode } from "./PresentationMode";
-import { exportDeckToPDF, exportDeckToPPTX } from "./deckExport";
 import { refineDeckSlides } from "@/lib/deck/refineClient";
 import { toast } from "sonner";
 import {
   Play,
-  Download,
   RotateCcw,
-  ChevronDown,
-  Wand2,
+  BadgeCheck,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -46,27 +43,12 @@ export function DeckLinearView() {
   const clearPendingDeckPolish = useAppStore((s) => s.clearPendingDeckPolish);
 
   const [presenting, setPresenting] = useState(false);
-  const [exportOpen, setExportOpen] = useState(false);
   const [currentSlideIdx, setCurrentSlideIdx] = useState(0);
-  const [exporting, setExporting] = useState(false);
   const [polishing, setPolishing] = useState(false);
   const [polishStatus, setPolishStatus] = useState<string | null>(null);
 
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const exportDropdownRef = useRef<HTMLDivElement>(null);
-
-  // Close export dropdown on outside click
-  useEffect(() => {
-    if (!exportOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target as Node)) {
-        setExportOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [exportOpen]);
 
   // IntersectionObserver to track which slide is in view
   useEffect(() => {
@@ -113,32 +95,6 @@ export function DeckLinearView() {
     });
     updateDeckSlides(newSlides);
   }, [slides, updateDeckSlides]);
-
-  const handleExportPDF = useCallback(async () => {
-    setExporting(true);
-    setExportOpen(false);
-    try {
-      await exportDeckToPDF(slides, theme, style);
-    } catch (err) {
-      console.error("PDF export failed:", err);
-      toast.error("PDF export failed. Please try again");
-    } finally {
-      setExporting(false);
-    }
-  }, [slides, theme, style]);
-
-  const handleExportPPTX = useCallback(async () => {
-    setExporting(true);
-    setExportOpen(false);
-    try {
-      await exportDeckToPPTX(slides, theme, style);
-    } catch (err) {
-      console.error("PPTX export failed:", err);
-      toast.error("PowerPoint export failed. Please try again");
-    } finally {
-      setExporting(false);
-    }
-  }, [slides, theme, style]);
 
   // Render → vision-critique → repair each slide, then merge the polished HTML.
   // `auto` runs (background, post-generation) stay quiet on no-op/failure and
@@ -228,37 +184,6 @@ export function DeckLinearView() {
           Present
         </button>
 
-        <div ref={exportDropdownRef} className="relative">
-          <button
-            onClick={() => setExportOpen(!exportOpen)}
-            disabled={exporting}
-            className={cn(
-              "inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-foreground bg-card border border-border rounded-lg hover:bg-accent transition-colors",
-              exporting && "opacity-60 cursor-wait"
-            )}
-          >
-            <Download size={13} />
-            {exporting ? "Exporting..." : "Export"}
-            <ChevronDown size={10} />
-          </button>
-          {exportOpen && (
-            <div className="absolute top-full mt-1 left-0 min-w-[140px] bg-card border border-border rounded-lg shadow-lg z-20 overflow-hidden">
-              <button
-                onClick={handleExportPDF}
-                className="block w-full px-3.5 py-2 text-[13px] text-left text-foreground hover:bg-accent transition-colors"
-              >
-                Export as PDF
-              </button>
-              <button
-                onClick={handleExportPPTX}
-                className="block w-full px-3.5 py-2 text-[13px] text-left text-foreground hover:bg-accent transition-colors"
-              >
-                Export as PPTX
-              </button>
-            </div>
-          )}
-        </div>
-
         <button
           onClick={() => handlePolish(false)}
           disabled={polishing}
@@ -268,7 +193,7 @@ export function DeckLinearView() {
             polishing && "opacity-70 cursor-wait"
           )}
         >
-          <Wand2 size={13} className={polishing ? "animate-pulse text-accent-amber" : "text-accent-amber"} />
+          <BadgeCheck size={13} className={polishing ? "animate-pulse" : ""} />
           {polishing ? "Polishing…" : "Polish"}
         </button>
 

@@ -77,12 +77,15 @@ export function EntityShareButton() {
 export function DeckExport() {
   const slides = useAppStore((s) => s.deckSlides);
   const theme = useAppStore((s) => s.deckTheme);
+  // Pass the deck's custom style so the export matches what's on screen — without
+  // it the PDF/PPTX fall back to the bare theme and lose the deck's real look.
+  const style = useAppStore((s) => s.deckStyle);
 
   const handleExport = async (format: "pdf" | "pptx") => {
     try {
       const { exportDeckToPDF, exportDeckToPPTX } = await import("@/components/deck/deckExport");
-      if (format === "pdf") await exportDeckToPDF(slides, theme);
-      else await exportDeckToPPTX(slides, theme);
+      if (format === "pdf") await exportDeckToPDF(slides, theme, style);
+      else await exportDeckToPPTX(slides, theme, style);
     } catch (err) {
       console.error("Deck export failed:", err);
       toast.error(`${format === "pdf" ? "PDF" : "PowerPoint"} export failed. Please try again`);
