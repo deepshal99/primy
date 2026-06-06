@@ -138,6 +138,52 @@ export function parseDeckDsl(xml: string): ParsedDeckDsl {
   return { title, theme, slides };
 }
 
+// ── contrast-safe accent for TEXT ──
+
+function hexToRgb(hex: string): [number, number, number] | null {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function rgbLum([r, g, b]: [number, number, number]): number {
+  const a = [r, g, b].map((c) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
+}
+function ratio(a: [number, number, number], b: [number, number, number]): number {
+  const la = rgbLum(a), lb = rgbLum(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+function toHex([r, g, b]: [number, number, number]): string {
+  return "#" + [r, g, b].map((c) => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, "0")).join("");
+}
+/**
+ * A version of `accent` that meets WCAG 4.5:1 as TEXT on `bg`, by mixing toward
+ * black (light bg) or white (dark bg) in small steps until it passes. Keeps the
+ * accent hue — so amber text on white becomes a readable deep amber, not a flat
+ * grey (matches the design system's deep-amber rule). Falls back to the original
+ * accent if it already passes, or to ink if it can't be made to.
+ */
+function readableAccentText(accent: string, bg: string): string {
+  const a = hexToRgb(accent);
+  const b = hexToRgb(bg);
+  if (!a || !b) return accent;
+  if (ratio(a, b) >= 4.5) return accent;
+  const target: [number, number, number] = rgbLum(b) > 0.5 ? [0, 0, 0] : [255, 255, 255];
+  for (let t = 0.1; t <= 1.0001; t += 0.1) {
+    const mixed: [number, number, number] = [
+      a[0] + (target[0] - a[0]) * t,
+      a[1] + (target[1] - a[1]) * t,
+      a[2] + (target[2] - a[2]) * t,
+    ];
+    if (ratio(mixed, b) >= 4.5) return toHex(mixed);
+  }
+  return toHex(target);
+}
+
 // ── theme → CSS custom properties ──
 
 function themeRootVars(t: ThemeConfig): string {
@@ -146,6 +192,9 @@ function themeRootVars(t: ThemeConfig): string {
     `--text:${t.text}`,
     `--text-2:${t.textSecondary}`,
     `--accent:${t.accent}`,
+    // Contrast-safe accent for TEXT (the bright accent is for fills only). Fixes
+    // unreadable amber-on-white eyebrows / stat values / numbers.
+    `--accent-text:${readableAccentText(t.accent, t.bg)}`,
     `--accent-2:${t.accentAlt}`,
     `--accent-light:${t.accentLight}`,
     `--card:${t.cardBg}`,
@@ -313,6 +362,44 @@ const RENDERERS: Record<DslLayout, (raw: string) => string> = {
   timeline: renderTimeline,
 };
 
+/**
+ * Layouts that carry a consistent footer (deck name + slide number). The
+ * full-bleed focal layouts (cover, section divider, quote, big statement) stay
+ * clean — no footer — so the footer reads as intentional chrome on content
+ * slides, never "random". This replaces the per-slide ad-hoc footers the
+ * free-form HTML path produced.
+ */
+const LAYOUTS_WITH_FOOTER = new Set<DslLayout>([
+  "bullets",
+  "stats",
+  "twoColumn",
+  "featureGrid",
+  "agenda",
+  "timeline",
+]);
+
+/** HTML-escape a short plaintext value for safe inline use in the footer. */
+function escFooter(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+export interface SlideRenderOpts {
+  /** 1-based slide position, for the footer. */
+  index?: number;
+  /** Total slides, for the footer. */
+  total?: number;
+  /** Deck name shown at footer-left. */
+  deckTitle?: string;
+}
+
+function footerHtml(layout: DslLayout, opts: SlideRenderOpts): string {
+  if (!LAYOUTS_WITH_FOOTER.has(layout)) return "";
+  const left = opts.deckTitle ? escFooter(opts.deckTitle) : "";
+  const right = opts.index && opts.total ? `${opts.index} / ${opts.total}` : "";
+  if (!left && !right) return "";
+  return `<div class="slide-footer"><span>${left}</span><span>${right}</span></div>`;
+}
+
 // ── shared CSS (themed, overflow-safe, 960×540) ──
 
 /**
@@ -337,7 +424,7 @@ function slideCss(): string {
   .subtitle{color:var(--text-2);font-size:21px;line-height:1.4;margin-top:18px;max-width:760px}
   /* title */
   .title h1{font-size:62px;max-width:820px}
-  .eyebrow{color:var(--accent);font-weight:600;font-size:15px;letter-spacing:0.14em;
+  .eyebrow{color:var(--accent-text);font-weight:600;font-size:15px;letter-spacing:0.14em;
     text-transform:uppercase;margin-bottom:22px}
   /* section */
   .section{justify-content:center}
@@ -353,7 +440,7 @@ function slideCss(): string {
   .stat-row{display:flex;gap:24px}
   .stat{flex:1;background:var(--card);border:1px solid var(--card-border);border-radius:16px;
     padding:30px 28px}
-  .stat-v{font-family:var(--h-font);font-weight:var(--h-weight);font-size:52px;color:var(--accent);
+  .stat-v{font-family:var(--h-font);font-weight:var(--h-weight);font-size:52px;color:var(--accent-text);
     line-height:1;letter-spacing:-0.02em}
   .stat-l{color:var(--text-2);font-size:17px;line-height:1.35;margin-top:14px}
   /* two column */
@@ -365,7 +452,7 @@ function slideCss(): string {
   .col-b{color:var(--text-2);font-size:18px;line-height:1.5}
   /* quote */
   .quote{justify-content:center}
-  .qmark{font-family:var(--h-font);font-size:90px;color:var(--accent);line-height:0.6;opacity:0.9}
+  .qmark{font-family:var(--h-font);font-size:90px;color:var(--accent-text);line-height:0.6;opacity:0.9}
   .quote blockquote{font-family:var(--h-font);font-weight:var(--h-weight);font-size:38px;
     line-height:1.25;letter-spacing:-0.015em;margin-top:8px;max-width:800px}
   .cite{color:var(--text-2);font-size:19px;margin-top:26px}
@@ -373,17 +460,17 @@ function slideCss(): string {
   .statement{justify-content:center}
   .statement h1{font-size:46px;line-height:1.18;letter-spacing:-0.015em;max-width:860px}
   /* feature grid */
-  .feat-row{display:flex;flex-wrap:wrap;gap:20px}
-  .feat{flex:1 1 calc(33% - 20px);min-width:230px;background:var(--card);
-    border:1px solid var(--card-border);border-radius:14px;padding:24px}
-  .feat-h{font-family:var(--h-font);font-weight:var(--h-weight);font-size:20px;margin-bottom:10px}
+  .feat-row{display:flex;flex-wrap:wrap;gap:16px}
+  .feat{flex:1 1 calc(33% - 16px);min-width:230px;background:var(--card);
+    border:1px solid var(--card-border);border-radius:14px;padding:18px 20px}
+  .feat-h{font-family:var(--h-font);font-weight:var(--h-weight);font-size:19px;margin-bottom:8px}
   .feat-h::before{content:"";display:block;width:26px;height:4px;border-radius:99px;
-    background:var(--accent);margin-bottom:14px}
-  .feat-b{color:var(--text-2);font-size:16px;line-height:1.45}
+    background:var(--accent);margin-bottom:10px}
+  .feat-b{color:var(--text-2);font-size:15px;line-height:1.4}
   /* agenda (numbered) */
   .agenda ol{list-style:none;display:flex;flex-direction:column;gap:16px}
   .agenda li{display:flex;align-items:baseline;gap:20px;font-size:22px;line-height:1.35}
-  .agenda .num{font-family:var(--h-font);font-weight:var(--h-weight);font-size:20px;color:var(--accent);
+  .agenda .num{font-family:var(--h-font);font-weight:var(--h-weight);font-size:20px;color:var(--accent-text);
     font-feature-settings:'tnum';min-width:34px}
   .agenda .itxt{color:var(--text)}
   /* timeline */
@@ -392,9 +479,13 @@ function slideCss(): string {
   .tl-step::before{content:"";position:absolute;top:6px;left:0;right:0;height:2px;background:var(--divider)}
   .tl-dot{position:absolute;top:0;left:0;width:13px;height:13px;border-radius:50%;
     background:var(--accent);border:2px solid var(--bg)}
-  .tl-label{font-family:var(--h-font);font-weight:var(--h-weight);font-size:17px;color:var(--accent);margin-bottom:8px}
+  .tl-label{font-family:var(--h-font);font-weight:var(--h-weight);font-size:17px;color:var(--accent-text);margin-bottom:8px}
   .tl-body{color:var(--text-2);font-size:15px;line-height:1.4}
   .tl-body b{color:var(--text);font-weight:650}
+  /* consistent footer (content slides only) */
+  .slide-footer{position:absolute;left:72px;right:72px;bottom:26px;display:flex;
+    align-items:center;justify-content:space-between;font-size:13px;letter-spacing:0.01em;
+    color:var(--text-2);opacity:0.65;font-feature-settings:'tnum'}
   `;
 }
 
@@ -413,10 +504,10 @@ function slideCss(): string {
  * also makes the slide self-contained across every render context (shadow, PDF,
  * iframe). The nested `<style>` then only carries layout class rules.
  */
-export function renderSlideHtml(slide: DslSlide, theme: ThemeConfig): string {
+export function renderSlideHtml(slide: DslSlide, theme: ThemeConfig, opts: SlideRenderOpts = {}): string {
   const inner = RENDERERS[slide.layout](slide.raw);
   const rootStyle = `${themeRootVars(theme)};${SLIDE_ROOT_STYLE}`;
-  return `<div class="slide" style="${rootStyle}"><style>${slideCss()}</style>${inner}</div>`;
+  return `<div class="slide" style="${rootStyle}"><style>${slideCss()}</style>${inner}${footerHtml(slide.layout, opts)}</div>`;
 }
 
 let slideSeq = 0;
@@ -427,10 +518,11 @@ function slideId(): string {
 
 /** Full pipeline: DSL string + theme → HtmlDeckSlide[] ready for the store. */
 export function dslToHtmlSlides(xml: string, theme: ThemeConfig): HtmlDeckSlide[] {
-  const { slides } = parseDeckDsl(xml);
-  return slides.map((s) => ({
+  const { title, slides } = parseDeckDsl(xml);
+  const total = slides.length;
+  return slides.map((s, i) => ({
     id: slideId(),
-    html: renderSlideHtml(s, theme),
+    html: renderSlideHtml(s, theme, { index: i + 1, total, deckTitle: title }),
     editableFields: [],
   }));
 }

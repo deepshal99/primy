@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "lint:motion": "node scripts/check-motion.mjs",
+    "deck:eval": "tsx scripts/deck-eval/run.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:check": "drizzle-kit check",
