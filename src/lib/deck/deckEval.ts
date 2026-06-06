@@ -37,6 +37,10 @@ export const STRESS_DECK_MAX = `<deck title="Stress Deck" theme="pitch">
   <slide layout="featureGrid"><h2>Six features that adapt to you</h2><feature title="Adaptive plans">${MED}</feature><feature title="Real-time feedback">${MED}</feature><feature title="Habit nudges">${MED}</feature><feature title="Privacy-first">${MED}</feature><feature title="Sensor fusion">${MED}</feature><feature title="Behavioral nudges">${MED}</feature></slide>
   <slide layout="agenda"><h2>What we'll cover</h2><item>${MED}</item><item>${MED}</item><item>${MED}</item><item>${MED}</item><item>${MED}</item></slide>
   <slide layout="timeline"><h2>Five-step rollout</h2><step label="Onboard">${MED}</step><step label="Train">${MED}</step><step label="Improve">${MED}</step><step label="Scale">${MED}</step><step label="Expand">${MED}</step></slide>
+  <slide layout="bigStat"><eyebrow>Traction</eyebrow><h2>Early signals from the pilot</h2><stat value="12k" label="Sign-ups in the private pilot"/><stat value="38%" label="30-day retention"/><stat value="+28%" label="Avg session completion"/></slide>
+  <slide layout="team"><h2>Founders & advisors</h2><member name="A. Patel" role="CEO — ex-health app PM"/><member name="L. Chen" role="CTO — ML & wearable systems"/><member name="Dr. M. Reyes" role="Advisor — sports science"/><member name="J. Kim" role="Head of design"/></slide>
+  <slide layout="chart"><h2>A growing, health-first market</h2><chart type="bar"><point label="2019" value="6" display="$6B"/><point label="2020" value="9" display="$9B"/><point label="2021" value="13" display="$13B"/><point label="2022" value="17" display="$17B"/><point label="2023" value="21" display="$21B"/><point label="2024" value="25" display="$25B"/></chart></slide>
+  <slide layout="closing"><eyebrow>Ready to get started?</eyebrow><h1>Train smarter with CoachAI</h1><subtitle>${LONG}</subtitle><cta label="Request demo"/><cta label="View roadmap"/><contact>founders@coachai.com</contact></slide>
 </deck>`;
 
 /** A deck that exercises every layout at its MINIMUM content (sparse). */
@@ -51,10 +55,21 @@ export const STRESS_DECK_MIN = `<deck title="Min Deck" theme="pitch">
   <slide layout="featureGrid"><h2>Features</h2><feature title="Plans">Adaptive</feature><feature title="Feedback">Real-time</feature></slide>
   <slide layout="agenda"><h2>Agenda</h2><item>Problem</item><item>Solution</item></slide>
   <slide layout="timeline"><h2>Steps</h2><step label="One">Setup</step><step label="Two">Train</step></slide>
+  <slide layout="bigStat"><stat value="12k" label="Users in pilot"/></slide>
+  <slide layout="team"><h2>Team</h2><member name="A. Patel" role="CEO"/><member name="L. Chen" role="CTO"/></slide>
+  <slide layout="chart"><h2>Growth</h2><point label="2019" value="6"/><point label="2024" value="25"/></slide>
+  <slide layout="closing"><h1>Thanks</h1><cta label="Get started"/></slide>
 </deck>`;
 
 /** Layouts that must NOT carry a footer (full-bleed focal slides). */
-const FOOTERLESS: ReadonlySet<DslLayout> = new Set(["title", "section", "quote", "statement"]);
+const FOOTERLESS: ReadonlySet<DslLayout> = new Set([
+  "title",
+  "section",
+  "quote",
+  "statement",
+  "bigStat",
+  "closing",
+]);
 
 export interface SlideCheck {
   index: number;

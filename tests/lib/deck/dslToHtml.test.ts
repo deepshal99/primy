@@ -126,7 +126,13 @@ describe("extended layouts", () => {
   test("layout aliases route to the right renderer", () => {
     expect(parseDeckDsl('<deck><slide layout="roadmap"><h2>x</h2></slide></deck>').slides[0].layout).toBe("timeline");
     expect(parseDeckDsl('<deck><slide layout="features"><h2>x</h2></slide></deck>').slides[0].layout).toBe("featureGrid");
-    expect(parseDeckDsl('<deck><slide layout="cta"><h1>x</h1></slide></deck>').slides[0].layout).toBe("statement");
+    // "cta" now routes to the dedicated closing/CTA layout (better than the
+    // generic statement it used to fall into).
+    expect(parseDeckDsl('<deck><slide layout="cta"><h1>x</h1></slide></deck>').slides[0].layout).toBe("closing");
     expect(parseDeckDsl('<deck><slide layout="numbered"><h2>x</h2></slide></deck>').slides[0].layout).toBe("agenda");
+    // new layouts + aliases
+    expect(parseDeckDsl('<deck><slide layout="metric"><h2>x</h2></slide></deck>').slides[0].layout).toBe("bigStat");
+    expect(parseDeckDsl('<deck><slide layout="graph"><h2>x</h2></slide></deck>').slides[0].layout).toBe("chart");
+    expect(parseDeckDsl('<deck><slide layout="founders"><h2>x</h2></slide></deck>').slides[0].layout).toBe("team");
   });
 });

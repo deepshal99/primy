@@ -42,6 +42,10 @@ export const DSL_CORE_LAYOUTS = [
   "featureGrid",
   "agenda",
   "timeline",
+  "bigStat",
+  "team",
+  "chart",
+  "closing",
 ] as const;
 export type DslLayout = (typeof DSL_CORE_LAYOUTS)[number];
 
@@ -106,7 +110,6 @@ function normLayout(raw: string | undefined): DslLayout {
     testimonial: "quote",
     statement: "statement",
     bigstatement: "statement",
-    cta: "statement",
     featuregrid: "featureGrid",
     features: "featureGrid",
     grid: "featureGrid",
@@ -117,6 +120,25 @@ function normLayout(raw: string | undefined): DslLayout {
     timeline: "timeline",
     roadmap: "timeline",
     process: "timeline",
+    bigstat: "bigStat",
+    bignumber: "bigStat",
+    metric: "bigStat",
+    kpi: "bigStat",
+    hero: "bigStat",
+    team: "team",
+    people: "team",
+    founders: "team",
+    advisors: "team",
+    chart: "chart",
+    graph: "chart",
+    data: "chart",
+    dataviz: "chart",
+    closing: "closing",
+    cta: "closing",
+    contact: "closing",
+    getstarted: "closing",
+    thankyou: "closing",
+    end: "closing",
   };
   return map[v] ?? "bullets"; // safe default — bullets renders almost any content
 }
@@ -349,6 +371,155 @@ function renderTimeline(raw: string): string {
   </div>`;
 }
 
+/** Big centered metric(s) — one hero number, or a "metric trio" row. */
+function renderBigStat(raw: string): string {
+  const eyebrow = block(raw, "eyebrow");
+  const h2 = block(raw, "h2") || block(raw, "title");
+  const stats = selfClosing(raw, "stat").map((a) => ({
+    value: attrOf(`<x ${a}>`, "value") ?? "",
+    label: attrOf(`<x ${a}>`, "label") ?? "",
+  }));
+  if (stats.length === 0) {
+    const v = block(raw, "value");
+    if (v) stats.push({ value: v, label: block(raw, "label") });
+  }
+  const cells = stats
+    .slice(0, 3)
+    .map(
+      (s, i) =>
+        `${i > 0 ? '<div class="bs-div"></div>' : ""}<div class="bs-cell"><div class="bs-v">${s.value}</div>${s.label ? `<div class="bs-l">${s.label}</div>` : ""}</div>`,
+    )
+    .join("");
+  return `<div class="bigstat">
+    ${eyebrow ? `<div class="eyebrow">${eyebrow}</div>` : ""}
+    ${h2 ? `<h2 class="bs-h">${h2}</h2>` : ""}
+    <div class="bs-row">${cells}</div>
+  </div>`;
+}
+
+/** Up to two leading initials from a person's name, for the avatar. */
+function initials(name: string): string {
+  return name
+    .replace(/<[^>]*>/g, "")
+    .split(/\s+/)
+    .filter((w) => /[a-z0-9]/i.test(w))
+    .slice(0, 2)
+    .map((w) => w.replace(/[^a-z0-9]/i, "")[0] ?? "")
+    .join("")
+    .toUpperCase();
+}
+
+/** Team grid — initial-avatars (never empty circles), name, role. */
+function renderTeam(raw: string): string {
+  const h2 = block(raw, "h2") || block(raw, "title");
+  const members = selfClosing(raw, "member").map((a) => ({
+    name: attrOf(`<x ${a}>`, "name") ?? "",
+    role: attrOf(`<x ${a}>`, "role") ?? "",
+  }));
+  const cards = members
+    .slice(0, 4)
+    .map(
+      (m) =>
+        `<div class="tm"><div class="tm-av">${initials(m.name)}</div><div class="tm-n">${m.name}</div>${m.role ? `<div class="tm-r">${m.role}</div>` : ""}</div>`,
+    )
+    .join("");
+  return `<div class="team">
+    ${h2 ? `<h2>${h2}</h2>` : ""}
+    <div class="tm-row">${cards}</div>
+  </div>`;
+}
+
+interface ChartPoint {
+  label: string;
+  value: number;
+  display: string;
+}
+
+function chartPoints(raw: string): ChartPoint[] {
+  return selfClosing(raw, "point").map((a) => {
+    const value = parseFloat(attrOf(`<x ${a}>`, "value") ?? "0") || 0;
+    const label = attrOf(`<x ${a}>`, "label") ?? "";
+    const display = attrOf(`<x ${a}>`, "display") ?? String(value);
+    return { label, value, display };
+  });
+}
+
+const CH_W = 820;
+const CH_H = 300;
+const CH_PAD = 34;
+const CH_BASE = CH_H - 42;
+const CH_TOP = 26;
+
+function barSvg(pts: ChartPoint[]): string {
+  const max = Math.max(...pts.map((p) => p.value), 1);
+  const slot = (CH_W - CH_PAD * 2) / pts.length;
+  const bw = Math.min(slot * 0.5, 84);
+  const bars = pts
+    .map((p, i) => {
+      const x = CH_PAD + slot * i + (slot - bw) / 2;
+      const h = (p.value / max) * (CH_BASE - CH_TOP);
+      const y = CH_BASE - h;
+      const cx = (x + bw / 2).toFixed(1);
+      return `<rect class="ch-bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="6"></rect>
+        <text class="ch-val" x="${cx}" y="${(y - 12).toFixed(1)}" text-anchor="middle">${p.display}</text>
+        <text class="ch-lab" x="${cx}" y="${(CH_BASE + 26).toFixed(1)}" text-anchor="middle">${p.label}</text>`;
+    })
+    .join("");
+  return `<svg viewBox="0 0 ${CH_W} ${CH_H}" preserveAspectRatio="xMidYMid meet"><line class="ch-axis" x1="${CH_PAD}" y1="${CH_BASE}" x2="${CH_W - CH_PAD}" y2="${CH_BASE}"></line>${bars}</svg>`;
+}
+
+function lineSvg(pts: ChartPoint[]): string {
+  const max = Math.max(...pts.map((p) => p.value), 1);
+  const n = pts.length;
+  const xAt = (i: number) => CH_PAD + (n === 1 ? (CH_W - CH_PAD * 2) / 2 : (i * (CH_W - CH_PAD * 2)) / (n - 1));
+  const yAt = (v: number) => CH_BASE - (v / max) * (CH_BASE - CH_TOP);
+  const poly = pts.map((p, i) => `${xAt(i).toFixed(1)},${yAt(p.value).toFixed(1)}`).join(" ");
+  const area = `${CH_PAD},${CH_BASE} ${poly} ${(CH_W - CH_PAD).toFixed(1)},${CH_BASE}`;
+  const dots = pts
+    .map(
+      (p, i) =>
+        `<circle class="ch-dot" cx="${xAt(i).toFixed(1)}" cy="${yAt(p.value).toFixed(1)}" r="5"></circle>
+        <text class="ch-lab" x="${xAt(i).toFixed(1)}" y="${(CH_BASE + 26).toFixed(1)}" text-anchor="middle">${p.label}</text>`,
+    )
+    .join("");
+  return `<svg viewBox="0 0 ${CH_W} ${CH_H}" preserveAspectRatio="xMidYMid meet"><line class="ch-axis" x1="${CH_PAD}" y1="${CH_BASE}" x2="${CH_W - CH_PAD}" y2="${CH_BASE}"></line><polygon class="ch-area" points="${area}"></polygon><polyline class="ch-line" points="${poly}"></polyline>${dots}</svg>`;
+}
+
+/** Real themed SVG chart (bar or line) from typed data points. */
+function renderChart(raw: string): string {
+  const h2 = block(raw, "h2") || block(raw, "title");
+  const typeM = /type\s*=\s*"([^"]*)"/i.exec(raw);
+  const type = (typeM?.[1] ?? "bar").toLowerCase().includes("line") ? "line" : "bar";
+  const pts = chartPoints(raw);
+  const svg = pts.length ? (type === "line" ? lineSvg(pts) : barSvg(pts)) : "";
+  return `<div class="chart">
+    ${h2 ? `<h2>${h2}</h2>` : ""}
+    <div class="chart-area">${svg}</div>
+  </div>`;
+}
+
+/** Closing / CTA slide — centered, with contrast-safe buttons + contact line. */
+function renderClosing(raw: string): string {
+  const eyebrow = block(raw, "eyebrow");
+  const h1 = block(raw, "h1") || block(raw, "title");
+  const sub = block(raw, "subtitle");
+  const ctas = selfClosing(raw, "cta")
+    .map((a) => attrOf(`<x ${a}>`, "label") ?? "")
+    .filter(Boolean);
+  const contact = block(raw, "contact");
+  const btns = ctas
+    .slice(0, 2)
+    .map((c, i) => `<div class="cta-btn ${i === 0 ? "cta-primary" : "cta-ghost"}">${c}</div>`)
+    .join("");
+  return `<div class="closing">
+    ${eyebrow ? `<div class="eyebrow">${eyebrow}</div>` : ""}
+    <h1>${h1}</h1>
+    ${sub ? `<p class="subtitle">${sub}</p>` : ""}
+    ${btns ? `<div class="cta-row">${btns}</div>` : ""}
+    ${contact ? `<div class="contact">${contact}</div>` : ""}
+  </div>`;
+}
+
 const RENDERERS: Record<DslLayout, (raw: string) => string> = {
   title: renderTitle,
   section: renderSection,
@@ -360,6 +531,10 @@ const RENDERERS: Record<DslLayout, (raw: string) => string> = {
   featureGrid: renderFeatureGrid,
   agenda: renderAgenda,
   timeline: renderTimeline,
+  bigStat: renderBigStat,
+  team: renderTeam,
+  chart: renderChart,
+  closing: renderClosing,
 };
 
 /**
@@ -376,6 +551,8 @@ const LAYOUTS_WITH_FOOTER = new Set<DslLayout>([
   "featureGrid",
   "agenda",
   "timeline",
+  "team",
+  "chart",
 ]);
 
 /** HTML-escape a short plaintext value for safe inline use in the footer. */
@@ -482,6 +659,42 @@ function slideCss(): string {
   .tl-label{font-family:var(--h-font);font-weight:var(--h-weight);font-size:17px;color:var(--accent-text);margin-bottom:8px}
   .tl-body{color:var(--text-2);font-size:15px;line-height:1.4}
   .tl-body b{color:var(--text);font-weight:650}
+  /* big stat / metric trio */
+  .bigstat{justify-content:center;text-align:center;align-items:center}
+  .bs-h{font-size:30px;margin-bottom:36px;text-align:center}
+  .bs-row{display:flex;align-items:center;justify-content:center;gap:0}
+  .bs-cell{display:flex;flex-direction:column;align-items:center;padding:0 48px}
+  .bs-div{width:1px;height:84px;background:var(--divider)}
+  .bs-v{font-family:var(--h-font);font-weight:var(--h-weight);font-size:84px;line-height:1;
+    letter-spacing:-0.03em;color:var(--accent-text)}
+  .bs-l{color:var(--text-2);font-size:17px;line-height:1.35;margin-top:16px;max-width:240px}
+  /* team */
+  .tm-row{display:flex;gap:24px;justify-content:center}
+  .tm{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;text-align:center}
+  .tm-av{width:96px;height:96px;border-radius:50%;background:var(--accent-light);
+    display:flex;align-items:center;justify-content:center;font-family:var(--h-font);
+    font-weight:var(--h-weight);font-size:30px;color:var(--accent-text);margin-bottom:18px}
+  .tm-n{font-family:var(--h-font);font-weight:650;font-size:19px;color:var(--text)}
+  .tm-r{color:var(--text-2);font-size:15px;line-height:1.35;margin-top:6px}
+  /* chart */
+  .chart-area{height:300px;display:flex;margin-top:6px}
+  .chart-area svg{width:100%;height:100%}
+  .ch-axis{stroke:var(--divider);stroke-width:2}
+  .ch-bar{fill:var(--accent)}
+  .ch-val{fill:var(--text);font-family:var(--h-font);font-weight:700;font-size:17px}
+  .ch-lab{fill:var(--text-2);font-family:var(--b-font);font-size:14px}
+  .ch-area{fill:var(--accent-light)}
+  .ch-line{fill:none;stroke:var(--accent);stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+  .ch-dot{fill:var(--accent)}
+  /* closing / CTA */
+  .closing{justify-content:center;text-align:center;align-items:center}
+  .closing h1{font-size:52px;line-height:1.1;letter-spacing:-0.02em;max-width:820px}
+  .closing .subtitle{text-align:center;margin-left:auto;margin-right:auto}
+  .cta-row{display:flex;gap:14px;justify-content:center;margin-top:34px}
+  .cta-btn{font-family:var(--b-font);font-weight:600;font-size:16px;padding:14px 30px;border-radius:10px}
+  .cta-primary{background:var(--accent-text);color:var(--bg)}
+  .cta-ghost{border:1.5px solid var(--card-border);color:var(--text)}
+  .contact{color:var(--text-2);font-size:16px;margin-top:26px}
   /* consistent footer (content slides only) */
   .slide-footer{position:absolute;left:72px;right:72px;bottom:26px;display:flex;
     align-items:center;justify-content:space-between;font-size:13px;letter-spacing:0.01em;

@@ -43,6 +43,10 @@ adjacent slides; pick the layout that serves the slide's content):
 - agenda — a numbered list (agenda, steps, takeaways). <h2>heading</h2> then <item>…</item> per point
 - timeline — a roadmap/process of 3–5 steps. <h2>heading</h2> then <step label="Q1">​<b>what</b> detail</step> per step
 - quote — a testimonial or thesis. <quote>the line</quote> <cite>who said it</cite>
+- bigStat — 1–3 HERO numbers, centered (traction, a single killer metric). <eyebrow>opt</eyebrow> <h2>opt heading</h2> then <stat value="12k" label="what it counts"/> per number
+- chart — real data as a bar OR line chart. <h2>heading</h2> then <chart type="bar"> (or "line") containing <point label="2024" value="25" display="$25B"/> per data point (value is the NUMBER used for scaling; display is the label shown, optional)
+- team — founders/advisors as avatar cards (initials auto-generated, never photos). <h2>heading</h2> then <member name="A. Patel" role="CEO — ex-health PM"/> per person (max 4)
+- closing — the final CTA slide. <eyebrow>opt</eyebrow> <h1>closing line</h1> <subtitle>opt</subtitle> then <cta label="Request demo"/> (1–2) and <contact>email or url</contact>
 
 RULES
 - One deck only. Expand the outline into real, specific content — never echo the outline verbatim.

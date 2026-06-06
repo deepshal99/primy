@@ -57,17 +57,30 @@ async function renderChecks(): Promise<boolean> {
             var root = document.querySelector(".slide");
             if (!root) return { clipped: true, contrastFails: 99, note: "no .slide root" };
             var clipped = root.scrollHeight > 541 || root.scrollWidth > 961;
-            function lum(c){ var m = c.match(/[\\d.]+/g); if(!m) return null;
-              var a = m.map(Number).map(function(v){ v/=255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4); });
+            function rgb(c){ var m = c.match(/[\\d.]+/g); if(!m) return null;
+              return { r:+m[0], g:+m[1], b:+m[2], a: m[3]!==undefined ? +m[3] : 1 }; }
+            function lum(o){ var a=[o.r,o.g,o.b].map(function(v){ v/=255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4); });
               return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2]; }
-            var bgL = lum(getComputedStyle(root).backgroundColor); if (bgL==null) bgL = 0;
+            // Effective background: walk ancestors to the first opaque-ish fill
+            // (so card/button text is judged against the card/button, not the slide).
+            function effBg(el){
+              var n = el;
+              while(n && n !== root.parentNode){
+                var c = rgb(getComputedStyle(n).backgroundColor);
+                if(c && c.a >= 0.5) return c;
+                n = n.parentElement;
+              }
+              return rgb(getComputedStyle(root).backgroundColor) || {r:255,g:255,b:255,a:1};
+            }
             var contrastFails = 0;
             root.querySelectorAll("*").forEach(function(el){
               var hasText = Array.prototype.some.call(el.childNodes, function(n){ return n.nodeType===3 && (n.textContent||"").trim(); });
               if(!hasText) return;
               var cs = getComputedStyle(el);
-              var fl = lum(cs.color); if(fl==null) return;
-              var ratio = (Math.max(fl,bgL)+0.05)/(Math.min(fl,bgL)+0.05);
+              var fg = rgb(cs.color); if(!fg) return;
+              var bg = effBg(el);
+              var fl = lum(fg), bgl = lum(bg);
+              var ratio = (Math.max(fl,bgl)+0.05)/(Math.min(fl,bgl)+0.05);
               // WCAG: large text (>=24px, or >=18.66px bold) only needs 3:1.
               var px = parseFloat(cs.fontSize)||16;
               var w = parseInt(cs.fontWeight)||400;
