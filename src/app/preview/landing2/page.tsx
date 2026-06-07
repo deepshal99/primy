@@ -139,7 +139,26 @@ function MotionCSS() {
       .l2-reveal.in{opacity:1;transform:none}
       .l2-fade{animation:l2Fade .45s cubic-bezier(.32,.72,0,1) both}
       @keyframes l2Fade{from{opacity:0;transform:scale(1.012)}to{opacity:1;transform:none}}
-      @media (prefers-reduced-motion: reduce){.l2-reveal{opacity:1!important;transform:none!important;transition:none!important}.l2-fade{animation:none!important}}
+      /* card hover lift */
+      .l2-lift{transition:transform .3s cubic-bezier(.32,.72,0,1),box-shadow .3s cubic-bezier(.32,.72,0,1)}
+      @media (hover:hover){.l2-lift:hover{transform:translateY(-4px)}}
+      /* scene life — gentle, slow, looping */
+      .scn-pulse{transform-box:fill-box;transform-origin:center;animation:scnPulse 7s ease-in-out infinite}
+      @keyframes scnPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+      .scn-slow{animation:scnDrift 14s ease-in-out infinite}
+      @keyframes scnDrift{0%,100%{transform:translateX(0)}50%{transform:translateX(-14px)}}
+      .scn-bob{animation:scnBob 6s ease-in-out infinite}
+      @keyframes scnBob{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-6px) rotate(-2deg)}}
+      .scn-twinkle{animation:scnTwinkle 4.5s ease-in-out infinite}
+      @keyframes scnTwinkle{0%,100%{opacity:.9}50%{opacity:.45}}
+      /* floating chips drift */
+      .l2-float{animation:l2Float 7s ease-in-out infinite}
+      .l2-float-2{animation:l2Float 8.5s ease-in-out infinite .6s}
+      @keyframes l2Float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+      @media (prefers-reduced-motion: reduce){
+        .l2-reveal{opacity:1!important;transform:none!important;transition:none!important}
+        .l2-fade,.scn-pulse,.scn-slow,.scn-bob,.scn-twinkle,.l2-float,.l2-float-2{animation:none!important}
+      }
     `}</style>
   );
 }
@@ -160,45 +179,128 @@ function AppIcon({ color, icon: I, size = 20 }: { color: string; icon: typeof Fi
   return <I style={{ width: size * 0.82, height: size * 0.82, color }} strokeWidth={2} />;
 }
 
-// warm scenic illustration ported from the app's chat hero (HeroIllustration).
-// vivid blue dome, amber ridge, teal + cream lake — the brand's lively motif.
-function HeroScene({ className, style }: { className?: string; style?: React.CSSProperties }) {
+/* ── scenic illustration SYSTEM ──
+   Variations on the brand's visual language (sun/dome, layered ridges, lake,
+   orbit balloon, dots) — recomposed per surface so no two read the same and
+   none is a 1:1 copy of the in-app HeroIllustration. Gentle drift keeps them
+   alive. Palette: blue dome, amber/coral ridge, teal + cream lake. */
+type SceneVariant = "ridge" | "dusk" | "peaks";
+function SceneDefs({ uid }: { uid: string }) {
+  return (
+    <defs>
+      <linearGradient id={`${uid}-dome`} x1="0.15" y1="0" x2="0.5" y2="1">
+        <stop offset="0%" stopColor="#3C6CE0" />
+        <stop offset="58%" stopColor="#5C8CEF" />
+        <stop offset="100%" stopColor="#EBF1FD" />
+      </linearGradient>
+      <linearGradient id={`${uid}-ridge`} x1="0" y1="1" x2="1" y2="0">
+        <stop offset="0%" stopColor="#F0896A" />
+        <stop offset="52%" stopColor="#F4A24C" />
+        <stop offset="100%" stopColor="#F8BE45" />
+      </linearGradient>
+      <linearGradient id={`${uid}-coral`} x1="0" y1="1" x2="1" y2="0.2">
+        <stop offset="0%" stopColor="#EE7E73" />
+        <stop offset="100%" stopColor="#F4A45A" />
+      </linearGradient>
+      <linearGradient id={`${uid}-water`} x1="0" y1="0" x2="0.1" y2="1">
+        <stop offset="0%" stopColor="#4E92DB" />
+        <stop offset="100%" stopColor="#DEEAF8" />
+      </linearGradient>
+      <linearGradient id={`${uid}-teal`} x1="0" y1="0" x2="0.2" y2="1">
+        <stop offset="0%" stopColor="#67CEC8" />
+        <stop offset="100%" stopColor="#BFEDE9" />
+      </linearGradient>
+      <linearGradient id={`${uid}-lake`} x1="0" y1="0" x2="0.3" y2="1">
+        <stop offset="0%" stopColor="#FCF6E0" />
+        <stop offset="100%" stopColor="#F6E9C2" />
+      </linearGradient>
+      <radialGradient id={`${uid}-sun`} cx="0.5" cy="0.5" r="0.5">
+        <stop offset="0%" stopColor="#FFD27A" />
+        <stop offset="60%" stopColor="#F8BE45" />
+        <stop offset="100%" stopColor="#F4A24C" />
+      </radialGradient>
+    </defs>
+  );
+}
+// the orbit balloon motif (line + two circles), reused at different scales
+function Orbit({ x, y, s = 1, w = 2 }: { x: number; y: number; s?: number; w?: number }) {
+  return (
+    <g transform={`translate(${x} ${y}) scale(${s})`}>
+      <g className="scn-bob" fill="none" stroke="#1A1815" strokeWidth={w} strokeLinecap="round">
+        <path d="M0 96 L0 14" />
+        <circle cx="-14" cy="-6" r="32" strokeOpacity="0.92" />
+        <circle cx="22" cy="18" r="22" strokeOpacity="0.92" />
+      </g>
+    </g>
+  );
+}
+function Dots({ pts }: { pts: [number, number, number][] }) {
+  return (
+    <g fill="#1A1815" className="scn-twinkle">
+      {pts.map(([cx, cy, r], i) => (
+        <circle key={i} cx={cx} cy={cy} r={r} />
+      ))}
+    </g>
+  );
+}
+function Scene({ variant, className, style }: { variant: SceneVariant; className?: string; style?: React.CSSProperties }) {
+  const uid = `scn-${variant}`;
   return (
     <svg viewBox="0 0 1200 240" preserveAspectRatio="xMidYMid slice" className={className} style={style} aria-hidden role="img">
-      <defs>
-        <linearGradient id="l2-dome" x1="0.2" y1="0" x2="0.4" y2="1">
-          <stop offset="0%" stopColor="#3C6CE0" />
-          <stop offset="58%" stopColor="#5C8CEF" />
-          <stop offset="100%" stopColor="#EBF1FD" />
-        </linearGradient>
-        <linearGradient id="l2-ridge" x1="0" y1="1" x2="1" y2="0">
-          <stop offset="0%" stopColor="#F0896A" />
-          <stop offset="52%" stopColor="#F4A24C" />
-          <stop offset="100%" stopColor="#F8BE45" />
-        </linearGradient>
-        <linearGradient id="l2-water" x1="0" y1="0" x2="0.1" y2="1">
-          <stop offset="0%" stopColor="#4E92DB" />
-          <stop offset="100%" stopColor="#DEEAF8" />
-        </linearGradient>
-        <linearGradient id="l2-lake" x1="0" y1="0" x2="0.3" y2="1">
-          <stop offset="0%" stopColor="#FCF6E0" />
-          <stop offset="100%" stopColor="#F6E9C2" />
-        </linearGradient>
-      </defs>
-      <path d="M540 240 C 780 150 1000 152 1200 58 L1200 240 Z" fill="url(#l2-ridge)" />
-      <path d="M780 240 C 930 196 1070 202 1200 190 L1200 240 Z" fill="url(#l2-water)" />
-      <circle cx="232" cy="372" r="244" fill="url(#l2-dome)" />
-      <ellipse cx="540" cy="200" rx="118" ry="22" fill="#69CEC8" opacity="0.85" />
-      <ellipse cx="650" cy="184" rx="186" ry="34" fill="url(#l2-lake)" transform="rotate(-7 650 184)" />
-      <g fill="#1A1815">
-        <circle cx="958" cy="150" r="4" />
-        <circle cx="1004" cy="143" r="4" />
-        <circle cx="1050" cy="135" r="4" />
+      <SceneDefs uid={uid} />
+
+      {variant === "ridge" && (
+        <>
+          {/* sun rising on the right + layered warm ridges sweeping from left */}
+          <circle className="scn-pulse" cx="1010" cy="252" r="226" fill={`url(#${uid}-sun)`} />
+          <path d="M0 240 C 260 150 470 176 760 240 Z" fill={`url(#${uid}-coral)`} />
+          <path className="scn-slow" d="M120 240 C 420 168 690 188 1040 116 L1200 240 Z" fill={`url(#${uid}-ridge)`} />
+          <circle cx="196" cy="356" r="196" fill={`url(#${uid}-dome)`} />
+          <ellipse cx="470" cy="206" rx="96" ry="18" fill={`url(#${uid}-teal)`} opacity="0.9" />
+          <ellipse cx="560" cy="190" rx="170" ry="30" fill={`url(#${uid}-lake)`} transform="rotate(-7 560 190)" />
+          <Dots pts={[[860, 120, 4], [904, 110, 4], [948, 98, 4], [992, 84, 3.4]]} />
+          <Orbit x={236} y={92} s={1} />
+        </>
+      )}
+
+      {variant === "dusk" && (
+        <>
+          {/* cool: a wide blue dome settling, teal+blue water, amber sliver left */}
+          <path d="M0 240 C 120 196 230 200 360 240 Z" fill={`url(#${uid}-ridge)`} opacity="0.95" />
+          <circle cx="640" cy="372" r="306" fill={`url(#${uid}-dome)`} />
+          <path d="M300 240 C 560 198 820 206 1200 168 L1200 240 Z" fill={`url(#${uid}-water)`} />
+          <ellipse cx="900" cy="214" rx="150" ry="22" fill={`url(#${uid}-teal)`} opacity="0.85" />
+          <ellipse cx="980" cy="198" rx="180" ry="30" fill={`url(#${uid}-lake)`} transform="rotate(6 980 198)" />
+          <Dots pts={[[210, 118, 4], [256, 110, 4], [302, 104, 3.6]]} />
+          <Orbit x={1024} y={96} s={0.92} />
+        </>
+      )}
+
+      {variant === "peaks" && (
+        <>
+          {/* energetic: overlapping ridges like a range, small sun behind */}
+          <circle className="scn-pulse" cx="600" cy="150" r="86" fill={`url(#${uid}-sun)`} />
+          <path d="M-20 240 C 200 120 320 132 520 240 Z" fill={`url(#${uid}-dome)`} />
+          <path d="M360 240 C 560 110 700 128 900 240 Z" fill={`url(#${uid}-teal)`} opacity="0.95" />
+          <path d="M720 240 C 920 124 1060 140 1240 240 Z" fill={`url(#${uid}-coral)`} />
+          <Dots pts={[[150, 150, 4], [1050, 150, 4], [600, 50, 3.6]]} />
+        </>
+      )}
+    </svg>
+  );
+}
+// compact orbit-only accent for small corners
+function OrbitAccent({ className, color = "#1A1815" }: { className?: string; color?: string }) {
+  return (
+    <svg viewBox="0 0 120 120" className={className} aria-hidden>
+      <g className="scn-bob" fill="none" stroke={color} strokeWidth="3" strokeLinecap="round">
+        <path d="M48 104 L48 36" />
+        <circle cx="40" cy="30" r="26" strokeOpacity="0.9" />
+        <circle cx="74" cy="50" r="17" strokeOpacity="0.9" />
       </g>
-      <g fill="none" stroke="#1A1815" strokeWidth="2" strokeLinecap="round">
-        <path d="M236 206 L236 116" />
-        <circle cx="222" cy="96" r="32" strokeOpacity="0.92" />
-        <circle cx="258" cy="120" r="22" strokeOpacity="0.92" />
+      <g fill={color} className="scn-twinkle">
+        <circle cx="96" cy="92" r="4" />
+        <circle cx="108" cy="84" r="3.4" />
       </g>
     </svg>
   );
@@ -345,7 +447,7 @@ function Hero() {
         {/* scenic banner */}
         <div className="relative mx-auto max-w-[1120px] px-6">
           <div className="relative h-[200px] overflow-hidden rounded-[20px] sm:h-[240px]" style={{ boxShadow: "0 30px 60px -40px rgba(24,24,22,0.3)" }}>
-            <HeroScene className="absolute inset-0 h-full w-full" />
+            <Scene variant="ridge" className="absolute inset-0 h-full w-full" />
             <div className="absolute inset-x-0 bottom-0 h-28" style={{ background: `linear-gradient(to bottom, transparent, ${C.canvas})` }} />
           </div>
         </div>
@@ -434,10 +536,10 @@ function OutcomeStatement() {
     <section className="relative overflow-hidden" style={{ borderTop: `1px solid ${C.borderFaint}`, backgroundColor: C.surface }}>
       <div aria-hidden className="pointer-events-none absolute inset-0" style={{ ...DOTS("rgba(24,24,22,0.10)", 16), opacity: 0.6 }} />
       {/* floating fragments */}
-      <FloatChip className="left-[5%] top-[26%] hidden lg:flex" icon={FileText} color={C.blue} title="Proposal.doc" sub="Drafting" />
-      <FloatChip className="left-[8%] bottom-[16%] hidden lg:flex" icon={MessageSquare} color={C.amber} title="Ask Primy" sub="Build a deck" />
-      <FloatChip className="right-[5%] top-[20%] hidden lg:flex" icon={Presentation} color={C.deck} title="Q3 Deck" sub="12 slides" />
-      <FloatChip className="right-[8%] bottom-[20%] hidden lg:flex" icon={Globe} color={C.purple} title="Landing.page" sub="Live" />
+      <FloatChip className="left-[5%] top-[26%] hidden l2-float lg:flex" icon={FileText} color={C.blue} title="Proposal.doc" sub="Drafting" />
+      <FloatChip className="left-[8%] bottom-[16%] hidden l2-float-2 lg:flex" icon={MessageSquare} color={C.amber} title="Ask Primy" sub="Build a deck" />
+      <FloatChip className="right-[5%] top-[20%] hidden l2-float-2 lg:flex" icon={Presentation} color={C.deck} title="Q3 Deck" sub="12 slides" />
+      <FloatChip className="right-[8%] bottom-[20%] hidden l2-float lg:flex" icon={Globe} color={C.purple} title="Landing.page" sub="Live" />
 
       <div className="relative mx-auto max-w-[760px] px-6 py-28 text-center lg:py-36">
         <Reveal>
@@ -510,7 +612,7 @@ function ProductCard({
 }) {
   return (
     <div
-      className={`relative overflow-hidden rounded-[24px] ${pad}`}
+      className={`l2-lift relative overflow-hidden rounded-[24px] ${pad}`}
       style={{
         background: `radial-gradient(130% 130% at 0% 0%, ${color}38, transparent 52%), linear-gradient(165deg, ${tint(color)}, ${C.surface})`,
         border: `1px solid ${color}26`,
@@ -661,6 +763,7 @@ function Testimonial() {
   return (
     <section className="relative overflow-hidden" style={{ borderTop: `1px solid ${C.borderFaint}`, backgroundColor: C.surface }}>
       <div aria-hidden className="pointer-events-none absolute inset-0" style={{ ...DOTS("rgba(24,24,22,0.10)", 16), opacity: 0.6 }} />
+      <OrbitAccent className="pointer-events-none absolute left-[3%] top-[18%] hidden h-16 w-16 opacity-[0.18] lg:block" />
       <div className="relative mx-auto max-w-[1000px] px-6 py-24 lg:px-8 lg:py-28">
         <Reveal>
           <div className="grid items-center gap-8 lg:grid-cols-[1fr_auto] lg:gap-16">
@@ -718,8 +821,13 @@ function FeatureConnected() {
 const FORMATS = ["PDF", "DOCX", "XLSX", "CSV", "TXT", "MD", "PNG", "JSON", "PPTX", "ZIP"];
 function Formats() {
   return (
-    <section style={{ backgroundColor: C.sunken, borderTop: `1px solid ${C.borderFaint}` }}>
-      <div className="mx-auto max-w-[1180px] px-6 py-24 text-center lg:px-8 lg:py-28">
+    <section className="relative overflow-hidden" style={{ backgroundColor: C.sunken, borderTop: `1px solid ${C.borderFaint}` }}>
+      {/* peaks variant as a colored decorative range above the heading */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-44">
+        <Scene variant="peaks" className="absolute inset-0 h-full w-full" />
+        <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, transparent 0%, ${C.sunken}80 55%, ${C.sunken} 88%)` }} />
+      </div>
+      <div className="relative mx-auto max-w-[1180px] px-6 pb-24 pt-40 text-center lg:px-8 lg:pb-28 lg:pt-44">
         <Reveal>
           <h2 style={head("clamp(28px,3.4vw,42px)", 1.07, 600)}>Drag in anything. It just reads it.</h2>
           <p className="mx-auto mt-4 max-w-[520px] text-[16px] leading-[1.6]" style={{ color: C.ink3 }}>
@@ -778,9 +886,9 @@ function FinalCTA() {
             Get a demo
           </button>
         </div>
-        {/* warm scenic close */}
+        {/* cool scenic close (a different composition than the hero) */}
         <div className="relative mx-auto mt-16 h-[150px] max-w-[1000px] overflow-hidden rounded-t-[22px] sm:h-[180px]">
-          <HeroScene className="absolute inset-0 h-full w-full" />
+          <Scene variant="dusk" className="absolute inset-0 h-full w-full" />
         </div>
       </div>
     </section>
