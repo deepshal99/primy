@@ -51,6 +51,8 @@ export const DSL_CORE_LAYOUTS = [
   "team",
   "chart",
   "closing",
+  "imageFull",
+  "splitImage",
 ] as const;
 export type DslLayout = (typeof DSL_CORE_LAYOUTS)[number];
 
@@ -144,6 +146,16 @@ function normLayout(raw: string | undefined): DslLayout {
     getstarted: "closing",
     thankyou: "closing",
     end: "closing",
+    imagefull: "imageFull",
+    imagehero: "imageFull",
+    photo: "imageFull",
+    fullbleed: "imageFull",
+    image: "imageFull",
+    splitimage: "splitImage",
+    imagesplit: "splitImage",
+    imageleft: "splitImage",
+    imageright: "splitImage",
+    photocontent: "splitImage",
   };
   return map[v] ?? "bullets"; // safe default — bullets renders almost any content
 }
@@ -525,6 +537,99 @@ function renderClosing(raw: string): string {
   </div>`;
 }
 
+// ── deterministic, brand-themed background art (no fetch, never empty) ──
+
+/** Tiny stable string hash → non-negative int (deterministic variety per seed). */
+function hashSeed(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h);
+}
+
+/**
+ * A rich DARK hero background (for imageFull): a deep ink base with brand-toned
+ * glows. Built from CSS vars so it adapts to any theme; varied by seed. Always
+ * dark, so white text + the scrim are readable regardless of theme.
+ */
+function heroBackground(seed: string): string {
+  const h = hashSeed(seed);
+  const ax = 12 + (h % 30); // glow 1 position
+  const ay = 8 + ((h >> 3) % 28);
+  const bx = 70 + ((h >> 6) % 22); // glow 2 position
+  const by = 64 + ((h >> 9) % 28);
+  const angle = 120 + (h % 110);
+  // accent glows + a faint sheen over a deep ink base.
+  return (
+    `background-color:#0d0f17;` +
+    `background-image:` +
+    `radial-gradient(60% 60% at ${ax}% ${ay}%, color-mix(in srgb, var(--accent) 38%, transparent) 0%, transparent 60%),` +
+    `radial-gradient(55% 55% at ${bx}% ${by}%, color-mix(in srgb, var(--accent-2) 30%, transparent) 0%, transparent 58%),` +
+    `linear-gradient(${angle}deg, rgba(255,255,255,0.05), transparent 55%)`
+  );
+}
+
+/** A soft, branded decorative panel (for splitImage's visual side). */
+function panelBackground(seed: string): string {
+  const h = hashSeed(seed);
+  const px = 60 + (h % 30);
+  const py = 20 + ((h >> 4) % 35);
+  const angle = 140 + (h % 80);
+  return (
+    `background-color:var(--card);` +
+    `background-image:` +
+    `radial-gradient(75% 75% at ${px}% ${py}%, color-mix(in srgb, var(--accent) 26%, transparent) 0%, transparent 62%),` +
+    `linear-gradient(${angle}deg, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%)`
+  );
+}
+
+/** Optional <image query="..."/> — captured for future real-image upgrade (D2). */
+function imageSeed(raw: string, fallback: string): { seed: string; queryAttr: string } {
+  const a = selfClosing(raw, "image")[0];
+  const query = a ? attrOf(`<x ${a}>`, "query") ?? "" : "";
+  // data-img-query (NOT data-image-query) so the live Unsplash resolver stays
+  // dormant until D2 wires real photography; it just preserves intent for now.
+  const queryAttr = query ? ` data-img-query="${query.replace(/"/g, "&quot;")}"` : "";
+  return { seed: query || fallback || "primy", queryAttr };
+}
+
+/** Full-bleed visual slide — dark hero background, scrim-safe white text. */
+function renderImageFull(raw: string): string {
+  const eyebrow = block(raw, "eyebrow");
+  const h1 = block(raw, "h1") || block(raw, "title");
+  const sub = block(raw, "subtitle");
+  const { seed, queryAttr } = imageSeed(raw, h1);
+  return `<div class="imagefull" style="${heroBackground(seed)}"${queryAttr}>
+    <div class="if-inner">
+      ${eyebrow ? `<div class="if-eyebrow">${eyebrow}</div>` : ""}
+      <h1 class="if-h1">${h1}</h1>
+      ${sub ? `<p class="if-sub">${sub}</p>` : ""}
+    </div>
+  </div>`;
+}
+
+/** Split slide — content on one side, a branded visual panel on the other. */
+function renderSplitImage(raw: string): string {
+  const h2 = block(raw, "h2") || block(raw, "title");
+  const bodyBullets = blocks(raw, "bullet");
+  const body = block(raw, "body");
+  const { seed, queryAttr } = imageSeed(raw, h2);
+  const content = bodyBullets.length
+    ? `<ul class="si-list">${bodyBullets.map((b) => `<li><span class="bar"></span><span class="btxt">${b}</span></li>`).join("")}</ul>`
+    : body
+      ? `<p class="si-body">${body}</p>`
+      : "";
+  return `<div class="splitimage">
+    <div class="si-content">
+      ${h2 ? `<h2>${h2}</h2>` : ""}
+      ${content}
+    </div>
+    <div class="si-panel" style="${panelBackground(seed)}"${queryAttr}></div>
+  </div>`;
+}
+
 const RENDERERS: Record<DslLayout, (raw: string) => string> = {
   title: renderTitle,
   section: renderSection,
@@ -540,6 +645,8 @@ const RENDERERS: Record<DslLayout, (raw: string) => string> = {
   team: renderTeam,
   chart: renderChart,
   closing: renderClosing,
+  imageFull: renderImageFull,
+  splitImage: renderSplitImage,
 };
 
 /**
@@ -700,6 +807,20 @@ function slideCss(): string {
   .cta-primary{background:var(--accent-text);color:var(--bg)}
   .cta-ghost{border:1.5px solid var(--card-border);color:var(--text)}
   .contact{color:var(--text-2);font-size:16px;margin-top:26px}
+  /* imageFull — full-bleed dark hero, white text (scrim-safe by construction) */
+  .imagefull{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:64px 72px}
+  .if-inner{max-width:780px}
+  .if-eyebrow{color:#ffffff;font-weight:600;font-size:15px;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:18px}
+  .if-h1{font-family:var(--h-font);font-weight:var(--h-weight);font-size:58px;line-height:1.04;letter-spacing:-0.02em;color:#ffffff}
+  .if-sub{color:#ffffff;font-size:21px;line-height:1.4;margin-top:18px;max-width:680px}
+  /* splitImage — content + branded visual panel */
+  .splitimage{position:absolute;inset:0;display:flex}
+  .si-content{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;padding:64px 56px}
+  .si-panel{flex:1}
+  .si-list{list-style:none;display:flex;flex-direction:column;gap:18px;margin-top:6px}
+  .si-list li{display:flex;align-items:flex-start;gap:16px;font-size:20px;line-height:1.4;color:var(--text)}
+  .si-list .bar{flex:0 0 auto;width:6px;height:24px;border-radius:99px;background:var(--accent);margin-top:3px}
+  .si-body{color:var(--text-2);font-size:20px;line-height:1.55;margin-top:6px}
   /* consistent footer (content slides only) */
   .slide-footer{position:absolute;left:72px;right:72px;bottom:26px;display:flex;
     align-items:center;justify-content:space-between;font-size:13px;letter-spacing:0.01em;

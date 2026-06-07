@@ -41,6 +41,8 @@ export const STRESS_DECK_MAX = `<deck title="Stress Deck" theme="pitch">
   <slide layout="team"><h2>Founders & advisors</h2><member name="A. Patel" role="CEO — ex-health app PM"/><member name="L. Chen" role="CTO — ML & wearable systems"/><member name="Dr. M. Reyes" role="Advisor — sports science"/><member name="J. Kim" role="Head of design"/></slide>
   <slide layout="chart"><h2>A growing, health-first market</h2><chart type="bar"><point label="2019" value="6" display="$6B"/><point label="2020" value="9" display="$9B"/><point label="2021" value="13" display="$13B"/><point label="2022" value="17" display="$17B"/><point label="2023" value="21" display="$21B"/><point label="2024" value="25" display="$25B"/></chart></slide>
   <slide layout="closing"><eyebrow>Ready to get started?</eyebrow><h1>Train smarter with CoachAI</h1><subtitle>${LONG}</subtitle><cta label="Request demo"/><cta label="View roadmap"/><contact>founders@coachai.com</contact></slide>
+  <slide layout="imageFull"><image query="athlete training at dawn"/><eyebrow>The vision</eyebrow><h1>A coach in every pocket, for every body</h1><subtitle>${LONG}</subtitle></slide>
+  <slide layout="splitImage"><image query="fitness app interface"/><h2>Built for real routines</h2><bullet>${MED}</bullet><bullet>${MED}</bullet><bullet>${MED}</bullet></slide>
 </deck>`;
 
 /** A deck that exercises every layout at its MINIMUM content (sparse). */
@@ -59,6 +61,8 @@ export const STRESS_DECK_MIN = `<deck title="Min Deck" theme="pitch">
   <slide layout="team"><h2>Team</h2><member name="A. Patel" role="CEO"/><member name="L. Chen" role="CTO"/></slide>
   <slide layout="chart"><h2>Growth</h2><point label="2019" value="6"/><point label="2024" value="25"/></slide>
   <slide layout="closing"><h1>Thanks</h1><cta label="Get started"/></slide>
+  <slide layout="imageFull"><h1>Train smarter</h1></slide>
+  <slide layout="splitImage"><h2>How it works</h2><body>Adaptive sessions that learn from you.</body></slide>
 </deck>`;
 
 /** Layouts that must NOT carry a footer (full-bleed focal slides). */
@@ -69,6 +73,8 @@ const FOOTERLESS: ReadonlySet<DslLayout> = new Set([
   "statement",
   "bigStat",
   "closing",
+  "imageFull",
+  "splitImage",
 ]);
 
 export interface SlideCheck {
