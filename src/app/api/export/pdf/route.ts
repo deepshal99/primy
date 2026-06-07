@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import { launchBrowser, newGuardedPage } from "@/lib/deck/chromium";
+import { launchBrowser, newGuardedPage, FONT_IMAGE_HOSTS } from "@/lib/deck/chromium";
 
 export const maxDuration = 30;
 
@@ -41,7 +41,10 @@ export async function POST(req: Request) {
     }
 
     try {
-      const page = await newGuardedPage(browser);
+      // Allow fonts + our image hosts (Unsplash + the Blob CDN where gpt-image-1
+      // deck visuals live) so exported slides aren't missing fonts/images. The
+      // SSRF guard still blocks everything else.
+      const page = await newGuardedPage(browser, { allowHosts: FONT_IMAGE_HOSTS });
       // Slide HTML is untrusted and export bakes every image to a data: URI, so
       // no slide JS is ever needed. Disable it (defense-in-depth, matches the
       // other renderers; stops a slide <script> from executing server-side).

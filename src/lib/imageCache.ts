@@ -1,6 +1,11 @@
 /**
  * Shared image cache for resolving data-image-query attributes.
  * Used by HtmlSlideRenderer (client) and deckExport (PDF baking).
+ *
+ * Resolution goes through `/api/deck-image`: gpt-image-1 generation (primary,
+ * persisted to Blob + cached) with Unsplash as the backup. Returns null when no
+ * source produces an image — callers keep the deterministic gradient, so a slide
+ * never shows an empty image box.
  */
 
 const cache = new Map<string, string>();
@@ -13,13 +18,10 @@ export async function resolveImageQuery(query: string): Promise<string | null> {
   if (cached) return cached;
 
   try {
-    const res = await fetch(`/api/unsplash?q=${encodeURIComponent(trimmed)}&page=1`);
+    const res = await fetch(`/api/deck-image?q=${encodeURIComponent(trimmed)}&kind=auto`);
     if (!res.ok) return null;
     const data = await res.json();
-    const results = data.results;
-    if (!results || results.length === 0) return null;
-
-    const url: string = results[0].urls?.regular || results[0].urls?.small;
+    const url: string | undefined = data?.url;
     if (!url) return null;
 
     cache.set(trimmed, url);

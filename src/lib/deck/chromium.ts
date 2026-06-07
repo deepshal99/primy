@@ -30,6 +30,9 @@ export const FONT_IMAGE_HOSTS = [
   "images.unsplash.com",
   "plus.unsplash.com",
   "images.pexels.com",
+  // Vercel Blob (gpt-image-1 deck visuals are persisted here) — subdomain match
+  // covers the `<store>.public.blob.vercel-storage.com` host.
+  "public.blob.vercel-storage.com",
 ];
 
 /**

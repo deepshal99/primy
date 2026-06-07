@@ -585,13 +585,17 @@ function panelBackground(seed: string): string {
   );
 }
 
-/** Optional <image query="..."/> — captured for future real-image upgrade (D2). */
+/**
+ * Optional <image query="..."/> — drives real image resolution. The
+ * `data-image-query` attribute is resolved at render time (HtmlSlideRenderer /
+ * PDF baking) via `/api/deck-image`: gpt-image-1 generation (primary) with
+ * Unsplash backup. Until/unless an image resolves, the deterministic gradient
+ * background stands in — so the slot is never an empty box.
+ */
 function imageSeed(raw: string, fallback: string): { seed: string; queryAttr: string } {
   const a = selfClosing(raw, "image")[0];
   const query = a ? attrOf(`<x ${a}>`, "query") ?? "" : "";
-  // data-img-query (NOT data-image-query) so the live Unsplash resolver stays
-  // dormant until D2 wires real photography; it just preserves intent for now.
-  const queryAttr = query ? ` data-img-query="${query.replace(/"/g, "&quot;")}"` : "";
+  const queryAttr = query ? ` data-image-query="${query.replace(/"/g, "&quot;")}"` : "";
   return { seed: query || fallback || "primy", queryAttr };
 }
 
@@ -602,6 +606,7 @@ function renderImageFull(raw: string): string {
   const sub = block(raw, "subtitle");
   const { seed, queryAttr } = imageSeed(raw, h1);
   return `<div class="imagefull" style="${heroBackground(seed)}"${queryAttr}>
+    <div class="if-scrim"></div>
     <div class="if-inner">
       ${eyebrow ? `<div class="if-eyebrow">${eyebrow}</div>` : ""}
       <h1 class="if-h1">${h1}</h1>
@@ -808,15 +813,17 @@ function slideCss(): string {
   .cta-ghost{border:1.5px solid var(--card-border);color:var(--text)}
   .contact{color:var(--text-2);font-size:16px;margin-top:26px}
   /* imageFull — full-bleed dark hero, white text (scrim-safe by construction) */
-  .imagefull{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:64px 72px}
-  .if-inner{max-width:780px}
+  .imagefull{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;
+    padding:64px 72px;background-size:cover;background-position:center}
+  .if-scrim{position:absolute;inset:0;background:linear-gradient(to top, rgba(8,10,16,0.82) 0%, rgba(8,10,16,0.42) 52%, rgba(8,10,16,0.22) 100%)}
+  .if-inner{position:relative;z-index:1;max-width:780px}
   .if-eyebrow{color:#ffffff;font-weight:600;font-size:15px;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:18px}
   .if-h1{font-family:var(--h-font);font-weight:var(--h-weight);font-size:58px;line-height:1.04;letter-spacing:-0.02em;color:#ffffff}
   .if-sub{color:#ffffff;font-size:21px;line-height:1.4;margin-top:18px;max-width:680px}
   /* splitImage — content + branded visual panel */
   .splitimage{position:absolute;inset:0;display:flex}
   .si-content{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;padding:64px 56px}
-  .si-panel{flex:1}
+  .si-panel{flex:1;background-size:cover;background-position:center}
   .si-list{list-style:none;display:flex;flex-direction:column;gap:18px;margin-top:6px}
   .si-list li{display:flex;align-items:flex-start;gap:16px;font-size:20px;line-height:1.4;color:var(--text)}
   .si-list .bar{flex:0 0 auto;width:6px;height:24px;border-radius:99px;background:var(--accent);margin-top:3px}

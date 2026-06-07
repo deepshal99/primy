@@ -149,6 +149,7 @@ Each project keeps an append-only **activity log** (`activityEvents` table, help
 - `POST/DELETE /api/files/[id]/share` — Generate/remove a per-entity (KU/table/deck) share token
 - `GET/POST/DELETE /api/trash` — List, restore, and hard-delete soft-deleted items
 - `POST /api/deck-refine` — Agentic deck render → lens-based vision critique → repair pass (body: `slides`, `brandContext?`, `brief?`)
+- `GET /api/deck-image` — Resolve a deck image query to a stable URL: **gpt-image-1 generation (primary, persisted to Vercel Blob + cached)** with Unsplash backup; falls through to the deterministic gradient client-side so a slide is never an empty box (`src/lib/deck/generateImage.ts`, `imageStore.ts`)
 - `POST /api/extract` — File text extraction (PDF, DOCX, XLSX, ZIP)
 - `POST /api/embeddings` — Generate embeddings for semantic search
 - `POST /api/export/pdf` — Server-side PDF generation (Puppeteer/Chromium)
