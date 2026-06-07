@@ -923,23 +923,36 @@ function lastResortSlideExtraction(block: string): DeckOperation | null {
  * (default: pitch). Only active when NEXT_PUBLIC_DECK_DSL=true (caller gates).
  */
 export function parseDeckDslOperations(fullText: string): DeckOperation[] {
-  const blocks = extractFencedBlocks(fullText, "deckdsl");
   const operations: DeckOperation[] = [];
 
-  for (const block of blocks) {
-    const parsed = parseDeckDsl(block);
-    if (parsed.slides.length === 0) {
-      reportOpParseFailure({ family: "deckops", reason: "no-typed-ops", sample: block.slice(0, 200) });
-      continue;
-    }
+  const buildFrom = (src: string) => {
+    const parsed = parseDeckDsl(src);
+    if (parsed.slides.length === 0) return false;
     const theme = (parsed.theme && deckThemes[parsed.theme]) || deckThemes.pitch;
-    const slides = dslToHtmlSlides(block, theme);
     operations.push({
       type: "CREATE",
       title: parsed.title || "Untitled deck",
-      slides,
+      slides: dslToHtmlSlides(src, theme),
       style: theme,
     });
+    return true;
+  };
+
+  for (const block of extractFencedBlocks(fullText, "deckdsl")) {
+    if (!buildFrom(block)) {
+      reportOpParseFailure({ family: "deckops", reason: "no-typed-ops", sample: block.slice(0, 200) });
+    }
+  }
+
+  // Fenceless salvage: gpt-5-mini intermittently omits or mislabels the
+  // ```deckdsl fence (emits raw <deck>…</deck> or wraps it in ```xml). parseDeckDsl
+  // already strips stray fences and finds <slide> tags anywhere, so re-run it over
+  // the WHOLE reply when the fenced path produced nothing — otherwise a valid deck
+  // would be silently dropped (observed ~2 in 5 generations).
+  if (operations.length === 0 && /<slide\b/i.test(fullText)) {
+    if (buildFrom(fullText)) {
+      console.warn("[Primy] Recovered deckdsl from an unfenced/mislabeled block");
+    }
   }
 
   return operations;

@@ -41,4 +41,18 @@ describe("parseDeckDslOperations", () => {
     expect(parseDeckDslOperations("just prose")).toEqual([]);
     expect(parseDeckDslOperations("```deckops\n[{...}]\n```")).toEqual([]);
   });
+
+  test("recovers a deck the model emitted WITHOUT a ```deckdsl fence", () => {
+    const raw = 'Here is your deck:\n<deck theme="pitch" title="X"><slide layout="title"><h1>Hello</h1></slide><slide layout="bullets"><h2>Pts</h2><bullet>a</bullet><bullet>b</bullet></slide></deck>';
+    const ops = parseDeckDslOperations(raw);
+    expect(ops).toHaveLength(1);
+    if (ops[0].type === "CREATE") expect(ops[0].slides).toHaveLength(2);
+  });
+
+  test("recovers a deck wrapped in the wrong fence (```xml)", () => {
+    const xml = '```xml\n<deck title="Y"><slide layout="stats"><h2>M</h2><stat value="9" label="x"/></slide></deck>\n```';
+    const ops = parseDeckDslOperations(xml);
+    expect(ops).toHaveLength(1);
+    if (ops[0].type === "CREATE") expect(ops[0].slides).toHaveLength(1);
+  });
 });

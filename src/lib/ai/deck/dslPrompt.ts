@@ -57,6 +57,7 @@ RULES
 - 5–6 min → ~6 slides, 10 min → ~10, 20 min → ~15. Open with \`title\`, use \`section\` to break acts, close strong.
 - Keep copy tight: headlines < 9 words, bullets < 14 words, stat labels < 6 words. The renderer handles all styling.
 - Plain text inside tags (only <b> is honored for emphasis). No inline styles, no <img>, no HTML documents.
+- OUTPUT FORMAT: emit exactly ONE fenced block opening with \`\`\`deckdsl and closing with \`\`\`. Nothing before or after it. Do NOT use \`\`\`xml or any other fence.
 
 EXAMPLE
 \`\`\`deckdsl

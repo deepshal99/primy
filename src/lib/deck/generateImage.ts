@@ -69,7 +69,9 @@ export async function generateDeckImage(
         model: transparent ? CUTOUT_MODEL : BG_MODEL,
         prompt: buildImagePrompt(query, opts),
         size: transparent ? "1024x1024" : "1536x1024",
-        quality: "medium",
+        // Backgrounds sit behind a heavy scrim, so "low" is plenty and ~2× faster;
+        // cutouts are fully visible, so they stay at "medium".
+        quality: transparent ? "medium" : "low",
         ...(transparent
           ? { background: "transparent", output_format: "png" }
           : { output_format: "jpeg" }),
