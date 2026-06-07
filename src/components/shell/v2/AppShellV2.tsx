@@ -40,7 +40,8 @@ import { ArtifactHistoryButton } from "@/components/snapshots/ArtifactHistoryBut
 import { ExportMenu } from "@/components/sheet/ExportMenu";
 import { DocExportMenu } from "@/components/doc/DocExportMenu";
 import { SearchDialog } from "@/components/shared/SearchDialog";
-import { LibraryView } from "@/components/shell/v2/LibraryView";
+import { WorkspacesView } from "@/components/shell/v2/WorkspacesView";
+import { LoadingScreen } from "@/components/shared/LoadingScreen";
 import { ComingSoonModal } from "@/components/shell/v2/ComingSoonModal";
 import { TrashView } from "@/components/shell/v2/TrashView";
 import { QuickNotesView } from "@/components/shell/v2/QuickNotesView";
@@ -329,12 +330,7 @@ export function AppShellV2() {
 
   const needsOnboarding = userQuery.data && userQuery.data.hasOnboarded === false;
   if (userQuery.isLoading || needsOnboarding) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center" style={{ background: "var(--canvas)" }}>
-        <span className="w-5 h-5 rounded-full border-2 border-transparent animate-spin"
-          style={{ borderTopColor: "var(--accent-amber)", borderRightColor: "var(--accent-amber)" }} />
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   return (
@@ -482,9 +478,9 @@ export function AppShellV2() {
           <TrashView onExit={() => setSystemView(null)} />
         </main>
       ) : systemView === "library" ? (
-        /* Library — global workspace gallery; no docked chat. */
+        /* Workspace directory — global gallery; no docked chat. */
         <main className="flex-1 min-w-0 flex flex-col" style={{ background: "var(--canvas)" }}>
-          <LibraryView onExit={() => setSystemView(null)} />
+          <WorkspacesView onExit={() => setSystemView(null)} onNewWorkspace={newWorkspace} />
         </main>
       ) : systemView === "notes" && quickNotesProjectId ? (
         /* Quick Notes — rail + editor. Chat docks on the right and the editor

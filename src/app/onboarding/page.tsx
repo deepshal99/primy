@@ -38,6 +38,7 @@ import {
 import { nanoid } from "nanoid";
 import { cn } from "@/lib/cn";
 import { LogoMark } from "@/components/shared/Logo";
+import { LoadingScreen } from "@/components/shared/LoadingScreen";
 
 interface UserPayload {
   id: string;
@@ -183,11 +184,7 @@ export default function OnboardingPage() {
 
   // ── Render ──
   if (status === "loading" || userLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#fafaf8]">
-        <Loader2 className="w-5 h-5 animate-spin text-[#FFB43F]" />
-      </div>
-    );
+    return <LoadingScreen variant="light" label={null} />;
   }
 
   if (!user) {

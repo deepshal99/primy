@@ -5,6 +5,7 @@ import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Loader2, ArrowRight, ArrowLeft, MailCheck } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { LoadingScreen } from "@/components/shared/LoadingScreen";
 
 /**
  * Passwordless sign-in. One email field requests a 6-digit code
@@ -30,11 +31,7 @@ export default function LoginPage() {
   const codeInputRef = useRef<HTMLInputElement>(null);
 
   if (status === "loading" || status === "authenticated") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FCFBF8]">
-        <Loader2 className="w-6 h-6 animate-spin text-[#FFB43F]" />
-      </div>
-    );
+    return <LoadingScreen variant="light" label={null} />;
   }
 
   const requestCode = async (em: string): Promise<boolean> => {

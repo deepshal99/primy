@@ -611,6 +611,32 @@ html, body { height: 100%; margin: 0; padding: 0; }
 .content-loader-line:nth-child(4) { animation-delay: 0.45s; }
 .content-loader-line:nth-child(5) { animation-delay: 0.6s; }
 
+/* Brand loader — the four-bar glyph gently breathing inside its ink chip,
+   with a soft amber glow pulsing behind it. Used by <LoadingScreen>, the one
+   canonical full-screen loading state. Transform/opacity/filter only. */
+@keyframes brandLoaderBreathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.06); }
+}
+@keyframes brandLoaderGlow {
+  0%, 100% { opacity: 0.18; transform: scale(0.92); }
+  50%      { opacity: 0.4;  transform: scale(1.12); }
+}
+.brand-loader-mark {
+  animation: brandLoaderBreathe 1.8s var(--ease-default, ease-in-out) infinite;
+  will-change: transform;
+}
+.brand-loader-glow {
+  filter: blur(14px);
+  animation: brandLoaderGlow 1.8s var(--ease-default, ease-in-out) infinite;
+  will-change: opacity, transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-loader-mark,
+  .brand-loader-glow { animation: none; }
+  .brand-loader-glow { opacity: 0.24; }
+}
+
 /* AI-inserted content highlight */
 @keyframes highlightFade {
   0% { background-color: rgba(255, 180, 63, 0.16); border-left-color: rgba(255, 180, 63, 0.7); }

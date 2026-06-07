@@ -8,7 +8,6 @@ import {
   Table2,
   Presentation,
   FolderOpen,
-  Loader2,
   AlertCircle,
   Pen,
   ExternalLink,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { ShareWatermark } from "@/components/billing/ShareWatermark";
+import { LoadingScreen } from "@/components/shared/LoadingScreen";
 import type { Plan } from "@/lib/plans";
 
 const DocViewReadOnly = dynamic(
@@ -74,14 +74,7 @@ export default function SharePage() {
   }, [token]);
 
   if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-white antialiased">
-        <div className="flex items-center gap-3">
-          <Loader2 className="w-5 h-5 animate-spin text-[#FFB43F]" />
-          <span className="text-[13px] text-neutral-500">Loading...</span>
-        </div>
-      </div>
-    );
+    return <LoadingScreen variant="light" label="Loading..." />;
   }
 
   if (error || !data) {
