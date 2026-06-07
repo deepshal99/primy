@@ -18,6 +18,7 @@ import {
   parseSuggestions,
 } from "@/lib/ai/parseAIResponse";
 import { deckDslEnabled } from "@/lib/deck/dslToHtml";
+import { prefetchImageQuery } from "@/lib/imageCache";
 import { detectDroppedOpFamilies, droppedFamiliesLabel } from "@/lib/ai/opParseFailures";
 import { opFamilyCounts, hasAnyOps } from "@/lib/ai/opPlan";
 import { scoreRelevance } from "@/lib/ai/contextRelevance";
@@ -41,6 +42,28 @@ interface ChatPanelProps {
   onCollapse?: () => void;
   onToggleExpand?: () => void;
   expanded?: boolean;
+}
+
+/**
+ * Pre-generate deck images IN PARALLEL while the deck text is still streaming.
+ * As soon as a COMPLETE `<image query="…"/>` tag arrives in the stream, fire its
+ * generation (deduped via `seen`) so it's warming the Blob cache while the model
+ * keeps writing later slides — by the time slides render, it's a cache hit. Only
+ * matches whole tags (ending in `>`), so a mid-stream partial query is skipped.
+ */
+function prefetchStreamingDeckImages(text: string, seen: Set<string>): void {
+  const re = /<image\b[^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const tag = m[0];
+    const query = (tag.match(/query\s*=\s*"([^"]*)"/i) || [])[1];
+    if (!query) continue;
+    const transparent = /transparent\s*=\s*"(?:true|1|yes)"/i.test(tag);
+    const key = (transparent ? "t:" : "") + query;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    prefetchImageQuery(query, { transparent });
+  }
 }
 
 export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expanded }: ChatPanelProps) {
@@ -349,6 +372,8 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
         const decoder = new TextDecoder();
         let fullText = "";
         let buffer = "";
+        // Image queries already kicked off this stream (parallel pre-generation).
+        const prefetchedImages = new Set<string>();
         let streamError = "";
         let streamTruncated = false;
         let groundingSources: GroundingSource[] = [];
@@ -382,6 +407,11 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
             if (parsed.text) {
               fullText += parsed.text;
               pendingChunk += parsed.text;
+              // Fire image generation the moment a complete <image> tag streams,
+              // so it runs in parallel with the model writing the rest of the deck.
+              if (deckDslEnabled() && fullText.includes("<image")) {
+                prefetchStreamingDeckImages(fullText, prefetchedImages);
+              }
               if (rafId === null) rafId = requestAnimationFrame(flushPending);
             }
             if (parsed.grounding) {

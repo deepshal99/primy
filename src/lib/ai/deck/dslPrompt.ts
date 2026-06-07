@@ -48,7 +48,7 @@ adjacent slides; pick the layout that serves the slide's content):
 - team — founders/advisors as avatar cards (initials auto-generated, never photos). <h2>heading</h2> then <member name="A. Patel" role="CEO — ex-health PM"/> per person (max 4)
 - closing — the final CTA slide. <eyebrow>opt</eyebrow> <h1>closing line</h1> <subtitle>opt</subtitle> then <cta label="Request demo"/> (1–2) and <contact>email or url</contact>
 - imageFull — a dramatic full-bleed visual slide (great for cover, a section break, or the vision). <image query="2–5 word photo idea"/> <eyebrow>opt</eyebrow> <h1>headline</h1> <subtitle>opt</subtitle> (renders as a branded dark hero with readable white text)
-- splitImage — content beside a branded visual panel (good for product/solution). <image query="2–5 word photo idea"/> <h2>heading</h2> then <bullet>…</bullet> per point (or one <body>paragraph</body>)
+- splitImage — content beside a branded visual panel (good for product/solution). <image query="2–5 word photo idea"/> <h2>heading</h2> then <bullet>…</bullet> per point (or one <body>paragraph</body>). For a product/object shot that should float (background removed) on the panel, add transparent: <image query="sleek smartphone" transparent="true"/>
 
 Use imageFull / splitImage SPARINGLY — at most 1–2 per deck (e.g. the cover or one section), so the deck stays crisp, not noisy.
 

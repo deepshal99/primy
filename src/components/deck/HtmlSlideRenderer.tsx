@@ -76,7 +76,9 @@ export function HtmlSlideRenderer({
     const promises = Array.from(els).map(async (el) => {
       const query = el.dataset.imageQuery;
       if (!query) return;
-      const url = await resolveImageQuery(query);
+      // Cutout (transparent PNG) elements opt in via data-image-transparent.
+      const transparent = el.dataset.imageTransparent === "1";
+      const url = await resolveImageQuery(query, { transparent });
       if (cancelled || !url) return;
       el.style.backgroundImage = `url(${url})`;
     });

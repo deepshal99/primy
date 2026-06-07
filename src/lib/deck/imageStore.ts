@@ -45,24 +45,36 @@ async function unsplashFirst(query: string): Promise<string | null> {
   }
 }
 
+export interface ResolveOptions {
+  /** Cutout: transparent-background PNG (no Unsplash backup — stock has no alpha). */
+  transparent?: boolean;
+}
+
 /**
  * Resolve a deck image query to a stable URL, generating + caching as needed.
  * Returns null only when every source fails (caller renders the gradient).
  */
-export async function getOrCreateDeckImage(query: string, kind: ImageKind = "auto"): Promise<string | null> {
+export async function getOrCreateDeckImage(
+  query: string,
+  kind: ImageKind = "auto",
+  opts: ResolveOptions = {},
+): Promise<string | null> {
   const q = query.trim();
   if (!q) return null;
+  const transparent = opts.transparent === true;
 
   // Generation path (primary, unless explicitly stock-only).
   if (kind !== "stock") {
-    const pathname = `deck-img/gen-${hashKey(q)}.jpg`;
+    const ext = transparent ? "png" : "jpg";
+    const tag = transparent ? "cut" : "gen";
+    const pathname = `deck-img/${tag}-${hashKey(q)}.${ext}`;
     try {
       const existing = await list({ prefix: pathname, limit: 1 });
       if (existing.blobs[0]?.url) return existing.blobs[0].url;
     } catch {
       /* listing failed — fall through to generate */
     }
-    const img = await generateDeckImage(q);
+    const img = await generateDeckImage(q, { transparent });
     if (img) {
       try {
         const blob = await put(pathname, img.buffer, {
@@ -79,6 +91,9 @@ export async function getOrCreateDeckImage(query: string, kind: ImageKind = "aut
     }
     if (kind === "gen") return null; // gen-only requested; don't fall to stock
   }
+
+  // Cutouts have no stock equivalent (Unsplash has no alpha) — don't back off to it.
+  if (transparent) return null;
 
   // Backup: stock photography (already CDN-hosted, allowlisted for export).
   return unsplashFirst(q);

@@ -586,17 +586,23 @@ function panelBackground(seed: string): string {
 }
 
 /**
- * Optional <image query="..."/> — drives real image resolution. The
- * `data-image-query` attribute is resolved at render time (HtmlSlideRenderer /
- * PDF baking) via `/api/deck-image`: gpt-image-1 generation (primary) with
- * Unsplash backup. Until/unless an image resolves, the deterministic gradient
- * background stands in — so the slot is never an empty box.
+ * Optional <image query="..." transparent="true"/> — drives real image
+ * resolution. `data-image-query` (+ `data-image-transparent` for cutouts) is
+ * resolved at render time via `/api/deck-image`: gpt-image-2 generation (primary,
+ * transparent PNG for cutouts) with Unsplash backup for backgrounds. Until/unless
+ * an image resolves, the deterministic gradient stands in — never an empty box.
  */
-function imageSeed(raw: string, fallback: string): { seed: string; queryAttr: string } {
+function imageSpec(raw: string, fallback: string): { seed: string; query: string; transparent: boolean } {
   const a = selfClosing(raw, "image")[0];
   const query = a ? attrOf(`<x ${a}>`, "query") ?? "" : "";
-  const queryAttr = query ? ` data-image-query="${query.replace(/"/g, "&quot;")}"` : "";
-  return { seed: query || fallback || "primy", queryAttr };
+  const transparent = a ? /^(true|1|yes)$/i.test(attrOf(`<x ${a}>`, "transparent") ?? "") : false;
+  return { seed: query || fallback || "primy", query, transparent };
+}
+
+/** Build the data attrs that make the live renderer resolve a real image. */
+function imgDataAttr(query: string, transparent: boolean): string {
+  if (!query) return "";
+  return ` data-image-query="${query.replace(/"/g, "&quot;")}"${transparent ? ' data-image-transparent="1"' : ""}`;
 }
 
 /** Full-bleed visual slide — dark hero background, scrim-safe white text. */
@@ -604,8 +610,9 @@ function renderImageFull(raw: string): string {
   const eyebrow = block(raw, "eyebrow");
   const h1 = block(raw, "h1") || block(raw, "title");
   const sub = block(raw, "subtitle");
-  const { seed, queryAttr } = imageSeed(raw, h1);
-  return `<div class="imagefull" style="${heroBackground(seed)}"${queryAttr}>
+  const { seed, query } = imageSpec(raw, h1);
+  // Full-bleed is always a cover background (a cutout makes no sense edge-to-edge).
+  return `<div class="imagefull" style="${heroBackground(seed)}"${imgDataAttr(query, false)}>
     <div class="if-scrim"></div>
     <div class="if-inner">
       ${eyebrow ? `<div class="if-eyebrow">${eyebrow}</div>` : ""}
@@ -620,18 +627,24 @@ function renderSplitImage(raw: string): string {
   const h2 = block(raw, "h2") || block(raw, "title");
   const bodyBullets = blocks(raw, "bullet");
   const body = block(raw, "body");
-  const { seed, queryAttr } = imageSeed(raw, h2);
+  const { seed, query, transparent } = imageSpec(raw, h2);
   const content = bodyBullets.length
     ? `<ul class="si-list">${bodyBullets.map((b) => `<li><span class="bar"></span><span class="btxt">${b}</span></li>`).join("")}</ul>`
     : body
       ? `<p class="si-body">${body}</p>`
       : "";
+  // Cutout: the transparent subject floats (contain) over the branded panel
+  // gradient. Otherwise the panel itself holds a cover photo / the gradient.
+  const panel =
+    transparent && query
+      ? `<div class="si-panel" style="${panelBackground(seed)}"><div class="si-cutout"${imgDataAttr(query, true)}></div></div>`
+      : `<div class="si-panel" style="${panelBackground(seed)}"${imgDataAttr(query, false)}></div>`;
   return `<div class="splitimage">
     <div class="si-content">
       ${h2 ? `<h2>${h2}</h2>` : ""}
       ${content}
     </div>
-    <div class="si-panel" style="${panelBackground(seed)}"${queryAttr}></div>
+    ${panel}
   </div>`;
 }
 
@@ -823,7 +836,8 @@ function slideCss(): string {
   /* splitImage — content + branded visual panel */
   .splitimage{position:absolute;inset:0;display:flex}
   .si-content{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;padding:64px 56px}
-  .si-panel{flex:1;background-size:cover;background-position:center}
+  .si-panel{flex:1;position:relative;background-size:cover;background-position:center}
+  .si-cutout{position:absolute;inset:40px;background-size:contain;background-repeat:no-repeat;background-position:center}
   .si-list{list-style:none;display:flex;flex-direction:column;gap:18px;margin-top:6px}
   .si-list li{display:flex;align-items:flex-start;gap:16px;font-size:20px;line-height:1.4;color:var(--text)}
   .si-list .bar{flex:0 0 auto;width:6px;height:24px;border-radius:99px;background:var(--accent);margin-top:3px}

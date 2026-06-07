@@ -33,12 +33,13 @@ export async function GET(req: Request) {
   const q = (url.searchParams.get("q") ?? "").slice(0, 400);
   const kindRaw = url.searchParams.get("kind") ?? "auto";
   const kind: ImageKind = kindRaw === "gen" || kindRaw === "stock" ? kindRaw : "auto";
+  const transparent = url.searchParams.get("t") === "1";
 
   if (!q.trim()) {
     return Response.json({ error: "Missing q" }, { status: 400 });
   }
 
-  const resolved = await getOrCreateDeckImage(q, kind);
+  const resolved = await getOrCreateDeckImage(q, kind, { transparent });
   if (!resolved) {
     return Response.json({ error: "No image available" }, { status: 404 });
   }
