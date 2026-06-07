@@ -40,9 +40,12 @@ export const PHASE_SCRIPTS: Record<StreamTask, StreamPhase[]> = {
     { id: "sketch", label: "Sketching the layout" },
     { id: "build", label: "Designing the page" },
   ],
+  // A guessed-answer turn might still turn out to be an action (an op block
+  // arrives and the loader re-keys to that artifact's script). Before any output
+  // we don't yet know which, so the single label stays neutral and true for
+  // both. Genuine prose answers render as live streaming text, not this loader.
   answer: [
     { id: "think", label: "Thinking it through" },
-    { id: "compose", label: "Composing the answer" },
   ],
 };
 
@@ -77,8 +80,9 @@ export const PHASE_STEP_MS = 2400;
  * Which phase is currently active.
  * - `outputStarted` true ⇒ jump to the final (real "building") step.
  * - otherwise advance on the timer, but HOLD at the second-to-last step so we
- *   never auto-claim the build before it's real. For tasks with no artifact
- *   (`allowFinalBySim`, e.g. a plain answer) the timer may reach the last step.
+ *   never auto-claim the build before it's real. (`allowFinalBySim` lets the
+ *   timer reach the last step; the UI keeps it off so the final step always
+ *   waits for real output.)
  */
 export function activePhaseIndex(opts: {
   phaseCount: number;

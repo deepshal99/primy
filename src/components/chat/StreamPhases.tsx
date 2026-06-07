@@ -71,7 +71,9 @@ export function StreamPhases({
     phaseCount: phases.length,
     elapsedMs: elapsed,
     outputStarted,
-    allowFinalBySim: task === "answer",
+    // The final step always waits for real output — never simulate into it. We
+    // never claim "building"/"composing" before it's actually happening.
+    allowFinalBySim: false,
   });
 
   // Enrich the "read" step with the files we actually pulled in.

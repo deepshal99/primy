@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { DialRoot } from "dialkit";
 import { AppToaster } from "@/components/ui/AppToaster";
 import { ConfirmHost } from "@/lib/confirm";
@@ -25,17 +26,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
+      <body className="antialiased">
         {/* Anti-FOUC: apply the saved theme to <html> before first paint so the
             authenticated app renders in the correct mode with no flash. Public
             marketing/auth pages are hardcoded light and ignore the .dark class. */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('primy:theme');if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark')}catch(e){}`,
-          }}
-        />
-      </head>
-      <body className="antialiased">
+        <Script id="primy-theme-init" strategy="beforeInteractive">
+          {`try{var t=localStorage.getItem('primy:theme');if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark')}catch(e){}`}
+        </Script>
         <QueryProvider>
           <SessionProvider>
             {children}

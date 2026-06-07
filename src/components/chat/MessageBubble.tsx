@@ -289,9 +289,17 @@ export function StreamingBubble({ content }: StreamingBubbleProps) {
               ? "doc"
               : null;
 
-  // A plain prose answer with no artifact op: show the streaming text itself.
-  // (Self-corrects a wrong task guess the moment real prose arrives.)
-  if (hasVisibleContent && !indicatorType) {
+  // Task guess from the prompt, used until a real op block confirms the type.
+  const guessed = inferStreamTask(lastUserText);
+
+  // Reveal streaming prose ONLY for plain-answer turns — there, the text IS the
+  // final answer being typed live. For turns that will produce an artifact
+  // (deck/doc/sheet/page), the model streams a short prose preamble *before* the
+  // op block; showing it would flash text and then snap back to the loader once
+  // the fence arrives (loading -> typing -> loading). So we hold the phased
+  // loader the whole way through and let the artifact's prose reply render from
+  // the final message once the turn completes.
+  if (hasVisibleContent && !indicatorType && guessed === "answer") {
     return (
       <div className="fade-in-up">
         <div className="markdown-content">
@@ -304,7 +312,6 @@ export function StreamingBubble({ content }: StreamingBubbleProps) {
   // Otherwise: the task-aware phased loader. Task is the real op type when known,
   // else the guess from the prompt. The final "building" step only activates
   // once a real op is detected (outputStarted), so we never claim it early.
-  const guessed = inferStreamTask(lastUserText);
   const task = taskFromOp(indicatorType) ?? guessed;
   const outputStarted = !!indicatorType;
 
