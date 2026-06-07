@@ -328,8 +328,16 @@ export function AppShellV2() {
     if (systemView === "notes" && !quickNotesProjectId) ensureQuickNotesProject();
   }, [systemView, quickNotesProjectId, ensureQuickNotesProject]);
 
-  const needsOnboarding = userQuery.data && userQuery.data.hasOnboarded === false;
-  if (userQuery.isLoading || needsOnboarding) {
+  // The onboarding probe (/api/user) must not hold back the whole shell.
+  // Returning users have their workspaces cached from localStorage, so the
+  // sidebar, chat, and board paint instantly while the probe resolves in the
+  // background. Only block when we positively must redirect to onboarding, or
+  // on a truly cold first load with nothing cached to show yet.
+  const needsOnboarding = userQuery.data?.hasOnboarded === false;
+  if (needsOnboarding) {
+    return <LoadingScreen />;
+  }
+  if (userQuery.isLoading && workspaceList.length === 0) {
     return <LoadingScreen />;
   }
 
