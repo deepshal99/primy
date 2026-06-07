@@ -25,10 +25,15 @@ import type { HtmlDeckSlide, ThemeConfig } from "@/lib/types";
 /**
  * Flag gate for the DSL deck path. Readable on BOTH server (chat route, to append
  * DECK_DSL_PROMPT) and client (ChatPanel, to parse the deckdsl block), so it must
- * be a NEXT_PUBLIC_* var. Off by default — the existing HTML deck path is untouched.
+ * be a NEXT_PUBLIC_* var.
+ *
+ * GRADUATED to ON by default (the constrained layout system replaced the
+ * free-form HTML path, which produced blank/clipped/off-brand slides). Set
+ * `NEXT_PUBLIC_DECK_DSL=false` as a kill-switch to fall back to the legacy HTML
+ * deck path.
  */
 export function deckDslEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_DECK_DSL === "true";
+  return process.env.NEXT_PUBLIC_DECK_DSL !== "false";
 }
 
 export const DSL_CORE_LAYOUTS = [
