@@ -623,7 +623,7 @@ function Step3FirstProject({
 
         <label className="block mt-4">
           <span className="block text-[11px] font-medium text-[#737373] uppercase tracking-wider mb-1.5">
-            What's it about? <span className="text-[#a3a3a3] normal-case tracking-normal">(optional)</span>
+            What&apos;s it about? <span className="text-[#a3a3a3] normal-case tracking-normal">(optional)</span>
           </span>
           <textarea
             value={description}

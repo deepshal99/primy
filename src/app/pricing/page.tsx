@@ -153,7 +153,7 @@ function PricingCards() {
               <Row>{fmtCount(pro.aiMessagesPerMonth)} AI messages / month</Row>
               <Row>Unlimited file uploads</Row>
               <Row>{fmtBytes(pro.storageBytes)} storage</Row>
-              <Row>No "Built with Primy" watermark</Row>
+              <Row>No &quot;Built with Primy&quot; watermark</Row>
               <Row>Brand voice + visual profiles</Row>
               <Row>Full slash command set</Row>
               <Row>Snapshot history (20 per artifact)</Row>
@@ -383,7 +383,7 @@ function FAQ() {
       q: "What happens when I hit a limit?",
       a: (
         <>
-          You'll see a friendly modal with the limit you reached and a single
+          You&apos;ll see a friendly modal with the limit you reached and a single
           upgrade button. Until limits go live in production, every signup
           gets Pro behavior so the beta runs unblocked.
         </>
@@ -395,7 +395,7 @@ function FAQ() {
     },
     {
       q: "Do you offer refunds?",
-      a: <>Yes. Full refund within 7 days of any charge, no questions asked. Email us and we'll process it the same day.</>,
+      a: <>Yes. Full refund within 7 days of any charge, no questions asked. Email us and we&apos;ll process it the same day.</>,
     },
     {
       q: "Is my data private?",
@@ -411,7 +411,7 @@ function FAQ() {
       q: "What payment methods do you accept?",
       a: (
         <>
-          Coming soon. We'll integrate Razorpay, Paddle, or Lemon Squeezy
+          Coming soon. We&apos;ll integrate Razorpay, Paddle, or Lemon Squeezy
           depending on your region. For the beta, every user is on the house.
         </>
       ),

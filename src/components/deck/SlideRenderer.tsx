@@ -72,6 +72,20 @@ export function SlideRenderer({ slide, theme, themeConfig, scale = 1, onClick, i
     }
   }, [theme, themeConfig]);
 
+  const hasBackgroundImage = !isHtmlSlide(slide) && !!slide.backgroundImage;
+
+  // Override text colors to white when background image is present
+  const effectiveTheme = useMemo(() => {
+    if (!hasBackgroundImage) return t;
+    return {
+      ...t,
+      text: "#ffffff",
+      textSecondary: "rgba(255,255,255,0.75)",
+      cardBg: "rgba(255,255,255,0.1)",
+      cardBorder: "rgba(255,255,255,0.15)",
+    };
+  }, [t, hasBackgroundImage]);
+
   // Handle new HTML/CSS slides — render raw HTML in a scaled container
   if (isHtmlSlide(slide)) {
     return (
@@ -100,20 +114,6 @@ export function SlideRenderer({ slide, theme, themeConfig, scale = 1, onClick, i
       </div>
     );
   }
-
-  const hasBackgroundImage = !!slide.backgroundImage;
-
-  // Override text colors to white when background image is present
-  const effectiveTheme = useMemo(() => {
-    if (!hasBackgroundImage) return t;
-    return {
-      ...t,
-      text: "#ffffff",
-      textSecondary: "rgba(255,255,255,0.75)",
-      cardBg: "rgba(255,255,255,0.1)",
-      cardBorder: "rgba(255,255,255,0.15)",
-    };
-  }, [t, hasBackgroundImage]);
 
   const isCentered = slide.layout === "title" || slide.layout === "section" || slide.layout === "quote" || slide.layout === "imageFeature" || slide.layout === "statement";
 

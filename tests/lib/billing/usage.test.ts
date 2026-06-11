@@ -37,7 +37,7 @@ describe("currentMonthKey", () => {
 // DB-dependent tests — skip gracefully if DATABASE_URL_TEST missing.
 describe("usage DB integration", () => {
   let db: Awaited<ReturnType<typeof requireTestDb>> = null;
-  let testUserIds: string[] = [];
+  const testUserIds: string[] = [];
 
   beforeAll(async () => {
     db = await requireTestDb();

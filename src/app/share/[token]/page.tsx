@@ -14,6 +14,7 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { ShareWatermark } from "@/components/billing/ShareWatermark";
 import { LoadingScreen } from "@/components/shared/LoadingScreen";
 import type { Plan } from "@/lib/plans";
@@ -95,7 +96,7 @@ export default function SharePage() {
               {error || "This shared link is no longer available."}
             </p>
           </div>
-          <a
+          <Link
             href="/"
             className="text-[13px] font-medium px-4 py-2 transition-colors"
             style={{
@@ -105,7 +106,7 @@ export default function SharePage() {
             }}
           >
             Go to Primy
-          </a>
+          </Link>
         </div>
       </div>
     );
