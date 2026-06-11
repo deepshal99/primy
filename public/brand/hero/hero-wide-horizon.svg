@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" role="img" aria-label="Primy wide horizon">
+  <title>Primy wide horizon</title>
+  <defs>
+    <linearGradient id="wh-dome" x1="0.2" y1="0" x2="0.4" y2="1">
+      <stop offset="0%" stop-color="#3C6CE0"/>
+      <stop offset="58%" stop-color="#5C8CEF"/>
+      <stop offset="100%" stop-color="#EBF1FD"/>
+    </linearGradient>
+    <linearGradient id="wh-ridge" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#F0896A"/>
+      <stop offset="52%" stop-color="#F4A24C"/>
+      <stop offset="100%" stop-color="#F8BE45"/>
+    </linearGradient>
+    <linearGradient id="wh-ridge2" x1="1" y1="1" x2="0" y2="0.2">
+      <stop offset="0%" stop-color="#F6B27E"/>
+      <stop offset="100%" stop-color="#FBD580"/>
+    </linearGradient>
+    <linearGradient id="wh-water" x1="0" y1="0" x2="0.05" y2="1">
+      <stop offset="0%" stop-color="#4E92DB"/>
+      <stop offset="100%" stop-color="#DEEAF8"/>
+    </linearGradient>
+    <linearGradient id="wh-lake" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#FCF6E0"/>
+      <stop offset="100%" stop-color="#F6E9C2"/>
+    </linearGradient>
+    <clipPath id="wh-frame"><rect x="0" y="0" width="1280" height="720" rx="28"/></clipPath>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="720" rx="28" fill="#FFFFFF"/>
+  <g clip-path="url(#wh-frame)">
+    <!-- back ridge layer, behind the sun -->
+    <path d="M0 500 C 240 462 420 494 640 462 C 880 428 1060 460 1280 436 L1280 720 L0 720 Z" fill="url(#wh-ridge2)"/>
+    <!-- setting sun, right of center, crescent above the ridgeline -->
+    <circle cx="940" cy="528" r="184" fill="url(#wh-dome)"/>
+    <!-- long sweeping front ridge -->
+    <path d="M0 566 C 300 500 520 520 720 482 C 880 452 1040 470 1280 452 L1280 720 L0 720 Z" fill="url(#wh-ridge)"/>
+    <!-- horizon water band -->
+    <path d="M0 656 C 360 616 720 628 1280 602 L1280 720 L0 720 Z" fill="url(#wh-water)"/>
+
+    <!-- lake glinting, lower left -->
+    <ellipse cx="372" cy="650" rx="196" ry="38" fill="#69CEC8" opacity="0.8"/>
+    <ellipse cx="430" cy="638" rx="146" ry="26" fill="url(#wh-lake)" transform="rotate(-4 430 638)"/>
+
+    <!-- trailing twinkle dots -->
+    <g fill="#1A1815">
+      <circle cx="232" cy="206" r="5.5"/>
+      <circle cx="316" cy="176" r="5.5"/>
+      <circle cx="404" cy="158" r="4"/>
+      <circle cx="1064" cy="206" r="5.5"/>
+      <circle cx="1140" cy="178" r="5.5"/>
+    </g>
+
+    <!-- ascending orbit balloon, upper left -->
+    <g fill="none" stroke="#1A1815" stroke-width="3.4" stroke-linecap="round">
+      <path d="M300 470 L300 300"/>
+      <circle cx="272" cy="258" r="50" stroke-opacity="0.92"/>
+      <circle cx="336" cy="298" r="34" stroke-opacity="0.92"/>
+    </g>
+  </g>
+</svg>

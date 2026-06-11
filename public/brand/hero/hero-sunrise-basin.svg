@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" role="img" aria-label="Primy sunrise basin">
+  <title>Primy sunrise basin</title>
+  <defs>
+    <linearGradient id="sb-dome" x1="0.2" y1="0" x2="0.4" y2="1">
+      <stop offset="0%" stop-color="#3C6CE0"/>
+      <stop offset="58%" stop-color="#5C8CEF"/>
+      <stop offset="100%" stop-color="#EBF1FD"/>
+    </linearGradient>
+    <linearGradient id="sb-ridge" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#F0896A"/>
+      <stop offset="52%" stop-color="#F4A24C"/>
+      <stop offset="100%" stop-color="#F8BE45"/>
+    </linearGradient>
+    <linearGradient id="sb-ridge2" x1="0" y1="1" x2="1" y2="0.2">
+      <stop offset="0%" stop-color="#F6B27E"/>
+      <stop offset="100%" stop-color="#FBD580"/>
+    </linearGradient>
+    <linearGradient id="sb-water" x1="0" y1="0" x2="0.1" y2="1">
+      <stop offset="0%" stop-color="#4E92DB"/>
+      <stop offset="100%" stop-color="#DEEAF8"/>
+    </linearGradient>
+    <linearGradient id="sb-lake" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0%" stop-color="#FCF6E0"/>
+      <stop offset="100%" stop-color="#F6E9C2"/>
+    </linearGradient>
+    <clipPath id="sb-frame"><rect x="0" y="0" width="1280" height="720" rx="28"/></clipPath>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="720" rx="28" fill="#FFFFFF"/>
+  <g clip-path="url(#sb-frame)">
+    <!-- back ridge (drawn before the sun so it never greys the dome) -->
+    <path d="M0 600 C 260 540 460 566 700 520 C 940 474 1110 506 1280 470 L1280 720 L0 720 Z" fill="url(#sb-ridge2)"/>
+    <!-- rising sun dome, centered, upper half visible -->
+    <circle cx="640" cy="540" r="260" fill="url(#sb-dome)"/>
+    <!-- main ridge sweep, covers the sun's base -->
+    <path d="M0 660 C 300 580 560 600 820 552 C 1040 512 1160 548 1280 524 L1280 720 L0 720 Z" fill="url(#sb-ridge)"/>
+    <!-- foreground water -->
+    <path d="M0 700 C 360 648 760 660 1280 632 L1280 720 L0 720 Z" fill="url(#sb-water)"/>
+
+    <!-- lake reflection beneath the sun -->
+    <ellipse cx="640" cy="650" rx="186" ry="38" fill="#69CEC8" opacity="0.82"/>
+    <ellipse cx="700" cy="638" rx="146" ry="26" fill="url(#sb-lake)" transform="rotate(-5 700 638)"/>
+
+    <!-- twinkle constellation, upper right -->
+    <g fill="#1A1815">
+      <circle cx="980" cy="190" r="6"/>
+      <circle cx="1056" cy="166" r="6"/>
+      <circle cx="1132" cy="148" r="4"/>
+      <circle cx="912" cy="240" r="4"/>
+    </g>
+
+    <!-- orbit balloon, upper left -->
+    <g fill="none" stroke="#1A1815" stroke-width="3.4" stroke-linecap="round">
+      <path d="M300 360 L300 218"/>
+      <circle cx="272" cy="176" r="50" stroke-opacity="0.92"/>
+      <circle cx="336" cy="216" r="34" stroke-opacity="0.92"/>
+    </g>
+  </g>
+</svg>
