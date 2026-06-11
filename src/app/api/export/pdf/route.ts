@@ -1,8 +1,15 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { launchBrowser, newGuardedPage, FONT_IMAGE_HOSTS } from "@/lib/deck/chromium";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export const maxDuration = 30;
+
+// Each export boots a full Chromium. Cap concurrent launches per instance so a
+// burst of requests can't exhaust memory/CPU — excess requests get a 429 and
+// the client can retry.
+const MAX_CONCURRENT_EXPORTS = 2;
+let activeExports = 0;
 
 export async function POST(req: Request) {
   try {
@@ -22,6 +29,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing html field" }, { status: 400 });
     }
 
+    // Per-user rate limit BEFORE the expensive Chromium launch.
+    const rateLimit = checkRateLimit(`${session.user.id}:export-pdf`, 5, 60_000);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many export requests. Please try again in a minute." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)) } },
+      );
+    }
+    if (activeExports >= MAX_CONCURRENT_EXPORTS) {
+      return NextResponse.json(
+        { error: "Export queue is busy. Please try again in a moment." },
+        { status: 429, headers: { "Retry-After": "5" } },
+      );
+    }
+
     // Cap HTML/CSS size BEFORE the expensive Chromium launch (2MB is generous
     // for any slide deck). Rejecting here avoids paying a full browser boot for
     // an oversized payload.
@@ -31,11 +53,13 @@ export async function POST(req: Request) {
     }
 
     let browser: Awaited<ReturnType<typeof launchBrowser>>;
+    activeExports++;
     try {
       // Export bakes images to data: URIs beforehand, so it needs NO external
       // network — the guarded page below uses the default empty allowlist.
       browser = await launchBrowser({ width: 1920, height: 1080 });
     } catch (err) {
+      activeExports--;
       const message = err instanceof Error ? err.message : "Chromium binary not available";
       return NextResponse.json({ error: message }, { status: 500 });
     }
@@ -87,6 +111,7 @@ export async function POST(req: Request) {
         },
       });
     } finally {
+      activeExports--;
       await browser.close();
     }
   } catch (err) {

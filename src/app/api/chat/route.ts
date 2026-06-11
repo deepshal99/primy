@@ -11,6 +11,7 @@ import { DECK_DSL_PROMPT } from "@/lib/ai/deck/dslPrompt";
 import { withPlanLimit, type PlanCtx } from "@/lib/billing";
 import { getSlashCommand } from "@/lib/ai/slashCommands";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { sanitizeUserContent } from "@/lib/ai/promptSanitize";
 import { logTokenUsage } from "@/lib/ai/tokenUsage";
 import "@/lib/env";
 
@@ -20,20 +21,6 @@ export const maxDuration = 300;
 // Used for Google Search tool wiring on deck tasks (Gemini-only feature).
 const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY! });
 
-/** Strip context-injection tags from user input to prevent prompt injection. */
-function sanitizeUserContent(text: string): string {
-  return text
-    .replace(/<\/?relevant_document[^>]*>/g, "")
-    .replace(/<\/?relevant_table[^>]*>/g, "")
-    .replace(/<\/?project_context[^>]*>/g, "")
-    .replace(/<\/?current_sheet_data[^>]*>/g, "")
-    .replace(/<\/?current_doc_content[^>]*>/g, "")
-    .replace(/<\/?project_memory[^>]*>/g, "")
-    .replace(/<\/?uploaded_file[^>]*>/g, "")
-    .replace(/<\/?mentioned_deck[^>]*>/g, "")
-    .replace(/<\/?active_entity[^>]*>/g, "")
-    .replace(/<\/?deck_phase[^>]*>/g, "");
-}
 
 // Note: withPlanLimit handles auth (returns 401 if no session) and meters
 // the aiMessages counter atomically before invoking this handler. We rely
@@ -291,7 +278,7 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
     // Append extracted file text as context
     if (lastMessage.attachmentTexts?.length) {
       for (const att of lastMessage.attachmentTexts) {
-        textContent += `\n\n<uploaded_file name="${att.name}">\n${att.text}\n</uploaded_file>`;
+        textContent += `\n\n<uploaded_file name="${sanitizeUserContent(att.name)}">\n${sanitizeUserContent(att.text)}\n</uploaded_file>`;
       }
     }
 
@@ -314,7 +301,8 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
         entityContent = String(activeEntityContent).slice(0, ACTIVE_ENTITY_CAP);
       }
 
-      textContent += `\n\n<active_entity type="${typeLabel}" title="${activeEntityTitle}" id="${activeEntityId}">\n[Currently viewing: "${activeEntityTitle}" (${typeLabel})]\n${entityContent}\n</active_entity>`;
+      const safeEntityTitle = sanitizeUserContent(String(activeEntityTitle));
+      textContent += `\n\n<active_entity type="${typeLabel}" title="${safeEntityTitle}" id="${activeEntityId}">\n[Currently viewing: "${safeEntityTitle}" (${typeLabel})]\n${sanitizeUserContent(entityContent)}\n</active_entity>`;
     }
 
     // Inject the SERVER-DERIVED deck phase (see resolution above) — not the raw
@@ -323,19 +311,19 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
       textContent += `\n\n<deck_phase>${effectiveDeckPhase}</deck_phase>`;
     }
 
-    textContent += `\n\n<current_sheet_data>\n${sheetContext}\n</current_sheet_data>`;
-    textContent += `\n\n<current_doc_content>\n${docContext}\n</current_doc_content>`;
+    textContent += `\n\n<current_sheet_data>\n${sanitizeUserContent(sheetContext)}\n</current_sheet_data>`;
+    textContent += `\n\n<current_doc_content>\n${sanitizeUserContent(docContext)}\n</current_doc_content>`;
 
     // Inject project context if available
     if (projectContext) {
       if (projectContext.relevantKUs?.length > 0) {
         for (const ku of projectContext.relevantKUs) {
-          textContent += `\n\n<relevant_document title="${ku.title}" id="${ku.id}">\n${ku.content}\n</relevant_document>`;
+          textContent += `\n\n<relevant_document title="${sanitizeUserContent(ku.title)}" id="${ku.id}">\n${sanitizeUserContent(ku.content)}\n</relevant_document>`;
         }
       }
       if (projectContext.relevantTables?.length > 0) {
         for (const t of projectContext.relevantTables) {
-          textContent += `\n\n<relevant_table title="${t.title}" id="${t.id}">\n${t.csvContent}\n</relevant_table>`;
+          textContent += `\n\n<relevant_table title="${sanitizeUserContent(t.title)}" id="${t.id}">\n${sanitizeUserContent(t.csvContent)}\n</relevant_table>`;
         }
       }
 
@@ -392,7 +380,7 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
       // it and the model "forgets" a file uploaded a turn ago).
       if (m.attachmentTexts?.length) {
         for (const att of m.attachmentTexts) {
-          text += `\n\n<uploaded_file name="${att.name}">\n${att.text}\n</uploaded_file>`;
+          text += `\n\n<uploaded_file name="${sanitizeUserContent(att.name)}">\n${sanitizeUserContent(att.text)}\n</uploaded_file>`;
         }
       }
       aiMessages.push({
@@ -695,11 +683,14 @@ const handler = async (req: NextRequest, ctx: PlanCtx): Promise<Response> => {
           }
 
           // Terminal meta frame so the client knows how the stream ended.
-          // `truncated` is true only if STILL cut off after auto-continuations —
-          // the client surfaces a gentle, non-destructive notice (never silent).
+          // `truncated` is true only if STILL cut off after auto-continuations.
+          // `interrupted` is true when the provider died AFTER emitting output
+          // (no retry possible without duplicating) — the client shows
+          // "Response stopped." + Continue instead of a silently-short answer.
           if (!clientDisconnected) {
             const truncated = finishReason === "length";
-            safeEnqueue(encoder.encode(`data: ${JSON.stringify({ meta: { finishReason, truncated } })}\n\n`));
+            const interrupted = !!lastError && (emittedText || emittedToolCall);
+            safeEnqueue(encoder.encode(`data: ${JSON.stringify({ meta: { finishReason, truncated, interrupted } })}\n\n`));
           }
 
           // Record AI cost telemetry before closing so the write isn't cut off

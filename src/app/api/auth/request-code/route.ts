@@ -86,12 +86,17 @@ export async function POST(req: Request) {
         set: { codeHash, expiresAt, attempts: 0, createdAt: new Date() },
       });
 
-    // Send best-effort. If delivery is misconfigured we still return success
-    // (no enumeration); the code exists and the user can retry. Surfaced in logs.
+    // A mailer failure is infrastructure, not account state — it hits every
+    // email the same way, so surfacing it leaks nothing. Silently returning
+    // success here strands the user on "check your inbox" forever.
     try {
       await sendLoginCode(email, code);
     } catch (mailErr) {
       console.error("[request-code] email send failed:", mailErr instanceof Error ? mailErr.message : mailErr);
+      return Response.json(
+        { error: "We couldn't send the email right now. Please try again in a moment." },
+        { status: 503 }
+      );
     }
 
     return Response.json({ success: true });

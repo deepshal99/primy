@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { users, passwordResetTokens } from "@/db/schema";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { createHash } from "node:crypto";
 import { Resend } from "resend";
 import { checkRateLimit } from "@/lib/rateLimit";
 
@@ -71,14 +72,16 @@ export async function POST(req: Request) {
       .delete(passwordResetTokens)
       .where(eq(passwordResetTokens.userId, user.id));
 
-    // Generate token and insert
+    // Generate token and insert. Only the SHA-256 digest is stored — a DB
+    // breach must not hand out live reset links. The raw token exists only in
+    // the emailed URL.
     const token = nanoid(48);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
     await db.insert(passwordResetTokens).values({
       id: nanoid(),
       userId: user.id,
-      token,
+      token: createHash("sha256").update(token).digest("hex"),
       expiresAt,
     });
 
@@ -129,7 +132,14 @@ export async function POST(req: Request) {
       `,
     });
     } catch (mailErr) {
+      // Mailer failure is infrastructure, not account state (non-existent
+      // emails already returned success above) — tell the user so they aren't
+      // stranded waiting for an email that never comes.
       console.error("[API] forgot-password: email send failed:", mailErr instanceof Error ? mailErr.message : mailErr);
+      return Response.json(
+        { error: "We couldn't send the email right now. Please try again in a moment." },
+        { status: 503 }
+      );
     }
 
     return successResponse;

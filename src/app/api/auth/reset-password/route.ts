@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { users, passwordResetTokens } from "@/db/schema";
 import { eq, and, gt, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { createHash } from "node:crypto";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { validatePassword, isBreachedPassword } from "@/lib/authPolicy";
 
@@ -40,7 +41,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // Look up valid, non-expired token
+    // Look up valid, non-expired token. Tokens are stored as SHA-256 digests
+    // (see forgot-password) — hash the incoming value before comparing.
+    const tokenHash = createHash("sha256").update(token).digest("hex");
     const [resetToken] = await db
       .select({
         id: passwordResetTokens.id,
@@ -49,7 +52,7 @@ export async function POST(req: Request) {
       .from(passwordResetTokens)
       .where(
         and(
-          eq(passwordResetTokens.token, token),
+          eq(passwordResetTokens.token, tokenHash),
           gt(passwordResetTokens.expiresAt, new Date())
         )
       )
