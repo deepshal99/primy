@@ -200,7 +200,7 @@ export function WorkspacesView({ onExit, onNewWorkspace }: { onExit: () => void;
         {/* Header */}
         <div className="flex items-start justify-between gap-6">
           <div>
-            <h1 className="text-[30px] leading-[1.1] font-semibold tracking-[-0.035em]" style={{ color: "var(--ink)" }}>Workspaces</h1>
+            <h1 className="text-[30px] leading-[1.1] font-semibold tracking-[-0.03em]" style={{ color: "var(--ink)" }}>Workspaces</h1>
             <p className="text-[14px] mt-2" style={{ color: "var(--ink-3)" }}>Every workspace you own or share, with what is inside and who is in it.</p>
           </div>
           <button onClick={onNewWorkspace}

@@ -46,6 +46,7 @@ import { ComingSoonModal } from "@/components/shell/v2/ComingSoonModal";
 import { TrashView } from "@/components/shell/v2/TrashView";
 import { QuickNotesView } from "@/components/shell/v2/QuickNotesView";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/skeleton";
 import { LogoMark } from "@/components/shared/Logo";
 import { confirmDialog } from "@/lib/confirm";
 import { KeyboardShortcuts } from "@/components/shared/KeyboardShortcuts";
@@ -355,7 +356,7 @@ export function AppShellV2() {
         style={{ width: 232, background: "var(--sidebar)", borderRight: "1px solid var(--border)", boxShadow: mobileNav ? "var(--shadow-pane)" : undefined }}>
         <div className="flex items-center gap-2.5 px-7 h-[72px] flex-shrink-0">
           <LogoMark size={22} style={{ color: "var(--ink)" }} className="flex-shrink-0" />
-          <span className="text-[18px] font-semibold tracking-[-0.035em]" style={{ color: "var(--ink)" }}>Primy</span>
+          <span className="text-[18px] font-semibold tracking-[-0.02em]" style={{ color: "var(--ink)" }}>Primy</span>
           <button onClick={toggleDark} title="Toggle theme"
             className="ml-auto flex items-center justify-center w-7 h-7 rounded-[7px] press icon-hover" style={{ color: "var(--icon)" }}>
             {dark ? <Sun size={16} /> : <Moon size={16} />}
@@ -476,7 +477,7 @@ export function AppShellV2() {
             <Menu size={20} />
           </button>
           <LogoMark size={19} style={{ color: "var(--ink)" }} className="flex-shrink-0" />
-          <span className="text-[16px] font-semibold tracking-[-0.035em]" style={{ color: "var(--ink)" }}>Primy</span>
+          <span className="text-[16px] font-semibold tracking-[-0.02em]" style={{ color: "var(--ink)" }}>Primy</span>
         </div>
 
         <div className="flex-1 min-w-0 min-h-0 flex">
@@ -529,7 +530,7 @@ export function AppShellV2() {
               <div className="flex items-center min-w-0">
                 <button onClick={() => useAppStore.getState().goToProjectHome()} title="Workspace home"
                   className="flex items-center h-8 -ml-1 px-2 rounded-[8px] press hover-row min-w-0">
-                  <span className="font-semibold text-[15px] tracking-[-0.005em] truncate" style={{ color: "var(--ink)" }}>{project?.title}</span>
+                  <span className="font-semibold text-[15px] tracking-[-0.01em] truncate" style={{ color: "var(--ink)" }}>{project?.title}</span>
                 </button>
                 <button
                   onClick={(ev) => { const r = ev.currentTarget.getBoundingClientRect(); if (project) setWsMenu({ id: project.id, title: project.title || "Untitled", x: r.left - 60, y: r.bottom + 6 }); }}
@@ -538,7 +539,7 @@ export function AppShellV2() {
                 </button>
               </div>
             ) : (
-              <span className="font-semibold text-[15px] tracking-[-0.005em]" style={{ color: "var(--ink)" }}>Workspaces</span>
+              <span className="font-semibold text-[15px] tracking-[-0.01em]" style={{ color: "var(--ink)" }}>Workspaces</span>
             )}
 
             <div className="flex-1" />
@@ -582,7 +583,9 @@ export function AppShellV2() {
           {/* body */}
           <div ref={bodyScroll} className={`flex-1 min-h-0 v2-scroll ${currentEntityId ? "overflow-hidden" : "overflow-y-auto"}`}>
             {currentEntityId ? (
-              <div className="h-full p-4 pt-0 pr-3">
+              /* pr-2 + the chat dock's ml-2 = a 16px middle gutter, matching
+                 every outer m-4 margin — one rhythm, no odd seam. */
+              <div className="h-full p-4 pt-0 pr-2">
                 <div className="h-full overflow-hidden rounded-[14px]" style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-pane)" }}>
                   <WorkspacePanel hideActions />
                 </div>
@@ -704,9 +707,30 @@ function createInProject(projectId: string, type: EntityType) {
 
 function ProjectBody({ project, view, groupBy }: { project: Project | undefined; view: ViewMode; groupBy: GroupMode }) {
   const items = useMemo(() => projectItems(project), [project]);
+  // A just-opened workspace is a lightweight shell until loadFullProject lands;
+  // we need this flag to tell "still loading" apart from "genuinely empty".
+  const fullyLoaded = useAppStore((s) => (project ? !!s.projectsFullyLoaded[project.id] : false));
   if (!project) return null;
   const folders = (project.folders || []).slice().sort((a, b) => a.position - b.position);
   const empty = items.length === 0 && folders.length === 0;
+
+  // When the board has nothing to show yet, don't jump straight to the
+  // "Start something" empty state — an existing workspace would flash as empty
+  // for the split second before its entities finish loading. Only show that
+  // state once the project is fully loaded (or its list counts confirm it's
+  // truly empty); otherwise render a board skeleton.
+  if (empty && !fullyLoaded) {
+    const c = project.counts;
+    const knownEmpty = c ? c.knowledgeUnits + c.tables + c.decks + c.pages === 0 : false;
+    if (!knownEmpty) {
+      return (
+        <BoardStyleProvider>
+          <div className="pt-2"><BoardSkeleton /></div>
+        </BoardStyleProvider>
+      );
+    }
+  }
+
   // No header block — the title + workspace menu live in the top bar; the board
   // starts right under it for a cleaner, more breathable canvas.
   return (
@@ -718,6 +742,24 @@ function ProjectBody({ project, view, groupBy }: { project: Project | undefined;
           : <FolderBoardView projectId={project.id} items={items} folders={folders} />}
       </div>
     </BoardStyleProvider>
+  );
+}
+
+/** Placeholder board shown while a freshly opened workspace loads its entities,
+ *  mirroring the real section header + card grid so the layout doesn't jump. */
+function BoardSkeleton() {
+  return (
+    <div aria-hidden className="animate-fade-in">
+      <div className="flex items-center gap-2.5 h-[72px] px-8">
+        <Skeleton variant="shimmer" className="h-5 w-5 rounded-[6px]" />
+        <Skeleton variant="shimmer" className="h-4 w-28 rounded-full" />
+      </div>
+      <div className="grid gap-4 px-9 pb-10" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(216px, 1fr))" }}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} variant="shimmer" className="rounded-[12px]" style={{ height: 300 }} />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -771,7 +813,7 @@ function TypeBoardView({ projectId, items, folders }: { projectId: string; items
           <section key={t.type} style={{ borderTop: idx === 0 ? undefined : "1px solid var(--border)" }}>
             <div className="flex items-center gap-2.5 h-[72px] px-8">
               <TIcon size={16} style={{ color: t.color }} />
-              <span className="text-[15px] font-semibold tracking-[-0.005em]" style={{ color: "var(--ink)" }}>{t.label}</span>
+              <span className="text-[15px] font-semibold tracking-[-0.01em]" style={{ color: "var(--ink)" }}>{t.label}</span>
               {list.length > 0 && <span className="text-[12px] tabular-nums" style={{ color: "var(--ink-4)" }}>{list.length}</span>}
               <div className="flex-1" />
               <CreateButton label={t.label} onClick={() => createInProject(projectId, t.type)} />
@@ -831,9 +873,9 @@ function FolderSection({ projectId, folder, list, folders, label, first }: { pro
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)}
             onBlur={() => { setRenaming(false); if (name.trim() && name !== folder.name) useAppStore.getState().renameFolder(projectId, folder.id, name.trim()); }}
             onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { setName(folder.name); setRenaming(false); } }}
-            className="text-[15px] font-semibold tracking-[-0.005em] bg-transparent outline-none border-b" style={{ color: "var(--ink)", borderColor: color }} />
+            className="text-[15px] font-semibold tracking-[-0.01em] bg-transparent outline-none border-b" style={{ color: "var(--ink)", borderColor: color }} />
         ) : (
-          <button onDoubleClick={() => folder && setRenaming(true)} className="text-[15px] font-semibold tracking-[-0.005em]" style={{ color: "var(--ink)" }}>
+          <button onDoubleClick={() => folder && setRenaming(true)} className="text-[15px] font-semibold tracking-[-0.01em]" style={{ color: "var(--ink)" }}>
             {folder ? folder.name : (label ?? "Others")}
           </button>
         )}
@@ -928,7 +970,7 @@ function TimelineView({ projectId, items, folders }: { projectId: string; items:
   return (
     <div className="max-w-[1100px] mx-auto px-9 py-8">
       <div className="flex items-center gap-2.5 mb-6">
-        <span className="text-[15px] font-semibold tracking-[-0.005em]" style={{ color: "var(--ink)" }}>All files</span>
+        <span className="text-[15px] font-semibold tracking-[-0.01em]" style={{ color: "var(--ink)" }}>All files</span>
         {items.length > 0 && <span className="text-[12px] tabular-nums" style={{ color: "var(--ink-4)" }}>{items.length}</span>}
         <div className="flex-1" />
         <CreateButton pick={{ projectId, folderId: null }} />
@@ -975,9 +1017,9 @@ function EntityCard({ item, projectId, folders, index = 0 }: { item: Item; proje
           {renaming ? (
             <input autoFocus value={title} onChange={(ev) => setTitle(ev.target.value)} onClick={(ev) => ev.stopPropagation()} onBlur={saveTitle}
               onKeyDown={(ev) => { ev.stopPropagation(); if (ev.key === "Enter") (ev.target as HTMLInputElement).blur(); if (ev.key === "Escape") { setTitle(item.title); setRenaming(false); } }}
-              className="flex-1 min-w-0 text-[15px] font-semibold tracking-[-0.02em] bg-transparent outline-none border-b pb-0.5" style={{ color: "var(--ink)", borderColor: e.color }} />
+              className="flex-1 min-w-0 text-[15px] font-semibold tracking-[-0.01em] bg-transparent outline-none border-b pb-0.5" style={{ color: "var(--ink)", borderColor: e.color }} />
           ) : (
-            <div className="text-[15px] font-semibold tracking-[-0.02em] leading-snug flex-1 line-clamp-2" style={{ color: "var(--ink)" }}>{item.title}</div>
+            <div className="text-[15px] font-semibold tracking-[-0.01em] leading-snug flex-1 line-clamp-2" style={{ color: "var(--ink)" }}>{item.title}</div>
           )}
           {canManage && (
             <span role="button" tabIndex={0}
@@ -1296,7 +1338,7 @@ function AllProjects({ projects, onOpen, onNew, onContext }: { projects: Project
               style={{ background: "var(--card)", border: "1px solid var(--border-strong)", boxShadow: "var(--shadow-card)", minHeight: 182 }}>
               <div className="flex items-center gap-2.5 mb-2.5">
                 <Icon size={17} strokeWidth={1.9} className="flex-shrink-0" style={{ color: "var(--icon)" }} />
-                <span className="text-[15px] font-semibold tracking-[-0.015em] flex-1 min-w-0 truncate" style={{ color: "var(--ink)" }}>{p.title || "Untitled"}</span>
+                <span className="text-[15px] font-semibold tracking-[-0.01em] flex-1 min-w-0 truncate" style={{ color: "var(--ink)" }}>{p.title || "Untitled"}</span>
                 {p.projectType && <TypeChip projectType={p.projectType} color={color} />}
               </div>
               {p.description && <p className="text-[13px] leading-[1.55] line-clamp-2" style={{ color: "var(--ink-3)" }}>{p.description}</p>}
