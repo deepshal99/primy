@@ -157,6 +157,8 @@ Each project keeps an append-only **activity log** (`activityEvents` table, help
 - `*/api/snapshots/[type]/[id]/...` — Artifact version history + restore
 - `GET /api/share/[token]` — Public sharing (no auth required)
 - `GET /api/usage` — Plan usage counters
+- `POST /api/billing/checkout` · `POST /api/billing/webhook` — Gateway checkout + signature-verified webhook (Razorpay impl in `src/lib/billing/razorpay.ts`, selected via `PAYMENT_GATEWAY=razorpay`; noop otherwise)
+- `GET /api/user/export` · `POST /api/user/delete` — Full personal data export (JSON) and permanent account deletion (blob cleanup + FK cascade; refuses while owning an org with other members). Surfaced in Settings → Account
 - `POST /api/title` — Auto-generate project title from content
 - `GET /api/user` · `POST /api/user/logout-all` — Profile; revoke all sessions
 - `*/api/auth/[...nextauth]` · `/api/auth/forgot-password` · `/api/auth/reset-password` · `POST /api/auth/request-code` — Auth (incl. passwordless login code)
@@ -198,10 +200,12 @@ Required in `.env.local`:
 - `DATABASE_URL` — Neon PostgreSQL connection string
 - `NEXTAUTH_SECRET` — JWT signing secret
 - `NEXTAUTH_URL` — App URL (e.g. `http://localhost:3000`)
-- `OPENAI_API_KEY` — OpenAI API key (**required** — the only provider currently routed: chat, deck, title, summarize, embeddings)
+- `OPENAI_API_KEY` — OpenAI API key (**required** — the only provider currently routed: chat, deck, title, summarize, embeddings). Enforced at boot by `src/lib/env.ts` (runs for every route via `src/instrumentation.ts`)
 - `GEMINI_API_KEY` — Google AI API key (read for a dormant Google client; no task routes to it today)
 - `BLOB_READ_WRITE_TOKEN` — Vercel Blob storage
 - `NEXT_PUBLIC_DEV_AUTH_BYPASS` — dev only; auto-signs-in as the dev admin. **Never set in production.**
+- `ENFORCE_PLAN_LIMITS` — plan caps are **enforced by default** (fail-closed); set `=false` explicitly to disable for local dev/load tests
+- `PAYMENT_GATEWAY` + `RAZORPAY_*` — optional; activates the Razorpay gateway (see `src/lib/billing/razorpay.ts` header for the full list + webhook registration checklist)
 
 ## Conventions
 
