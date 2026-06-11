@@ -16,6 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePlanInfo } from "@/hooks/usePlanInfo";
+import { confirmDialog } from "@/lib/confirm";
+import { toast } from "sonner";
 import { PRO_PRICE_USD } from "@/lib/plans";
 import { TeamTabContent } from "@/components/settings/TeamTabContent";
 
@@ -70,6 +72,39 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
   // Loading
   const [loading, setLoading] = useState(true);
+
+  // Account deletion
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    const ok = await confirmDialog({
+      title: "Delete your account?",
+      message: "This permanently deletes your account, every workspace you created, and all uploaded files. This cannot be undone. Consider exporting your data first.",
+      confirmLabel: "Delete forever",
+      tone: "danger",
+    });
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/user/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: "DELETE" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || "Couldn't delete your account. Please try again.");
+        setDeleting(false);
+        return;
+      }
+      // Clear local caches so the next visitor on this machine starts clean.
+      try { localStorage.clear(); } catch {}
+      await signOut({ callbackUrl: "/" });
+    } catch {
+      toast.error("Couldn't delete your account. Please try again.");
+      setDeleting(false);
+    }
+  };
 
   // Active tab
   const [activeTab, setActiveTab] = useState<"account" | "team" | "billing">("account");
@@ -390,6 +425,34 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       </button>
                     </div>
                   )}
+
+                  {/* Data group — export + delete (account lifecycle) */}
+                  <SectionLabel className="mt-7">Your data</SectionLabel>
+                  <div className="rounded-[12px] overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                    <a
+                      href="/api/user/export"
+                      download
+                      className="w-full flex items-center gap-3 px-3.5 h-[52px] hover-row press"
+                    >
+                      <span className="text-[13px]" style={{ color: "var(--ink-2)" }}>Export my data</span>
+                      <div className="flex-1" />
+                      <span className="text-[12.5px] text-muted-foreground">JSON download</span>
+                    </a>
+                    <div className="h-px" style={{ background: "var(--border)" }} />
+                    <button
+                      onClick={handleDeleteAccount}
+                      disabled={deleting}
+                      className="w-full flex items-center gap-3 px-3.5 h-[52px] hover-row press text-left disabled:opacity-40"
+                    >
+                      <span className="text-[13px]" style={{ color: "var(--destructive)" }}>Delete account</span>
+                      <div className="flex-1" />
+                      {deleting ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                      ) : (
+                        <span className="text-[12.5px] text-muted-foreground">Permanent</span>
+                      )}
+                    </button>
+                  </div>
 
                   {/* Sign out */}
                   <button

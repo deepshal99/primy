@@ -11,6 +11,8 @@
  * don't break.
  */
 
+import { razorpayGateway } from "./razorpay";
+
 export type WebhookEventType =
   | "subscription.created"
   | "subscription.updated"
@@ -86,17 +88,15 @@ export const noopGateway: Gateway = {
 };
 
 /**
- * Returns the active gateway. Today, always noopGateway. When a real
- * gateway is wired, switch on process.env.PAYMENT_GATEWAY here:
- *
- *     switch (process.env.PAYMENT_GATEWAY) {
- *       case 'paddle':       return paddleGateway;
- *       case 'lemonsqueezy': return lemonSqueezyGateway;
- *       case 'razorpay':     return razorpayGateway;
- *       default:             return noopGateway;
- *     }
+ * Returns the active gateway, selected by PAYMENT_GATEWAY env.
+ * Unset/unknown → noopGateway (checkout/webhook throw with a clear error).
+ * `razorpay` → src/lib/billing/razorpay.ts (needs RAZORPAY_* env, see file).
  */
 export function getGateway(): Gateway {
-  // Future provider switch goes here. For now, always noop.
-  return noopGateway;
+  switch (process.env.PAYMENT_GATEWAY) {
+    case "razorpay":
+      return razorpayGateway;
+    default:
+      return noopGateway;
+  }
 }

@@ -40,10 +40,11 @@ describe("PRO_PRICE_USD", () => {
 });
 
 describe("planLimitsEnforced", () => {
-  test("returns false unless ENFORCE_PLAN_LIMITS=true", () => {
+  test("enforced by default; only ENFORCE_PLAN_LIMITS=false disables", () => {
     const original = process.env.ENFORCE_PLAN_LIMITS;
+    // Fail-closed launch default: unset means ENFORCED.
     delete process.env.ENFORCE_PLAN_LIMITS;
-    expect(planLimitsEnforced()).toBe(false);
+    expect(planLimitsEnforced()).toBe(true);
 
     process.env.ENFORCE_PLAN_LIMITS = "false";
     expect(planLimitsEnforced()).toBe(false);

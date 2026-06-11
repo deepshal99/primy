@@ -357,7 +357,10 @@ export default function LoginPage() {
           )}
 
           <p className="text-[12px] text-center mt-8 text-[#B9B6AE]">
-            By continuing, you agree to our terms of service.
+            By continuing, you agree to our{" "}
+            <a href="/terms" className="underline underline-offset-2 hover:text-[#706E68] transition-colors">terms</a>
+            {" "}and{" "}
+            <a href="/privacy" className="underline underline-offset-2 hover:text-[#706E68] transition-colors">privacy policy</a>.
           </p>
         </div>
       </div>

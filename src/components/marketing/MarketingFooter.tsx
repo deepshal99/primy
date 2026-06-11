@@ -31,10 +31,10 @@ export function MarketingFooter() {
         </div>
 
         <nav className="flex items-center gap-5 text-[12px] text-[#737373]">
-          <Link href="#privacy" className="hover:text-[#171717] transition-colors duration-150">
+          <Link href="/privacy" className="hover:text-[#171717] transition-colors duration-150">
             Privacy
           </Link>
-          <Link href="#terms" className="hover:text-[#171717] transition-colors duration-150">
+          <Link href="/terms" className="hover:text-[#171717] transition-colors duration-150">
             Terms
           </Link>
           <a

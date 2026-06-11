@@ -88,18 +88,17 @@ describe("withPlanLimit — auth gate", () => {
 });
 
 describe("withPlanLimit — flag OFF (passthrough but counters increment)", () => {
-  test("ENFORCE_PLAN_LIMITS unset: increments + calls handler regardless", async () => {
+  test("ENFORCE_PLAN_LIMITS unset: ENFORCES (fail-closed launch default)", async () => {
     process.env.ENFORCE_PLAN_LIMITS = undefined as any;
     authMock.mockResolvedValue({ user: { id: "u1" } });
     userRowMock.mockResolvedValue([{ plan: "free", proUntil: null }]);
-    incrementUsageMock.mockResolvedValue(99999);
     getUsageMock.mockResolvedValue({ aiMessages: 99999, fileUploads: 0, storageBytes: 0 });
     const handler = vi.fn(async () => Response.json({ ok: true }));
     const wrapped = withPlanLimit(handler, { resource: "aiMessages" });
     const res = await wrapped(makeReq());
-    expect(res.status).toBe(200);
-    expect(handler).toHaveBeenCalledTimes(1);
-    expect(incrementUsageMock).toHaveBeenCalledWith("u1", "aiMessages", 1);
+    expect(res.status).toBe(402);
+    expect(handler).not.toHaveBeenCalled();
+    expect(incrementUsageMock).not.toHaveBeenCalled();
   });
 
   test("ENFORCE_PLAN_LIMITS=false: still increments + calls handler", async () => {

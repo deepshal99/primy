@@ -66,12 +66,11 @@ export const FOUNDING_MEMBER_GRACE_DAYS = 60;
 export type MeteredResource = "aiMessages" | "fileUploads";
 
 /**
- * Plan-limits enforcement is feature-flagged. Until a payment gateway
- * is wired, this returns false and withPlanLimit becomes a passthrough.
- *
- * Flip the flag in production env after gateway integration:
- *   ENFORCE_PLAN_LIMITS=true
+ * Plan-limits enforcement. ON by default (launch decision 2026-06-10): a
+ * misconfigured env must fail CLOSED on AI spend, not hand out unlimited
+ * Pro. Set ENFORCE_PLAN_LIMITS=false explicitly to disable (local dev,
+ * load tests).
  */
 export function planLimitsEnforced(): boolean {
-  return process.env.ENFORCE_PLAN_LIMITS === "true";
+  return process.env.ENFORCE_PLAN_LIMITS !== "false";
 }
