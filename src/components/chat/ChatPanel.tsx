@@ -376,6 +376,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
         const prefetchedImages = new Set<string>();
         let streamError = "";
         let streamTruncated = false;
+        let streamInterrupted = false;
         let groundingSources: GroundingSource[] = [];
 
         let chunkCount = 0;
@@ -425,6 +426,11 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
               // Server exhausted its auto-continuations and the response is still
               // cut off. Surface it — never let a half-finished answer look whole.
               streamTruncated = true;
+            }
+            if (parsed.meta?.interrupted) {
+              // Provider failed mid-stream after output was already emitted —
+              // the text ends early. Mark it so the bubble says so.
+              streamInterrupted = true;
             }
             if (parsed.toolStart?.name) {
               // Model began a tool call — show the live action pill right away.
@@ -589,7 +595,7 @@ export function ChatPanel({ centered, branded, onCollapse, onToggleExpand, expan
           // and the answer is still cut off. This lands on the assistant message
           // itself (right project), surfacing a persistent "Continue" affordance
           // in the bubble instead of a toast that vanishes.
-          finishStreaming(streamProjectId, contentForFinish, sheetOps, docOps, kuOps, tableOps, deckOps, pageOps, suggestions, { truncated: streamTruncated });
+          finishStreaming(streamProjectId, contentForFinish, sheetOps, docOps, kuOps, tableOps, deckOps, pageOps, suggestions, { truncated: streamTruncated, interrupted: streamInterrupted });
 
           // Belt-and-suspenders: if the model created a table but left it a
           // skeleton (multiple header columns, only the index column filled),

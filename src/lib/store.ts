@@ -444,7 +444,7 @@ export const useAppStore = create<AppState>()(
     deckOperations?: DeckOperation[],
     pageOperations?: PageOperation[],
     suggestions?: string[],
-    opts?: { truncated?: boolean }
+    opts?: { truncated?: boolean; interrupted?: boolean }
   ) => {
     const state = get();
     const displayContent = extractDisplayText(fullContent) || fullContent;
@@ -476,6 +476,7 @@ export const useAppStore = create<AppState>()(
       timestamp: Date.now(),
       producedEntities: undefined as ProducedEntity[] | undefined, // filled in just before the final set()
       truncated: opts?.truncated || undefined,
+      interrupted: opts?.interrupted || undefined,
     };
 
     // Guarantee creation actually happens: if the model used edit-ops to

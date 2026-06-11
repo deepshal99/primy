@@ -26,7 +26,10 @@ if (typeof window === "undefined" && !isBuildPhase) {
   // Server-side only validation
   requireEnv("DATABASE_URL");
   const secret = requireEnv("NEXTAUTH_SECRET");
-  requireEnv("GEMINI_API_KEY");
+  // OpenAI is the only provider routed today (chat, deck, title, summarize,
+  // embeddings) — see src/lib/ai/modelRouter.ts. GEMINI_API_KEY feeds a dormant
+  // Google client and is optional.
+  requireEnv("OPENAI_API_KEY");
 
   // The secret signs every JWT session; a weak/guessable one lets anyone forge
   // a session for any user. In production demand real entropy and reject

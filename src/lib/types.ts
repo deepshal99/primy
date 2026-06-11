@@ -629,7 +629,7 @@ export interface AppState {
     deckOperations?: DeckOperation[],
     pageOperations?: PageOperation[],
     suggestions?: string[],
-    opts?: { truncated?: boolean }
+    opts?: { truncated?: boolean; interrupted?: boolean }
   ) => void;
   abortStreaming: (projectId: string | null) => void;
   clearSuggestions: () => void;
