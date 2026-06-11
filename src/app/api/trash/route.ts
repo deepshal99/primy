@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { projects, knowledgeUnits, projectTables, projectDecks, projectPages, folders } from "@/db/schema";
+import { projects, knowledgeUnits, projectTables, projectDecks, projectPages, folders, files } from "@/db/schema";
 import { and, eq, isNull, isNotNull, desc } from "drizzle-orm";
+import { del } from "@vercel/blob";
 
 /**
  * Personal Trash — soft-deleted projects + entities the user owns.
@@ -135,6 +136,21 @@ export async function DELETE(req: Request) {
     if (!(await ownsTarget(userId, type, id))) return Response.json({ error: "Not found" }, { status: 404 });
 
     if (type === "project") {
+      // Delete the project's uploaded blobs BEFORE the row cascade removes the
+      // files rows that point at them — otherwise the objects are orphaned in
+      // Vercel Blob forever (storage cost with no DB reference). Best-effort:
+      // a blob-store hiccup must not block the user's delete.
+      const projectFiles = await db
+        .select({ blobUrl: files.blobUrl })
+        .from(files)
+        .where(eq(files.projectId, id));
+      if (projectFiles.length > 0) {
+        try {
+          await del(projectFiles.map((f) => f.blobUrl));
+        } catch (blobErr) {
+          console.error("[API] DELETE /api/trash: blob cleanup failed (rows still deleted):", blobErr instanceof Error ? blobErr.message : blobErr);
+        }
+      }
       await db.delete(projects).where(eq(projects.id, id));
     } else {
       const t = ENTITY_TABLES[type as EntityType];
