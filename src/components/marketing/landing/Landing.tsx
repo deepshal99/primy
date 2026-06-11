@@ -845,6 +845,16 @@ function GlobalKeyframes() {
       @media (max-width: 560px) {
         .mpNavLink { display: none; }
       }
+      /* The flow diagram's fixed 300px connector column busts a phone
+         viewport (horizontal page scroll). Stack it: wrapped file chips,
+         no connectors, full-width deliverables. */
+      @media (max-width: 640px) {
+        .mpFlowGrid { grid-template-columns: 1fr !important; row-gap: 18px; }
+        .mpFlowCenter { display: none !important; }
+        .mpFlowFiles { flex-direction: row !important; flex-wrap: wrap; align-items: center !important; justify-content: center; }
+        .mpFlowOuts { align-items: stretch !important; }
+        .mpFlowOuts > div { width: 100%; }
+      }
 
       @media (prefers-reduced-motion: reduce) {
         .mpMarquee, .mpCaret, .mpDot, .mpHalo, .mpTravelDot { animation: none !important; }

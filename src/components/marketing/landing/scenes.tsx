@@ -243,9 +243,9 @@ export function FlowDiagram() {
   ];
   return (
     <div style={{ position: "relative", width: "100%", fontFamily: BODY }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1.2fr", alignItems: "center", gap: 0 }}>
+      <div className="mpFlowGrid" style={{ display: "grid", gridTemplateColumns: "1fr auto 1.2fr", alignItems: "center", gap: 0 }}>
         {/* left: source files */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "flex-end" }}>
+        <div className="mpFlowFiles" style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "flex-end" }}>
           {files.map((f) => (
             <div
               key={f.n}
@@ -269,7 +269,7 @@ export function FlowDiagram() {
         </div>
 
         {/* center: connectors + Primy node */}
-        <div style={{ position: "relative", width: 300, height: 280, margin: "0 8px" }}>
+        <div className="mpFlowCenter" style={{ position: "relative", width: 300, height: 280, margin: "0 8px" }}>
           <svg width="300" height="280" viewBox="0 0 300 280" fill="none" style={{ position: "absolute", inset: 0 }} aria-hidden>
             {[44, 108, 172, 236].map((y) => (
               <path key={`l${y}`} d={`M0 ${y} C 60 ${y}, 80 140, 128 140`} stroke="rgba(24,24,22,0.14)" strokeWidth="1.25" />
@@ -307,7 +307,7 @@ export function FlowDiagram() {
         </div>
 
         {/* right: deliverables as mini artifacts */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "flex-start" }}>
+        <div className="mpFlowOuts" style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "flex-start" }}>
           {outs.map((o) => (
             <div
               key={o.n}
