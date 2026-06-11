@@ -14,7 +14,7 @@
  * the sidebar is an off-canvas drawer and the chat is a full-screen overlay.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
@@ -83,6 +83,17 @@ function wsColor(p: { id: string; projectType?: string }): string {
 
 type ViewMode = "board" | "timeline";
 type GroupMode = "folders" | "type";
+
+/* True only after hydration. The store paints instantly from localStorage-
+   cached workspaces, but the SERVER rendered the loader (no localStorage) —
+   the hydration render must match it or React logs a mismatch and re-renders
+   the whole shell. useSyncExternalStore returns the server snapshot (false)
+   for exactly the hydration render, then flips before the next paint, so the
+   cached shell still appears effectively instantly. */
+const noopSubscribe = () => () => {};
+function useHydrated(): boolean {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
+}
 
 /* Persist a small string preference to localStorage. Starts at `fallback` (so
    server and first client paint agree — no hydration mismatch), then hydrates
@@ -276,6 +287,8 @@ export function AppShellV2() {
   const bodyScroll = useScrollReveal<HTMLDivElement>();
 
   const project = projects.find((p) => p.id === currentProjectId);
+  const hydrated = useHydrated();
+
   // The Quick Notes workspace is surfaced via the pinned nav row — keep it out
   // of the Workspaces tree so it never clutters the real project list.
   const workspaceList = projects.filter((p) => p.id !== quickNotesProjectId);
@@ -338,7 +351,9 @@ export function AppShellV2() {
   if (needsOnboarding) {
     return <LoadingScreen />;
   }
-  if (userQuery.isLoading && workspaceList.length === 0) {
+  // !hydrated keeps the hydration render identical to the server's loader;
+  // the cached shell swaps in before the next paint (see useHydrated).
+  if (!hydrated || (userQuery.isLoading && workspaceList.length === 0)) {
     return <LoadingScreen />;
   }
 
